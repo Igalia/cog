@@ -1,6 +1,15 @@
 cmake_minimum_required (VERSION 3.0)
 project(dinghy VERSION 0.1.0 LANGUAGES C)
 
+include(GNUInstallDirs)
+
+option(BUILD_SHARED_LIBS "Build lib${PROJECT_NAME}core as a shared library" ON)
+if (BUILD_SHARED_LIBS)
+	set(DINGHYCORE_COMPONENT "runtime")
+else()
+	set(DINGHYCORE_COMPONENT "development")
+endif()
+
 add_definitions(
 	-DPROJECT_VERSION="${PROJECT_VERSION}"
 	-DPROJECT_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
@@ -11,16 +20,33 @@ add_definitions(
 find_package(PkgConfig)
 pkg_search_module(WPE REQUIRED wpe-webkit)
 
-add_executable(${PROJECT_NAME}
-	${PROJECT_NAME}.c
+
+# libdinghycore
+set(DINGHYCORE_API_HEADERS
+	dinghy.h
+	dy-launcher.h
+	dy-webkit-utils.h
+)
+add_library(dinghycore
 	dy-launcher.c
 )
-target_include_directories(${PROJECT_NAME} PUBLIC ${WPE_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} ${WPE_LIBRARIES})
+set_property(TARGET dinghycore PROPERTY C_STANDARD 99)
+target_include_directories(dinghycore PUBLIC ${WPE_INCLUDE_DIRS})
+target_link_libraries(dinghycore ${WPE_LIBRARIES})
 
-set_property(
-	TARGET ${PROJECT_NAME}
-	PROPERTY C_STANDARD 99
-)
+add_executable(dinghy dinghy.c)
+set_property(TARGET dinghy PROPERTY C_STANDARD 99)
+target_link_libraries(dinghy dinghycore)
 		
-install(TARGETS ${PROJECT_NAME} DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
+install(TARGETS dinghy
+	DESTINATION ${CMAKE_INSTALL_BINDIR}
+	COMPONENT "runtime"
+)
+install(TARGETS dinghycore
+	DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	COMPONENT ${DINGHYCORE_COMPONENT}
+)
+install(FILES ${DINGHYCORE_API_HEADERS}
+	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dinghy
+	COMPONENT "development"
+)

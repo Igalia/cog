@@ -8,7 +8,7 @@
 #include <wpe/webkit.h>
 #include <stdlib.h>
 
-#include "dy-launcher.h"
+#include "dinghy.h"
 
 
 static struct {
