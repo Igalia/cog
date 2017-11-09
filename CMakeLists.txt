@@ -3,7 +3,9 @@ project(dinghy VERSION 0.1.0 LANGUAGES C)
 
 include(GNUInstallDirs)
 
+option(USE_WEBKIT_GTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
 option(BUILD_SHARED_LIBS "Build lib${PROJECT_NAME}core as a shared library" ON)
+
 if (BUILD_SHARED_LIBS)
 	set(DINGHYCORE_COMPONENT "runtime")
 else()
@@ -18,7 +20,17 @@ add_definitions(
 )
 
 find_package(PkgConfig)
-pkg_search_module(WPE REQUIRED wpe-webkit)
+
+if (USE_WEBKIT_GTK)
+	pkg_search_module(WKGTK REQUIRED webkit2gtk-4.0)
+	set(WEB_ENGINE_INCLUDE_DIRS ${WKGTK_INCLUDE_DIRS})
+	set(WEB_ENGINE_LIBRARIES ${WKGTK_LIBRARIES})
+	add_definitions(-DDY_WEBKIT_GTK=1)
+else ()
+	pkg_search_module(WPE REQUIRED wpe-webkit)
+	set(WEB_ENGINE_INCLUDE_DIRS ${WPE_INCLUDE_DIRS})
+	set(WEB_ENGINE_LIBRARIES ${WPE_LIBRARIES})
+endif ()
 
 
 # libdinghycore
@@ -31,8 +43,8 @@ add_library(dinghycore
 	dy-launcher.c
 )
 set_property(TARGET dinghycore PROPERTY C_STANDARD 99)
-target_include_directories(dinghycore PUBLIC ${WPE_INCLUDE_DIRS})
-target_link_libraries(dinghycore ${WPE_LIBRARIES})
+target_include_directories(dinghycore PUBLIC ${WEB_ENGINE_INCLUDE_DIRS})
+target_link_libraries(dinghycore ${WEB_ENGINE_LIBRARIES})
 
 add_executable(dinghy dinghy.c)
 set_property(TARGET dinghy PROPERTY C_STANDARD 99)

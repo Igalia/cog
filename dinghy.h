@@ -8,7 +8,7 @@
 #ifndef DINGHY_H
 #define DINGHY_H
 
-#include "dy-launcher.h"
 #include "dy-webkit-utils.h"
+#include "dy-launcher.h"
 
 #endif /* !DINGHY_H */

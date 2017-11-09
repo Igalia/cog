@@ -5,9 +5,7 @@
  * Distributed under terms of the BSD-2-Clause license.
  */
 
-#include <wpe/webkit.h>
 #include <stdlib.h>
-
 #include "dinghy.h"
 
 
