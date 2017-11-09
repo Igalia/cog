@@ -209,6 +209,14 @@ dy_launcher_init (DyLauncher *launcher)
 }
 
 
+#ifndef DY_LAUNCHER_DEFAULT_APPID
+# if DY_WEBKIT_GTK
+#  define DY_LAUNCHER_DEFAULT_APPID "com.igalia.DinghyGtk"
+# else
+#  define DY_LAUNCHER_DEFAULT_APPID "com.igalia.Dinghy"
+# endif
+#endif
+
 gpointer
 dy_launcher_create_instance (gpointer user_data)
 {
@@ -217,7 +225,7 @@ dy_launcher_create_instance (gpointer user_data)
         G_APPLICATION_CAN_OVERRIDE_APP_ID |
         G_APPLICATION_HANDLES_OPEN ;
     return g_object_new (DY_TYPE_LAUNCHER,
-                         "application-id", NULL  /* TODO */,
+                         "application-id", DY_LAUNCHER_DEFAULT_APPID,
                          "flags",  app_flags,
                          NULL);
 }

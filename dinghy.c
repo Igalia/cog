@@ -11,6 +11,7 @@
 
 static struct {
     gboolean version;
+    gboolean print_appid;
     GStrv    arguments;
 } s_options = { 0, };
 
@@ -18,6 +19,7 @@ static struct {
 static GOptionEntry s_cli_options[] =
 {
     { "version", '\0', 0, G_OPTION_ARG_NONE, &s_options.version, "Print version and exit", NULL },
+    { "print-appid", '\0', 0, G_OPTION_ARG_NONE, &s_options.print_appid, "Print application ID and exit", NULL },
     { G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments, "", "[URL]" },
     { NULL }
 };
@@ -37,6 +39,11 @@ on_handle_local_options (GApplication *application,
 {
     if (s_options.version) {
         g_print ("%s\n", PROJECT_VERSION);
+        return EXIT_SUCCESS;
+    }
+    if (s_options.print_appid) {
+        const char *appid = g_application_get_application_id (application);
+        if (appid) g_print ("%s\n", appid);
         return EXIT_SUCCESS;
     }
 

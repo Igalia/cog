@@ -6,6 +6,11 @@ include(GNUInstallDirs)
 option(USE_WEBKIT_GTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
 option(BUILD_SHARED_LIBS "Build lib${PROJECT_NAME}core as a shared library" ON)
 
+set(DEFAULT_APPID "" CACHE STRING "Default GApplication unique identifier")
+if (DEFAULT_APPID AND NOT DEFAULT_APPID STREQUAL "")
+	add_definitions(-DDY_LAUNCHER_DEFAULT_APPID="${DEFAULT_APPID}")
+endif ()
+
 if (BUILD_SHARED_LIBS)
 	set(DINGHYCORE_COMPONENT "runtime")
 else()
