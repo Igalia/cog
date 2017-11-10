@@ -8,6 +8,22 @@
 #include "dy-gtk-utils.h"
 
 
+static void
+add_header_button (GtkWidget  *header,
+                   const char *icon_name,
+                   const char *action)
+{
+    g_return_if_fail (header);
+    g_return_if_fail (icon_name);
+    g_return_if_fail (action);
+
+    GtkWidget *button = gtk_button_new_from_icon_name (icon_name, GTK_ICON_SIZE_SMALL_TOOLBAR);
+    gtk_header_bar_pack_start (GTK_HEADER_BAR (header), button);
+    gtk_actionable_set_action_name (GTK_ACTIONABLE (button), action);
+    gtk_widget_show (button);
+}
+
+
 GtkWidget*
 dy_gtk_create_window (DyLauncher *launcher)
 {
@@ -20,6 +36,9 @@ dy_gtk_create_window (DyLauncher *launcher)
     gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (header), TRUE);
     gtk_header_bar_set_title (GTK_HEADER_BAR (header), "Dinghy");
     g_object_bind_property (web_view, "uri", header, "subtitle", G_BINDING_DEFAULT);
+
+    add_header_button (header, "go-previous", "app.previous");
+    add_header_button (header, "go-next", "app.next");
 
     GtkWidget *window = gtk_application_window_new (GTK_APPLICATION (launcher));  // Floating.
     gtk_window_set_titlebar (GTK_WINDOW (window), header);  // Takes ownwership of header.
