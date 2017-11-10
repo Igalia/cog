@@ -42,7 +42,7 @@ static GParamSpec *s_properties[N_PROPERTIES] = { NULL, };
 
 enum {
     ACTION_QUIT,
-    ACTION_PREV,
+    ACTION_PREVIOUS,
     ACTION_NEXT,
     ACTION_RELOAD,
     N_ACTIONS
@@ -258,7 +258,7 @@ dy_launcher_class_init (DyLauncherClass *klass)
                       0);
 
     s_actions[ACTION_QUIT] = make_action ("quit", on_action_quit);
-    s_actions[ACTION_PREV] = make_action ("previous", on_action_prev);
+    s_actions[ACTION_PREVIOUS] = make_action ("previous", on_action_prev);
     s_actions[ACTION_NEXT] = make_action ("next", on_action_next);
     s_actions[ACTION_RELOAD] = make_action ("reload", on_action_reload);
 }
