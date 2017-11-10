@@ -18,6 +18,8 @@ dy_gtk_create_window (DyLauncher *launcher)
     GtkWidget *web_view = GTK_WIDGET (dy_launcher_get_web_view (launcher));
     g_return_val_if_fail (web_view, NULL);
 
+    gtk_window_set_default_icon_name ("applications-internet");
+
     GtkWidget *header = gtk_header_bar_new ();  // Floating.
     gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (header), TRUE);
     gtk_header_bar_set_title (GTK_HEADER_BAR (header), "Dinghy");
@@ -46,7 +48,8 @@ dy_gtk_create_window (DyLauncher *launcher)
 
     GtkWidget *window = gtk_application_window_new (GTK_APPLICATION (launcher));  // Floating.
     gtk_window_set_titlebar (GTK_WINDOW (window), header);  // Takes ownwership of header.
-    gtk_widget_set_size_request (window, 400, 200);
+    gtk_window_set_default_size (GTK_WINDOW (window), 800, 700);
+    gtk_widget_set_size_request (window, 300, 200);
     gtk_container_add (GTK_CONTAINER (window), web_view);
 
     gtk_widget_show_all (window);
