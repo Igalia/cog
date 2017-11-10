@@ -100,6 +100,20 @@ dy_launcher_activate (GApplication *application)
      * Give user code the chance of creating a customized web view.
      */
     DyLauncher *launcher = DY_LAUNCHER (application);
+
+    /*
+     * We support only a single main web view, so bail out here if one
+     * has been already created (there might be related ones, though).
+     */
+    if (launcher->web_view) {
+#if DY_WEBKIT_GTK
+        GtkWidget *toplevel = gtk_widget_get_toplevel (GTK_WIDGET (launcher->web_view));
+        if (gtk_widget_is_toplevel (toplevel) && GTK_IS_WINDOW (toplevel))
+            gtk_window_present (GTK_WINDOW (toplevel));
+#endif
+        return;
+    }
+
     g_signal_emit (launcher,
                    s_signals[CREATE_WEB_VIEW],
                    0,
