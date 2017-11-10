@@ -46,6 +46,13 @@ dy_gtk_create_window (DyLauncher *launcher)
     gtk_container_add (GTK_CONTAINER (box), button);
     gtk_widget_show (button);
 
+    /* Refresh button */
+    button = gtk_button_new_from_icon_name ("view-refresh-symbolic", GTK_ICON_SIZE_BUTTON);
+    gtk_widget_set_tooltip_text (button, "Reload the current page");
+    gtk_actionable_set_detailed_action_name (GTK_ACTIONABLE (button), "app.reload");
+    gtk_header_bar_pack_start (GTK_HEADER_BAR (header), button);
+    gtk_widget_show (button);
+
     GtkWidget *window = gtk_application_window_new (GTK_APPLICATION (launcher));  // Floating.
     gtk_window_set_titlebar (GTK_WINDOW (window), header);  // Takes ownwership of header.
     gtk_window_set_default_size (GTK_WINDOW (window), 800, 700);

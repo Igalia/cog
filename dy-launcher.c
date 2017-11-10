@@ -44,6 +44,7 @@ enum {
     ACTION_QUIT,
     ACTION_PREV,
     ACTION_NEXT,
+    ACTION_RELOAD,
     N_ACTIONS
 };
 
@@ -66,6 +67,12 @@ static void
 on_action_next (DyLauncher *launcher)
 {
     webkit_web_view_go_forward (dy_launcher_get_web_view (launcher));
+}
+
+static void
+on_action_reload (DyLauncher *launcher)
+{
+    webkit_web_view_reload (dy_launcher_get_web_view (launcher));
 }
 
 static void
@@ -253,6 +260,7 @@ dy_launcher_class_init (DyLauncherClass *klass)
     s_actions[ACTION_QUIT] = make_action ("quit", on_action_quit);
     s_actions[ACTION_PREV] = make_action ("previous", on_action_prev);
     s_actions[ACTION_NEXT] = make_action ("next", on_action_next);
+    s_actions[ACTION_RELOAD] = make_action ("reload", on_action_reload);
 }
 
 
