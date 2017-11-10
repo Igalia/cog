@@ -8,25 +8,11 @@
 #include "dy-gtk-utils.h"
 
 
-static void
-add_header_button (GtkWidget  *header,
-                   const char *icon_name,
-                   const char *action)
-{
-    g_return_if_fail (header);
-    g_return_if_fail (icon_name);
-    g_return_if_fail (action);
-
-    GtkWidget *button = gtk_button_new_from_icon_name (icon_name, GTK_ICON_SIZE_SMALL_TOOLBAR);
-    gtk_header_bar_pack_start (GTK_HEADER_BAR (header), button);
-    gtk_actionable_set_action_name (GTK_ACTIONABLE (button), action);
-    gtk_widget_show (button);
-}
-
-
 GtkWidget*
 dy_gtk_create_window (DyLauncher *launcher)
 {
+    GtkWidget *button;
+
     g_return_val_if_fail (launcher, NULL);
 
     GtkWidget *web_view = GTK_WIDGET (dy_launcher_get_web_view (launcher));
@@ -37,8 +23,26 @@ dy_gtk_create_window (DyLauncher *launcher)
     gtk_header_bar_set_title (GTK_HEADER_BAR (header), "Dinghy");
     g_object_bind_property (web_view, "uri", header, "subtitle", G_BINDING_DEFAULT);
 
-    add_header_button (header, "go-previous", "app.previous");
-    add_header_button (header, "go-next", "app.next");
+    /* HBox used to show Previous/Next buttons linked */
+    GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_style_context_add_class (gtk_widget_get_style_context (box), "raised");
+    gtk_style_context_add_class (gtk_widget_get_style_context (box), "linked");
+    gtk_header_bar_pack_start (GTK_HEADER_BAR (header), box);
+    gtk_widget_show (box);
+
+    /* Back/Previous button */
+    button = gtk_button_new_from_icon_name ("go-previous-symbolic", GTK_ICON_SIZE_BUTTON);
+    gtk_widget_set_tooltip_text (button, "Go back to the previous page");
+    gtk_actionable_set_action_name (GTK_ACTIONABLE (button), "app.previous");
+    gtk_container_add (GTK_CONTAINER (box), button);
+    gtk_widget_show (button);
+
+    /* Next/Forward button */
+    button = gtk_button_new_from_icon_name ("go-next-symbolic", GTK_ICON_SIZE_BUTTON);
+    gtk_widget_set_tooltip_text (button, "Go forward to the next page");
+    gtk_actionable_set_action_name (GTK_ACTIONABLE (button), "app.next");
+    gtk_container_add (GTK_CONTAINER (box), button);
+    gtk_widget_show (button);
 
     GtkWidget *window = gtk_application_window_new (GTK_APPLICATION (launcher));  // Floating.
     gtk_window_set_titlebar (GTK_WINDOW (window), header);  // Takes ownwership of header.
