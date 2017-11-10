@@ -123,7 +123,15 @@ dy_launcher_open (GApplication *application,
                   int           n_files,
                   const char   *hint)
 {
+    g_assert (n_files);
+
+    if (n_files > 1)
+        g_warning ("Requested opening %i files, opening only the first one", n_files);
+
     g_printerr ("%s: %i files\n", __func__, n_files);
+
+    g_autofree char *uri = g_file_get_uri (files[0]);
+    webkit_web_view_load_uri (dy_launcher_get_web_view (DY_LAUNCHER (application)), uri);
 }
 
 static void
