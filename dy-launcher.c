@@ -9,26 +9,17 @@
 #include "dy-webkit-utils.h"
 
 #if DY_WEBKIT_GTK
-# include <gtk/gtk.h>
+# include "dy-gtk-utils.h"
 #endif
 
 
 struct _DyLauncher {
-#if DY_WEBKIT_GTK
-    GtkApplication    parent;
-#else
-    GApplication      parent;
-#endif
+    DyLauncherBase    parent;
     WebKitWebContext *web_context;
     WebKitWebView    *web_view;
 };
 
-
-#if DY_WEBKIT_GTK
-G_DEFINE_TYPE (DyLauncher, dy_launcher, GTK_TYPE_APPLICATION)
-#else
-G_DEFINE_TYPE (DyLauncher, dy_launcher, G_TYPE_APPLICATION)
-#endif
+G_DEFINE_TYPE (DyLauncher, dy_launcher, DY_LAUNCHER_BASE_TYPE)
 
 
 enum {
@@ -107,9 +98,7 @@ dy_launcher_activate (GApplication *application)
      */
     if (launcher->web_view) {
 #if DY_WEBKIT_GTK
-        GtkWidget *toplevel = gtk_widget_get_toplevel (GTK_WIDGET (launcher->web_view));
-        if (gtk_widget_is_toplevel (toplevel) && GTK_IS_WINDOW (toplevel))
-            gtk_window_present (GTK_WINDOW (toplevel));
+        dy_gtk_present_window (launcher);
 #endif
         return;
     }
@@ -124,25 +113,9 @@ dy_launcher_activate (GApplication *application)
      */
     if (!launcher->web_view) {
         launcher->web_view = WEBKIT_WEB_VIEW (webkit_web_view_new_with_context (dy_launcher_get_web_context (launcher)));
-
 #if DY_WEBKIT_GTK
-        // Header bar.
-        GtkWidget *header = gtk_header_bar_new ();  // Floating.
-        gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (header), TRUE);
-        gtk_header_bar_set_title (GTK_HEADER_BAR (header), "Dinghy");
-        g_object_bind_property (launcher->web_view, "uri",
-                                header, "subtitle",
-                                G_BINDING_DEFAULT);
-        gtk_widget_show (header);
-
-        // Window with web view widget inside.
-        GtkWidget *window = gtk_application_window_new (GTK_APPLICATION (application));  // Floating.
-        gtk_window_set_titlebar (GTK_WINDOW (window), header);  // Takes ownwership of header.
-        gtk_widget_set_size_request (window, 640, 480);
-        gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (launcher->web_view));
-        gtk_widget_show (window);
-
-        gtk_widget_show (GTK_WIDGET (launcher->web_view));
+        GtkWidget *window = dy_gtk_create_window (launcher);
+        g_object_ref_sink (window);  // Keep the window object alive.
 #endif
     }
 
@@ -252,6 +225,14 @@ dy_launcher_get_default (void)
     g_once (&create_instance_once, dy_launcher_create_instance, NULL);
     g_assert_nonnull (create_instance_once.retval);
     return create_instance_once.retval;
+}
+
+
+WebKitWebView*
+dy_launcher_get_web_view (DyLauncher *launcher)
+{
+    g_return_val_if_fail (launcher, NULL);
+    return launcher->web_view;
 }
 
 

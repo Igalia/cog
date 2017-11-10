@@ -26,10 +26,12 @@ add_definitions(
 
 find_package(PkgConfig)
 
+set(DINGHYCORE_EXTRA_SOURCES "")
 if (USE_WEBKIT_GTK)
 	pkg_search_module(WKGTK REQUIRED webkit2gtk-4.0)
 	set(WEB_ENGINE_INCLUDE_DIRS ${WKGTK_INCLUDE_DIRS})
 	set(WEB_ENGINE_LIBRARIES ${WKGTK_LIBRARIES})
+	list(APPEND DINGHYCORE_EXTRA_SOURCES dy-gtk-utils.c)
 	add_definitions(-DDY_WEBKIT_GTK=1)
 else ()
 	pkg_search_module(WPE REQUIRED wpe-webkit)
@@ -46,6 +48,7 @@ set(DINGHYCORE_API_HEADERS
 )
 add_library(dinghycore
 	dy-launcher.c
+	${DINGHYCORE_EXTRA_SOURCES}
 )
 set_property(TARGET dinghycore PROPERTY C_STANDARD 99)
 target_include_directories(dinghycore PUBLIC ${WEB_ENGINE_INCLUDE_DIRS})
