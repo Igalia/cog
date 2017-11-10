@@ -33,6 +33,7 @@ static int s_signals[LAST_SIGNAL] = { 0, };
 enum {
     PROP_0,
     PROP_WEB_CONTEXT,
+    PROP_WEB_VIEW,
     N_PROPERTIES
 };
 
@@ -135,6 +136,9 @@ dy_launcher_get_property (GObject    *object,
         case PROP_WEB_CONTEXT:
             g_value_set_object (value, dy_launcher_get_web_context (launcher));
             break;
+        case PROP_WEB_VIEW:
+            g_value_set_object (value, dy_launcher_get_web_view (launcher));
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
@@ -170,6 +174,13 @@ dy_launcher_class_init (DyLauncherClass *klass)
                              "Web Context",
                              "The WebKitWebContext for the launcher",
                              WEBKIT_TYPE_WEB_CONTEXT,
+                             G_PARAM_READABLE |
+                             G_PARAM_STATIC_STRINGS);
+    s_properties[PROP_WEB_VIEW] =
+        g_param_spec_object ("web-view",
+                             "Web View",
+                             "The main WebKitWebView for the launcher",
+                             WEBKIT_TYPE_WEB_VIEW,
                              G_PARAM_READABLE |
                              G_PARAM_STATIC_STRINGS);
 
