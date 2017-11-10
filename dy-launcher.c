@@ -40,6 +40,57 @@ enum {
 static GParamSpec *s_properties[N_PROPERTIES] = { NULL, };
 
 
+enum {
+    ACTION_QUIT,
+    ACTION_PREV,
+    ACTION_NEXT,
+    N_ACTIONS
+};
+
+static GSimpleAction *s_actions[N_ACTIONS] = { NULL, };
+
+
+static void
+on_action_quit (DyLauncher *launcher)
+{
+    g_application_quit (G_APPLICATION (launcher));
+}
+
+static void
+on_action_prev (DyLauncher *launcher)
+{
+    webkit_web_view_go_back (dy_launcher_get_web_view (launcher));
+}
+
+static void
+on_action_next (DyLauncher *launcher)
+{
+    webkit_web_view_go_forward (dy_launcher_get_web_view (launcher));
+}
+
+static void
+on_action_activate (GSimpleAction *action,
+                    GVariant      *parameter,
+                    void          *user_data)
+{
+    g_assert_nonnull (action);
+    g_assert_nonnull (user_data);
+    void (*callback)(DyLauncher*) = user_data;
+    (*callback) (dy_launcher_get_default ());
+}
+
+static GSimpleAction*
+make_action (const char *name, void (*callback) (DyLauncher*))
+{
+    g_return_val_if_fail (name, NULL);
+    g_return_val_if_fail (callback, NULL);
+
+    GSimpleAction *action = g_simple_action_new (name, NULL);
+    g_signal_connect (action, "activate", G_CALLBACK (on_action_activate), callback);
+    return action;
+}
+
+
 static void
 dy_launcher_create_web_context (DyLauncher *launcher)
 {
@@ -198,12 +249,18 @@ dy_launcher_class_init (DyLauncherClass *klass)
                       NULL,
                       WEBKIT_TYPE_WEB_VIEW,
                       0);
+
+    s_actions[ACTION_QUIT] = make_action ("quit", on_action_quit);
+    s_actions[ACTION_PREV] = make_action ("previous", on_action_prev);
+    s_actions[ACTION_NEXT] = make_action ("next", on_action_next);
 }
 
 
 static void
 dy_launcher_init (DyLauncher *launcher)
 {
+    for (size_t i = 0; i < N_ACTIONS; i++)
+        g_action_map_add_action (G_ACTION_MAP (launcher), G_ACTION (s_actions[i]));
 }
 
 
