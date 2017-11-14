@@ -220,6 +220,7 @@ dy_launcher_dispose (GObject *object)
 {
     DyLauncher *launcher = DY_LAUNCHER (object);
 
+    g_clear_object (&launcher->web_view);
     g_clear_object (&launcher->web_context);
 
     G_OBJECT_CLASS (dy_launcher_parent_class)->dispose (object);
