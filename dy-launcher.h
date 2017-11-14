@@ -36,6 +36,9 @@ struct _DyLauncherClass
 DyLauncher       *dy_launcher_get_default     (void);
 WebKitWebView    *dy_launcher_get_web_view    (DyLauncher *launcher);
 WebKitWebContext *dy_launcher_get_web_context (DyLauncher *launcher);
+const char       *dy_launcher_get_home_uri    (DyLauncher *launcher);
+void              dy_launcher_set_home_uri    (DyLauncher *launcher,
+                                               const char *home_uri);
 
 G_END_DECLS
 

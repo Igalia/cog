@@ -17,6 +17,7 @@ struct _DyLauncher {
     DyLauncherBase    parent;
     WebKitWebContext *web_context;
     WebKitWebView    *web_view;
+    char             *home_uri;
 };
 
 G_DEFINE_TYPE (DyLauncher, dy_launcher, DY_LAUNCHER_BASE_TYPE)
@@ -34,6 +35,7 @@ enum {
     PROP_0,
     PROP_WEB_CONTEXT,
     PROP_WEB_VIEW,
+    PROP_HOME_URI,
     N_PROPERTIES
 };
 
@@ -128,10 +130,8 @@ dy_launcher_open (GApplication *application,
     if (n_files > 1)
         g_warning ("Requested opening %i files, opening only the first one", n_files);
 
-    g_printerr ("%s: %i files\n", __func__, n_files);
-
-    g_autofree char *uri = g_file_get_uri (files[0]);
-    webkit_web_view_load_uri (dy_launcher_get_web_view (DY_LAUNCHER (application)), uri);
+    g_autofree char *home_uri = g_file_get_uri (files[0]);
+    dy_launcher_set_home_uri (DY_LAUNCHER (application), home_uri);
 }
 
 static void
@@ -175,6 +175,8 @@ dy_launcher_startup (GApplication *application)
 #else
     g_application_hold (application);
 #endif
+
+    webkit_web_view_load_uri (launcher->web_view, launcher->home_uri);
 }
 
 
@@ -182,16 +184,13 @@ static void
 dy_launcher_activate (GApplication *application)
 {
     /*
-     * We support only a single main web view, so bail out here if one
-     * has been already created (there might be related ones, though).
+     * Give user code the chance of creating a customized web view.
      */
     DyLauncher *launcher = DY_LAUNCHER (application);
-    if (launcher->web_view) {
+
 #if DY_WEBKIT_GTK
-        dy_gtk_present_window (launcher);
+    dy_gtk_present_window (launcher);
 #endif
-        return;
-    }
 }
 
 
@@ -208,6 +207,26 @@ dy_launcher_get_property (GObject    *object,
             break;
         case PROP_WEB_VIEW:
             g_value_set_object (value, dy_launcher_get_web_view (launcher));
+            break;
+        case PROP_HOME_URI:
+            g_value_set_string (value, dy_launcher_get_home_uri (launcher));
+            break;
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    }
+}
+
+
+static void
+dy_launcher_set_property (GObject      *object,
+                          unsigned      prop_id,
+                          const GValue *value,
+                          GParamSpec   *pspec)
+{
+    DyLauncher *launcher = DY_LAUNCHER (object);
+    switch (prop_id) {
+        case PROP_HOME_URI:
+            dy_launcher_set_home_uri (launcher, g_value_get_string (value));
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -227,12 +246,18 @@ dy_launcher_dispose (GObject *object)
 }
 
 
+#ifndef DY_LAUNCHER_DEFAULT_HOME_URI
+#define DY_LAUNCHER_DEFAULT_HOME_URI "about:blank"
+#endif
+
+
 static void
 dy_launcher_class_init (DyLauncherClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
     object_class->dispose = dy_launcher_dispose;
     object_class->get_property = dy_launcher_get_property;
+    object_class->set_property = dy_launcher_set_property;
 
     GApplicationClass *application_class = G_APPLICATION_CLASS (klass);
     application_class->open = dy_launcher_open;
@@ -252,6 +277,14 @@ dy_launcher_class_init (DyLauncherClass *klass)
                              "The main WebKitWebView for the launcher",
                              WEBKIT_TYPE_WEB_VIEW,
                              G_PARAM_READABLE |
+                             G_PARAM_STATIC_STRINGS);
+
+    s_properties[PROP_HOME_URI] =
+        g_param_spec_string ("home-uri",
+                             "Home URI",
+                             "URI loaded by the main WebKitWebView for the launcher at launch",
+                             DY_LAUNCHER_DEFAULT_HOME_URI,
+                             G_PARAM_READWRITE |
                              G_PARAM_STATIC_STRINGS);
 
     g_object_class_install_properties (object_class,
@@ -329,4 +362,31 @@ dy_launcher_get_web_context (DyLauncher *launcher)
 {
     g_return_val_if_fail (launcher, NULL);
     return launcher->web_context;
+}
+
+
+const char*
+dy_launcher_get_home_uri (DyLauncher *launcher)
+{
+    g_return_val_if_fail (launcher, NULL);
+    return launcher->home_uri;
+}
+
+
+void
+dy_launcher_set_home_uri (DyLauncher *launcher,
+                          const char *home_uri)
+{
+    g_return_if_fail (launcher);
+    g_return_if_fail (home_uri);
+
+    if (g_strcmp0 (launcher->home_uri, home_uri) == 0)
+        return;
+
+    launcher->home_uri = g_strdup (home_uri);
+    g_object_notify_by_pspec (G_OBJECT (launcher),
+                              s_properties[PROP_HOME_URI]);
+
+    if (launcher->web_view)
+        webkit_web_view_load_uri (launcher->web_view, launcher->home_uri);
 }

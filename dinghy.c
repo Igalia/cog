@@ -40,7 +40,6 @@ on_handle_local_options (GApplication *application,
         return EXIT_SUCCESS;
     }
 
-#if 0
     const char *uri = NULL;
     if (!s_options.arguments) {
         if (!(uri = g_getenv ("DINGHY_URL"))) {
@@ -68,18 +67,11 @@ on_handle_local_options (GApplication *application,
         }
     }
 
-    /*
-     * At this point we have the URL that will be loaded: store it in the
-     * options dictionary, and return -1 to let the default GApplication
-     * implementation emit the "open" signal passing the URI to it.
-     */
-    g_assert_nonnull (utf8_uri);
-    g_variant_dict_insert (options,
-                           G_OPTION_REMAINING,
-                           "^aay", &utf8_uri, 1);
-#endif
+    g_strfreev (s_options.arguments);
+    s_options.arguments = NULL;
 
-    return -1;
+    dy_launcher_set_home_uri (DY_LAUNCHER (application), utf8_uri);
+    return -1;  /* Continue startup. */
 }
 
 
