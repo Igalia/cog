@@ -163,9 +163,17 @@ dy_launcher_startup (GApplication *application)
      */
     g_object_ref_sink (launcher->web_view);
 
+    /*
+     * When building with GTK+ support, the GtkApplicationWindow will
+     * automatically "hold" the GApplication instance and release it when
+     * the window is closed. We have to manually call g_application_hold()
+     * ourselves when building against the WPE port.
+     */
 #if DY_WEBKIT_GTK
     GtkWidget *window = dy_gtk_create_window (launcher);
     g_object_ref_sink (window);  // Keep the window object alive.
+#else
+    g_application_hold (application);
 #endif
 }
 
