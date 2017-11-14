@@ -25,13 +25,6 @@ static GOptionEntry s_cli_options[] =
 };
 
 
-static gboolean
-handle_shutdown_signal (gpointer user_data)
-{
-    
-}
-
-
 static int
 on_handle_local_options (GApplication *application,
                          GVariantDict *options,
