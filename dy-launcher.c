@@ -144,14 +144,6 @@ dy_launcher_startup (GApplication *application)
 }
 
 static void
-dy_launcher_shutdown (GApplication *application)
-{
-    G_APPLICATION_CLASS (dy_launcher_parent_class)->shutdown (application);
-
-    DyLauncher *launcher = DY_LAUNCHER (application);
-}
-
-static void
 dy_launcher_activate (GApplication *application)
 {
     /*
@@ -233,7 +225,6 @@ dy_launcher_class_init (DyLauncherClass *klass)
     application_class->open = dy_launcher_open;
     application_class->startup = dy_launcher_startup;
     application_class->activate = dy_launcher_activate;
-    application_class->shutdown = dy_launcher_shutdown;
 
     s_properties[PROP_WEB_CONTEXT] =
         g_param_spec_object ("web-context",
