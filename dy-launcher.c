@@ -141,26 +141,6 @@ dy_launcher_startup (GApplication *application)
 
     DyLauncher *launcher = DY_LAUNCHER (application);
     dy_launcher_create_web_context (launcher);
-}
-
-static void
-dy_launcher_activate (GApplication *application)
-{
-    /*
-     * Give user code the chance of creating a customized web view.
-     */
-    DyLauncher *launcher = DY_LAUNCHER (application);
-
-    /*
-     * We support only a single main web view, so bail out here if one
-     * has been already created (there might be related ones, though).
-     */
-    if (launcher->web_view) {
-#if DY_WEBKIT_GTK
-        dy_gtk_present_window (launcher);
-#endif
-        return;
-    }
 
     g_signal_emit (launcher,
                    s_signals[CREATE_WEB_VIEW],
@@ -170,16 +150,40 @@ dy_launcher_activate (GApplication *application)
     /*
      * Create the web view ourselves if the signal handler did not.
      */
-    if (!launcher->web_view) {
+    if (!launcher->web_view)
         launcher->web_view = WEBKIT_WEB_VIEW (webkit_web_view_new_with_context (dy_launcher_get_web_context (launcher)));
-#if DY_WEBKIT_GTK
-        GtkWidget *window = dy_gtk_create_window (launcher);
-        g_object_ref_sink (window);  // Keep the window object alive.
-#endif
-    }
 
+    /*
+     * The web context being used must be the same created by DyLauncher.
+     */
+    g_assert (webkit_web_view_get_context (launcher->web_view) == dy_launcher_get_web_context (launcher));
+
+    /*
+     * Make sure we keep the floating reference to the web view alive.
+     */
     g_object_ref_sink (launcher->web_view);
-    g_return_if_fail (webkit_web_view_get_context (launcher->web_view) == dy_launcher_get_web_context (launcher));
+
+#if DY_WEBKIT_GTK
+    GtkWidget *window = dy_gtk_create_window (launcher);
+    g_object_ref_sink (window);  // Keep the window object alive.
+#endif
+}
+
+
+static void
+dy_launcher_activate (GApplication *application)
+{
+    /*
+     * We support only a single main web view, so bail out here if one
+     * has been already created (there might be related ones, though).
+     */
+    DyLauncher *launcher = DY_LAUNCHER (application);
+    if (launcher->web_view) {
+#if DY_WEBKIT_GTK
+        dy_gtk_present_window (launcher);
+#endif
+        return;
+    }
 }
 
 
