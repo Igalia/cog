@@ -1,0 +1,45 @@
+#! /bin/sh
+set -e
+
+show_help () {
+	cat <<EOF
+Usage: dinghyctl <action> [...]
+Controls a running instance of the Dinghy WPE launcher.
+
+Available actions:
+
+    quit         Requests that the instance exits gracefully.
+    previous     Goes to the previous item in the navigation history.
+    next         Goes to the next item in the navigation history.
+    reload       Reloads the current URI.
+    open <URI>   Sets the argument as home URI and loads it.
+
+Environment variables:
+
+    APPID        Application identifier of the remote instance to control.
+
+EOF
+}
+
+: ${APPID:='@DINGHY_DEFAULT_APPID@'}
+
+exec_busctl () {
+	exec busctl --user call "${APPID}" "/${APPID//\./\/}" org.freedesktop.Application "$@"
+}
+
+case $1 in
+	quit | reload | previous | next)
+		exec_busctl ActivateAction 'sava{sv}' "$1" 0 0
+		;;
+	open)
+		exec_busctl Open 'asa{sv}' 1 "$2" 0
+		;;
+	help | -h | --help)
+		show_help
+		;;
+	*)
+		echo "$0: Invalid command line" 1>&2
+		show_help 1>&2
+		exit 1
+		;;
+esac

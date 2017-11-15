@@ -5,11 +5,18 @@ include(GNUInstallDirs)
 
 option(USE_WEBKIT_GTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
 option(BUILD_SHARED_LIBS "Build lib${PROJECT_NAME}core as a shared library" ON)
-
 set(DEFAULT_APPID "" CACHE STRING "Default GApplication unique identifier")
-if (DEFAULT_APPID AND NOT DEFAULT_APPID STREQUAL "")
-	add_definitions(-DDY_LAUNCHER_DEFAULT_APPID="${DEFAULT_APPID}")
+
+if (NOT DEFAULT_APPID OR DEFAULT_APPID STREQUAL "")
+	if (USE_WEBKIT_GTK)
+		set(DINGHY_DEFAULT_APPID com.igalia.DinghyGtk)
+	else ()
+		set(DINGHY_DEFAULT_APPID com.igalia.Dinghy)
+	endif ()
+else ()
+	set(DINGHY_DEFAULT_APPID ${DEFAULT_APPID})
 endif ()
+add_definitions(-DDY_LAUNCHER_DEFAULT_APPID="${DINGHY_DEFAULT_APPID}")
 
 if (BUILD_SHARED_LIBS)
 	set(DINGHYCORE_COMPONENT "runtime")
@@ -69,4 +76,10 @@ install(TARGETS dinghycore
 install(FILES ${DINGHYCORE_API_HEADERS}
 	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dinghy
 	COMPONENT "development"
+)
+
+configure_file(dinghyctl.in dinghyctl @ONLY)
+install(FILES dinghyctl
+	DESTINATION ${CMAKE_INSTALL_BINDIR}
+	COMPONENT "runtime"
 )
