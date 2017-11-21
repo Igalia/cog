@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.3)
 project(dinghy VERSION 0.1.0 LANGUAGES C)
 
 include(GNUInstallDirs)
@@ -44,13 +44,13 @@ set(DINGHYCORE_SOURCES
 )
 
 if (USE_WEBKIT_GTK)
-	pkg_search_module(WKGTK REQUIRED webkit2gtk-4.0)
+	pkg_check_modules(WKGTK REQUIRED webkit2gtk-4.0)
 	set(WEB_ENGINE_INCLUDE_DIRS ${WKGTK_INCLUDE_DIRS})
 	set(WEB_ENGINE_LIBRARIES ${WKGTK_LIBRARIES})
 	list(APPEND DINGHYCORE_SOURCES dy-gtk-utils.c)
 	add_definitions(-DDY_WEBKIT_GTK=1)
 else ()
-	pkg_search_module(WPE REQUIRED wpe-webkit)
+	pkg_check_modules(WPE REQUIRED wpe-webkit)
 	set(WEB_ENGINE_INCLUDE_DIRS ${WPE_INCLUDE_DIRS})
 	set(WEB_ENGINE_LIBRARIES ${WPE_LIBRARIES})
 endif ()
