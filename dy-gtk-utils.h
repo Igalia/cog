@@ -8,8 +8,10 @@
 #ifndef DY_GTK_UTILS_H
 #define DY_GTK_UTILS_H
 
-#include <gtk/gtk.h>
-#include "dinghy.h"
+#include <glib.h>
+
+typedef struct _GtkWidget  GtkWidget;
+typedef struct _DyLauncher DyLauncher;
 
 G_BEGIN_DECLS
 

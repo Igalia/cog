@@ -8,18 +8,19 @@
 #ifndef DY_LAUNCHER_H
 #define DY_LAUNCHER_H
 
+#include "dy-config.h"
 #include "dy-webkit-utils.h"
 
 G_BEGIN_DECLS
 
-#if DY_WEBKIT_GTK
-# define DY_LAUNCHER_BASE_TYPE  GTK_TYPE_APPLICATION
-  typedef GtkApplication      DyLauncherBase;
-  typedef GtkApplicationClass DyLauncherBaseClass;
+#if DY_USE_WEBKITGTK
+# define DY_LAUNCHER_BASE_TYPE GTK_TYPE_APPLICATION
+  typedef GtkApplication       DyLauncherBase;
+  typedef GtkApplicationClass  DyLauncherBaseClass;
 #else
-# define DY_LAUNCHER_BASE_TYPE  G_TYPE_APPLICATION
-  typedef GApplication        DyLauncherBase;
-  typedef GApplicationClass   DyLauncherBaseClass;
+# define DY_LAUNCHER_BASE_TYPE G_TYPE_APPLICATION
+  typedef GApplication         DyLauncherBase;
+  typedef GApplicationClass    DyLauncherBaseClass;
 #endif
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (DyLauncherBase, g_object_unref)

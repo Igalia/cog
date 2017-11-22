@@ -8,6 +8,7 @@
 #ifndef DINGHY_H
 #define DINGHY_H
 
+#include "dy-config.h"
 #include "dy-webkit-utils.h"
 #include "dy-launcher.h"
 

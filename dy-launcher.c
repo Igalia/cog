@@ -8,7 +8,7 @@
 #include "dy-launcher.h"
 #include "dy-webkit-utils.h"
 
-#if DY_WEBKIT_GTK
+#if DY_USE_WEBKITGTK
 # include "dy-gtk-utils.h"
 #endif
 
@@ -169,7 +169,7 @@ dy_launcher_startup (GApplication *application)
      * the window is closed. We have to manually call g_application_hold()
      * ourselves when building against the WPE port.
      */
-#if DY_WEBKIT_GTK
+#if DY_USE_WEBKITGTK
     GtkWidget *window = dy_gtk_create_window (launcher);
     g_object_ref_sink (window);  // Keep the window object alive.
 #else
@@ -188,7 +188,7 @@ dy_launcher_activate (GApplication *application)
      */
     DyLauncher *launcher = DY_LAUNCHER (application);
 
-#if DY_WEBKIT_GTK
+#if DY_USE_WEBKITGTK
     dy_gtk_present_window (launcher);
 #endif
 }
@@ -246,8 +246,8 @@ dy_launcher_dispose (GObject *object)
 }
 
 
-#ifndef DY_LAUNCHER_DEFAULT_HOME_URI
-#define DY_LAUNCHER_DEFAULT_HOME_URI "about:blank"
+#ifndef DY_DEFAULT_HOME_URI
+#  define DY_DEFAULT_HOME_URI "about:blank"
 #endif
 
 
@@ -283,7 +283,7 @@ dy_launcher_class_init (DyLauncherClass *klass)
         g_param_spec_string ("home-uri",
                              "Home URI",
                              "URI loaded by the main WebKitWebView for the launcher at launch",
-                             DY_LAUNCHER_DEFAULT_HOME_URI,
+                             DY_DEFAULT_HOME_URI,
                              G_PARAM_READWRITE |
                              G_PARAM_STATIC_STRINGS);
 
@@ -317,12 +317,12 @@ dy_launcher_init (DyLauncher *launcher)
 }
 
 
-#ifndef DY_LAUNCHER_DEFAULT_APPID
-# if DY_WEBKIT_GTK
-#  define DY_LAUNCHER_DEFAULT_APPID "com.igalia.DinghyGtk"
-# else
-#  define DY_LAUNCHER_DEFAULT_APPID "com.igalia.Dinghy"
-# endif
+#ifndef DY_DEFAULT_APPID
+#  if DY_USE_WEBKITGTK
+#    define DY_DEFAULT_APPID "com.igalia.DinghyGtk"
+#  else
+#    define DY_DEFAULT_APPID "com.igalia.Dinghy"
+#  endif
 #endif
 
 gpointer
@@ -333,7 +333,7 @@ dy_launcher_create_instance (gpointer user_data)
         G_APPLICATION_CAN_OVERRIDE_APP_ID |
         G_APPLICATION_HANDLES_OPEN ;
     return g_object_new (DY_TYPE_LAUNCHER,
-                         "application-id", DY_LAUNCHER_DEFAULT_APPID,
+                         "application-id", DY_DEFAULT_APPID,
                          "flags",  app_flags,
                          NULL);
 }

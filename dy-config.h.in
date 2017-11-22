@@ -1,0 +1,19 @@
+/*
+ * dy-config.h
+ * Copyright (C) 2017 Adrian Perez <aperez@igalia.com>
+ *
+ * Distributed under terms of the MIT license.
+ */
+
+#ifndef DY_CONFIG_H_IN
+#define DY_CONFIG_H_IN
+
+#define DY_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define DY_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define DY_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define DY_VERSION_STRING "@PROJECT_VERSION@"
+#cmakedefine DY_DEFAULT_APPID "@DY_DEFAULT_APPID@"
+#cmakedefine DY_DEFAULT_HOME_URI "@DY_DEFAULT_HOME_URI@"
+#cmakedefine01 DY_USE_WEBKITGTK
+
+#endif /* !DY_CONFIG_H_IN */

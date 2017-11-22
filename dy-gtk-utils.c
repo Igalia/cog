@@ -6,6 +6,8 @@
  */
 
 #include "dy-gtk-utils.h"
+#include "dy-launcher.h"
+#include <gtk/gtk.h>
 
 
 GtkWidget*

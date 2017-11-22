@@ -31,7 +31,7 @@ on_handle_local_options (GApplication *application,
                          gpointer      user_data)
 {
     if (s_options.version) {
-        g_print ("%s\n", PROJECT_VERSION);
+        g_print ("%s\n", DY_VERSION_STRING);
         return EXIT_SUCCESS;
     }
     if (s_options.print_appid) {

@@ -3,20 +3,24 @@ project(dinghy VERSION 0.1.0 LANGUAGES C)
 
 include(GNUInstallDirs)
 
-option(USE_WEBKIT_GTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
+option(DY_USE_WEBKITGTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
 option(BUILD_SHARED_LIBS "Build lib${PROJECT_NAME}core as a shared library" ON)
-set(DEFAULT_APPID "" CACHE STRING "Default GApplication unique identifier")
+set(DY_APPID "" CACHE STRING "Default GApplication unique identifier")
+set(DY_HOME_URI "" CACHE STRING "Default home URI")
 
-if (NOT DEFAULT_APPID OR DEFAULT_APPID STREQUAL "")
-	if (USE_WEBKIT_GTK)
-		set(DINGHY_DEFAULT_APPID com.igalia.DinghyGtk)
+if (NOT DY_APPID OR DY_APPID STREQUAL "")
+	if (DY_USE_WEBKITGTK)
+		set(DY_DEFAULT_APPID com.igalia.DinghyGtk)
 	else ()
-		set(DINGHY_DEFAULT_APPID com.igalia.Dinghy)
+		set(DY_DEFAULT_APPID com.igalia.Dinghy)
 	endif ()
 else ()
-	set(DINGHY_DEFAULT_APPID ${DEFAULT_APPID})
+	set(DY_DEFAULT_APPID ${DY_APPID})
 endif ()
-add_definitions(-DDY_LAUNCHER_DEFAULT_APPID="${DINGHY_DEFAULT_APPID}")
+
+if (DY_HOME_URI AND NOT DY_HOME_URI STREQUAL "")
+	set(DY_DEFAULT_HOME_URI ${DY_HOME_URI})
+endif ()
 
 if (BUILD_SHARED_LIBS)
 	set(DINGHYCORE_COMPONENT "runtime")
@@ -24,12 +28,9 @@ else()
 	set(DINGHYCORE_COMPONENT "development")
 endif()
 
-add_definitions(
-	-DPROJECT_VERSION="${PROJECT_VERSION}"
-	-DPROJECT_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
-	-DPROJECT_VERSION_MINOR=${PROJECT_VERSION_MINOR}
-	-DPROJECT_VERSION_PATCH=${PROJECT_VERSION_PATCH}
-)
+
+configure_file(dy-config.h.in dy-config.h @ONLY)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 find_package(PkgConfig)
 
@@ -38,21 +39,17 @@ set(DINGHYCORE_API_HEADERS
 	dinghy.h
 	dy-launcher.h
 	dy-webkit-utils.h
+	${CMAKE_CURRENT_BINARY_DIR}/dy-config.h
 )
 set(DINGHYCORE_SOURCES
 	dy-launcher.c
 )
 
-if (USE_WEBKIT_GTK)
-	pkg_check_modules(WKGTK REQUIRED webkit2gtk-4.0)
-	set(WEB_ENGINE_INCLUDE_DIRS ${WKGTK_INCLUDE_DIRS})
-	set(WEB_ENGINE_LIBRARIES ${WKGTK_LIBRARIES})
+if (DY_USE_WEBKITGTK)
 	list(APPEND DINGHYCORE_SOURCES dy-gtk-utils.c)
-	add_definitions(-DDY_WEBKIT_GTK=1)
+	pkg_check_modules(WEB_ENGINE REQUIRED webkit2gtk-4.0)
 else ()
-	pkg_check_modules(WPE REQUIRED wpe-webkit)
-	set(WEB_ENGINE_INCLUDE_DIRS ${WPE_INCLUDE_DIRS})
-	set(WEB_ENGINE_LIBRARIES ${WPE_LIBRARIES})
+	pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit)
 endif ()
 
 
