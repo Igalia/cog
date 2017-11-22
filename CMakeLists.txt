@@ -79,7 +79,7 @@ install(FILES ${DINGHYCORE_API_HEADERS}
 )
 
 configure_file(dinghyctl.in dinghyctl @ONLY)
-install(FILES dinghyctl
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dinghyctl
 	DESTINATION ${CMAKE_INSTALL_BINDIR}
 	COMPONENT "runtime"
 )
