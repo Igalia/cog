@@ -28,6 +28,7 @@ else()
 	set(DINGHYCORE_COMPONENT "development")
 endif()
 
+add_definitions(-DDY_INSIDE_DINGHY__=1)
 
 configure_file(dy-config.h.in dy-config.h @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})

@@ -8,6 +8,10 @@
 #ifndef DY_LAUNCHER_H
 #define DY_LAUNCHER_H
 
+#if !(defined(DY_INSIDE_DINGHY__) && DY_INSIDE_DINGHY__)
+# error "Do not include this header directly, use <dinghy.h> instead"
+#endif
+
 #include "dy-config.h"
 #include "dy-webkit-utils.h"
 
