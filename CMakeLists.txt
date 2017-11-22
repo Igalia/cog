@@ -85,3 +85,9 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dinghyctl
 		GROUP_READ GROUP_EXECUTE
 		WORLD_READ WORLD_EXECUTE
 )
+
+configure_file(dinghycore.pc.in dinghycore.pc @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dinghycore.pc
+	DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+	COMPONENT "development"
+)
