@@ -75,11 +75,40 @@ on_handle_local_options (GApplication *application,
 }
 
 
+static void
+on_about_page (DyURIHandlerRequest *request,
+               void                *user_data)
+{
+    const char data[] =
+        "<html><head><title>Dinghy - About</title>"
+        "<style type='text/css'>"
+        "body { color: #888; font: menu; padding: 0 5em }"
+        "p { text-align: center; font-size: 4em;"
+        "  margin: 0.5em; padding: 1em; border: 2px solid #ccc;"
+        "  border-radius: 7px; background: #fafafa }"
+        "p > span { font-weight: bold; color: #666 }"
+        "</style></head><body>"
+        "<p><span>Dinghy</span> v" DY_VERSION_STRING "</p>"
+        "</body></html>";
+    dy_uri_handler_request_load_string (request, "text/html", data, -1);
+}
+
+static void
+on_startup (GApplication *application,
+            void         *user_data)
+{
+    g_autoptr(DyURIHandler) uri_handler = dy_uri_handler_new("dinghy");
+    dy_uri_handler_register (uri_handler, "about", on_about_page, NULL);
+    dy_uri_handler_attach (uri_handler, DY_LAUNCHER (application));
+}
+
+
 int
 main (int argc, char *argv[])
 {
     g_autoptr(GApplication) app = G_APPLICATION (dy_launcher_get_default ());
     g_application_add_main_option_entries (app, s_cli_options);
+    g_signal_connect (app, "startup", G_CALLBACK (on_startup), NULL);
     g_signal_connect (app, "handle-local-options",
                       G_CALLBACK (on_handle_local_options), NULL);
     return g_application_run (app, argc, argv);

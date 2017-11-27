@@ -39,11 +39,13 @@ find_package(PkgConfig)
 set(DINGHYCORE_API_HEADERS
 	dinghy.h
 	dy-launcher.h
+	dy-uri-handler.h
 	dy-webkit-utils.h
 	${CMAKE_CURRENT_BINARY_DIR}/dy-config.h
 )
 set(DINGHYCORE_SOURCES
 	dy-launcher.c
+	dy-uri-handler.c
 )
 
 if (DY_USE_WEBKITGTK)
