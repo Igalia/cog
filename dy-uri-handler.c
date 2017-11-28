@@ -110,13 +110,13 @@ dy_uri_handler_request_error (DyURIHandlerRequest *request,
                               ...)
 {
     va_list args;
+    g_autoptr(GError) error = NULL;
+
     va_start (args, format);
-    webkit_uri_scheme_request_finish_error (request->webkit_request,
-                                            g_error_new_valist (g_io_error_quark (),
-                                                                G_IO_ERROR_FAILED,
-                                                                format,
-                                                                args));
+    error = g_error_new_valist (g_io_error_quark (), G_IO_ERROR_FAILED, format, args);
     va_end (args);
+
+    webkit_uri_scheme_request_finish_error (request->webkit_request, error);
 }
 
 
@@ -363,13 +363,12 @@ dy_uri_handler_do_webkit_request (WebKitURISchemeRequest *webkit_request,
     if (entry) {
         (*entry->callback) (&request, entry->user_data);
     } else {
-        const char *uri_string = webkit_uri_scheme_request_get_uri (webkit_request);
-        webkit_uri_scheme_request_finish_error (webkit_request,
-                                                g_error_new (g_io_error_quark (),
-                                                             G_IO_ERROR_NOT_FOUND,
-                                                             "No handler for '%s'",
-                                                             uri_string));
-        g_warning ("No handler for '%s'", uri_string);
+        g_autoptr(GError) error = g_error_new (g_io_error_quark (),
+                                               G_IO_ERROR_NOT_FOUND,
+                                               "No handler for '%s'",
+                                               webkit_uri_scheme_request_get_uri (webkit_request));
+        webkit_uri_scheme_request_finish_error (webkit_request, error);
+        g_warning ("%s", error->message);
     }
 
 out:
