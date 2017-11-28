@@ -355,10 +355,14 @@ dy_uri_handler_do_webkit_request (WebKitURISchemeRequest *webkit_request,
         goto out;
     }
 
-    PrefixEntry *entry = g_hash_table_lookup (request.handler->prefix_map,
-                                              soup_uri_get_host (request.uri));
-    if (!entry)
+    PrefixEntry *entry = NULL;
+    if (request.handler->prefix_map) {
+        entry = g_hash_table_lookup (request.handler->prefix_map,
+                                     soup_uri_get_host (request.uri));
+    }
+    if (!entry) {
         entry = &request.handler->default_callback;
+    }
 
     if (entry) {
         (*entry->callback) (&request, entry->user_data);
