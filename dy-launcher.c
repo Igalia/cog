@@ -91,8 +91,8 @@ on_action_activate (GSimpleAction *action,
 static GSimpleAction*
 make_action (const char *name, void (*callback) (DyLauncher*))
 {
-    g_return_val_if_fail (name, NULL);
-    g_return_val_if_fail (callback, NULL);
+    g_assert_nonnull (name);
+    g_assert_nonnull (callback);
 
     GSimpleAction *action = g_simple_action_new (name, NULL);
     g_signal_connect (action, "activate", G_CALLBACK (on_action_activate), callback);
@@ -352,7 +352,7 @@ dy_launcher_get_default (void)
 WebKitWebView*
 dy_launcher_get_web_view (DyLauncher *launcher)
 {
-    g_return_val_if_fail (launcher, NULL);
+    g_return_val_if_fail (DY_IS_LAUNCHER (launcher), NULL);
     return launcher->web_view;
 }
 
@@ -360,7 +360,7 @@ dy_launcher_get_web_view (DyLauncher *launcher)
 WebKitWebContext*
 dy_launcher_get_web_context (DyLauncher *launcher)
 {
-    g_return_val_if_fail (launcher, NULL);
+    g_return_val_if_fail (DY_IS_LAUNCHER (launcher), NULL);
     return launcher->web_context;
 }
 
@@ -368,7 +368,7 @@ dy_launcher_get_web_context (DyLauncher *launcher)
 const char*
 dy_launcher_get_home_uri (DyLauncher *launcher)
 {
-    g_return_val_if_fail (launcher, NULL);
+    g_return_val_if_fail (DY_IS_LAUNCHER (launcher), NULL);
     return launcher->home_uri;
 }
 
@@ -377,8 +377,8 @@ void
 dy_launcher_set_home_uri (DyLauncher *launcher,
                           const char *home_uri)
 {
-    g_return_if_fail (launcher);
-    g_return_if_fail (home_uri);
+    g_return_if_fail (DY_IS_LAUNCHER (launcher));
+    g_return_if_fail (home_uri != NULL);
 
     if (g_strcmp0 (launcher->home_uri, home_uri) == 0)
         return;

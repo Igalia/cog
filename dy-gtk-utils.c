@@ -69,10 +69,10 @@ dy_gtk_create_window (DyLauncher *launcher)
 void
 dy_gtk_present_window (DyLauncher *launcher)
 {
-    g_return_if_fail (launcher);
+    g_return_if_fail (DY_IS_LAUNCHER (launcher));
 
     GtkWidget *web_view = GTK_WIDGET (dy_launcher_get_web_view (launcher));
-    g_return_if_fail (web_view);
+    g_assert_nonnull (web_view);
 
     GtkWidget *toplevel = gtk_widget_get_toplevel (web_view);
     if (gtk_widget_is_toplevel (toplevel) && GTK_IS_WINDOW (toplevel))
