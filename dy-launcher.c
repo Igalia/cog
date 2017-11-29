@@ -6,6 +6,7 @@
  */
 
 #include "dy-launcher.h"
+#include "dy-request-handler.h"
 #include "dy-webkit-utils.h"
 
 #if DY_USE_WEBKITGTK
@@ -18,6 +19,7 @@ struct _DyLauncher {
     WebKitWebContext *web_context;
     WebKitWebView    *web_view;
     char             *home_uri;
+    GHashTable       *request_handlers;  /* (string, DyRequestHandler) */
 };
 
 G_DEFINE_TYPE (DyLauncher, dy_launcher, DY_LAUNCHER_BASE_TYPE)
@@ -100,6 +102,10 @@ make_action (const char *name, void (*callback) (DyLauncher*))
 }
 
 
+typedef struct _RequestHandlerMapEntry RequestHandlerMapEntry;
+static void request_handler_map_entry_register (const char*, RequestHandlerMapEntry*, WebKitWebContext*);
+
+
 static void
 dy_launcher_create_web_context (DyLauncher *launcher)
 {
@@ -116,6 +122,16 @@ dy_launcher_create_web_context (DyLauncher *launcher)
                                          NULL);
 
     launcher->web_context = webkit_web_context_new_with_website_data_manager (manager);
+
+    /*
+     * Request handlers can be registered with DyLauncher before the web
+     * context is created: register them now that it has been created.
+     */
+    if (launcher->request_handlers) {
+        g_hash_table_foreach (launcher->request_handlers,
+                              (GHFunc) request_handler_map_entry_register,
+                              launcher->web_context);
+    }
 }
 
 
@@ -241,6 +257,8 @@ dy_launcher_dispose (GObject *object)
 
     g_clear_object (&launcher->web_view);
     g_clear_object (&launcher->web_context);
+
+    g_clear_pointer (&launcher->request_handlers, g_hash_table_unref);
 
     G_OBJECT_CLASS (dy_launcher_parent_class)->dispose (object);
 }
@@ -389,4 +407,90 @@ dy_launcher_set_home_uri (DyLauncher *launcher,
 
     if (launcher->web_view)
         webkit_web_view_load_uri (launcher->web_view, launcher->home_uri);
+}
+
+
+struct _RequestHandlerMapEntry {
+    DyRequestHandler *handler;
+    gboolean          registered;
+};
+
+
+static inline RequestHandlerMapEntry*
+request_handler_map_entry_new (DyRequestHandler *handler)
+{
+    g_assert_nonnull (handler);
+
+    RequestHandlerMapEntry *entry = g_slice_new (RequestHandlerMapEntry);
+    entry->handler = g_object_ref_sink (handler);
+    entry->registered = FALSE;
+    return entry;
+}
+
+
+static inline void
+request_handler_map_entry_free (void *pointer)
+{
+    if (pointer) {
+        RequestHandlerMapEntry *entry = pointer;
+        g_clear_object (&entry->handler);
+        g_slice_free (RequestHandlerMapEntry, entry);
+    }
+}
+
+
+static void
+handle_uri_scheme_request (WebKitURISchemeRequest *request,
+                           void                   *user_data)
+{
+    RequestHandlerMapEntry *entry = user_data;
+    g_assert_nonnull (entry->handler);
+    dy_request_handler_run (entry->handler, request);
+}
+
+
+static void
+request_handler_map_entry_register (const char             *scheme,
+                                    RequestHandlerMapEntry *entry,
+                                    WebKitWebContext       *context)
+{
+    if (context && !entry->registered) {
+        webkit_web_context_register_uri_scheme (context,
+                                                scheme,
+                                                handle_uri_scheme_request,
+                                                entry,
+                                                NULL);
+    }
+}
+
+
+void
+dy_launcher_set_request_handler (DyLauncher       *launcher,
+                                 const char       *scheme,
+                                 DyRequestHandler *handler)
+{
+    g_return_if_fail (DY_IS_LAUNCHER (launcher));
+    g_return_if_fail (scheme != NULL);
+    g_return_if_fail (DY_IS_REQUEST_HANDLER (handler));
+
+    if (!launcher->request_handlers) {
+        launcher->request_handlers =
+            g_hash_table_new_full (g_str_hash,
+                                   g_str_equal,
+                                   g_free,
+                                   request_handler_map_entry_free);
+    }
+
+    RequestHandlerMapEntry *entry =
+        g_hash_table_lookup (launcher->request_handlers, scheme);
+
+    if (!entry) {
+        entry = request_handler_map_entry_new (handler);
+        g_hash_table_insert (launcher->request_handlers, g_strdup (scheme), entry);
+    } else if (entry->handler != handler) {
+        g_clear_object (&entry->handler);
+        entry->handler = g_object_ref_sink (handler);
+    }
+
+    request_handler_map_entry_register (scheme, entry, launcher->web_context);
 }

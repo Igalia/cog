@@ -17,6 +17,9 @@
 
 G_BEGIN_DECLS
 
+typedef struct _DyRequestHandler DyRequestHandler;
+
+
 #if DY_USE_WEBKITGTK
 # define DY_LAUNCHER_BASE_TYPE GTK_TYPE_APPLICATION
   typedef GtkApplication       DyLauncherBase;
@@ -38,12 +41,16 @@ struct _DyLauncherClass
     DyLauncherBaseClass parent_class;
 };
 
-DyLauncher       *dy_launcher_get_default     (void);
-WebKitWebView    *dy_launcher_get_web_view    (DyLauncher   *launcher);
-WebKitWebContext *dy_launcher_get_web_context (DyLauncher   *launcher);
-const char       *dy_launcher_get_home_uri    (DyLauncher   *launcher);
-void              dy_launcher_set_home_uri    (DyLauncher   *launcher,
-                                               const char   *home_uri);
+DyLauncher       *dy_launcher_get_default         (void);
+WebKitWebView    *dy_launcher_get_web_view        (DyLauncher       *launcher);
+WebKitWebContext *dy_launcher_get_web_context     (DyLauncher       *launcher);
+const char       *dy_launcher_get_home_uri        (DyLauncher       *launcher);
+void              dy_launcher_set_home_uri        (DyLauncher       *launcher,
+                                                   const char       *home_uri);
+
+void              dy_launcher_set_request_handler (DyLauncher       *launcher,
+                                                   const char       *scheme,
+                                                   DyRequestHandler *handler);
 
 G_END_DECLS
 

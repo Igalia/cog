@@ -12,7 +12,8 @@
 
 #include "dy-config.h"
 #include "dy-webkit-utils.h"
-#include "dy-uri-handler.h"
+#include "dy-request-handler.h"
+#include "dy-directory-files-handler.h"
 #include "dy-launcher.h"
 
 #undef DY_INSIDE_DINGHY__
