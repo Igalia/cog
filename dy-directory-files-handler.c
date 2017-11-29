@@ -145,9 +145,9 @@ dy_directory_files_handler_run (DyRequestHandler       *request_handler,
      * subresources cannot load properly as there would be no base URI.
      */
     const char *path = webkit_uri_scheme_request_get_path (request);
-    if (path[0] == '\0') {
+    if (path[0] != '/') {
         g_autofree char *uri =
-            g_strconcat (webkit_uri_scheme_request_get_scheme (request), ":/", NULL);
+            g_strconcat (webkit_uri_scheme_request_get_scheme (request), ":/", path, NULL);
         webkit_web_view_load_uri (webkit_uri_scheme_request_get_web_view (request), uri);
         return;
     }
