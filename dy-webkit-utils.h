@@ -27,6 +27,7 @@ G_BEGIN_DECLS
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (WebKitWebContext, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (WebKitWebView, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (WebKitSettings, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (WebKitURISchemeRequest, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (WebKitWebsiteDataManager, g_object_unref)
 
 #endif /* DY_USE_WEBKITGTK */
