@@ -13,6 +13,7 @@
 static struct {
     gboolean version;
     gboolean print_appid;
+    gboolean doc_viewer;
     GStrv    dir_handlers;
     GStrv    arguments;
 } s_options = { 0, };
@@ -20,10 +21,22 @@ static struct {
 
 static GOptionEntry s_cli_options[] =
 {
-    { "version", '\0', 0, G_OPTION_ARG_NONE, &s_options.version, "Print version and exit", NULL },
-    { "print-appid", '\0', 0, G_OPTION_ARG_NONE, &s_options.print_appid, "Print application ID and exit", NULL },
-    { "dir-handler", 'd', 0, G_OPTION_ARG_STRING_ARRAY, &s_options.dir_handlers, "Add a URI scheme handler for a directory", "SCHEME:PATH" },
-    { G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments, "", "[URL]" },
+    { "version", '\0', 0, G_OPTION_ARG_NONE, &s_options.version,
+        "Print version and exit",
+        NULL },
+    { "print-appid", '\0', 0, G_OPTION_ARG_NONE, &s_options.print_appid,
+        "Print application ID and exit",
+        NULL },
+    { "doc-viewer", '\0', 0, G_OPTION_ARG_NONE, &s_options.doc_viewer,
+        "Document viewer mode: optimizes for local loading of Web content. "
+        "This reduces memory usage at the cost of reducing caching of "
+        "resources loaded from the network.",
+        NULL },
+    { "dir-handler", 'd', 0, G_OPTION_ARG_STRING_ARRAY, &s_options.dir_handlers,
+        "Add a URI scheme handler for a directory",
+        "SCHEME:PATH" },
+    { G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments,
+        "", "[URL]" },
     { NULL }
 };
 
@@ -118,6 +131,21 @@ on_handle_local_options (GApplication *application,
 }
 
 
+static WebKitWebView*
+on_create_web_view (DyLauncher *launcher,
+                    void       *user_data)
+{
+    WebKitWebContext *web_context = dy_launcher_get_web_context (launcher);
+
+    if (s_options.doc_viewer) {
+        webkit_web_context_set_cache_model (web_context,
+                                            WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
+    }
+
+    return NULL;  /* Let DyLauncher create the Web view. */
+}
+
+
 int
 main (int argc, char *argv[])
 {
@@ -125,5 +153,7 @@ main (int argc, char *argv[])
     g_application_add_main_option_entries (app, s_cli_options);
     g_signal_connect (app, "handle-local-options",
                       G_CALLBACK (on_handle_local_options), NULL);
+    g_signal_connect (app, "create-web-view",
+                      G_CALLBACK (on_create_web_view), NULL);
     return g_application_run (app, argc, argv);
 }
