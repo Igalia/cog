@@ -17,6 +17,7 @@
 #include "dy-launcher.h"
 
 #if DY_USE_MODE_MONITOR
+#include "dy-mode-monitor.h"
 #include "dy-sysfs-mode-monitor.h"
 #endif /* DY_USE_MODE_MONITOR */
 

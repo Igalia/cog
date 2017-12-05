@@ -49,16 +49,19 @@ static GOptionEntry s_cli_options[] =
 
 
 #if DY_USE_MODE_MONITOR
-G_DEFINE_QUARK (dinghy-mode-monitor, dinghy_mode_monitor)
-
 static void
-on_sysfs_mode_monitor_notify (DySysfsModeMonitor *monitor,
-                              GParamSpec         *pspec,
-                              DyLauncher         *launcher)
+on_mode_monitor_notify (DyModeMonitor *monitor,
+                        GParamSpec    *pspec,
+                        DyLauncher    *launcher)
 {
-    g_printerr ("Device '%s', mode: %s\n",
-                dy_sysfs_mode_monitor_get_path (monitor),
-                dy_sysfs_mode_monitor_get_mode (monitor));
+    const DyModeMonitorInfo *info = dy_mode_monitor_get_info (monitor);
+    const char *device_name = DY_IS_SYSFS_MODE_MONITOR (monitor)
+        ? dy_sysfs_mode_monitor_get_path (DY_SYSFS_MODE_MONITOR (monitor))
+        : "(unnamed)";
+
+    g_printerr ("Device '%s', mode %" PRIu32 "x%" PRIu32 " (%s)\n",
+                device_name, info->width, info->height, info->mode_id);
+
 #if DY_USE_WEBKITGTK
 #else
 #endif /* DY_USE_WEBKITGTK */
@@ -69,15 +72,15 @@ attach_sysfs_mode_monitor (DyLauncher *launcher,
                            GError    **error)
 {
     g_autoptr(GFile) sysfs_file = g_file_new_for_commandline_arg (s_options.sysfs_path);
-    g_clear_pointer (&s_options.sysfs_path);
+    g_clear_pointer (&s_options.sysfs_path, g_free);
 
     g_autoptr(DySysfsModeMonitor) monitor = dy_sysfs_mode_monitor_new (sysfs_file, error);
     if (!monitor)
         return FALSE;
 
     g_signal_connect_object (g_steal_pointer (&monitor),
-                             "notify::mode",
-                             G_CALLBACK (on_sysfs_mode_monitor_notify),
+                             "notify::mode-id",
+                             G_CALLBACK (on_mode_monitor_notify),
                              launcher,
                              G_CONNECT_AFTER);
     return TRUE;

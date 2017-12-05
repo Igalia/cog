@@ -59,8 +59,14 @@ else ()
 endif ()
 
 if (DY_USE_MODE_MONITOR)
-	list(APPEND DINGHYCORE_SOURCES dy-sysfs-mode-monitor.c)
-	list(APPEND DINGHYCORE_API_HEADERS dy-sysfs-mode-monitor.h)
+	list(APPEND DINGHYCORE_SOURCES
+		dy-mode-monitor.c
+		dy-sysfs-mode-monitor.c
+	)
+	list(APPEND DINGHYCORE_API_HEADERS
+		dy-mode-monitor.h
+		dy-sysfs-mode-monitor.h
+	)
 endif ()
 
 add_library(dinghycore ${DINGHYCORE_SOURCES})

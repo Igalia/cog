@@ -28,7 +28,6 @@ struct _DySysfsModeMonitorClass
 
 DySysfsModeMonitor *dy_sysfs_mode_monitor_new      (GFile              *file,
                                                     GError            **error);
-const char         *dy_sysfs_mode_monitor_get_mode (DySysfsModeMonitor *monitor);
 const char         *dy_sysfs_mode_monitor_get_path (DySysfsModeMonitor *monitor);
 
 G_END_DECLS

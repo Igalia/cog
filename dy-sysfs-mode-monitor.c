@@ -5,6 +5,7 @@
  * Distributed under terms of the MIT license.
  */
 
+#include "dy-mode-monitor.h"
 #include "dy-sysfs-mode-monitor.h"
 #include <errno.h>
 #include <gio/gio.h>
@@ -18,21 +19,42 @@
 
 struct _DySysfsModeMonitor
 {
-    GObject       parent;
-    GFileMonitor *filemon;
-    GFile        *file;
-    char         *path;  /* Caches result of g_file_get_path(). */
-    char         *mode;
+    GObject           parent;
+    DyModeMonitorInfo mode_info;
+    GFileMonitor     *filemon;
+    GFile            *file;
+    char             *path;  /* Caches result of g_file_get_path(). */
 };
 
-G_DEFINE_TYPE (DySysfsModeMonitor, dy_sysfs_mode_monitor, G_TYPE_OBJECT)
+
+static const DyModeMonitorInfo*
+dy_sysfs_mode_monitor_get_info (DyModeMonitor *monitor)
+{
+    g_assert (DY_IS_SYSFS_MODE_MONITOR (monitor));
+    return &(DY_SYSFS_MODE_MONITOR (monitor)->mode_info);
+}
+
+
+static void
+dy_mode_monitor_interface_init (DyModeMonitorInterface *iface)
+{
+    iface->get_info = dy_sysfs_mode_monitor_get_info;
+}
+
+
+G_DEFINE_TYPE_WITH_CODE (DySysfsModeMonitor,
+                         dy_sysfs_mode_monitor,
+                         G_TYPE_OBJECT,
+                         G_IMPLEMENT_INTERFACE (DY_TYPE_MODE_MONITOR,
+                                                dy_mode_monitor_interface_init))
 
 
 enum {
     PROP_0,
-    PROP_MODE,
+    PROP_MODE_ID,
+    N_OVERRIDEN_PROPERTIES = PROP_MODE_ID,
     PROP_PATH,
-    N_PROPERTIES
+    N_PROPERTIES,
 };
 
 static GParamSpec *s_properties[N_PROPERTIES] = { NULL, };
@@ -46,8 +68,8 @@ dy_sysfs_mode_monitor_get_property (GObject    *object,
 {
     DySysfsModeMonitor *monitor = DY_SYSFS_MODE_MONITOR (object);
     switch (prop_id) {
-        case PROP_MODE:
-            g_value_set_string (value, dy_sysfs_mode_monitor_get_mode (monitor));
+        case PROP_MODE_ID:
+            g_value_set_string (value, monitor->mode_info.mode_id);
             break;
         case PROP_PATH:
             g_value_set_string (value, dy_sysfs_mode_monitor_get_path (monitor));
@@ -66,7 +88,7 @@ dy_sysfs_mode_monitor_dispose (GObject *object)
     g_clear_object (&monitor->filemon);
     g_clear_object (&monitor->file);
     g_clear_pointer (&monitor->path, g_free);
-    g_clear_pointer (&monitor->mode, g_free);
+    g_clear_pointer (&monitor->mode_info.mode_id, g_free);
 
     G_OBJECT_CLASS (dy_sysfs_mode_monitor_parent_class)->dispose (object);
 }
@@ -79,13 +101,8 @@ dy_sysfs_mode_monitor_class_init (DySysfsModeMonitorClass *klass)
     object_class->dispose = dy_sysfs_mode_monitor_dispose;
     object_class->get_property = dy_sysfs_mode_monitor_get_property;
 
-    s_properties[PROP_MODE] =
-        g_param_spec_string ("mode",
-                             "Current mode",
-                             "Graphics mode for the device being monitored",
-                             NULL,
-                             G_PARAM_READABLE |
-                             G_PARAM_STATIC_STRINGS);
+    DyModeMonitorInterface *mmon_iface =
+        g_type_default_interface_ref (DY_TYPE_MODE_MONITOR);
 
     s_properties[PROP_PATH] =
         g_param_spec_string ("path",
@@ -96,8 +113,16 @@ dy_sysfs_mode_monitor_class_init (DySysfsModeMonitorClass *klass)
                              G_PARAM_STATIC_STRINGS);
 
     g_object_class_install_properties (object_class,
-                                       N_PROPERTIES,
-                                       s_properties);
+                                       N_PROPERTIES - N_OVERRIDEN_PROPERTIES,
+                                       s_properties + N_OVERRIDEN_PROPERTIES);
+
+    s_properties[PROP_MODE_ID] =
+        g_object_interface_find_property (mmon_iface, "mode-id");
+    g_object_class_override_property (object_class,
+                                      PROP_MODE_ID,
+                                      "mode-id");
+
+    g_type_default_interface_unref (mmon_iface);
 }
 
 
@@ -134,12 +159,14 @@ dy_sysfs_mode_monitor_read_mode_sync (DySysfsModeMonitor *monitor,
         success = FALSE;
     }
 
-    g_debug ("Monitor [%s] mode: %s -> %s", monitor->path, monitor->mode, line);
-    if (g_strcmp0 (monitor->mode, line)) {
+    g_debug ("Monitor [%s] mode: %s -> %s",
+             monitor->path, monitor->mode_info.mode_id, line);
+
+    if (g_strcmp0 (monitor->mode_info.mode_id, line)) {
         /* Value has changed. Update and notify. */
-        g_clear_pointer (&monitor->mode, g_free);
-        monitor->mode = g_steal_pointer (&line);
-        g_object_notify_by_pspec (G_OBJECT (monitor), s_properties[PROP_MODE]);
+        g_clear_pointer (&monitor->mode_info.mode_id, g_free);
+        monitor->mode_info.mode_id = g_steal_pointer (&line);
+        g_object_notify_by_pspec (G_OBJECT (monitor), s_properties[PROP_MODE_ID]);
     }
 
     return success;
@@ -210,14 +237,6 @@ dy_sysfs_mode_monitor_new (GFile   *file,
 
 
 const char*
-dy_sysfs_mode_monitor_get_mode (DySysfsModeMonitor *monitor)
-{
-    g_return_val_if_fail (monitor != NULL, NULL);
-    return monitor->mode;
-}
-
-
-const char*
 dy_sysfs_mode_monitor_get_path (DySysfsModeMonitor *monitor)
 {
     g_return_val_if_fail (monitor != NULL, NULL);
@@ -229,13 +248,13 @@ dy_sysfs_mode_monitor_get_path (DySysfsModeMonitor *monitor)
 #include <string.h>
 
 static void
-on_monitor_mode_changed (DySysfsModeMonitor *monitor,
-                         GParamSpec         *pspec,
-                         void               *user_data)
+on_monitor_mode_changed (DyModeMonitor *monitor,
+                         GParamSpec    *pspec,
+                         void          *user_data)
 {
     g_print ("Monitor [%s] mode: %s\n",
-             dy_sysfs_mode_monitor_get_path (monitor),
-             dy_sysfs_mode_monitor_get_mode (monitor));
+             dy_sysfs_mode_monitor_get_path (DY_SYSFS_MODE_MONITOR (monitor)),
+             dy_mode_monitor_get_mode_id (monitor));
 }
 
 int
@@ -259,7 +278,8 @@ main (int argc, char **argv)
     }
     g_clear_object (&file);
 
-    g_signal_connect (monitor, "notify::mode", G_CALLBACK (on_monitor_mode_changed), NULL);
+    g_signal_connect (monitor, "notify::mode-id",
+                      G_CALLBACK (on_monitor_mode_changed), NULL);
     g_autoptr(GMainLoop) mainloop = g_main_loop_new (NULL, FALSE);
     g_main_loop_run (mainloop);
     return 0;
