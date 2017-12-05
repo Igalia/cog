@@ -349,8 +349,8 @@ dy_launcher_init (DyLauncher *launcher)
 #  endif
 #endif
 
-gpointer
-dy_launcher_create_instance (gpointer user_data)
+static void*
+dy_launcher_create_instance (void* user_data)
 {
     /* Global singleton */
     const GApplicationFlags app_flags =

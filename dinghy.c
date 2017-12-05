@@ -44,7 +44,7 @@ static GOptionEntry s_cli_options[] =
 static int
 on_handle_local_options (GApplication *application,
                          GVariantDict *options,
-                         gpointer      user_data)
+                         void         *user_data)
 {
     if (s_options.version) {
         g_print ("%s\n", DY_VERSION_STRING);
