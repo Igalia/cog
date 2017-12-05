@@ -91,7 +91,7 @@ on_handle_local_options (GApplication *application,
      * whether the directory exists. Note that this creation of the
      * corresponding DyURIHandler objects is done at GApplication::startup.
      */
-    for (size_t i = 0; s_options.dir_handlers[i]; i++) {
+    for (size_t i = 0; s_options.dir_handlers && s_options.dir_handlers[i]; i++) {
         char *colon = strchr (s_options.dir_handlers[i], ':');
         if (!colon) {
             g_printerr ("%s: Invalid URI handler specification '%s'\n",
