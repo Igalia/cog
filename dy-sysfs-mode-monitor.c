@@ -223,3 +223,45 @@ dy_sysfs_mode_monitor_get_path (DySysfsModeMonitor *monitor)
     g_return_val_if_fail (monitor != NULL, NULL);
     return monitor->path;
 }
+
+
+#ifdef DY_SYSFS_MODE_MONITOR_TEST_MAIN
+#include <string.h>
+
+static void
+on_monitor_mode_changed (DySysfsModeMonitor *monitor,
+                         GParamSpec         *pspec,
+                         void               *user_data)
+{
+    g_print ("Monitor [%s] mode: %s\n",
+             dy_sysfs_mode_monitor_get_path (monitor),
+             dy_sysfs_mode_monitor_get_mode (monitor));
+}
+
+int
+main (int argc, char **argv)
+{
+    const char *slash = strrchr (argv[0], '/');
+    g_set_prgname (slash ? slash + 1 : argv[0]);
+
+    if (argc != 2) {
+        g_printerr ("Usage: %s PATH\n", g_get_prgname ());
+        return 1;
+    }
+
+    g_autoptr(GError) error = NULL;
+    g_autoptr(GFile) file = g_file_new_for_commandline_arg (argv[1]);
+    g_autoptr(DySysfsModeMonitor) monitor = dy_sysfs_mode_monitor_new (file, &error);
+    if (!monitor) {
+        g_autofree char *path = g_file_get_path (file);
+        g_printerr ("%s: Cannot monitor '%s': %s", g_get_prgname (), path, error->message);
+        return 2;
+    }
+    g_clear_object (&file);
+
+    g_signal_connect (monitor, "notify::mode", G_CALLBACK (on_monitor_mode_changed), NULL);
+    g_autoptr(GMainLoop) mainloop = g_main_loop_new (NULL, FALSE);
+    g_main_loop_run (mainloop);
+    return 0;
+}
+#endif
