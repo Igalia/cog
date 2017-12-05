@@ -16,6 +16,10 @@
 #include "dy-directory-files-handler.h"
 #include "dy-launcher.h"
 
+#if DY_USE_MODE_MONITOR
+#include "dy-sysfs-mode-monitor.h"
+#endif /* DY_USE_MODE_MONITOR */
+
 #undef DY_INSIDE_DINGHY__
 
 #endif /* !DINGHY_H */

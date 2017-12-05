@@ -4,6 +4,7 @@ project(dinghy VERSION 0.1.0 LANGUAGES C)
 include(GNUInstallDirs)
 
 option(DY_USE_WEBKITGTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
+option(DY_USE_MODE_MONITOR "Use the SysFS graphics mode monitor" OFF)
 option(BUILD_SHARED_LIBS "Build lib${PROJECT_NAME}core as a shared library" ON)
 set(DY_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(DY_HOME_URI "" CACHE STRING "Default home URI")
@@ -57,6 +58,10 @@ else ()
 	pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit)
 endif ()
 
+if (DY_USE_MODE_MONITOR)
+	list(APPEND DINGHYCORE_SOURCES dy-sysfs-mode-monitor.c)
+	list(APPEND DINGHYCORE_API_HEADERS dy-sysfs-mode-monitor.h)
+endif ()
 
 add_library(dinghycore ${DINGHYCORE_SOURCES})
 set_property(TARGET dinghycore PROPERTY C_STANDARD 99)

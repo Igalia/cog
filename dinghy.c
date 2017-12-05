@@ -16,6 +16,9 @@ static struct {
     gboolean doc_viewer;
     GStrv    dir_handlers;
     GStrv    arguments;
+#if DY_USE_MODE_MONITOR
+    char    *sysfs_path;
+#endif /* DY_USE_MODE_MONITOR */
 } s_options = { 0, };
 
 
@@ -35,10 +38,51 @@ static GOptionEntry s_cli_options[] =
     { "dir-handler", 'd', 0, G_OPTION_ARG_STRING_ARRAY, &s_options.dir_handlers,
         "Add a URI scheme handler for a directory",
         "SCHEME:PATH" },
+#if DY_USE_MODE_MONITOR
+    { "sysfs-mode-monitor", '\0', 0, G_OPTION_ARG_STRING, &s_options.sysfs_path,
+        "SysFS framebuffer mode file to monitor", "PATH" },
+#endif /* !DY_VERSION_STRING */
     { G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments,
         "", "[URL]" },
     { NULL }
 };
+
+
+#if DY_USE_MODE_MONITOR
+G_DEFINE_QUARK (dinghy-mode-monitor, dinghy_mode_monitor)
+
+static void
+on_sysfs_mode_monitor_notify (DySysfsModeMonitor *monitor,
+                              GParamSpec         *pspec,
+                              DyLauncher         *launcher)
+{
+    g_printerr ("Device '%s', mode: %s\n",
+                dy_sysfs_mode_monitor_get_path (monitor),
+                dy_sysfs_mode_monitor_get_mode (monitor));
+#if DY_USE_WEBKITGTK
+#else
+#endif /* DY_USE_WEBKITGTK */
+}
+
+static inline gboolean
+attach_sysfs_mode_monitor (DyLauncher *launcher,
+                           GError    **error)
+{
+    g_autoptr(GFile) sysfs_file = g_file_new_for_commandline_arg (s_options.sysfs_path);
+    g_clear_pointer (&s_options.sysfs_path);
+
+    g_autoptr(DySysfsModeMonitor) monitor = dy_sysfs_mode_monitor_new (sysfs_file, error);
+    if (!monitor)
+        return FALSE;
+
+    g_signal_connect_object (g_steal_pointer (&monitor),
+                             "notify::mode",
+                             G_CALLBACK (on_sysfs_mode_monitor_notify),
+                             launcher,
+                             G_CONNECT_AFTER);
+    return TRUE;
+}
+#endif /* DY_USE_MODE_MONITOR */
 
 
 static int
@@ -127,6 +171,17 @@ on_handle_local_options (GApplication *application,
     }
 
     dy_launcher_set_home_uri (DY_LAUNCHER (application), utf8_uri);
+
+#if DY_USE_MODE_MONITOR
+    g_autoptr(GError) error = NULL;
+    if (!attach_sysfs_mode_monitor (DY_LAUNCHER (application), &error)) {
+        g_printerr ("Cannot monitor SysFS path '%s': %s\n",
+                    s_options.sysfs_path, error->message);
+        return EXIT_FAILURE;
+    }
+    g_clear_pointer (&s_options.sysfs_path, g_free);
+#endif /* DY_USE_MODE_MONITOR */
+
     return -1;  /* Continue startup. */
 }
 
