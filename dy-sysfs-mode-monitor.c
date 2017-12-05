@@ -180,11 +180,13 @@ on_file_monitor_changed (GFileMonitor       *filemon,
                          GFileMonitorEvent   event,
                          DySysfsModeMonitor *monitor)
 {
-    g_autoptr(GError) error = NULL;
-    if (!dy_sysfs_mode_monitor_read_mode_sync (monitor, &error)) {
-        g_warning ("Cannot read '%s': %s", 
-                   dy_sysfs_mode_monitor_get_path (monitor),
-                   error->message);
+    if (event == G_FILE_MONITOR_EVENT_CHANGES_DONE_HINT) {
+        g_autoptr(GError) error = NULL;
+        if (!dy_sysfs_mode_monitor_read_mode_sync (monitor, &error)) {
+            g_warning ("Cannot read '%s': %s",
+                       dy_sysfs_mode_monitor_get_path (monitor),
+                       error->message);
+        }
     }
 }
 
