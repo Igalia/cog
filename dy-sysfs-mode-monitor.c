@@ -132,6 +132,23 @@ dy_sysfs_mode_monitor_init (DySysfsModeMonitor *monitor)
 }
 
 
+static inline void
+dy_sysfs_mode_monitor_fill_info_from_mode_id (DyModeMonitorInfo *info)
+{
+    char leading_char, lacing;
+    uint32_t refresh_rate;
+
+    info->width = info->height = 0;
+    sscanf (info->mode_id,
+            "%c:%" SCNu32 "x%" SCNu32 "%c-%" PRIu32,
+            &leading_char,
+            &info->width,
+            &info->height,
+            &lacing,
+            &refresh_rate);
+}
+
+
 static gboolean
 dy_sysfs_mode_monitor_read_mode_sync (DySysfsModeMonitor *monitor,
                                       GError            **error)
@@ -166,6 +183,7 @@ dy_sysfs_mode_monitor_read_mode_sync (DySysfsModeMonitor *monitor,
         /* Value has changed. Update and notify. */
         g_clear_pointer (&monitor->mode_info.mode_id, g_free);
         monitor->mode_info.mode_id = g_steal_pointer (&line);
+        dy_sysfs_mode_monitor_fill_info_from_mode_id (&monitor->mode_info);
         g_object_notify_by_pspec (G_OBJECT (monitor), s_properties[PROP_MODE_ID]);
     }
 
@@ -254,9 +272,10 @@ on_monitor_mode_changed (DyModeMonitor *monitor,
                          GParamSpec    *pspec,
                          void          *user_data)
 {
-    g_print ("Monitor [%s] mode: %s\n",
+    const DyModeMonitorInfo *info = dy_mode_monitor_get_info (monitor);
+    g_print ("Monitor [%s] mode %" PRIu32 "x%" PRIu32 " (%s)\n",
              dy_sysfs_mode_monitor_get_path (DY_SYSFS_MODE_MONITOR (monitor)),
-             dy_mode_monitor_get_mode_id (monitor));
+             info->width, info->height, info->mode_id);
 }
 
 int
