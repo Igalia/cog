@@ -166,8 +166,14 @@ dy_launcher_startup (GApplication *application)
     /*
      * Create the web view ourselves if the signal handler did not.
      */
-    if (!launcher->web_view)
-        launcher->web_view = WEBKIT_WEB_VIEW (webkit_web_view_new_with_context (dy_launcher_get_web_context (launcher)));
+    if (!launcher->web_view) {
+        g_autoptr(WebKitSettings) settings =
+            webkit_settings_new_with_settings ("enable-developer-extras", TRUE, NULL);
+        launcher->web_view = WEBKIT_WEB_VIEW (g_object_new (WEBKIT_TYPE_WEB_VIEW,
+                                                            "settings", settings,
+                                                            "web-context", dy_launcher_get_web_context (launcher),
+                                                            NULL));
+    }
 
     /*
      * The web context being used must be the same created by DyLauncher.
