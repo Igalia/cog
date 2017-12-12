@@ -72,8 +72,6 @@ attach_sysfs_mode_monitor (DyLauncher *launcher,
                            GError    **error)
 {
     g_autoptr(GFile) sysfs_file = g_file_new_for_commandline_arg (s_options.sysfs_path);
-    g_clear_pointer (&s_options.sysfs_path, g_free);
-
     g_autoptr(DySysfsModeMonitor) monitor = dy_sysfs_mode_monitor_new (sysfs_file, error);
     if (!monitor)
         return FALSE;
@@ -176,13 +174,15 @@ on_handle_local_options (GApplication *application,
     dy_launcher_set_home_uri (DY_LAUNCHER (application), utf8_uri);
 
 #if DY_USE_MODE_MONITOR
-    g_autoptr(GError) error = NULL;
-    if (!attach_sysfs_mode_monitor (DY_LAUNCHER (application), &error)) {
-        g_printerr ("Cannot monitor SysFS path '%s': %s\n",
-                    s_options.sysfs_path, error->message);
-        return EXIT_FAILURE;
+    if (s_options.sysfs_path) {
+        g_autoptr(GError) error = NULL;
+        if (!attach_sysfs_mode_monitor (DY_LAUNCHER (application), &error)) {
+            g_printerr ("%s: Cannot monitor SysFS path '%s': %s\n",
+                        g_get_prgname (), s_options.sysfs_path, error->message);
+            return EXIT_FAILURE;
+        }
+        g_clear_pointer (&s_options.sysfs_path, g_free);
     }
-    g_clear_pointer (&s_options.sysfs_path, g_free);
 #endif /* DY_USE_MODE_MONITOR */
 
     return -1;  /* Continue startup. */
