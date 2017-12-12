@@ -5,7 +5,7 @@ include(GNUInstallDirs)
 
 option(DY_USE_WEBKITGTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
 option(DY_USE_MODE_MONITOR "Use the SysFS graphics mode monitor" OFF)
-option(BUILD_SHARED_LIBS "Build lib${PROJECT_NAME}core as a shared library" ON)
+set(DY_USE_DRM_MODE_MONITOR OFF CACHE BOOL "Enable the DRM/KMS graphics mode monitor")
 set(DY_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(DY_HOME_URI "" CACHE STRING "Default home URI")
 
@@ -58,6 +58,10 @@ else ()
 	pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit)
 endif ()
 
+set(DINGHYCORE_INCLUDE_DIRS ${WEB_ENGINE_INCLUDE_DIRS})
+set(DINGHYCORE_LIBRARARIES ${WEB_ENGINE_LIBRARIES})
+
+
 if (DY_USE_MODE_MONITOR)
 	list(APPEND DINGHYCORE_SOURCES
 		dy-mode-monitor.c
@@ -67,12 +71,24 @@ if (DY_USE_MODE_MONITOR)
 		dy-mode-monitor.h
 		dy-sysfs-mode-monitor.h
 	)
+	# If libudev is available, build also de DRM/KMS mode monitor.
+	pkg_check_modules(UDEV libudev)
+	pkg_check_modules(LIBDRM libdrm)
+	if (UDEV_FOUND AND LIBDRM_FOUND)
+		set(DY_USE_DRM_MODE_MONITOR ON)
+		list(APPEND DINGHYCORE_SOURCES dy-drm-mode-monitor.c)
+		list(APPEND DINGHYCORE_API_HEADERS dy-drm-mode-monitor.h)
+		list(APPEND DINGHYCORE_INCLUDE_DIRS ${UDEV_INCLUDE_DIRS} ${LIBDRM_INCLUDE_DIRS})
+		list(APPEND DINGHYCORE_LIBRARARIES ${UDEV_LIBRARIES} ${LIBDRM_LIBRARIES})
+	else ()
+		message(WARNING "DRM/KMS mode monitor won't be built: libudev not found")
+	endif ()
 endif ()
 
 add_library(dinghycore ${DINGHYCORE_SOURCES})
 set_property(TARGET dinghycore PROPERTY C_STANDARD 99)
-target_include_directories(dinghycore PUBLIC ${WEB_ENGINE_INCLUDE_DIRS})
-target_link_libraries(dinghycore ${WEB_ENGINE_LIBRARIES})
+target_include_directories(dinghycore PUBLIC ${DINGHYCORE_INCLUDE_DIRS})
+target_link_libraries(dinghycore ${DINGHYCORE_LIBRARARIES})
 
 add_executable(dinghy dinghy.c)
 set_property(TARGET dinghy PROPERTY C_STANDARD 99)

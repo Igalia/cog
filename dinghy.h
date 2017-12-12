@@ -17,8 +17,11 @@
 #include "dy-launcher.h"
 
 #if DY_USE_MODE_MONITOR
-#include "dy-mode-monitor.h"
-#include "dy-sysfs-mode-monitor.h"
+# include "dy-mode-monitor.h"
+# include "dy-sysfs-mode-monitor.h"
+# if DY_USE_DRM_MODE_MONITOR
+#  include "dy-drm-mode-monitor.h"
+# endif /* DY_USE_DRM_MODE_MONITOR */
 #endif /* DY_USE_MODE_MONITOR */
 
 #undef DY_INSIDE_DINGHY__

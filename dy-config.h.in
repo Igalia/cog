@@ -16,5 +16,6 @@
 #cmakedefine DY_DEFAULT_HOME_URI "@DY_DEFAULT_HOME_URI@"
 #cmakedefine01 DY_USE_WEBKITGTK
 #cmakedefine01 DY_USE_MODE_MONITOR
+#cmakedefine01 DY_USE_DRM_MODE_MONITOR
 
 #endif /* !DY_CONFIG_H_IN */
