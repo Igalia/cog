@@ -18,6 +18,9 @@ static struct {
     GStrv    arguments;
 #if DY_USE_MODE_MONITOR
     char    *sysfs_path;
+#if DY_USE_DRM_MODE_MONITOR
+    char    *drmdev_path;
+#endif
 #endif /* DY_USE_MODE_MONITOR */
 } s_options = { 0, };
 
@@ -41,6 +44,10 @@ static GOptionEntry s_cli_options[] =
 #if DY_USE_MODE_MONITOR
     { "sysfs-mode-monitor", '\0', 0, G_OPTION_ARG_STRING, &s_options.sysfs_path,
         "SysFS framebuffer mode file to monitor", "PATH" },
+#if DY_USE_DRM_MODE_MONITOR
+    { "drm-mode-monitor", '\0', 0, G_OPTION_ARG_STRING, &s_options.drmdev_path,
+        "Path to a DRM/KMS device node", "PATH" },
+#endif
 #endif /* !DY_VERSION_STRING */
     { G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments,
         "", "[URL]" },
@@ -55,9 +62,14 @@ on_mode_monitor_notify (DyModeMonitor *monitor,
                         DyLauncher    *launcher)
 {
     const DyModeMonitorInfo *info = dy_mode_monitor_get_info (monitor);
-    const char *device_name = DY_IS_SYSFS_MODE_MONITOR (monitor)
-        ? dy_sysfs_mode_monitor_get_path (DY_SYSFS_MODE_MONITOR (monitor))
-        : "(unnamed)";
+
+    const char *device_name = "(unnamed)";
+    if (DY_IS_SYSFS_MODE_MONITOR (monitor))
+        device_name = dy_sysfs_mode_monitor_get_path (DY_SYSFS_MODE_MONITOR (monitor));
+#if DY_USE_DRM_MODE_MONITOR
+    else if (DY_IS_DRM_MODE_MONITOR (monitor))
+        device_name = dy_drm_mode_monitor_get_device_path (DY_DRM_MODE_MONITOR (monitor));
+#endif
 
     g_printerr ("Device '%s', mode %" PRIu32 "x%" PRIu32 " (%s)\n",
                 device_name, info->width, info->height, info->mode_id);
@@ -83,6 +95,28 @@ attach_sysfs_mode_monitor (DyLauncher *launcher,
                              G_CONNECT_AFTER);
     return TRUE;
 }
+
+#if DY_USE_DRM_MODE_MONITOR
+
+static inline gboolean
+attach_drm_mode_monitor (DyLauncher *launcher,
+                         GError    **error)
+{
+    g_autoptr(GFile) drmdev_file = g_file_new_for_commandline_arg (s_options.drmdev_path);
+    g_autoptr(DyDrmModeMonitor) monitor = dy_drm_mode_monitor_new (drmdev_file, error);
+    if (!monitor)
+        return FALSE;
+
+    g_signal_connect_object (g_steal_pointer (&monitor),
+                             "notify::mode-id",
+                             G_CALLBACK (on_mode_monitor_notify),
+                             launcher,
+                             G_CONNECT_AFTER);
+    return TRUE;
+}
+
+#endif /* DY_USE_DRM_MODE_MONITOR */
+
 #endif /* DY_USE_MODE_MONITOR */
 
 
@@ -183,6 +217,18 @@ on_handle_local_options (GApplication *application,
         }
         g_clear_pointer (&s_options.sysfs_path, g_free);
     }
+
+#if DY_USE_DRM_MODE_MONITOR
+    if (s_options.drmdev_path) {
+        g_autoptr(GError) error = NULL;
+        if (!attach_drm_mode_monitor (DY_LAUNCHER (application), &error)) {
+            g_printerr ("%s: Cannot monitor DRM/KMS device '%s': %s\n",
+                        g_get_prgname (), s_options.drmdev_path, error->message);
+            return EXIT_FAILURE;
+        }
+        g_clear_pointer (&s_options.drmdev_path, g_free);
+    }
+#endif /* DY_USE_DRM_MODE_MONITOR */
 #endif /* DY_USE_MODE_MONITOR */
 
     return -1;  /* Continue startup. */
