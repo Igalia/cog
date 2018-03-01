@@ -30,6 +30,7 @@ else()
 endif()
 
 add_definitions(-DDY_INSIDE_DINGHY__=1)
+add_definitions(-DG_LOG_DOMAIN=\"Dy\")
 
 configure_file(dy-config.h.in dy-config.h @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
