@@ -246,7 +246,16 @@ on_create_web_view (DyLauncher *launcher,
                                             WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
     }
 
-    return NULL;  /* Let DyLauncher create the Web view. */
+    // TODO: Allow configuring some settings with command line flags.
+    g_autoptr(WebKitSettings) settings =
+        webkit_settings_new_with_settings ("enable-developer-extras", TRUE, NULL);
+    g_autoptr(WebKitWebView) web_view = g_object_new (WEBKIT_TYPE_WEB_VIEW,
+                                                      "settings", settings,
+                                                      "web-context", web_context,
+                                                      NULL);
+    dy_web_view_connect_default_error_handlers (web_view);
+
+    return g_steal_pointer (&web_view);
 }
 
 

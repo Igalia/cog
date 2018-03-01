@@ -42,6 +42,7 @@ set(DINGHYCORE_API_HEADERS
 	dy-launcher.h
 	dy-request-handler.h
 	dy-directory-files-handler.h
+	dy-utils.h
 	dy-webkit-utils.h
 	${CMAKE_CURRENT_BINARY_DIR}/dy-config.h
 )
@@ -49,6 +50,7 @@ set(DINGHYCORE_SOURCES
 	dy-launcher.c
 	dy-request-handler.c
 	dy-directory-files-handler.c
+	dy-utils.c
 )
 
 if (DY_USE_WEBKITGTK)
