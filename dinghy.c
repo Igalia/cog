@@ -253,6 +253,7 @@ on_create_web_view (DyLauncher *launcher,
                                                       "settings", settings,
                                                       "web-context", web_context,
                                                       NULL);
+    dy_web_view_connect_default_progress_handlers (web_view);
     dy_web_view_connect_default_error_handlers (web_view);
 
     return g_steal_pointer (&web_view);

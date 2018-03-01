@@ -32,4 +32,11 @@ gboolean dy_handle_web_view_web_process_crashed (WebKitWebView *web_view,
 
 void dy_web_view_connect_default_error_handlers (WebKitWebView *web_view);
 
+
+void dy_handle_web_view_load_changed (WebKitWebView  *web_view,
+                                      WebKitLoadEvent load_event,
+                                      void           *userdata);
+
+void dy_web_view_connect_default_progress_handlers (WebKitWebView *web_view);
+
 G_END_DECLS

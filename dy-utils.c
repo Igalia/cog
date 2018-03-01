@@ -138,3 +138,43 @@ dy_web_view_connect_default_error_handlers (WebKitWebView *web_view)
     for (unsigned i = 0; i < G_N_ELEMENTS (handlers); i++)
         g_signal_connect (web_view, handlers[i].sig, handlers[i].hnd, NULL);
 }
+
+
+void
+dy_handle_web_view_load_changed (WebKitWebView  *web_view,
+                                 WebKitLoadEvent load_event,
+                                 void           *userdata)
+{
+    const char *info = NULL;
+    switch (load_event) {
+        case WEBKIT_LOAD_STARTED:
+            info = "Load started.";
+            break;
+        case WEBKIT_LOAD_REDIRECTED:
+            info = "Redirected.";
+            break;
+        case WEBKIT_LOAD_COMMITTED:
+            info = "Loading...";
+            break;
+        case WEBKIT_LOAD_FINISHED:
+            info = "Loaded successfully.";
+            break;
+    }
+
+    g_message ("<%s> %s", webkit_web_view_get_uri (web_view), info);
+}
+
+
+void
+dy_web_view_connect_default_progress_handlers (WebKitWebView *web_view)
+{
+    static const struct {
+        const char *sig;
+        const void *hnd;
+    } handlers[] = {
+        { "load-changed", dy_handle_web_view_load_changed },
+    };
+
+    for (unsigned i = 0; i < G_N_ELEMENTS (handlers); i++)
+        g_signal_connect (web_view, handlers[i].sig, handlers[i].hnd, NULL);
+}
