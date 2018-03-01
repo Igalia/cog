@@ -57,7 +57,7 @@ if (DY_USE_WEBKITGTK)
 	list(APPEND DINGHYCORE_SOURCES dy-gtk-utils.c)
 	pkg_check_modules(WEB_ENGINE REQUIRED webkit2gtk-4.0)
 else ()
-	pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit)
+	pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit wpe)
 endif ()
 
 set(DINGHYCORE_INCLUDE_DIRS ${WEB_ENGINE_INCLUDE_DIRS})
