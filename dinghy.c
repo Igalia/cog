@@ -14,6 +14,9 @@ static struct {
     gboolean version;
     gboolean print_appid;
     gboolean doc_viewer;
+    gboolean dev_tools;
+    gboolean webgl;
+    gboolean log_console;
     GStrv    dir_handlers;
     GStrv    arguments;
 #if DY_USE_MODE_MONITOR
@@ -32,6 +35,15 @@ static GOptionEntry s_cli_options[] =
         NULL },
     { "print-appid", '\0', 0, G_OPTION_ARG_NONE, &s_options.print_appid,
         "Print application ID and exit",
+        NULL },
+    { "dev-tools", 'D', 0, G_OPTION_ARG_NONE, &s_options.dev_tools,
+        "Enable usage of the inspector and JavaScript console",
+        NULL },
+    { "log-console", 'v', 0, G_OPTION_ARG_NONE, &s_options.log_console,
+        "Log JavaScript console messages to standard output",
+        NULL },
+    { "webgl", '\0', 0, G_OPTION_ARG_NONE, &s_options.webgl,
+        "Allow web content to use the WebGL API",
         NULL },
     { "doc-viewer", '\0', 0, G_OPTION_ARG_NONE, &s_options.doc_viewer,
         "Document viewer mode: optimizes for local loading of Web content. "
@@ -246,9 +258,12 @@ on_create_web_view (DyLauncher *launcher,
                                             WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
     }
 
-    // TODO: Allow configuring some settings with command line flags.
     g_autoptr(WebKitSettings) settings =
-        webkit_settings_new_with_settings ("enable-developer-extras", TRUE, NULL);
+        webkit_settings_new_with_settings ("enable-developer-extras", s_options.dev_tools,
+                                           "enable-page-cache", !s_options.doc_viewer,
+                                           "enable-webgl", s_options.webgl,
+                                           "enable-write-console-messages-to-stdout", s_options.log_console,
+                                           NULL);
     g_autoptr(WebKitWebView) web_view = g_object_new (WEBKIT_TYPE_WEB_VIEW,
                                                       "settings", settings,
                                                       "web-context", web_context,
