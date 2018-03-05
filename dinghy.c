@@ -17,6 +17,7 @@ static struct {
     gboolean dev_tools;
     gboolean webgl;
     gboolean log_console;
+    gdouble  scale_factor;
     GStrv    dir_handlers;
     GStrv    arguments;
 #if DY_USE_MODE_MONITOR
@@ -25,7 +26,9 @@ static struct {
     char    *drmdev_path;
 #endif
 #endif /* DY_USE_MODE_MONITOR */
-} s_options = { 0, };
+} s_options = {
+    .scale_factor = 1.0,
+};
 
 
 static GOptionEntry s_cli_options[] =
@@ -45,6 +48,9 @@ static GOptionEntry s_cli_options[] =
     { "webgl", '\0', 0, G_OPTION_ARG_NONE, &s_options.webgl,
         "Allow web content to use the WebGL API",
         NULL },
+    { "scale", '\0', 0, G_OPTION_ARG_DOUBLE, &s_options.scale_factor,
+        "Zoom/Scaling factor (default: 1.0, no scaling)",
+        "FACTOR" },
     { "doc-viewer", '\0', 0, G_OPTION_ARG_NONE, &s_options.doc_viewer,
         "Document viewer mode: optimizes for local loading of Web content. "
         "This reduces memory usage at the cost of reducing caching of "
@@ -267,7 +273,9 @@ on_create_web_view (DyLauncher *launcher,
     g_autoptr(WebKitWebView) web_view = g_object_new (WEBKIT_TYPE_WEB_VIEW,
                                                       "settings", settings,
                                                       "web-context", web_context,
+                                                      "zoom-level", s_options.scale_factor,
                                                       NULL);
+
     dy_web_view_connect_default_progress_handlers (web_view);
     dy_web_view_connect_default_error_handlers (web_view);
 
