@@ -173,10 +173,17 @@ on_handle_local_options (GApplication *application,
         utf8_uri = g_file_get_uri (file);
     } else {
         g_autoptr(GError) error = NULL;
-        utf8_uri = g_locale_to_utf8 (uri, -1, NULL, NULL, &error);
-        if (!utf8_uri) {
+        g_autofree char *utf8_uri_nc = g_locale_to_utf8 (uri, -1, NULL, NULL, &error);
+        if (!utf8_uri_nc) {
             g_printerr ("%s: URI '%s' is invalid UTF-8: %s\n", g_get_prgname (), uri, error->message);
             return EXIT_FAILURE;
+        }
+
+        utf8_uri = g_utf8_strdown (utf8_uri_nc, -1);
+
+        if (!(g_str_has_prefix (utf8_uri, "http://") || g_str_has_prefix(utf8_uri, "https://"))) {
+            g_autofree char *unprefixed = g_steal_pointer (&utf8_uri);
+            utf8_uri = g_strdup_printf ("http://%s", unprefixed);
         }
     }
 
