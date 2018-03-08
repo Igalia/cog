@@ -21,7 +21,7 @@ Environment variables:
 EOF
 }
 
-: ${APPID:='@DINGHY_DEFAULT_APPID@'}
+: ${APPID:='@DY_DEFAULT_APPID@'}
 
 exec_busctl () {
 	exec busctl --user call "${APPID}" "/${APPID//\./\/}" org.freedesktop.Application "$@"
