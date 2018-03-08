@@ -1,6 +1,6 @@
 /*
  * dinghy.h
- * Copyright (C) 2017 Adrian Perez <aperez@igalia.com>
+ * Copyright (C) 2017-2018 Adrian Perez <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
  */

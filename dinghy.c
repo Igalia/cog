@@ -1,8 +1,8 @@
 /*
  * dinghy.c
- * Copyright (C) 2017 Adrian Perez <aperez@igalia.com>
+ * Copyright (C) 2017-2018 Adrian Perez <aperez@igalia.com>
  *
- * Distributed under terms of the BSD-2-Clause license.
+ * Distributed under terms of the MIT license.
  */
 
 #include <stdlib.h>
