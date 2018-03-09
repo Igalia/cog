@@ -8,7 +8,7 @@
 #define DY_INSIDE_DINGHY__ 1
 
 #include "dy-config.h"
-#include "dy-common.h"
+#include "dy-utils.h"
 
 #include <gio/gio.h>
 #include <stdlib.h>

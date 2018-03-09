@@ -5,8 +5,7 @@
  * Distributed under terms of the MIT license.
  */
 
-#ifndef DY_WEBKIT_UTILS_H
-#define DY_WEBKIT_UTILS_H
+#pragma once
 
 #if !(defined(DY_INSIDE_DINGHY__) && DY_INSIDE_DINGHY__)
 # error "Do not include this header directly, use <dinghy.h> instead"
@@ -32,6 +31,30 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC (WebKitWebsiteDataManager, g_object_unref)
 
 #endif /* DY_USE_WEBKITGTK */
 
-G_END_DECLS
 
-#endif /* !DY_WEBKIT_UTILS_H */
+gboolean dy_handle_web_view_load_failed (WebKitWebView  *web_view,
+                                         WebKitLoadEvent load_event,
+                                         char           *failing_uri,
+                                         GError         *error,
+                                         void           *userdata);
+
+gboolean dy_handle_web_view_load_failed_with_tls_errors (WebKitWebView       *web_view,
+                                                         char                *failing_uri,
+                                                         GTlsCertificate     *certificate,
+                                                         GTlsCertificateFlags errors,
+                                                         void                *user_data);
+
+gboolean dy_handle_web_view_web_process_crashed (WebKitWebView *web_view,
+                                                 void          *userdata);
+
+void dy_web_view_connect_default_error_handlers (WebKitWebView *web_view);
+
+
+void dy_handle_web_view_load_changed (WebKitWebView  *web_view,
+                                      WebKitLoadEvent load_event,
+                                      void           *userdata);
+
+void dy_web_view_connect_default_progress_handlers (WebKitWebView *web_view);
+
+
+G_END_DECLS

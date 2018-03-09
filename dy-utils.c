@@ -6,175 +6,35 @@
  */
 
 #include "dy-utils.h"
+#include <gio/gio.h>
 #include <string.h>
 
 
-static const char error_message_template[] =
-    "<!DOCTYPE html><html><head><title>%s</title><style type='text/css'>\n"
-    "html { background: #fffafa; color: #0f0f0f; }\n"
-    "h3 { font-weight: 600; color: #fffafa; background: #555;\n"
-    "     border-radius: 3px; padding: 0.15em 0.5em; margin-bottom: 0.25em }\n"
-    "p { margin-left: 0.5em; margin-right: 0.5em }\n"
-    "p.uri { size: 70%; font-family: monospace; color: #888;\n"
-    "        margin-left: 0.75em; margin-top: 0 }\n"
-    "</style></head><body>\n"
-    "  <h3>%s</h3>\n"
-    "  <p class='uri'>%s</p>\n"
-    "  <p>%s</p>\n"
-    "</body></html>";
-
-
-gboolean
-load_error_page (WebKitWebView *web_view,
-                 const char    *failing_uri,
-                 const char    *title,
-                 const char    *message)
+char*
+dy_uri_guess_from_user_input (const char *uri_like,
+                              gboolean    is_cli_arg,
+                              GError    **error)
 {
-    g_warning ("<%s> %s: %s", failing_uri, title, message);
+    g_return_val_if_fail (uri_like, NULL);
 
-    g_autofree char *html = g_strdup_printf (error_message_template,
-                                             title,
-                                             title,
-                                             failing_uri,
-                                             message);
-    webkit_web_view_load_alternate_html (web_view,
-                                         html,
-                                         failing_uri,
-                                         NULL);
-    return TRUE;
-}
+    g_autoptr(GFile) file = is_cli_arg
+        ? g_file_new_for_commandline_arg (uri_like)
+        : g_file_new_for_path (uri_like);
 
+    if (g_file_is_native (file) && g_file_query_exists (file, NULL))
+        return g_file_get_uri (file);
 
-gboolean
-dy_handle_web_view_load_failed (WebKitWebView  *web_view,
-                                WebKitLoadEvent load_event,
-                                char           *failing_uri,
-                                GError         *error,
-                                void           *userdata)
-{
-    return load_error_page (web_view,
-                            failing_uri,
-                            "Page load error",
-                            error ? error->message : "No error message");
-}
-
-
-static char*
-format_tls_error (GTlsCertificateFlags errors)
-{
-    static const char prefix[] = "TLS certificate ";
-    GString *str = g_string_new (prefix);
-
-    if (errors & G_TLS_CERTIFICATE_UNKNOWN_CA)
-        g_string_append (str, " has unknown CA,");
-    if (errors & G_TLS_CERTIFICATE_BAD_IDENTITY)
-        g_string_append (str, " identity mismatch,");
-    if (errors & G_TLS_CERTIFICATE_NOT_ACTIVATED)
-        g_string_append (str, " has activation time in the future,");
-    if (errors & G_TLS_CERTIFICATE_EXPIRED)
-        g_string_append (str, " is expired,");
-    if (errors & G_TLS_CERTIFICATE_REVOKED)
-        g_string_append (str, " is revoked,");
-    if (errors & G_TLS_CERTIFICATE_INSECURE)
-        g_string_append (str, " uses insecure algorithm,");
-    if (errors & G_TLS_CERTIFICATE_GENERIC_ERROR)
-        g_string_append (str, " cannot be validated,");
-
-    if (strcmp (str->str, prefix)) {
-        g_string_truncate (str, str->len - 1);
-        g_string_append_c (str, '.');
+    g_autofree char *utf8_uri_like = NULL;
+    if (is_cli_arg) {
+        if (!(utf8_uri_like = g_locale_to_utf8 (uri_like, -1, NULL, NULL, error)))
+            return NULL;
     } else {
-        g_string_append (str, " unknown error.");
+        utf8_uri_like = g_strdup (uri_like);
     }
 
-    return g_string_free (str, FALSE);
-}
+    g_autofree char *lc = g_utf8_strdown (utf8_uri_like, -1);
+    if (g_str_has_prefix (lc, "http://") || g_str_has_prefix (lc, "https://"))
+        return g_steal_pointer (&utf8_uri_like);
 
-
-gboolean
-dy_handle_web_view_load_failed_with_tls_errors (WebKitWebView       *web_view,
-                                                char                *failing_uri,
-                                                GTlsCertificate     *certificate,
-                                                GTlsCertificateFlags errors,
-                                                void                *user_data)
-{
-    g_autofree char *error_string = format_tls_error (errors);
-    return load_error_page (web_view,
-                            failing_uri,
-                            "TLS Error",
-                            error_string);
-}
-
-
-gboolean
-dy_handle_web_view_web_process_crashed (WebKitWebView *web_view,
-                                        void          *userdata)
-{
-    static const char *message = 
-        "The renderer process crashed. Reloading the page may fix"
-        " intermittent failures.";
-    return load_error_page (web_view,
-                            webkit_web_view_get_uri (web_view),
-                            "Crash!",
-                            message);
-}
-
-
-void
-dy_web_view_connect_default_error_handlers (WebKitWebView *web_view)
-{
-    static const struct {
-        const char *sig;
-        const void *hnd;
-    } handlers[] = {
-        { "load-failed",
-            dy_handle_web_view_load_failed },
-        { "load-failed-with-tls-errors",
-            dy_handle_web_view_load_failed_with_tls_errors },
-        { "web-process-crashed",
-            dy_handle_web_view_web_process_crashed },
-    };
-    
-    for (unsigned i = 0; i < G_N_ELEMENTS (handlers); i++)
-        g_signal_connect (web_view, handlers[i].sig, handlers[i].hnd, NULL);
-}
-
-
-void
-dy_handle_web_view_load_changed (WebKitWebView  *web_view,
-                                 WebKitLoadEvent load_event,
-                                 void           *userdata)
-{
-    const char *info = NULL;
-    switch (load_event) {
-        case WEBKIT_LOAD_STARTED:
-            info = "Load started.";
-            break;
-        case WEBKIT_LOAD_REDIRECTED:
-            info = "Redirected.";
-            break;
-        case WEBKIT_LOAD_COMMITTED:
-            info = "Loading...";
-            break;
-        case WEBKIT_LOAD_FINISHED:
-            info = "Loaded successfully.";
-            break;
-    }
-
-    g_message ("<%s> %s", webkit_web_view_get_uri (web_view), info);
-}
-
-
-void
-dy_web_view_connect_default_progress_handlers (WebKitWebView *web_view)
-{
-    static const struct {
-        const char *sig;
-        const void *hnd;
-    } handlers[] = {
-        { "load-changed", dy_handle_web_view_load_changed },
-    };
-
-    for (unsigned i = 0; i < G_N_ELEMENTS (handlers); i++)
-        g_signal_connect (web_view, handlers[i].sig, handlers[i].hnd, NULL);
+    return g_strconcat ("http://", utf8_uri_like, NULL);
 }
