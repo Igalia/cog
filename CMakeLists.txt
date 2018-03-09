@@ -54,6 +54,7 @@ set(DINGHYCORE_SOURCES
 	dy-utils.c
 )
 
+pkg_check_modules(GIO REQUIRED gio-2.0)
 if (DY_USE_WEBKITGTK)
 	list(APPEND DINGHYCORE_SOURCES dy-gtk-utils.c)
 	pkg_check_modules(WEB_ENGINE REQUIRED webkit2gtk-4.0)
@@ -96,8 +97,13 @@ target_link_libraries(dinghycore ${DINGHYCORE_LDFLAGS})
 add_executable(dinghy dinghy.c)
 set_property(TARGET dinghy PROPERTY C_STANDARD 99)
 target_link_libraries(dinghy dinghycore)
+
+add_executable(dinghyctl dinghyctl.c)
+set_property(TARGET dinghyctl PROPERTY C_STANDARD 99)
+target_include_directories(dinghyctl PUBLIC ${GIO_INCLUDE_DIRS})
+target_link_libraries(dinghyctl ${GIO_LDFLAGS})
 		
-install(TARGETS dinghy
+install(TARGETS dinghy dinghyctl
 	DESTINATION ${CMAKE_INSTALL_BINDIR}
 	COMPONENT "runtime"
 )
@@ -108,16 +114,6 @@ install(TARGETS dinghycore
 install(FILES ${DINGHYCORE_API_HEADERS}
 	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dinghy
 	COMPONENT "development"
-)
-
-configure_file(dinghyctl.in dinghyctl @ONLY)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dinghyctl
-	DESTINATION ${CMAKE_INSTALL_BINDIR}
-	COMPONENT "runtime"
-	PERMISSIONS
-		OWNER_READ OWNER_WRITE OWNER_EXECUTE
-		GROUP_READ GROUP_EXECUTE
-		WORLD_READ WORLD_EXECUTE
 )
 
 configure_file(dinghycore.pc.in dinghycore.pc @ONLY)
