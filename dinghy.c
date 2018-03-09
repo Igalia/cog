@@ -166,32 +166,13 @@ on_handle_local_options (GApplication *application,
         uri = s_options.arguments[0];
     }
 
-    g_autofree char *utf8_uri = NULL;
-    g_autoptr(GFile) file = g_file_new_for_commandline_arg (uri);
-
-    if (g_file_is_native (file) && g_file_query_exists (file, NULL)) {
-        utf8_uri = g_file_get_uri (file);
-    } else {
-        g_autoptr(GError) error = NULL;
-        g_autofree char *utf8_uri_nc = g_locale_to_utf8 (uri, -1, NULL, NULL, &error);
-        if (!utf8_uri_nc) {
-            g_printerr ("%s: URI '%s' is invalid UTF-8: %s\n", g_get_prgname (), uri, error->message);
-            return EXIT_FAILURE;
-        }
-
-        g_autofree char *utf8_uri_lower = g_utf8_strdown (utf8_uri_nc, -1);
-
-        if (g_str_has_prefix (utf8_uri_lower, "http://") ||
-            g_str_has_prefix (utf8_uri_lower, "https://"))
-        {
-            // The URI already has a scheme prefix. Use as-is.
-            utf8_uri = g_steal_pointer (&utf8_uri_nc);
-        } else {
-            // Add the prefix to the URI.
-            utf8_uri = g_strdup_printf ("http://%s", utf8_uri_nc);
-        }
+    g_autoptr(GError) error = NULL;
+    g_autofree char *utf8_uri = dy_uri_guess_from_user_input (uri, TRUE, &error);
+    if (!utf8_uri) {
+        g_printerr ("%s: URI '%s' is invalid UTF-8: %s\n",
+                    g_get_prgname (), uri, error->message);
+        return EXIT_FAILURE;
     }
-
     g_strfreev (s_options.arguments);
     s_options.arguments = NULL;
 

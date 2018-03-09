@@ -40,6 +40,7 @@ find_package(PkgConfig)
 # libdinghycore
 set(DINGHYCORE_API_HEADERS
 	dinghy.h
+	dy-common.h
 	dy-launcher.h
 	dy-request-handler.h
 	dy-directory-files-handler.h
@@ -48,6 +49,7 @@ set(DINGHYCORE_API_HEADERS
 	${CMAKE_CURRENT_BINARY_DIR}/dy-config.h
 )
 set(DINGHYCORE_SOURCES
+	dy-common.c
 	dy-launcher.c
 	dy-request-handler.c
 	dy-directory-files-handler.c
@@ -98,7 +100,7 @@ add_executable(dinghy dinghy.c)
 set_property(TARGET dinghy PROPERTY C_STANDARD 99)
 target_link_libraries(dinghy dinghycore)
 
-add_executable(dinghyctl dinghyctl.c)
+add_executable(dinghyctl dinghyctl.c dy-common.c)
 set_property(TARGET dinghyctl PROPERTY C_STANDARD 99)
 target_include_directories(dinghyctl PUBLIC ${GIO_INCLUDE_DIRS})
 target_link_libraries(dinghyctl ${GIO_LDFLAGS})

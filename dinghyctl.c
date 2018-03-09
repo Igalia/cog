@@ -5,7 +5,10 @@
  * Distributed under terms of the MIT license.
  */
 
+#define DY_INSIDE_DINGHY__ 1
+
 #include "dy-config.h"
+#include "dy-common.h"
 
 #include <gio/gio.h>
 #include <stdlib.h>
@@ -167,13 +170,19 @@ cmd_open (const char               *name,
 {
     cmd_check_simple_help ("open URL", 1, &argc, &argv);
 
+    g_autoptr(GError) error = NULL;
+    g_autofree char *utf8_uri =
+        dy_uri_guess_from_user_input (argv[1], TRUE, &error);
+    if (!utf8_uri) {
+        g_printerr ("%s\n", error->message);
+        return EXIT_FAILURE;
+    }
+
     g_autoptr(GVariantBuilder) uris =
         g_variant_builder_new (G_VARIANT_TYPE ("as"));
-    g_variant_builder_add (uris, "s", argv[1]);
-
+    g_variant_builder_add (uris, "s", utf8_uri);
     GVariant *params = g_variant_new ("(asa{sv})", uris, NULL);
 
-    g_autoptr(GError) error = NULL;
     if (!call_method (FDO_APPLICATION_OPEN, params, &error)) {
         g_printerr ("%s\n", error->message);
         return EXIT_FAILURE;

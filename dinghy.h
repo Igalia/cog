@@ -11,6 +11,7 @@
 #define DY_INSIDE_DINGHY__ 1
 
 #include "dy-config.h"
+#include "dy-common.h"
 #include "dy-webkit-utils.h"
 #include "dy-request-handler.h"
 #include "dy-directory-files-handler.h"
