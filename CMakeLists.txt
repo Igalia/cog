@@ -56,6 +56,7 @@ set(DINGHYCORE_SOURCES
 )
 
 pkg_check_modules(GIO REQUIRED gio-2.0)
+pkg_check_modules(SOUP REQUIRED libsoup-2.4)
 if (DY_USE_WEBKITGTK)
 	list(APPEND DINGHYCORE_SOURCES dy-gtk-utils.c)
 	pkg_check_modules(WEB_ENGINE REQUIRED webkit2gtk-4.0)
@@ -63,8 +64,8 @@ else ()
 	pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit wpe)
 endif ()
 
-set(DINGHYCORE_INCLUDE_DIRS ${WEB_ENGINE_INCLUDE_DIRS})
-set(DINGHYCORE_LDFLAGS ${WEB_ENGINE_LDFLAGS})
+set(DINGHYCORE_INCLUDE_DIRS ${WEB_ENGINE_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
+set(DINGHYCORE_LDFLAGS ${WEB_ENGINE_LDFLAGS} ${SOUP_LDFLAGS})
 
 
 if (DY_USE_MODE_MONITOR)
@@ -101,8 +102,8 @@ target_link_libraries(dinghy dinghycore)
 
 add_executable(dinghyctl dinghyctl.c dy-utils.c)
 set_property(TARGET dinghyctl PROPERTY C_STANDARD 99)
-target_include_directories(dinghyctl PUBLIC ${GIO_INCLUDE_DIRS})
-target_link_libraries(dinghyctl ${GIO_LDFLAGS})
+target_include_directories(dinghyctl PUBLIC ${GIO_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
+target_link_libraries(dinghyctl ${GIO_LDFLAGS} ${SOUP_LDFLAGS})
 		
 install(TARGETS dinghy dinghyctl
 	DESTINATION ${CMAKE_INSTALL_BINDIR}
