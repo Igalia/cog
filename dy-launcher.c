@@ -354,7 +354,9 @@ dy_launcher_create_instance (void* user_data)
 {
     /* Global singleton */
     const GApplicationFlags app_flags =
+#if GLIB_CHECK_VERSION(2, 48, 0)
         G_APPLICATION_CAN_OVERRIDE_APP_ID |
+#endif // GLIB_CHECK_VERSION
         G_APPLICATION_HANDLES_OPEN ;
     return g_object_new (DY_TYPE_LAUNCHER,
                          "application-id", DY_DEFAULT_APPID,
