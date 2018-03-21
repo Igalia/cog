@@ -54,5 +54,5 @@ License
 -------
 
 This project is licensed under the terms of the MIT license. Check the
-[LICENSE](LICENSE) file for details.
+[COPYING](COPYING) file for details.
 
