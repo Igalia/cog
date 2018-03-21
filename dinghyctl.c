@@ -238,7 +238,7 @@ cmd_help (const char *name,
         }
 
         if (cmd->handler == cmd_generic_alias) {
-            g_print ("'%s' is aliased to '%s'\n", argv[1], cmd->data);
+            g_print ("'%s' is aliased to '%s'\n", argv[1],  (const char*) cmd->data);
         } else {
             char *cmd_argv[] = { (char*) cmd->name, "--help" };
             return (*cmd->handler) (cmd->name, cmd->data, G_N_ELEMENTS (cmd_argv), cmd_argv);

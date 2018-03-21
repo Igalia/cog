@@ -243,7 +243,7 @@ on_handle_local_options (GApplication *application,
         }
 
         if (s_options.dir_handlers[i] == colon - 1) {
-            g_printerr ("%s", "No scheme specified for '%s' URI handler\n",
+            g_printerr ("%s: No scheme specified for '%s' URI handler\n",
                         g_get_prgname (), s_options.dir_handlers[i]);
             return EXIT_FAILURE;
         }

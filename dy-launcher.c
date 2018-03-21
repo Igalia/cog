@@ -212,6 +212,8 @@ dy_launcher_activate (GApplication *application)
 
 #if DY_USE_WEBKITGTK
     dy_gtk_present_window (launcher);
+#else
+    (void) launcher;
 #endif
 }
 

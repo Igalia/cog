@@ -16,7 +16,7 @@ static const char error_message_template[] =
     "h3 { font-weight: 600; color: #fffafa; background: #555;\n"
     "     border-radius: 3px; padding: 0.15em 0.5em; margin-bottom: 0.25em }\n"
     "p { margin-left: 0.5em; margin-right: 0.5em }\n"
-    "p.uri { size: 70%; font-family: monospace; color: #888;\n"
+    "p.uri { size: 70%%; font-family: monospace; color: #888;\n"
     "        margin-left: 0.75em; margin-top: 0 }\n"
     "</style></head><body>\n"
     "  <h3>%s</h3>\n"
@@ -162,7 +162,7 @@ on_web_process_crashed_restart (WebKitWebView *web_view, void *userdata)
 #endif // GLIB_CHECK_VERSION
 
     if (++restart->tries >= restart->max_tries) {
-        g_critical ("Renderer process crashed and failed to recover within %lums",
+        g_critical ("Renderer process crashed and failed to recover within %ums",
                     restart->try_window_ms);
         // Chain up to the handler that renders an error page.
         return dy_handle_web_view_web_process_crashed (web_view, NULL);
