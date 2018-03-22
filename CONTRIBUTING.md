@@ -34,5 +34,13 @@ you are using, and which steps can be followed to reproduce the issue.
 Hacking on Dinghy
 -----------------
 
-*(TODO: Write this.)*
+### Working on the source
+
+Please read the [ARCHITECTURE.md](ARCHITECTURE.md) file, which describes the
+structure of the source code and some design decisions. That hopefully will
+make the code easier to navigate.
+
+### Creating and sending a patch
+
+*(TODO)*
 
