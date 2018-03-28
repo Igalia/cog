@@ -120,6 +120,15 @@ dy_handle_web_view_web_process_crashed (WebKitWebView *web_view,
 }
 
 
+gboolean
+dy_handle_web_view_web_process_crashed_exit (WebKitWebView *web_view,
+                                             void          *userdata)
+{
+    g_critical ("The rendered process crashed, exiting...");
+    exit (GPOINTER_TO_INT (userdata));
+}
+
+
 void
 dy_web_view_connect_default_error_handlers (WebKitWebView *web_view)
 {

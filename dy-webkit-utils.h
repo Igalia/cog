@@ -46,6 +46,19 @@ gboolean dy_handle_web_view_load_failed_with_tls_errors (WebKitWebView       *we
 
 gboolean dy_handle_web_view_web_process_crashed (WebKitWebView *web_view,
                                                  void          *userdata);
+gboolean dy_handle_web_view_web_process_crashed_exit (WebKitWebView *web_view,
+                                                      void          *userdata);
+
+static inline gulong
+dy_web_view_connect_web_process_crashed_exit_handler (WebKitWebView* web_view,
+                                                      int exit_code)
+{
+    g_return_val_if_fail (WEBKIT_IS_WEB_VIEW (web_view), 0);
+    return g_signal_connect (web_view,
+                             "web-process-crashed",
+                             G_CALLBACK (dy_handle_web_view_web_process_crashed_exit),
+                             GINT_TO_POINTER (exit_code));
+}
 
 void dy_web_view_connect_default_error_handlers (WebKitWebView *web_view);
 

@@ -10,6 +10,14 @@
 #include "dinghy.h"
 
 
+enum webprocess_fail_action {
+    WEBPROCESS_FAIL_UNKNOWN = 0,
+    WEBPROCESS_FAIL_ERROR_PAGE,
+    WEBPROCESS_FAIL_EXIT,
+    WEBPROCESS_FAIL_EXIT_OK,
+};
+
+
 static struct {
     gboolean version;
     gboolean print_appid;
@@ -26,6 +34,10 @@ static struct {
     char    *drmdev_path;
 #endif
 #endif /* DY_USE_MODE_MONITOR */
+    union {
+        char *action_name;
+        enum webprocess_fail_action action_id;
+    } on_failure;
 } s_options = {
     .scale_factor = 1.0,
 };
@@ -59,6 +71,10 @@ static GOptionEntry s_cli_options[] =
     { "dir-handler", 'd', 0, G_OPTION_ARG_STRING_ARRAY, &s_options.dir_handlers,
         "Add a URI scheme handler for a directory",
         "SCHEME:PATH" },
+    { "webprocess-failure", '\0', 0, G_OPTION_ARG_STRING,
+        &s_options.on_failure.action_name,
+        "Action on WebProcess failures: error-page (default), exit, exit-ok",
+        "ACTION" },
 #if DY_USE_MODE_MONITOR
     { "sysfs-mode-monitor", '\0', 0, G_OPTION_ARG_STRING, &s_options.sysfs_path,
         "SysFS framebuffer mode file to monitor", "PATH" },
@@ -71,6 +87,29 @@ static GOptionEntry s_cli_options[] =
         "", "[URL]" },
     { NULL }
 };
+
+
+static int
+string_to_webprocess_fail_action (const char *action)
+{
+    static const struct {
+        const char *action;
+        enum webprocess_fail_action action_id;
+    } action_map[] = {
+        { "error-page", WEBPROCESS_FAIL_ERROR_PAGE },
+        { "exit",       WEBPROCESS_FAIL_EXIT       },
+        { "exit-ok",    WEBPROCESS_FAIL_EXIT_OK    },
+    };
+
+    if (!action)  // Default.
+        return WEBPROCESS_FAIL_ERROR_PAGE;
+
+    for (unsigned i = 0; i < G_N_ELEMENTS (action_map); i++)
+        if (strcmp (action, action_map[i].action) == 0)
+            return action_map[i].action_id;
+
+    return WEBPROCESS_FAIL_UNKNOWN;
+}
 
 
 #if DY_USE_MODE_MONITOR
@@ -151,6 +190,18 @@ on_handle_local_options (GApplication *application,
         const char *appid = g_application_get_application_id (application);
         if (appid) g_print ("%s\n", appid);
         return EXIT_SUCCESS;
+    }
+
+    {
+        enum webprocess_fail_action action_id =
+                string_to_webprocess_fail_action (s_options.on_failure.action_name);
+        if (action_id == WEBPROCESS_FAIL_UNKNOWN) {
+            g_printerr ("Invalid action name: '%s'\n",
+                        s_options.on_failure.action_name);
+            return EXIT_FAILURE;
+        }
+        g_clear_pointer (&s_options.on_failure.action_name, g_free);
+        s_options.on_failure.action_id = action_id;
     }
 
     const char *uri = NULL;
@@ -268,6 +319,25 @@ on_create_web_view (DyLauncher *launcher,
                                                       "web-context", web_context,
                                                       "zoom-level", s_options.scale_factor,
                                                       NULL);
+
+
+    switch (s_options.on_failure.action_id) {
+        case WEBPROCESS_FAIL_ERROR_PAGE:
+            // Nothing else needed, the default error handler (connected
+            // below) already implements displaying an error page.
+            break;
+
+        case WEBPROCESS_FAIL_EXIT:
+            dy_web_view_connect_web_process_crashed_exit_handler (web_view, EXIT_FAILURE);
+            break;
+
+        case WEBPROCESS_FAIL_EXIT_OK:
+            dy_web_view_connect_web_process_crashed_exit_handler (web_view, EXIT_SUCCESS);
+            break;
+
+        default:
+            g_assert_not_reached();
+    }
 
     dy_web_view_connect_default_progress_handlers (web_view);
     dy_web_view_connect_default_error_handlers (web_view);
