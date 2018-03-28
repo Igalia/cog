@@ -129,6 +129,85 @@ dy_handle_web_view_web_process_crashed_exit (WebKitWebView *web_view,
 }
 
 
+struct RestartData {
+    unsigned tries;
+    unsigned max_tries;
+    unsigned try_window_ms;
+    unsigned tries_timeout_id;
+};
+
+
+static gboolean
+reset_recovery_tries (struct RestartData *restart)
+{
+    restart->tries = 0;
+    restart->tries_timeout_id = 0;
+    return G_SOURCE_REMOVE;
+}
+
+
+static gboolean
+on_web_process_crashed_restart (WebKitWebView *web_view, void *userdata)
+{
+    struct RestartData *restart = userdata;
+
+#if GLIB_CHECK_VERSION(2, 56, 0)
+    g_clear_handle_id (&restart->tries_timeout_id, g_source_remove);
+#else
+    if (restart->tries_timeout_id) {
+        g_source_remove (restart->tries_timeout_id);
+        restart->tries_timeout_id = 0;
+    }
+#endif // GLIB_CHECK_VERSION
+
+    if (++restart->tries >= restart->max_tries) {
+        g_critical ("Renderer process crashed and failed to recover within %lums",
+                    restart->try_window_ms);
+        // Chain up to the handler that renders an error page.
+        return dy_handle_web_view_web_process_crashed (web_view, NULL);
+    }
+
+    g_warning ("Renderer process crashed, restarting (attempt %u/%u).",
+               restart->tries, restart->max_tries);
+    webkit_web_view_reload (web_view);
+
+    // Reset the count of attempts if the Web process does not crash again
+    // during the configure time window.
+    restart->tries_timeout_id = g_timeout_add (restart->try_window_ms,
+                                               (GSourceFunc) reset_recovery_tries,
+                                               restart);
+    return TRUE;
+}
+
+
+static void
+free_restart_data (void *restart, G_GNUC_UNUSED GClosure *closure)
+{
+    g_slice_free (struct RestartData, restart);
+}
+
+
+gulong
+dy_web_view_connect_web_process_crashed_restart_handler (WebKitWebView *web_view,
+                                                         unsigned       max_tries,
+                                                         unsigned       try_window_ms)
+{
+    g_return_val_if_fail (WEBKIT_IS_WEB_VIEW (web_view), 0);
+    g_return_val_if_fail (max_tries > 0, 0);
+
+    struct RestartData *restart = g_slice_new0 (struct RestartData);
+    restart->max_tries = max_tries;
+    restart->try_window_ms = try_window_ms;
+
+    return g_signal_connect_data (web_view,
+                                  "web-process-crashed",
+                                  G_CALLBACK (on_web_process_crashed_restart),
+                                  restart,
+                                  free_restart_data,
+                                  0);
+}
+
+
 void
 dy_web_view_connect_default_error_handlers (WebKitWebView *web_view)
 {

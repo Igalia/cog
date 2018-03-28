@@ -15,6 +15,7 @@ enum webprocess_fail_action {
     WEBPROCESS_FAIL_ERROR_PAGE,
     WEBPROCESS_FAIL_EXIT,
     WEBPROCESS_FAIL_EXIT_OK,
+    WEBPROCESS_FAIL_RESTART,
 };
 
 
@@ -73,7 +74,7 @@ static GOptionEntry s_cli_options[] =
         "SCHEME:PATH" },
     { "webprocess-failure", '\0', 0, G_OPTION_ARG_STRING,
         &s_options.on_failure.action_name,
-        "Action on WebProcess failures: error-page (default), exit, exit-ok",
+        "Action on WebProcess failures: error-page (default), exit, exit-ok, restart.",
         "ACTION" },
 #if DY_USE_MODE_MONITOR
     { "sysfs-mode-monitor", '\0', 0, G_OPTION_ARG_STRING, &s_options.sysfs_path,
@@ -99,6 +100,7 @@ string_to_webprocess_fail_action (const char *action)
         { "error-page", WEBPROCESS_FAIL_ERROR_PAGE },
         { "exit",       WEBPROCESS_FAIL_EXIT       },
         { "exit-ok",    WEBPROCESS_FAIL_EXIT_OK    },
+        { "restart",    WEBPROCESS_FAIL_RESTART    },
     };
 
     if (!action)  // Default.
@@ -333,6 +335,11 @@ on_create_web_view (DyLauncher *launcher,
 
         case WEBPROCESS_FAIL_EXIT_OK:
             dy_web_view_connect_web_process_crashed_exit_handler (web_view, EXIT_SUCCESS);
+            break;
+
+        case WEBPROCESS_FAIL_RESTART:
+            // TODO: Un-hardcode the 5 retries per second.
+            dy_web_view_connect_web_process_crashed_restart_handler (web_view, 5, 1000);
             break;
 
         default:

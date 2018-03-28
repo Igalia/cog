@@ -60,6 +60,10 @@ dy_web_view_connect_web_process_crashed_exit_handler (WebKitWebView* web_view,
                              GINT_TO_POINTER (exit_code));
 }
 
+gulong dy_web_view_connect_web_process_crashed_restart_handler (WebKitWebView *web_view,
+                                                                unsigned       max_tries,
+                                                                unsigned       try_window_ms);
+
 void dy_web_view_connect_default_error_handlers (WebKitWebView *web_view);
 
 
