@@ -6,6 +6,7 @@
  */
 
 #include "dy-webkit-utils.h"
+#include <stdlib.h>
 #include <string.h>
 
 
