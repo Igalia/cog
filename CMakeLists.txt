@@ -10,23 +10,23 @@ set(DY_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(DY_HOME_URI "" CACHE STRING "Default home URI")
 
 if (NOT DY_APPID OR DY_APPID STREQUAL "")
-	if (DY_USE_WEBKITGTK)
-		set(DY_DEFAULT_APPID com.igalia.DinghyGtk)
-	else ()
-		set(DY_DEFAULT_APPID com.igalia.Dinghy)
-	endif ()
+    if (DY_USE_WEBKITGTK)
+        set(DY_DEFAULT_APPID com.igalia.DinghyGtk)
+    else ()
+        set(DY_DEFAULT_APPID com.igalia.Dinghy)
+    endif ()
 else ()
-	set(DY_DEFAULT_APPID ${DY_APPID})
+    set(DY_DEFAULT_APPID ${DY_APPID})
 endif ()
 
 if (DY_HOME_URI AND NOT DY_HOME_URI STREQUAL "")
-	set(DY_DEFAULT_HOME_URI ${DY_HOME_URI})
+    set(DY_DEFAULT_HOME_URI ${DY_HOME_URI})
 endif ()
 
 if (BUILD_SHARED_LIBS)
-	set(DINGHYCORE_COMPONENT "runtime")
+    set(DINGHYCORE_COMPONENT "runtime")
 else()
-	set(DINGHYCORE_COMPONENT "development")
+    set(DINGHYCORE_COMPONENT "development")
 endif()
 
 add_definitions(-DDY_INSIDE_DINGHY__=1)
@@ -39,29 +39,29 @@ find_package(PkgConfig)
 
 # libdinghycore
 set(DINGHYCORE_API_HEADERS
-	dinghy.h
-	dy-launcher.h
-	dy-request-handler.h
-	dy-directory-files-handler.h
-	dy-utils.h
-	dy-webkit-utils.h
-	${CMAKE_CURRENT_BINARY_DIR}/dy-config.h
+    dinghy.h
+    dy-launcher.h
+    dy-request-handler.h
+    dy-directory-files-handler.h
+    dy-utils.h
+    dy-webkit-utils.h
+    ${CMAKE_CURRENT_BINARY_DIR}/dy-config.h
 )
 set(DINGHYCORE_SOURCES
-	dy-launcher.c
-	dy-request-handler.c
-	dy-directory-files-handler.c
-	dy-utils.c
-	dy-webkit-utils.c
+    dy-launcher.c
+    dy-request-handler.c
+    dy-directory-files-handler.c
+    dy-utils.c
+    dy-webkit-utils.c
 )
 
 pkg_check_modules(GIO REQUIRED gio-2.0)
 pkg_check_modules(SOUP REQUIRED libsoup-2.4)
 if (DY_USE_WEBKITGTK)
-	list(APPEND DINGHYCORE_SOURCES dy-gtk-utils.c)
-	pkg_check_modules(WEB_ENGINE REQUIRED webkit2gtk-4.0)
+    list(APPEND DINGHYCORE_SOURCES dy-gtk-utils.c)
+    pkg_check_modules(WEB_ENGINE REQUIRED webkit2gtk-4.0)
 else ()
-	pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit wpe)
+    pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit wpe)
 endif ()
 
 set(DINGHYCORE_INCLUDE_DIRS ${WEB_ENGINE_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
@@ -69,26 +69,26 @@ set(DINGHYCORE_LDFLAGS ${WEB_ENGINE_LDFLAGS} ${SOUP_LDFLAGS})
 
 
 if (DY_USE_MODE_MONITOR)
-	list(APPEND DINGHYCORE_SOURCES
-		dy-mode-monitor.c
-		dy-sysfs-mode-monitor.c
-	)
-	list(APPEND DINGHYCORE_API_HEADERS
-		dy-mode-monitor.h
-		dy-sysfs-mode-monitor.h
-	)
-	# If libudev is available, build also de DRM/KMS mode monitor.
-	pkg_check_modules(UDEV libudev)
-	pkg_check_modules(LIBDRM libdrm)
-	if (UDEV_FOUND AND LIBDRM_FOUND)
-		set(DY_USE_DRM_MODE_MONITOR ON)
-		list(APPEND DINGHYCORE_SOURCES dy-drm-mode-monitor.c)
-		list(APPEND DINGHYCORE_API_HEADERS dy-drm-mode-monitor.h)
-		list(APPEND DINGHYCORE_INCLUDE_DIRS ${UDEV_INCLUDE_DIRS} ${LIBDRM_INCLUDE_DIRS})
-		list(APPEND DINGHYCORE_LDFLAGS ${UDEV_LDFLAGS} ${LIBDRM_LDFLAGS})
-	else ()
-		message(WARNING "DRM/KMS mode monitor won't be built: libudev not found")
-	endif ()
+    list(APPEND DINGHYCORE_SOURCES
+        dy-mode-monitor.c
+        dy-sysfs-mode-monitor.c
+    )
+    list(APPEND DINGHYCORE_API_HEADERS
+        dy-mode-monitor.h
+        dy-sysfs-mode-monitor.h
+    )
+    # If libudev is available, build also de DRM/KMS mode monitor.
+    pkg_check_modules(UDEV libudev)
+    pkg_check_modules(LIBDRM libdrm)
+    if (UDEV_FOUND AND LIBDRM_FOUND)
+        set(DY_USE_DRM_MODE_MONITOR ON)
+        list(APPEND DINGHYCORE_SOURCES dy-drm-mode-monitor.c)
+        list(APPEND DINGHYCORE_API_HEADERS dy-drm-mode-monitor.h)
+        list(APPEND DINGHYCORE_INCLUDE_DIRS ${UDEV_INCLUDE_DIRS} ${LIBDRM_INCLUDE_DIRS})
+        list(APPEND DINGHYCORE_LDFLAGS ${UDEV_LDFLAGS} ${LIBDRM_LDFLAGS})
+    else ()
+        message(WARNING "DRM/KMS mode monitor won't be built: libudev not found")
+    endif ()
 endif ()
 
 add_library(dinghycore ${DINGHYCORE_SOURCES})
@@ -104,22 +104,22 @@ add_executable(dinghyctl dinghyctl.c dy-utils.c)
 set_property(TARGET dinghyctl PROPERTY C_STANDARD 99)
 target_include_directories(dinghyctl PUBLIC ${GIO_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
 target_link_libraries(dinghyctl ${GIO_LDFLAGS} ${SOUP_LDFLAGS})
-		
+        
 install(TARGETS dinghy dinghyctl
-	DESTINATION ${CMAKE_INSTALL_BINDIR}
-	COMPONENT "runtime"
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+    COMPONENT "runtime"
 )
 install(TARGETS dinghycore
-	DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	COMPONENT ${DINGHYCORE_COMPONENT}
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    COMPONENT ${DINGHYCORE_COMPONENT}
 )
 install(FILES ${DINGHYCORE_API_HEADERS}
-	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dinghy
-	COMPONENT "development"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dinghy
+    COMPONENT "development"
 )
 
 configure_file(dinghycore.pc.in dinghycore.pc @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dinghycore.pc
-	DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
-	COMPONENT "development"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+    COMPONENT "development"
 )
