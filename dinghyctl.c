@@ -28,7 +28,7 @@
 
 static struct {
     char    *appid;
-    gboolean print_appid;
+    gboolean system_bus;
 } s_options = {
     .appid = DY_DEFAULT_APPID,
 };
@@ -38,6 +38,9 @@ static GOptionEntry s_cli_options[] = {
     { "appid", 'A', 0, G_OPTION_ARG_STRING, &s_options.appid,
         "Application identifier of the Dinghy instance to control",
         "ID" },
+    { "system", 'y', 0, G_OPTION_ARG_NONE, &s_options.system_bus,
+        "Use the system bus instead of the session bus",
+        NULL },
     { NULL, }
 };
 
@@ -59,8 +62,9 @@ call_method (const char *iface,
              GVariant   *params,
              GError    **error)
 {
-    g_autoptr(GDBusConnection) conn =
-        g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, error);
+    const GBusType bus_type =
+        s_options.system_bus ? G_BUS_TYPE_SYSTEM : G_BUS_TYPE_SESSION;
+    g_autoptr(GDBusConnection) conn = g_bus_get_sync (bus_type, NULL, error);
     if (!error)
         return FALSE;
 
