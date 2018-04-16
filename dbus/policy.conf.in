@@ -1,0 +1,25 @@
+<!DOCTYPE busconfig PUBLIC
+ "-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig>
+
+    <policy user="root">
+        <allow own="@DY_DEFAULT_APPID@"/>
+    </policy>
+
+    <policy user="@DY_DBUS_OWN_USER@">
+        <allow own="@DY_DEFAULT_APPID@"/>
+    </policy>
+
+    <policy context="default">
+        <allow send_destination="@DY_DEFAULT_APPID@"/>
+        <allow send_destination="@DY_DEFAULT_APPID@"
+               send_interface="com.igalia.Dinghy1"/>
+        <allow send_destination="@DY_DEFAULT_APPID@"
+               send_interface="org.freedesktop.DBus.Properties"/>
+        <allow send_destination="@DY_DEFAULT_APPID@"
+               send_interface="org.freedesktop.DBus.Introspectable"/>
+        <allow send_destination="@DY_DEFAULT_APPID@"
+               send_interface="org.gtk.Actions"/>
+    </policy>
+</busconfig>

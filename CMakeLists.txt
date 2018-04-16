@@ -3,6 +3,10 @@ project(dinghy VERSION 0.1.0 LANGUAGES C)
 
 include(GNUInstallDirs)
 
+option(DY_DBUS_SYSTEM_BUS "Expose remote control interface on system bus" OFF)
+set(DY_DBUS_OWN_USER "" CACHE STRING
+    "Additional user allowed to own the well-known name on the system bus")
+
 option(DY_USE_WEBKITGTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
 option(DY_USE_MODE_MONITOR "Use the SysFS graphics mode monitor" OFF)
 set(DY_USE_DRM_MODE_MONITOR OFF CACHE BOOL "Enable the DRM/KMS graphics mode monitor")
@@ -89,6 +93,20 @@ if (DY_USE_MODE_MONITOR)
     else ()
         message(WARNING "DRM/KMS mode monitor won't be built: libudev not found")
     endif ()
+endif ()
+
+if (DY_DBUS_SYSTEM_BUS)
+    # Generate and install D-Bus policy configuration file.
+    configure_file(dbus/policy.conf.in ${DY_DEFAULT_APPID}.conf @ONLY)
+    install(
+        FILES ${CMAKE_CURRENT_BINARY_DIR}/${DY_DEFAULT_APPID}.conf
+        DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/dbus-1/system.d
+        COMPONENT "runtime"
+    )
+
+    # Let the source code know that the option is enabled.
+    add_definitions(-DDY_DBUS_SYSTEM_BUS=1)
+    add_definitions(-DDY_DBUS_OWN_USER=\"${DY_DBUS_OWN_USER}\")
 endif ()
 
 add_library(dinghycore ${DINGHYCORE_SOURCES})
