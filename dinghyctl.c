@@ -28,6 +28,7 @@
 
 static struct {
     char    *appid;
+    char    *objpath;
     gboolean system_bus;
 } s_options = {
     .appid = DY_DEFAULT_APPID,
@@ -38,6 +39,9 @@ static GOptionEntry s_cli_options[] = {
     { "appid", 'A', 0, G_OPTION_ARG_STRING, &s_options.appid,
         "Application identifier of the Dinghy instance to control",
         "ID" },
+    { "object-path", 'o', 0, G_OPTION_ARG_STRING, &s_options.objpath,
+        "Object path implementing the org.gtk.Actions interface",
+        "PATH" },
     { "system", 'y', 0, G_OPTION_ARG_NONE, &s_options.system_bus,
         "Use the system bus instead of the session bus",
         NULL },
@@ -68,12 +72,10 @@ call_method (const char *iface,
     if (!error)
         return FALSE;
 
-    g_autofree char *object_path =
-        appid_to_object_path (s_options.appid);
     g_autoptr(GVariant) result =
         g_dbus_connection_call_sync (conn,
                                      s_options.appid,
-                                     object_path,
+                                     s_options.objpath,
                                      iface,
                                      method,
                                      params,
@@ -155,6 +157,18 @@ cmd_appid (const char               *name,
 {
     cmd_check_simple_help (name, 0, &argc, &argv);
     g_print ("%s\n", s_options.appid);
+    return EXIT_SUCCESS;
+}
+
+
+static int
+cmd_objpath (const char               *name,
+             G_GNUC_UNUSED const void *data,
+             int                       argc,
+             char                    **argv)
+{
+    cmd_check_simple_help (name, 0, &argc, &argv);
+    g_print ("%s\n", s_options.objpath);
     return EXIT_SUCCESS;
 }
 
@@ -259,6 +273,11 @@ cmd_find_by_name (const char *name)
             .handler = cmd_appid,
         },
         {
+            .name = "objpath",
+            .desc = "Display the D-Bus object path being used",
+            .handler = cmd_objpath,
+        },
+        {
             .name = "help",
             .desc = "Obtain help about commands",
             .data = cmdlist,
@@ -338,6 +357,14 @@ main (int argc, char **argv)
 
     if (!g_application_id_is_valid (s_options.appid)) {
         g_printerr ("Invalid application ID: %s\n", s_options.appid);
+        return EXIT_FAILURE;
+    }
+
+    if (!s_options.objpath) {
+        s_options.objpath = appid_to_object_path (s_options.appid);
+    }
+    if (!g_variant_is_object_path (s_options.objpath)) {
+        g_printerr ("Invalid D-Bus object path: %s\n", s_options.objpath);
         return EXIT_FAILURE;
     }
 
