@@ -22,20 +22,14 @@
 #  endif
 #endif
 
-#define IF_FDO_APPLICATION "org.freedesktop.Application"
-#define IF_FDO_DBUS_PEER   "org.freedesktop.DBus.Peer"
-
-#define FDO_APPLICATION_ACTIVATE_ACTION \
-    IF_FDO_APPLICATION, "ActivateAction"
-#define FDO_APPLICATION_OPEN \
-    IF_FDO_APPLICATION, "Open"
-#define FDO_DBUS_PEER_PING \
-    IF_FDO_DBUS_PEER, "Ping"
+#define GTK_ACTIONS_ACTIVATE "org.gtk.Actions", "Activate"
+#define FDO_DBUS_PEER_PING   "org.freedesktop.DBus.Peer", "Ping"
 
 
 static struct {
     char    *appid;
-    gboolean print_appid;
+    char    *objpath;
+    gboolean system_bus;
 } s_options = {
     .appid = DY_DEFAULT_APPID,
 };
@@ -45,19 +39,14 @@ static GOptionEntry s_cli_options[] = {
     { "appid", 'A', 0, G_OPTION_ARG_STRING, &s_options.appid,
         "Application identifier of the Dinghy instance to control",
         "ID" },
+    { "object-path", 'o', 0, G_OPTION_ARG_STRING, &s_options.objpath,
+        "Object path implementing the org.gtk.Actions interface",
+        "PATH" },
+    { "system", 'y', 0, G_OPTION_ARG_NONE, &s_options.system_bus,
+        "Use the system bus instead of the session bus",
+        NULL },
     { NULL, }
 };
-
-
-static char*
-appid_to_object_path (const char *appid)
-{
-    GString *s = g_string_new ("/");
-    for (; *appid; appid++) {
-        g_string_append_c (s, (*appid == '.') ? '/' : *appid);
-    }
-    return g_string_free (s, FALSE);
-}
 
 
 static gboolean
@@ -66,17 +55,16 @@ call_method (const char *iface,
              GVariant   *params,
              GError    **error)
 {
-    g_autoptr(GDBusConnection) conn =
-        g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, error);
+    const GBusType bus_type =
+        s_options.system_bus ? G_BUS_TYPE_SYSTEM : G_BUS_TYPE_SESSION;
+    g_autoptr(GDBusConnection) conn = g_bus_get_sync (bus_type, NULL, error);
     if (!error)
         return FALSE;
 
-    g_autofree char *object_path =
-        appid_to_object_path (s_options.appid);
     g_autoptr(GVariant) result =
         g_dbus_connection_call_sync (conn,
                                      s_options.appid,
-                                     object_path,
+                                     s_options.objpath,
                                      iface,
                                      method,
                                      params,
@@ -143,7 +131,7 @@ cmd_generic_no_args (const char               *name,
     GVariant *params = g_variant_new ("(sava{sv})", name, NULL, NULL);
 
     g_autoptr(GError) error = NULL;
-    if (!call_method (FDO_APPLICATION_ACTIVATE_ACTION, params, &error)) {
+    if (!call_method (GTK_ACTIONS_ACTIVATE, params, &error)) {
         g_printerr ("%s\n", error->message);
         return EXIT_FAILURE;
     }
@@ -158,6 +146,18 @@ cmd_appid (const char               *name,
 {
     cmd_check_simple_help (name, 0, &argc, &argv);
     g_print ("%s\n", s_options.appid);
+    return EXIT_SUCCESS;
+}
+
+
+static int
+cmd_objpath (const char               *name,
+             G_GNUC_UNUSED const void *data,
+             int                       argc,
+             char                    **argv)
+{
+    cmd_check_simple_help (name, 0, &argc, &argv);
+    g_print ("%s\n", s_options.objpath);
     return EXIT_SUCCESS;
 }
 
@@ -178,12 +178,12 @@ cmd_open (const char               *name,
         return EXIT_FAILURE;
     }
 
-    g_autoptr(GVariantBuilder) uris =
-        g_variant_builder_new (G_VARIANT_TYPE ("as"));
-    g_variant_builder_add (uris, "s", utf8_uri);
-    GVariant *params = g_variant_new ("(asa{sv})", uris, NULL);
+    g_autoptr(GVariantBuilder) param_uri =
+        g_variant_builder_new (G_VARIANT_TYPE ("av"));
+    g_variant_builder_add (param_uri, "v", g_variant_new_string (utf8_uri));
+    GVariant *params = g_variant_new ("(sava{sv})", "open", param_uri, NULL);
 
-    if (!call_method (FDO_APPLICATION_OPEN, params, &error)) {
+    if (!call_method (GTK_ACTIONS_ACTIVATE, params, &error)) {
         g_printerr ("%s\n", error->message);
         return EXIT_FAILURE;
     }
@@ -260,6 +260,11 @@ cmd_find_by_name (const char *name)
             .name = "appid",
             .desc = "Display application ID being remotely controlled",
             .handler = cmd_appid,
+        },
+        {
+            .name = "objpath",
+            .desc = "Display the D-Bus object path being used",
+            .handler = cmd_objpath,
         },
         {
             .name = "help",
@@ -341,6 +346,14 @@ main (int argc, char **argv)
 
     if (!g_application_id_is_valid (s_options.appid)) {
         g_printerr ("Invalid application ID: %s\n", s_options.appid);
+        return EXIT_FAILURE;
+    }
+
+    if (!s_options.objpath) {
+        s_options.objpath = dy_appid_to_dbus_object_path (s_options.appid);
+    }
+    if (!g_variant_is_object_path (s_options.objpath)) {
+        g_printerr ("Invalid D-Bus object path: %s\n", s_options.objpath);
         return EXIT_FAILURE;
     }
 

@@ -8,6 +8,7 @@
 #include "dy-launcher.h"
 #include "dy-request-handler.h"
 #include "dy-webkit-utils.h"
+#include "dy-utils.h"
 
 #if DY_USE_WEBKITGTK
 # include "dy-gtk-utils.h"
@@ -44,61 +45,60 @@ enum {
 static GParamSpec *s_properties[N_PROPERTIES] = { NULL, };
 
 
-enum {
-    ACTION_QUIT,
-    ACTION_PREVIOUS,
-    ACTION_NEXT,
-    ACTION_RELOAD,
-    N_ACTIONS
-};
-
-static GSimpleAction *s_actions[N_ACTIONS] = { NULL, };
-
-
 static void
-on_action_quit (DyLauncher *launcher)
+on_action_quit (G_GNUC_UNUSED GAction  *action,
+                G_GNUC_UNUSED GVariant *param,
+                DyLauncher             *launcher)
 {
     g_application_quit (G_APPLICATION (launcher));
 }
 
 static void
-on_action_prev (DyLauncher *launcher)
+on_action_prev (G_GNUC_UNUSED GAction  *action,
+                G_GNUC_UNUSED GVariant *param,
+                DyLauncher             *launcher)
 {
     webkit_web_view_go_back (dy_launcher_get_web_view (launcher));
 }
 
 static void
-on_action_next (DyLauncher *launcher)
+on_action_next (G_GNUC_UNUSED GAction  *action,
+                G_GNUC_UNUSED GVariant *param,
+                DyLauncher             *launcher)
 {
     webkit_web_view_go_forward (dy_launcher_get_web_view (launcher));
 }
 
 static void
-on_action_reload (DyLauncher *launcher)
+on_action_reload (G_GNUC_UNUSED GAction  *action,
+                  G_GNUC_UNUSED GVariant *param,
+                  DyLauncher             *launcher)
 {
     webkit_web_view_reload (dy_launcher_get_web_view (launcher));
 }
 
 static void
-on_action_activate (GSimpleAction *action,
-                    GVariant      *parameter,
-                    void          *user_data)
+on_action_open (G_GNUC_UNUSED GAction *action,
+                GVariant              *param,
+                DyLauncher            *launcher)
 {
-    g_assert_nonnull (action);
-    g_assert_nonnull (user_data);
-    void (*callback)(DyLauncher*) = user_data;
-    (*callback) (dy_launcher_get_default ());
+    g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
+    dy_launcher_set_home_uri (launcher, g_variant_get_string (param, NULL));
 }
 
-static GSimpleAction*
-make_action (const char *name, void (*callback) (DyLauncher*))
+static void
+dy_launcher_add_action (DyLauncher *launcher,
+                        const char *name,
+                        void (*callback) (GAction*, GVariant*, DyLauncher*),
+                        const GVariantType *param_type)
 {
+    g_assert (DY_IS_LAUNCHER (launcher));
     g_assert_nonnull (name);
     g_assert_nonnull (callback);
 
-    GSimpleAction *action = g_simple_action_new (name, NULL);
-    g_signal_connect (action, "activate", G_CALLBACK (on_action_activate), callback);
-    return action;
+    GSimpleAction *action = g_simple_action_new (name, param_type);
+    g_signal_connect (action, "activate", G_CALLBACK (callback), launcher);
+    g_action_map_add_action (G_ACTION_MAP (launcher), G_ACTION (action));
 }
 
 
@@ -270,6 +270,80 @@ dy_launcher_dispose (GObject *object)
 }
 
 
+#if DY_DBUS_SYSTEM_BUS
+static void
+on_system_bus_acquired (GDBusConnection *connection,
+                        const char      *name,
+                        void            *userdata)
+{
+    g_autofree char* object_path =
+        dy_appid_to_dbus_object_path (g_application_get_application_id (G_APPLICATION (userdata)));
+    g_autoptr(GError) error = NULL;
+    if (!g_dbus_connection_export_action_group (connection,
+                                                object_path,
+                                                G_ACTION_GROUP (userdata),
+                                                &error))
+        g_warning ("Cannot expose remote control interface to system bus: %s",
+                   error->message);
+}
+
+static void
+on_system_bus_name_acquired (G_GNUC_UNUSED GDBusConnection *connection,
+                             const char                    *name,
+                             G_GNUC_UNUSED void            *userdata)
+{
+    g_message ("Acquired D-Bus well-known name %s", name);
+}
+
+static void
+on_system_bus_name_lost (GDBusConnection    *connection,
+                         const char         *name,
+                         G_GNUC_UNUSED void *userdata)
+{
+    if (connection) {
+        g_message ("Lost D-Bus well-known name %s", name);
+    } else {
+        g_message ("Lost D-Bus connection to system bus");
+    }
+}
+#endif // DY_DBUS_SYSTEM_BUS
+
+
+#ifndef DY_DEFAULT_APPID
+#  if DY_USE_WEBKITGTK
+#    define DY_DEFAULT_APPID "com.igalia.DinghyGtk"
+#  else
+#    define DY_DEFAULT_APPID "com.igalia.Dinghy"
+#  endif
+#endif
+
+
+static void
+dy_launcher_constructed (GObject *object)
+{
+    G_OBJECT_CLASS (dy_launcher_parent_class)->constructed (object);
+
+    DyLauncher *launcher = DY_LAUNCHER (object);
+
+    dy_launcher_add_action (launcher, "quit", on_action_quit, NULL);
+    dy_launcher_add_action (launcher, "previous", on_action_prev, NULL);
+    dy_launcher_add_action (launcher, "next", on_action_next, NULL);
+    dy_launcher_add_action (launcher, "reload", on_action_reload, NULL);
+    dy_launcher_add_action (launcher, "open", on_action_open, G_VARIANT_TYPE_STRING);
+
+#if DY_DBUS_SYSTEM_BUS
+    g_bus_own_name (G_BUS_TYPE_SYSTEM,
+                    DY_DEFAULT_APPID,
+                    G_BUS_NAME_OWNER_FLAGS_NONE,
+                    on_system_bus_acquired,
+                    on_system_bus_name_acquired,
+                    on_system_bus_name_lost,
+                    launcher,
+                    NULL);
+#endif
+}
+
+
 #ifndef DY_DEFAULT_HOME_URI
 #  define DY_DEFAULT_HOME_URI "about:blank"
 #endif
@@ -280,6 +354,7 @@ dy_launcher_class_init (DyLauncherClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
     object_class->dispose = dy_launcher_dispose;
+    object_class->constructed = dy_launcher_constructed;
     object_class->get_property = dy_launcher_get_property;
     object_class->set_property = dy_launcher_set_property;
 
@@ -325,29 +400,14 @@ dy_launcher_class_init (DyLauncherClass *klass)
                       NULL,
                       WEBKIT_TYPE_WEB_VIEW,
                       0);
-
-    s_actions[ACTION_QUIT] = make_action ("quit", on_action_quit);
-    s_actions[ACTION_PREVIOUS] = make_action ("previous", on_action_prev);
-    s_actions[ACTION_NEXT] = make_action ("next", on_action_next);
-    s_actions[ACTION_RELOAD] = make_action ("reload", on_action_reload);
 }
 
 
 static void
-dy_launcher_init (DyLauncher *launcher)
+dy_launcher_init (G_GNUC_UNUSED DyLauncher *launcher)
 {
-    for (size_t i = 0; i < N_ACTIONS; i++)
-        g_action_map_add_action (G_ACTION_MAP (launcher), G_ACTION (s_actions[i]));
 }
 
-
-#ifndef DY_DEFAULT_APPID
-#  if DY_USE_WEBKITGTK
-#    define DY_DEFAULT_APPID "com.igalia.DinghyGtk"
-#  else
-#    define DY_DEFAULT_APPID "com.igalia.Dinghy"
-#  endif
-#endif
 
 static void*
 dy_launcher_create_instance (void* user_data)
