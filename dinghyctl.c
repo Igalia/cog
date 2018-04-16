@@ -22,15 +22,8 @@
 #  endif
 #endif
 
-#define IF_FDO_APPLICATION "org.freedesktop.Application"
-#define IF_FDO_DBUS_PEER   "org.freedesktop.DBus.Peer"
-
-#define FDO_APPLICATION_ACTIVATE_ACTION \
-    IF_FDO_APPLICATION, "ActivateAction"
-#define FDO_APPLICATION_OPEN \
-    IF_FDO_APPLICATION, "Open"
-#define FDO_DBUS_PEER_PING \
-    IF_FDO_DBUS_PEER, "Ping"
+#define GTK_ACTIONS_ACTIVATE "org.gtk.Actions", "Activate"
+#define FDO_DBUS_PEER_PING   "org.freedesktop.DBus.Peer", "Ping"
 
 
 static struct {
@@ -143,7 +136,7 @@ cmd_generic_no_args (const char               *name,
     GVariant *params = g_variant_new ("(sava{sv})", name, NULL, NULL);
 
     g_autoptr(GError) error = NULL;
-    if (!call_method (FDO_APPLICATION_ACTIVATE_ACTION, params, &error)) {
+    if (!call_method (GTK_ACTIONS_ACTIVATE, params, &error)) {
         g_printerr ("%s\n", error->message);
         return EXIT_FAILURE;
     }
@@ -178,12 +171,12 @@ cmd_open (const char               *name,
         return EXIT_FAILURE;
     }
 
-    g_autoptr(GVariantBuilder) uris =
-        g_variant_builder_new (G_VARIANT_TYPE ("as"));
-    g_variant_builder_add (uris, "s", utf8_uri);
-    GVariant *params = g_variant_new ("(asa{sv})", uris, NULL);
+    g_autoptr(GVariantBuilder) param_uri =
+        g_variant_builder_new (G_VARIANT_TYPE ("av"));
+    g_variant_builder_add (param_uri, "v", g_variant_new_string (utf8_uri));
+    GVariant *params = g_variant_new ("(sava{sv})", "open", param_uri, NULL);
 
-    if (!call_method (FDO_APPLICATION_OPEN, params, &error)) {
+    if (!call_method (GTK_ACTIONS_ACTIVATE, params, &error)) {
         g_printerr ("%s\n", error->message);
         return EXIT_FAILURE;
     }
