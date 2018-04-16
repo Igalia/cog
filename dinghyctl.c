@@ -49,17 +49,6 @@ static GOptionEntry s_cli_options[] = {
 };
 
 
-static char*
-appid_to_object_path (const char *appid)
-{
-    GString *s = g_string_new ("/");
-    for (; *appid; appid++) {
-        g_string_append_c (s, (*appid == '.') ? '/' : *appid);
-    }
-    return g_string_free (s, FALSE);
-}
-
-
 static gboolean
 call_method (const char *iface,
              const char *method,
@@ -361,7 +350,7 @@ main (int argc, char **argv)
     }
 
     if (!s_options.objpath) {
-        s_options.objpath = appid_to_object_path (s_options.appid);
+        s_options.objpath = dy_appid_to_dbus_object_path (s_options.appid);
     }
     if (!g_variant_is_object_path (s_options.objpath)) {
         g_printerr ("Invalid D-Bus object path: %s\n", s_options.objpath);

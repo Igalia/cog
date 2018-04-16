@@ -12,6 +12,19 @@
 
 
 char*
+dy_appid_to_dbus_object_path (const char *appid)
+{
+    g_return_val_if_fail (appid != NULL, NULL);
+
+    GString *s = g_string_new ("/");
+    for (; *appid; appid++) {
+        g_string_append_c (s, (*appid == '.') ? '/' : *appid);
+    }
+    return g_string_free (s, FALSE);
+}
+
+
+char*
 dy_uri_guess_from_user_input (const char *uri_like,
                               gboolean    is_cli_arg,
                               GError    **error)

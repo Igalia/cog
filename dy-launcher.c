@@ -8,6 +8,7 @@
 #include "dy-launcher.h"
 #include "dy-request-handler.h"
 #include "dy-webkit-utils.h"
+#include "dy-utils.h"
 
 #if DY_USE_WEBKITGTK
 # include "dy-gtk-utils.h"
@@ -275,9 +276,11 @@ on_system_bus_acquired (GDBusConnection *connection,
                         const char      *name,
                         void            *userdata)
 {
+    g_autofree char* object_path =
+        dy_appid_to_dbus_object_path (g_application_get_application_id (G_APPLICATION (userdata)));
     g_autoptr(GError) error = NULL;
     if (!g_dbus_connection_export_action_group (connection,
-                                                "/com/igalia/Dinghy1",
+                                                object_path,
                                                 G_ACTION_GROUP (userdata),
                                                 &error))
         g_warning ("Cannot expose remote control interface to system bus: %s",
