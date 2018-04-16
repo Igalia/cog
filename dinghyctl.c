@@ -302,6 +302,9 @@ cmd_find_by_name (const char *name)
             .desc = "Reload the current page",
             .handler = cmd_generic_no_args,
         },
+        {
+            .name = NULL,
+        },
     };
 
     for (unsigned i = 0; i < G_N_ELEMENTS (cmdlist); i++)
