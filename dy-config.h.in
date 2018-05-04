@@ -18,4 +18,7 @@
 #cmakedefine01 DY_USE_MODE_MONITOR
 #cmakedefine01 DY_USE_DRM_MODE_MONITOR
 
+/* @FIXME: Perhaps make this a cmake define instead. */
+#define DY_DEFAULT_APPNAME "Dinghy"
+
 #endif /* !DY_CONFIG_H_IN */

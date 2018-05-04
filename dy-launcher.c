@@ -313,9 +313,9 @@ on_system_bus_name_lost (GDBusConnection    *connection,
 
 #ifndef DY_DEFAULT_APPID
 #  if DY_USE_WEBKITGTK
-#    define DY_DEFAULT_APPID "com.igalia.DinghyGtk"
+#    define DY_DEFAULT_APPID "com.igalia." DY_DEFAULT_APPNAME "Gtk"
 #  else
-#    define DY_DEFAULT_APPID "com.igalia.Dinghy"
+#    define DY_DEFAULT_APPID "com.igalia." DY_DEFAULT_APPNAME
 #  endif
 #endif
 
