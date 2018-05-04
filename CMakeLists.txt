@@ -67,7 +67,7 @@ if (DY_USE_WEBKITGTK)
     list(APPEND DINGHYCORE_SOURCES dy-gtk-utils.c)
     pkg_check_modules(WEB_ENGINE REQUIRED webkit2gtk-4.0)
 else ()
-    pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit wpe-0.1)
+    pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit-0.1 wpe-0.1)
 endif ()
 
 set(DINGHYCORE_INCLUDE_DIRS ${WEB_ENGINE_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
@@ -154,7 +154,7 @@ set(DINGHYPLATFORM_FDO_SOURCES
     fullscreen-shell-unstable-v1-protocol.c
 )
 
-pkg_check_modules(DINGHYPLATFORM_FDO_DEPS REQUIRED wpe-webkit wpe-0.1 wpebackend-fdo-0.1 egl glesv2 wayland-egl xkbcommon)
+pkg_check_modules(DINGHYPLATFORM_FDO_DEPS REQUIRED wpe-webkit-0.1 wpe-0.1 wpebackend-fdo-0.1 egl glesv2 wayland-egl xkbcommon)
 
 set(DINGHYPLATFORM_FDO_INCLUDE_DIRS ${DINGHYPLATFORM_FDO_DEPS_INCLUDE_DIRS})
 set(DINGHYPLATFORM_FDO_LDFLAGS ${DINGHYPLATFORM_FDO_DEPS_LDFLAGS})
