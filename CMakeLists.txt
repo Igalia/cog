@@ -143,3 +143,31 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dinghycore.pc
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
     COMPONENT "development"
 )
+
+# libdinghyplaform-fdo
+
+project(dinghyplatform-fdo VERSION 0.1.0 DESCRIPTION "Dinghy FDO platform")
+
+set(DINGHYPLATFORM_FDO_SOURCES
+    dy-platform-fdo.c
+    xdg-shell-unstable-v6-protocol.c
+    fullscreen-shell-unstable-v1-protocol.c
+)
+
+pkg_check_modules(DINGHYPLATFORM_FDO_DEPS REQUIRED wpe-webkit wpe-0.1 wpebackend-fdo-0.1 egl glesv2 wayland-egl xkbcommon)
+
+set(DINGHYPLATFORM_FDO_INCLUDE_DIRS ${DINGHYPLATFORM_FDO_DEPS_INCLUDE_DIRS})
+set(DINGHYPLATFORM_FDO_LDFLAGS ${DINGHYPLATFORM_FDO_DEPS_LDFLAGS})
+
+add_library(dinghyplatform-fdo SHARED ${DINGHYPLATFORM_FDO_SOURCES})
+
+set_property(TARGET dinghyplatform-fdo PROPERTY VERSION ${PROJECT_VERSION})
+
+set_property(TARGET dinghyplatform-fdo PROPERTY C_STANDARD 99)
+target_include_directories(dinghyplatform-fdo PUBLIC ${DINGHYPLATFORM_FDO_INCLUDE_DIRS})
+target_link_libraries(dinghyplatform-fdo ${DINGHYPLATFORM_FDO_LDFLAGS})
+
+install(TARGETS dinghyplatform-fdo
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    COMPONENT "runtime"
+)
