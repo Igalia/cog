@@ -45,6 +45,7 @@ find_package(PkgConfig)
 set(DINGHYCORE_API_HEADERS
     dinghy.h
     dy-launcher.h
+    dy-platform.h
     dy-request-handler.h
     dy-directory-files-handler.h
     dy-utils.h
@@ -53,6 +54,7 @@ set(DINGHYCORE_API_HEADERS
 )
 set(DINGHYCORE_SOURCES
     dy-launcher.c
+    dy-platform.c
     dy-request-handler.c
     dy-directory-files-handler.c
     dy-utils.c
@@ -116,7 +118,7 @@ target_link_libraries(dinghycore ${DINGHYCORE_LDFLAGS})
 
 add_executable(dinghy dinghy.c)
 set_property(TARGET dinghy PROPERTY C_STANDARD 99)
-target_link_libraries(dinghy dinghycore)
+target_link_libraries(dinghy dinghycore -ldl)
 
 add_executable(dinghyctl dinghyctl.c dy-utils.c)
 set_property(TARGET dinghyctl PROPERTY C_STANDARD 99)

@@ -15,6 +15,7 @@
 #include "dy-request-handler.h"
 #include "dy-directory-files-handler.h"
 #include "dy-launcher.h"
+#include "dy-platform.h"
 #include "dy-utils.h"
 
 #if DY_USE_MODE_MONITOR
