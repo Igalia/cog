@@ -316,10 +316,29 @@ on_create_web_view (DyLauncher *launcher,
                                            "enable-webgl", s_options.webgl,
                                            "enable-write-console-messages-to-stdout", s_options.log_console,
                                            NULL);
+
+    WebKitWebViewBackend *view_backend = NULL;
+#if !(DY_USE_WEBKITGTK)
+    DyPlatform *platform = user_data;
+    if (platform) {
+        GError *error = NULL;
+        view_backend = dy_platform_get_view_backend (platform, NULL, &error);
+        if (!view_backend) {
+            g_assert_nonnull (error);
+            g_printerr ("%s, Failed to get platform's view backend: %s\n",
+                        g_get_prgname (),
+                        error->message);
+        }
+    }
+#endif
+
     g_autoptr(WebKitWebView) web_view = g_object_new (WEBKIT_TYPE_WEB_VIEW,
                                                       "settings", settings,
                                                       "web-context", web_context,
                                                       "zoom-level", s_options.scale_factor,
+#if !(DY_USE_WEBKITGTK)
+                                                      "backend", view_backend,
+#endif
                                                       NULL);
 
 
@@ -358,9 +377,50 @@ main (int argc, char *argv[])
 {
     g_autoptr(GApplication) app = G_APPLICATION (dy_launcher_get_default ());
     g_application_add_main_option_entries (app, s_cli_options);
+
+    DyPlatform *platform = NULL;
+
+#if !(DY_USE_WEBKITGTK)
+    /*
+     * Here we resolve the DyPlatform we are going to use. A Dinghy platform
+     * is dynamically loaded object
+     * that abstracts the specifics about how a WebView's WPE backend is going
+     * to be constructed and rendered on a given platform.
+     */
+
+    /*
+     * @FIXME: for now this is hardcoded to use DyPlatformFdo, which
+     * essentially uses WPEBackend-fdo and renders on a running wayland
+     * compositor.
+     */
+    const gchar *platform_soname = "libdinghyplatform-fdo.so";
+
+    platform = dy_platform_new ();
+    if (dy_platform_try_load (platform, platform_soname)) {
+        GError *error = NULL;
+        if (!dy_platform_setup (platform, DY_LAUNCHER (app), "", &error)) {
+            g_printerr ("%s: Failed to load FDO platform: %s\n",
+                        g_get_prgname (),
+                        error->message);
+            dy_platform_free (platform);
+            platform = NULL;
+        }
+    }
+#endif
+
     g_signal_connect (app, "handle-local-options",
                       G_CALLBACK (on_handle_local_options), NULL);
     g_signal_connect (app, "create-web-view",
-                      G_CALLBACK (on_create_web_view), NULL);
-    return g_application_run (app, argc, argv);
+                      G_CALLBACK (on_create_web_view), platform);
+
+    int result = g_application_run (app, argc, argv);
+
+#if !(DY_USE_WEBKITGTK)
+    if (platform) {
+        dy_platform_teardown (platform);
+        dy_platform_free (platform);
+    }
+#endif
+
+    return result;
 }
