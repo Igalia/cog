@@ -65,7 +65,7 @@ if (DY_USE_WEBKITGTK)
     list(APPEND DINGHYCORE_SOURCES dy-gtk-utils.c)
     pkg_check_modules(WEB_ENGINE REQUIRED webkit2gtk-4.0)
 else ()
-    pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit wpe)
+    pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit wpe-0.1)
 endif ()
 
 set(DINGHYCORE_INCLUDE_DIRS ${WEB_ENGINE_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
@@ -122,7 +122,7 @@ add_executable(dinghyctl dinghyctl.c dy-utils.c)
 set_property(TARGET dinghyctl PROPERTY C_STANDARD 99)
 target_include_directories(dinghyctl PUBLIC ${GIO_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
 target_link_libraries(dinghyctl ${GIO_LDFLAGS} ${SOUP_LDFLAGS})
-        
+
 install(TARGETS dinghy dinghyctl
     DESTINATION ${CMAKE_INSTALL_BINDIR}
     COMPONENT "runtime"
