@@ -71,6 +71,7 @@ else ()
 endif ()
 
 set(DINGHYCORE_INCLUDE_DIRS ${WEB_ENGINE_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
+set(DINGHYCORE_CFLAGS ${WEB_ENGINE_CFLAGS_OTHER} ${SOUP_CFLAGS_OTHER})
 set(DINGHYCORE_LDFLAGS ${WEB_ENGINE_LDFLAGS} ${SOUP_LDFLAGS})
 
 
@@ -91,6 +92,7 @@ if (DY_USE_MODE_MONITOR)
         list(APPEND DINGHYCORE_SOURCES dy-drm-mode-monitor.c)
         list(APPEND DINGHYCORE_API_HEADERS dy-drm-mode-monitor.h)
         list(APPEND DINGHYCORE_INCLUDE_DIRS ${UDEV_INCLUDE_DIRS} ${LIBDRM_INCLUDE_DIRS})
+        list(APPEND DINGHYCORE_CFLAGS ${UDEV_CFLAGS_OTHER} ${LIBDRM_CFLAGS_OTHER})
         list(APPEND DINGHYCORE_LDFLAGS ${UDEV_LDFLAGS} ${LIBDRM_LDFLAGS})
     else ()
         message(WARNING "DRM/KMS mode monitor won't be built: libudev not found")
@@ -114,6 +116,7 @@ endif ()
 add_library(dinghycore ${DINGHYCORE_SOURCES})
 set_property(TARGET dinghycore PROPERTY C_STANDARD 99)
 target_include_directories(dinghycore PUBLIC ${DINGHYCORE_INCLUDE_DIRS})
+target_compile_options(dinghycore PUBLIC ${DINGHYCORE_CFLAGS})
 target_link_libraries(dinghycore ${DINGHYCORE_LDFLAGS})
 
 add_executable(dinghy dinghy.c)
@@ -123,6 +126,7 @@ target_link_libraries(dinghy dinghycore -ldl)
 add_executable(dinghyctl dinghyctl.c dy-utils.c)
 set_property(TARGET dinghyctl PROPERTY C_STANDARD 99)
 target_include_directories(dinghyctl PUBLIC ${GIO_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
+target_compile_options(dinghyctl PUBLIC ${GIO_CFLAGS_OTHER} ${SOUP_CFLAGS_OTHER})
 target_link_libraries(dinghyctl ${GIO_LDFLAGS} ${SOUP_LDFLAGS})
 
 install(TARGETS dinghy dinghyctl
@@ -157,6 +161,7 @@ set(DINGHYPLATFORM_FDO_SOURCES
 pkg_check_modules(DINGHYPLATFORM_FDO_DEPS REQUIRED wpe-webkit-0.1 wpe-0.1 wpebackend-fdo-0.1 egl glesv2 wayland-egl xkbcommon)
 
 set(DINGHYPLATFORM_FDO_INCLUDE_DIRS ${DINGHYPLATFORM_FDO_DEPS_INCLUDE_DIRS})
+set(DINGHYPLATFORM_FDO_CFLAGS ${DINGHYPLATFORM_FDO_DEPS_CFLAGS_OTHER})
 set(DINGHYPLATFORM_FDO_LDFLAGS ${DINGHYPLATFORM_FDO_DEPS_LDFLAGS})
 
 add_library(dinghyplatform-fdo SHARED ${DINGHYPLATFORM_FDO_SOURCES})
@@ -165,6 +170,7 @@ set_property(TARGET dinghyplatform-fdo PROPERTY VERSION ${PROJECT_VERSION})
 
 set_property(TARGET dinghyplatform-fdo PROPERTY C_STANDARD 99)
 target_include_directories(dinghyplatform-fdo PUBLIC ${DINGHYPLATFORM_FDO_INCLUDE_DIRS})
+target_compile_options(dinghyplatform-fdo PUBLIC ${DINGHYPLATFORM_FDO_CFLAGS})
 target_link_libraries(dinghyplatform-fdo ${DINGHYPLATFORM_FDO_LDFLAGS})
 
 install(TARGETS dinghyplatform-fdo
