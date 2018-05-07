@@ -8,8 +8,6 @@ set(COG_DBUS_OWN_USER "" CACHE STRING
     "Additional user allowed to own the well-known name on the system bus")
 
 option(COG_USE_WEBKITGTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
-option(COG_USE_MODE_MONITOR "Use the SysFS graphics mode monitor" OFF)
-set(COG_USE_DRM_MODE_MONITOR OFF CACHE BOOL "Enable the DRM/KMS graphics mode monitor")
 set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
 
@@ -74,30 +72,6 @@ set(COGCORE_INCLUDE_DIRS ${WEB_ENGINE_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
 set(COGCORE_CFLAGS ${WEB_ENGINE_CFLAGS_OTHER} ${SOUP_CFLAGS_OTHER})
 set(COGCORE_LDFLAGS ${WEB_ENGINE_LDFLAGS} ${SOUP_LDFLAGS})
 
-
-if (COG_USE_MODE_MONITOR)
-    list(APPEND COGCORE_SOURCES
-        cog-mode-monitor.c
-        cog-sysfs-mode-monitor.c
-    )
-    list(APPEND COGCORE_API_HEADERS
-        cog-mode-monitor.h
-        cog-sysfs-mode-monitor.h
-    )
-    # If libudev is available, build also de DRM/KMS mode monitor.
-    pkg_check_modules(UDEV libudev)
-    pkg_check_modules(LIBDRM libdrm)
-    if (UDEV_FOUND AND LIBDRM_FOUND)
-        set(COG_USE_DRM_MODE_MONITOR ON)
-        list(APPEND COGCORE_SOURCES cog-drm-mode-monitor.c)
-        list(APPEND COGCORE_API_HEADERS cog-drm-mode-monitor.h)
-        list(APPEND COGCORE_INCLUDE_DIRS ${UDEV_INCLUDE_DIRS} ${LIBDRM_INCLUDE_DIRS})
-        list(APPEND COGCORE_CFLAGS ${UDEV_CFLAGS_OTHER} ${LIBDRM_CFLAGS_OTHER})
-        list(APPEND COGCORE_LDFLAGS ${UDEV_LDFLAGS} ${LIBDRM_LDFLAGS})
-    else ()
-        message(WARNING "DRM/KMS mode monitor won't be built: libudev not found")
-    endif ()
-endif ()
 
 if (COG_DBUS_SYSTEM_BUS)
     # Generate and install D-Bus policy configuration file.

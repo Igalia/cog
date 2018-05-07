@@ -30,12 +30,6 @@ static struct {
     gdouble  scale_factor;
     GStrv    dir_handlers;
     GStrv    arguments;
-#if COG_USE_MODE_MONITOR
-    char    *sysfs_path;
-#if COG_USE_DRM_MODE_MONITOR
-    char    *drmdev_path;
-#endif
-#endif /* COG_USE_MODE_MONITOR */
     union {
         char *action_name;
         enum webprocess_fail_action action_id;
@@ -77,14 +71,6 @@ static GOptionEntry s_cli_options[] =
         &s_options.on_failure.action_name,
         "Action on WebProcess failures: error-page (default), exit, exit-ok, restart.",
         "ACTION" },
-#if COG_USE_MODE_MONITOR
-    { "sysfs-mode-monitor", '\0', 0, G_OPTION_ARG_STRING, &s_options.sysfs_path,
-        "SysFS framebuffer mode file to monitor", "PATH" },
-#if COG_USE_DRM_MODE_MONITOR
-    { "drm-mode-monitor", '\0', 0, G_OPTION_ARG_STRING, &s_options.drmdev_path,
-        "Path to a DRM/KMS device node", "PATH" },
-#endif
-#endif /* !COG_VERSION_STRING */
     { G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments,
         "", "[URL]" },
     { NULL }
@@ -113,67 +99,6 @@ string_to_webprocess_fail_action (const char *action)
 
     return WEBPROCESS_FAIL_UNKNOWN;
 }
-
-
-#if COG_USE_MODE_MONITOR
-static void
-on_mode_monitor_notify (CogModeMonitor *monitor,
-                        GParamSpec     *pspec,
-                        CogLauncher    *launcher)
-{
-    const CogModeMonitorInfo *info = cog_mode_monitor_get_info (monitor);
-
-    const char *device_name = "(unnamed)";
-    if (COG_IS_SYSFS_MODE_MONITOR (monitor))
-        device_name = cog_sysfs_mode_monitor_get_path (COG_SYSFS_MODE_MONITOR (monitor));
-#if COG_USE_DRM_MODE_MONITOR
-    else if (COG_IS_DRM_MODE_MONITOR (monitor))
-        device_name = cog_drm_mode_monitor_get_device_path (COG_DRM_MODE_MONITOR (monitor));
-#endif
-
-    g_printerr ("Device '%s', mode %" PRIu32 "x%" PRIu32 " (%s)\n",
-                device_name, info->width, info->height, info->mode_id);
-}
-
-static inline gboolean
-attach_sysfs_mode_monitor (CogLauncher *launcher,
-                           GError    **error)
-{
-    g_autoptr(GFile) sysfs_file = g_file_new_for_commandline_arg (s_options.sysfs_path);
-    g_autoptr(CogSysfsModeMonitor) monitor = cog_sysfs_mode_monitor_new (sysfs_file, error);
-    if (!monitor)
-        return FALSE;
-
-    g_signal_connect_object (g_steal_pointer (&monitor),
-                             "notify::mode-id",
-                             G_CALLBACK (on_mode_monitor_notify),
-                             launcher,
-                             G_CONNECT_AFTER);
-    return TRUE;
-}
-
-#if COG_USE_DRM_MODE_MONITOR
-
-static inline gboolean
-attach_drm_mode_monitor (CogLauncher *launcher,
-                         GError    **error)
-{
-    g_autoptr(GFile) drmdev_file = g_file_new_for_commandline_arg (s_options.drmdev_path);
-    g_autoptr(CogDrmModeMonitor) monitor = cog_drm_mode_monitor_new (drmdev_file, error);
-    if (!monitor)
-        return FALSE;
-
-    g_signal_connect_object (g_steal_pointer (&monitor),
-                             "notify::mode-id",
-                             G_CALLBACK (on_mode_monitor_notify),
-                             launcher,
-                             G_CONNECT_AFTER);
-    return TRUE;
-}
-
-#endif /* COG_USE_DRM_MODE_MONITOR */
-
-#endif /* COG_USE_MODE_MONITOR */
 
 
 static int
@@ -267,30 +192,6 @@ on_handle_local_options (GApplication *application,
     }
 
     cog_launcher_set_home_uri (COG_LAUNCHER (application), utf8_uri);
-
-#if COG_USE_MODE_MONITOR
-    if (s_options.sysfs_path) {
-        g_autoptr(GError) error = NULL;
-        if (!attach_sysfs_mode_monitor (COG_LAUNCHER (application), &error)) {
-            g_printerr ("%s: Cannot monitor SysFS path '%s': %s\n",
-                        g_get_prgname (), s_options.sysfs_path, error->message);
-            return EXIT_FAILURE;
-        }
-        g_clear_pointer (&s_options.sysfs_path, g_free);
-    }
-
-#if COG_USE_DRM_MODE_MONITOR
-    if (s_options.drmdev_path) {
-        g_autoptr(GError) error = NULL;
-        if (!attach_drm_mode_monitor (COG_LAUNCHER (application), &error)) {
-            g_printerr ("%s: Cannot monitor DRM/KMS device '%s': %s\n",
-                        g_get_prgname (), s_options.drmdev_path, error->message);
-            return EXIT_FAILURE;
-        }
-        g_clear_pointer (&s_options.drmdev_path, g_free);
-    }
-#endif /* COG_USE_DRM_MODE_MONITOR */
-#endif /* COG_USE_MODE_MONITOR */
 
     return -1;  /* Continue startup. */
 }

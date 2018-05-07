@@ -22,14 +22,6 @@
 # include "cog-platform.h"
 #endif /* !COG_USE_WEBKITGTK */
 
-#if COG_USE_MODE_MONITOR
-# include "cog-mode-monitor.h"
-# include "cog-sysfs-mode-monitor.h"
-# if COG_USE_DRM_MODE_MONITOR
-#  include "cog-drm-mode-monitor.h"
-# endif /* COG_USE_DRM_MODE_MONITOR */
-#endif /* COG_USE_MODE_MONITOR */
-
 #undef COG_INSIDE_COG__
 
 #endif /* !COG_H */
