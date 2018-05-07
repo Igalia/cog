@@ -1,6 +1,8 @@
 Cog
 ===
 
+![Cog (boat)](data/cog.png)
+
 Cog is a small single “window” launcher for the [WebKit WPE
 port](https://trac.webkit.org/wiki/WPE). It is small, provides no user
 interface, and is suitable to be used as a Web application container. The
