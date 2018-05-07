@@ -1,5 +1,6 @@
 /*
  * cog-platform.h
+ * Copyright (C) 2018 Adrian Perez <aperez@igalia.com>
  * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  *
  * Distributed under terms of the MIT license.
@@ -37,6 +38,8 @@ void                  cog_platform_teardown         (CogPlatform   *platform);
 WebKitWebViewBackend *cog_platform_get_view_backend (CogPlatform   *platform,
                                                      WebKitWebView *related_view,
                                                      GError       **error);
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (CogPlatform, cog_platform_free)
 
 G_END_DECLS
 

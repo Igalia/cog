@@ -223,7 +223,7 @@ on_create_web_view (CogLauncher *launcher,
     WebKitWebViewBackend *view_backend = NULL;
     CogPlatform *platform = user_data;
     if (platform) {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
         view_backend = cog_platform_get_view_backend (platform, NULL, &error);
         if (!view_backend) {
             g_assert_nonnull (error);
@@ -297,15 +297,13 @@ main (int argc, char *argv[])
      */
     const gchar *platform_soname = "libcogplatform-fdo.so";
 
-    CogPlatform *platform = cog_platform_new ();
+    g_autoptr(CogPlatform) platform = cog_platform_new ();
     if (cog_platform_try_load (platform, platform_soname)) {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
         if (!cog_platform_setup (platform, COG_LAUNCHER (app), "", &error)) {
             g_printerr ("%s: Failed to load FDO platform: %s\n",
                         g_get_prgname (),
                         error->message);
-            cog_platform_free (platform);
-            platform = NULL;
         }
     }
 #endif
@@ -318,10 +316,8 @@ main (int argc, char *argv[])
     int result = g_application_run (app, argc, argv);
 
 #if !COG_USE_WEBKITGTK
-    if (platform) {
+    if (platform)
         cog_platform_teardown (platform);
-        cog_platform_free (platform);
-    }
 #endif
 
     return result;

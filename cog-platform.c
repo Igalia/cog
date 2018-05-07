@@ -1,5 +1,6 @@
 /*
  * cog-platform.c
+ * Copyright (C) 2018 Adrian Perez <aperez@igalia.com>
  * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  *
  * Distributed under terms of the MIT license.
@@ -34,9 +35,7 @@ cog_platform_new (void)
 void
 cog_platform_free (CogPlatform *platform)
 {
-    if (platform->so)
-        dlclose (platform->so);
-
+    g_clear_pointer (&platform->so, dlclose);
     g_slice_free (CogPlatform, platform);
 }
 
@@ -76,9 +75,7 @@ cog_platform_try_load (CogPlatform *platform,
     return TRUE;
 
  err_out:
-    dlclose (platform->so);
-    platform->so = NULL;
-
+    g_clear_pointer (&platform->so, dlclose);
     return FALSE;
 }
 
