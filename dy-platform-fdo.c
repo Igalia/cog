@@ -6,7 +6,7 @@
  */
 
 #include <assert.h>
-#include <dinghy.h>
+#include "dinghy.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <wpe/webkit.h>
