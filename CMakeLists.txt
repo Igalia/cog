@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.3)
-project(dinghy VERSION 0.1.0 LANGUAGES C)
+project(dinghy LANGUAGES C VERSION 0.1.0)
 
 include(GNUInstallDirs)
 
@@ -150,7 +150,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dinghycore.pc
 
 # libdinghyplaform-fdo
 
-project(dinghyplatform-fdo VERSION 0.1.0 DESCRIPTION "Dinghy FDO platform")
+project(dinghyplatform-fdo LANGUAGES C VERSION 0.1.0 DESCRIPTION "Dinghy FDO platform")
 
 set(DINGHYPLATFORM_FDO_SOURCES
     dy-platform-fdo.c
