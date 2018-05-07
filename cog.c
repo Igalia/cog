@@ -131,8 +131,12 @@ on_handle_local_options (GApplication *application,
     const char *uri = NULL;
     if (!s_options.arguments) {
         if (!(uri = g_getenv ("COG_URL"))) {
+#ifdef COG_DEFAULT_HOME_URI
+            uri = COG_DEFAULT_HOME_URI;
+#else
             g_printerr ("%s: URL not passed in the command line, and COG_URL not set\n", g_get_prgname ());
             return EXIT_FAILURE;
+#endif // COG_DEFAULT_HOME_URI
         }
     } else if (g_strv_length (s_options.arguments) > 1) {
         g_printerr ("%s: Cannot load more than one URL.\n", g_get_prgname ());

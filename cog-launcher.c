@@ -346,11 +346,6 @@ cog_launcher_constructed (GObject *object)
 }
 
 
-#ifndef COG_DEFAULT_HOME_URI
-#  define COG_DEFAULT_HOME_URI "about:blank"
-#endif
-
-
 static void
 cog_launcher_class_init (CogLauncherClass *klass)
 {
@@ -384,7 +379,7 @@ cog_launcher_class_init (CogLauncherClass *klass)
         g_param_spec_string ("home-uri",
                              "Home URI",
                              "URI loaded by the main WebKitWebView for the launcher at launch",
-                             COG_DEFAULT_HOME_URI,
+                             NULL,
                              G_PARAM_READWRITE |
                              G_PARAM_STATIC_STRINGS);
 
@@ -466,17 +461,23 @@ cog_launcher_set_home_uri (CogLauncher *launcher,
                            const char *home_uri)
 {
     g_return_if_fail (COG_IS_LAUNCHER (launcher));
-    g_return_if_fail (home_uri != NULL);
 
     if (g_strcmp0 (launcher->home_uri, home_uri) == 0)
         return;
 
-    launcher->home_uri = g_strdup (home_uri);
+    launcher->home_uri = home_uri ? g_strdup (home_uri) : NULL;
     g_object_notify_by_pspec (G_OBJECT (launcher),
                               s_properties[PROP_HOME_URI]);
 
-    if (launcher->web_view)
-        webkit_web_view_load_uri (launcher->web_view, launcher->home_uri);
+    if (launcher->web_view) {
+        if (launcher->home_uri) {
+            webkit_web_view_load_uri (launcher->web_view, launcher->home_uri);
+        } else {
+            // TODO: Load something nicer than an empty string which would
+            //       clearly show that no content is loaded at all.
+            webkit_web_view_load_plain_text (launcher->web_view, "");
+        }
+    }
 }
 
 
