@@ -150,7 +150,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dinghycore.pc
 
 # libdinghyplaform-fdo
 
-project(dinghyplatform-fdo LANGUAGES C VERSION 0.1.0 DESCRIPTION "Dinghy FDO platform")
+project(dinghyplatform-fdo LANGUAGES C VERSION 0.1.0)
 
 set(DINGHYPLATFORM_FDO_SOURCES
     dy-platform-fdo.c
