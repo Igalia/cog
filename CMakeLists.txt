@@ -45,7 +45,6 @@ find_package(PkgConfig)
 set(COGCORE_API_HEADERS
     cog.h
     cog-launcher.h
-    cog-platform.h
     cog-request-handler.h
     cog-directory-files-handler.h
     cog-utils.h
@@ -54,7 +53,6 @@ set(COGCORE_API_HEADERS
 )
 set(COGCORE_SOURCES
     cog-launcher.c
-    cog-platform.c
     cog-request-handler.c
     cog-directory-files-handler.c
     cog-utils.c
@@ -67,6 +65,8 @@ if (COG_USE_WEBKITGTK)
     list(APPEND COGCORE_SOURCES cog-gtk-utils.c)
     pkg_check_modules(WEB_ENGINE REQUIRED webkit2gtk-4.0)
 else ()
+    list(APPEND COGCORE_API_HEADERS cog-platform.h)
+    list(APPEND COGCORE_SOURCES cog-platform.c)
     pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit-0.1 wpe-0.1)
 endif ()
 
@@ -150,6 +150,8 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cogcore.pc
 
 # libcogplaform-fdo
 
+if (NOT COG_USE_WEBKITGTK)
+
 project(cogplatform-fdo LANGUAGES C VERSION 0.1.0 DESCRIPTION "Cog FDO platform")
 
 set(COGPLATFORM_FDO_SOURCES
@@ -177,3 +179,5 @@ install(TARGETS cogplatform-fdo
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
     COMPONENT "runtime"
 )
+
+endif ()  # !COG_USE_WEBKITGTK
