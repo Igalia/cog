@@ -2,10 +2,10 @@ prefix=@CMAKE_INSTALL_PREFIX@
 libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
 includedir=${prefix}/include
 
-Name: dinghycore
-Description: Dinghy Core - WPE WebKit base launcher
+Name: cogcore 
+Description: Cog Core - WPE WebKit base launcher
 Version: @PROJECT_VERSION@
 
 Requires.private: wpe-webkit
-Libs: -L${libdir} -ldinghycore
-Cflags: -I${includedir}/dinghy
+Libs: -L${libdir} -lcogcore
+Cflags: -I${includedir}/cog

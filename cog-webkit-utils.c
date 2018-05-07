@@ -1,11 +1,11 @@
 /*
- * dy-webkit-utils.c
+ * cog-webkit-utils.c
  * Copyright (C) 2018 Adrian Perez <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
  */
 
-#include "dy-webkit-utils.h"
+#include "cog-webkit-utils.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -47,11 +47,11 @@ load_error_page (WebKitWebView *web_view,
 
 
 gboolean
-dy_handle_web_view_load_failed (WebKitWebView  *web_view,
-                                WebKitLoadEvent load_event,
-                                char           *failing_uri,
-                                GError         *error,
-                                void           *userdata)
+cog_handle_web_view_load_failed (WebKitWebView  *web_view,
+                                 WebKitLoadEvent load_event,
+                                 char           *failing_uri,
+                                 GError         *error,
+                                 void           *userdata)
 {
     return load_error_page (web_view,
                             failing_uri,
@@ -93,11 +93,11 @@ format_tls_error (GTlsCertificateFlags errors)
 
 
 gboolean
-dy_handle_web_view_load_failed_with_tls_errors (WebKitWebView       *web_view,
-                                                char                *failing_uri,
-                                                GTlsCertificate     *certificate,
-                                                GTlsCertificateFlags errors,
-                                                void                *user_data)
+cog_handle_web_view_load_failed_with_tls_errors (WebKitWebView       *web_view,
+                                                 char                *failing_uri,
+                                                 GTlsCertificate     *certificate,
+                                                 GTlsCertificateFlags errors,
+                                                 void                *user_data)
 {
     g_autofree char *error_string = format_tls_error (errors);
     return load_error_page (web_view,
@@ -108,8 +108,8 @@ dy_handle_web_view_load_failed_with_tls_errors (WebKitWebView       *web_view,
 
 
 gboolean
-dy_handle_web_view_web_process_crashed (WebKitWebView *web_view,
-                                        void          *userdata)
+cog_handle_web_view_web_process_crashed (WebKitWebView *web_view,
+                                         void          *userdata)
 {
     static const char *message = 
         "The renderer process crashed. Reloading the page may fix"
@@ -122,8 +122,8 @@ dy_handle_web_view_web_process_crashed (WebKitWebView *web_view,
 
 
 gboolean
-dy_handle_web_view_web_process_crashed_exit (WebKitWebView *web_view,
-                                             void          *userdata)
+cog_handle_web_view_web_process_crashed_exit (WebKitWebView *web_view,
+                                              void          *userdata)
 {
     g_critical ("The rendered process crashed, exiting...");
     exit (GPOINTER_TO_INT (userdata));
@@ -165,7 +165,7 @@ on_web_process_crashed_restart (WebKitWebView *web_view, void *userdata)
         g_critical ("Renderer process crashed and failed to recover within %ums",
                     restart->try_window_ms);
         // Chain up to the handler that renders an error page.
-        return dy_handle_web_view_web_process_crashed (web_view, NULL);
+        return cog_handle_web_view_web_process_crashed (web_view, NULL);
     }
 
     g_warning ("Renderer process crashed, restarting (attempt %u/%u).",
@@ -189,9 +189,9 @@ free_restart_data (void *restart, G_GNUC_UNUSED GClosure *closure)
 
 
 gulong
-dy_web_view_connect_web_process_crashed_restart_handler (WebKitWebView *web_view,
-                                                         unsigned       max_tries,
-                                                         unsigned       try_window_ms)
+cog_web_view_connect_web_process_crashed_restart_handler (WebKitWebView *web_view,
+                                                          unsigned       max_tries,
+                                                          unsigned       try_window_ms)
 {
     g_return_val_if_fail (WEBKIT_IS_WEB_VIEW (web_view), 0);
     g_return_val_if_fail (max_tries > 0, 0);
@@ -210,18 +210,18 @@ dy_web_view_connect_web_process_crashed_restart_handler (WebKitWebView *web_view
 
 
 void
-dy_web_view_connect_default_error_handlers (WebKitWebView *web_view)
+cog_web_view_connect_default_error_handlers (WebKitWebView *web_view)
 {
     static const struct {
         const char *sig;
         const void *hnd;
     } handlers[] = {
         { "load-failed",
-            dy_handle_web_view_load_failed },
+            cog_handle_web_view_load_failed },
         { "load-failed-with-tls-errors",
-            dy_handle_web_view_load_failed_with_tls_errors },
+            cog_handle_web_view_load_failed_with_tls_errors },
         { "web-process-crashed",
-            dy_handle_web_view_web_process_crashed },
+            cog_handle_web_view_web_process_crashed },
     };
     
     for (unsigned i = 0; i < G_N_ELEMENTS (handlers); i++)
@@ -230,9 +230,9 @@ dy_web_view_connect_default_error_handlers (WebKitWebView *web_view)
 
 
 void
-dy_handle_web_view_load_changed (WebKitWebView  *web_view,
-                                 WebKitLoadEvent load_event,
-                                 void           *userdata)
+cog_handle_web_view_load_changed (WebKitWebView  *web_view,
+                                  WebKitLoadEvent load_event,
+                                  void           *userdata)
 {
     const char *info = NULL;
     switch (load_event) {
@@ -255,13 +255,13 @@ dy_handle_web_view_load_changed (WebKitWebView  *web_view,
 
 
 void
-dy_web_view_connect_default_progress_handlers (WebKitWebView *web_view)
+cog_web_view_connect_default_progress_handlers (WebKitWebView *web_view)
 {
     static const struct {
         const char *sig;
         const void *hnd;
     } handlers[] = {
-        { "load-changed", dy_handle_web_view_load_changed },
+        { "load-changed", cog_handle_web_view_load_changed },
     };
 
     for (unsigned i = 0; i < G_N_ELEMENTS (handlers); i++)

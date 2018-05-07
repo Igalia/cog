@@ -1,12 +1,13 @@
 /*
- * dy-fdo-platform.c
- * Copyright (C) 2018 Adrian Perez <aperez@igalia.com>
+ * cog-fdo-platform.c
+ * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  *
  * Distributed under terms of the MIT license.
  */
 
+#include "cog.h"
+
 #include <assert.h>
-#include "dinghy.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <wpe/webkit.h>
@@ -40,7 +41,7 @@
 
 #define DEFAULT_ZOOM_STEP 0.1f
 
-static DyLauncher *launcher = NULL;
+static CogLauncher *launcher = NULL;
 
 static struct {
     struct wl_display *display;
@@ -1211,7 +1212,7 @@ create_window (void)
                                        &xdg_toplevel_listener,
                                        NULL);
         zxdg_toplevel_v6_set_title (win_data.xdg_toplevel,
-                                    DY_DEFAULT_APPNAME);
+                                    COG_DEFAULT_APPNAME);
         zxdg_toplevel_v6_set_app_id (win_data.xdg_toplevel,
                                      g_application_get_application_id (G_APPLICATION (launcher)));
     } else if (wl_data.fshell != NULL) {
@@ -1446,13 +1447,13 @@ clear_gles (void)
 }
 
 gboolean
-dy_platform_setup (DyPlatform  *platform,
-                   DyLauncher  *_launcher,
-                   const char  *params,
-                   GError     **error)
+cog_platform_setup (CogPlatform *platform,
+                    CogLauncher *_launcher,
+                    const char  *params,
+                    GError     **error)
 {
     g_assert_nonnull (platform);
-    g_return_val_if_fail (DY_IS_LAUNCHER (_launcher), FALSE);
+    g_return_val_if_fail (COG_IS_LAUNCHER (_launcher), FALSE);
 
     launcher = _launcher;
 
@@ -1469,7 +1470,7 @@ dy_platform_setup (DyPlatform  *platform,
 }
 
 void
-dy_platform_teardown (DyPlatform *platform)
+cog_platform_teardown (CogPlatform *platform)
 {
     g_assert_nonnull (platform);
 
@@ -1496,9 +1497,9 @@ dy_platform_teardown (DyPlatform *platform)
 }
 
 WebKitWebViewBackend*
-dy_platform_get_view_backend (DyPlatform     *platform,
-                              WebKitWebView  *related_view,
-                              GError        **error)
+cog_platform_get_view_backend (CogPlatform   *platform,
+                               WebKitWebView *related_view,
+                               GError       **error)
 {
     static struct wpe_view_backend_exportable_fdo_client exportable_client = {
         .export_buffer_resource = on_export_buffer_resource,

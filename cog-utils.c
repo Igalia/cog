@@ -1,18 +1,18 @@
 /*
- * dy-utils.c
+ * cog-utils.c
  * Copyright (C) 2018 Adrian Perez <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
  */
 
-#include "dy-utils.h"
+#include "cog-utils.h"
 #include <libsoup/soup.h>
 #include <gio/gio.h>
 #include <string.h>
 
 
 char*
-dy_appid_to_dbus_object_path (const char *appid)
+cog_appid_to_dbus_object_path (const char *appid)
 {
     g_return_val_if_fail (appid != NULL, NULL);
 
@@ -25,9 +25,9 @@ dy_appid_to_dbus_object_path (const char *appid)
 
 
 char*
-dy_uri_guess_from_user_input (const char *uri_like,
-                              gboolean    is_cli_arg,
-                              GError    **error)
+cog_uri_guess_from_user_input (const char *uri_like,
+                               gboolean    is_cli_arg,
+                               GError    **error)
 {
     g_return_val_if_fail (uri_like, NULL);
 

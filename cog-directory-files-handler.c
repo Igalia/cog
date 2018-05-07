@@ -1,15 +1,15 @@
 /*
- * dy-directory-files-handler.c
- * Copyright (C) 2017 Adrian Perez <aperez@igalia.com>
+ * cog-directory-files-handler.c
+ * Copyright (C) 2017-2018 Adrian Perez <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
  */
 
-#include "dy-directory-files-handler.h"
+#include "cog-directory-files-handler.h"
 #include <gio/gio.h>
 
 
-struct _DyDirectoryFilesHandler {
+struct _CogDirectoryFilesHandler {
     GObject parent;
     GFile  *base_path;
 };
@@ -24,7 +24,7 @@ static const char s_file_query_attributes[] =
 
 static void* s_request_resolving_index = (void*) 0xCAFECAFE;
 
-G_DEFINE_QUARK (dy-directory-files-handler-data, dy_directory_files_handler);
+G_DEFINE_QUARK (cog-directory-files-handler-data, cog_directory_files_handler);
 
 
 static void
@@ -43,7 +43,7 @@ on_file_read_async_completed (GObject      *source_object,
         g_autoptr(GInputStream) stream =
             g_buffered_input_stream_new (G_INPUT_STREAM (file_stream));
         g_autoptr(GFileInfo) info =
-            G_FILE_INFO (g_object_steal_qdata (source_object, dy_directory_files_handler_quark ()));
+            G_FILE_INFO (g_object_steal_qdata (source_object, cog_directory_files_handler_quark ()));
         guint64 size =
             g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_STANDARD_SIZE);
         const char *mime_type =
@@ -85,7 +85,7 @@ on_file_query_info_async_completed (GObject      *source_object,
          * on_file_read_async_completed() to avoid querying again.
          */
         g_object_set_qdata_full (source_object,
-                                 dy_directory_files_handler_quark (),
+                                 cog_directory_files_handler_quark (),
                                  g_steal_pointer (&info),
                                  g_object_unref);
         g_file_read_async (file,
@@ -101,18 +101,18 @@ on_file_query_info_async_completed (GObject      *source_object,
          * an error instead.
          */
         if (s_request_resolving_index == g_object_get_qdata (G_OBJECT (request),
-                                                             dy_directory_files_handler_quark ()))
+                                                             cog_directory_files_handler_quark ()))
         {
             g_autofree char *path = g_file_get_path (file);
-            error = g_error_new (dy_directory_files_handler_error_quark (),
-                                 DY_DIRECTORY_FILES_HANDLER_ERROR_CANNOT_RESOLVE,
+            error = g_error_new (cog_directory_files_handler_error_quark (),
+                                 COG_DIRECTORY_FILES_HANDLER_ERROR_CANNOT_RESOLVE,
                                  "Path '%s' does not represent a regular file",
                                  path);
             webkit_uri_scheme_request_finish_error (request, error);
         } else {
             /* Mark request as being resolved for its index. */
             g_object_set_qdata (G_OBJECT (request),
-                                dy_directory_files_handler_quark (),
+                                cog_directory_files_handler_quark (),
                                 s_request_resolving_index);
             g_autoptr(GFile) index = g_file_get_child (file, "index.html");
             g_file_query_info_async (index,
@@ -125,8 +125,8 @@ on_file_query_info_async_completed (GObject      *source_object,
         }
     } else {
         g_autofree char *path = g_file_get_path (file);
-        error = g_error_new (dy_directory_files_handler_error_quark (),
-                             DY_DIRECTORY_FILES_HANDLER_ERROR_CANNOT_RESOLVE,
+        error = g_error_new (cog_directory_files_handler_error_quark (),
+                             COG_DIRECTORY_FILES_HANDLER_ERROR_CANNOT_RESOLVE,
                              "Path '%s' does not represent a regular file or directory",
                              path);
         webkit_uri_scheme_request_finish_error (request, error);
@@ -135,10 +135,10 @@ on_file_query_info_async_completed (GObject      *source_object,
 
 
 static void
-dy_directory_files_handler_run (DyRequestHandler       *request_handler,
-                                WebKitURISchemeRequest *request)
+cog_directory_files_handler_run (CogRequestHandler      *request_handler,
+                                 WebKitURISchemeRequest *request)
 {
-    DyDirectoryFilesHandler *handler = DY_DIRECTORY_FILES_HANDLER (request_handler);
+    CogDirectoryFilesHandler *handler = COG_DIRECTORY_FILES_HANDLER (request_handler);
 
     /*
      * If we get an empty path, redirect to the root resource "/", otherwise
@@ -171,58 +171,58 @@ dy_directory_files_handler_run (DyRequestHandler       *request_handler,
 
 
 static void
-dy_directory_files_handler_iface_init (DyRequestHandlerInterface *iface)
+cog_directory_files_handler_iface_init (CogRequestHandlerInterface *iface)
 {
-    iface->run = dy_directory_files_handler_run;
+    iface->run = cog_directory_files_handler_run;
 }
 
 
-G_DEFINE_TYPE_WITH_CODE (DyDirectoryFilesHandler,
-                         dy_directory_files_handler,
+G_DEFINE_TYPE_WITH_CODE (CogDirectoryFilesHandler,
+                         cog_directory_files_handler,
                          G_TYPE_OBJECT,
-                         G_IMPLEMENT_INTERFACE (DY_TYPE_REQUEST_HANDLER,
-                                                dy_directory_files_handler_iface_init))
+                         G_IMPLEMENT_INTERFACE (COG_TYPE_REQUEST_HANDLER,
+                                                cog_directory_files_handler_iface_init))
 
 
 static void
-dy_directory_files_handler_dispose (GObject *object)
+cog_directory_files_handler_dispose (GObject *object)
 {
-    DyDirectoryFilesHandler *handler = DY_DIRECTORY_FILES_HANDLER (object);
+    CogDirectoryFilesHandler *handler = COG_DIRECTORY_FILES_HANDLER (object);
 
     g_clear_object (&handler->base_path);
 
-    G_OBJECT_CLASS (dy_directory_files_handler_parent_class)->dispose (object);
+    G_OBJECT_CLASS (cog_directory_files_handler_parent_class)->dispose (object);
 }
 
 
 static void
-dy_directory_files_handler_class_init (DyDirectoryFilesHandlerClass *klass)
+cog_directory_files_handler_class_init (CogDirectoryFilesHandlerClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
-    object_class->dispose = dy_directory_files_handler_dispose;
+    object_class->dispose = cog_directory_files_handler_dispose;
 }
 
 
 static void
-dy_directory_files_handler_init (DyDirectoryFilesHandler *handler)
+cog_directory_files_handler_init (CogDirectoryFilesHandler *handler)
 {
 }
 
 
-G_DEFINE_QUARK (DyDirectoryFilesHandlerError, dy_directory_files_handler_error)
+G_DEFINE_QUARK (CogDirectoryFilesHandlerError, cog_directory_files_handler_error)
 
 
 gboolean
-dy_directory_files_handler_is_suitable_path (GFile   *file,
-                                             GError **error)
+cog_directory_files_handler_is_suitable_path (GFile   *file,
+                                              GError **error)
 {
     g_return_val_if_fail (G_IS_FILE (file), FALSE);
 
     if (!g_file_is_native (file)) {
         g_autofree char *path = error ? g_file_get_path (file) : NULL;
         g_set_error (error,
-                     dy_directory_files_handler_error_quark (),
-                     DY_DIRECTORY_FILES_HANDLER_ERROR_PATH_NOT_NATIVE,
+                     cog_directory_files_handler_error_quark (),
+                     COG_DIRECTORY_FILES_HANDLER_ERROR_PATH_NOT_NATIVE,
                      "Path '%s' is not native",
                      path);
         return FALSE;
@@ -231,8 +231,8 @@ dy_directory_files_handler_is_suitable_path (GFile   *file,
     if (g_file_query_file_type (file, G_FILE_QUERY_INFO_NONE, NULL) != G_FILE_TYPE_DIRECTORY) {
         g_autofree char *path = error ? g_file_get_path (file) : NULL;
         g_set_error (error,
-                     dy_directory_files_handler_error_quark (),
-                     DY_DIRECTORY_FILES_HANDLER_ERROR_PATH_NOT_DIRECTORY,
+                     cog_directory_files_handler_error_quark (),
+                     COG_DIRECTORY_FILES_HANDLER_ERROR_PATH_NOT_DIRECTORY,
                      "Path '%s' is not a directory",
                      path);
         return FALSE;
@@ -242,11 +242,11 @@ dy_directory_files_handler_is_suitable_path (GFile   *file,
 }
 
 
-DyRequestHandler*
-dy_directory_files_handler_new (GFile *base_path)
+CogRequestHandler*
+cog_directory_files_handler_new (GFile *base_path)
 {
-    g_return_val_if_fail (dy_directory_files_handler_is_suitable_path (base_path, NULL), NULL);
-    DyDirectoryFilesHandler *handler = g_object_new (DY_TYPE_DIRECTORY_FILES_HANDLER, NULL);
+    g_return_val_if_fail (cog_directory_files_handler_is_suitable_path (base_path, NULL), NULL);
+    CogDirectoryFilesHandler *handler = g_object_new (COG_TYPE_DIRECTORY_FILES_HANDLER, NULL);
     handler->base_path = g_object_ref_sink (base_path);
-    return DY_REQUEST_HANDLER (handler);
+    return COG_REQUEST_HANDLER (handler);
 }

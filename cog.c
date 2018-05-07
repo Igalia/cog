@@ -1,5 +1,6 @@
 /*
- * dinghy.c
+ * cog.c
+ * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  * Copyright (C) 2017-2018 Adrian Perez <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
@@ -7,7 +8,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "dinghy.h"
+#include "cog.h"
 
 
 enum webprocess_fail_action {
@@ -29,12 +30,12 @@ static struct {
     gdouble  scale_factor;
     GStrv    dir_handlers;
     GStrv    arguments;
-#if DY_USE_MODE_MONITOR
+#if COG_USE_MODE_MONITOR
     char    *sysfs_path;
-#if DY_USE_DRM_MODE_MONITOR
+#if COG_USE_DRM_MODE_MONITOR
     char    *drmdev_path;
 #endif
-#endif /* DY_USE_MODE_MONITOR */
+#endif /* COG_USE_MODE_MONITOR */
     union {
         char *action_name;
         enum webprocess_fail_action action_id;
@@ -76,14 +77,14 @@ static GOptionEntry s_cli_options[] =
         &s_options.on_failure.action_name,
         "Action on WebProcess failures: error-page (default), exit, exit-ok, restart.",
         "ACTION" },
-#if DY_USE_MODE_MONITOR
+#if COG_USE_MODE_MONITOR
     { "sysfs-mode-monitor", '\0', 0, G_OPTION_ARG_STRING, &s_options.sysfs_path,
         "SysFS framebuffer mode file to monitor", "PATH" },
-#if DY_USE_DRM_MODE_MONITOR
+#if COG_USE_DRM_MODE_MONITOR
     { "drm-mode-monitor", '\0', 0, G_OPTION_ARG_STRING, &s_options.drmdev_path,
         "Path to a DRM/KMS device node", "PATH" },
 #endif
-#endif /* !DY_VERSION_STRING */
+#endif /* !COG_VERSION_STRING */
     { G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments,
         "", "[URL]" },
     { NULL }
@@ -114,36 +115,32 @@ string_to_webprocess_fail_action (const char *action)
 }
 
 
-#if DY_USE_MODE_MONITOR
+#if COG_USE_MODE_MONITOR
 static void
-on_mode_monitor_notify (DyModeMonitor *monitor,
-                        GParamSpec    *pspec,
-                        DyLauncher    *launcher)
+on_mode_monitor_notify (CogModeMonitor *monitor,
+                        GParamSpec     *pspec,
+                        CogLauncher    *launcher)
 {
-    const DyModeMonitorInfo *info = dy_mode_monitor_get_info (monitor);
+    const CogModeMonitorInfo *info = cog_mode_monitor_get_info (monitor);
 
     const char *device_name = "(unnamed)";
-    if (DY_IS_SYSFS_MODE_MONITOR (monitor))
-        device_name = dy_sysfs_mode_monitor_get_path (DY_SYSFS_MODE_MONITOR (monitor));
-#if DY_USE_DRM_MODE_MONITOR
-    else if (DY_IS_DRM_MODE_MONITOR (monitor))
-        device_name = dy_drm_mode_monitor_get_device_path (DY_DRM_MODE_MONITOR (monitor));
+    if (COG_IS_SYSFS_MODE_MONITOR (monitor))
+        device_name = cog_sysfs_mode_monitor_get_path (COG_SYSFS_MODE_MONITOR (monitor));
+#if COG_USE_DRM_MODE_MONITOR
+    else if (COG_IS_DRM_MODE_MONITOR (monitor))
+        device_name = cog_drm_mode_monitor_get_device_path (COG_DRM_MODE_MONITOR (monitor));
 #endif
 
     g_printerr ("Device '%s', mode %" PRIu32 "x%" PRIu32 " (%s)\n",
                 device_name, info->width, info->height, info->mode_id);
-
-#if DY_USE_WEBKITGTK
-#else
-#endif /* DY_USE_WEBKITGTK */
 }
 
 static inline gboolean
-attach_sysfs_mode_monitor (DyLauncher *launcher,
+attach_sysfs_mode_monitor (CogLauncher *launcher,
                            GError    **error)
 {
     g_autoptr(GFile) sysfs_file = g_file_new_for_commandline_arg (s_options.sysfs_path);
-    g_autoptr(DySysfsModeMonitor) monitor = dy_sysfs_mode_monitor_new (sysfs_file, error);
+    g_autoptr(CogSysfsModeMonitor) monitor = cog_sysfs_mode_monitor_new (sysfs_file, error);
     if (!monitor)
         return FALSE;
 
@@ -155,14 +152,14 @@ attach_sysfs_mode_monitor (DyLauncher *launcher,
     return TRUE;
 }
 
-#if DY_USE_DRM_MODE_MONITOR
+#if COG_USE_DRM_MODE_MONITOR
 
 static inline gboolean
-attach_drm_mode_monitor (DyLauncher *launcher,
+attach_drm_mode_monitor (CogLauncher *launcher,
                          GError    **error)
 {
     g_autoptr(GFile) drmdev_file = g_file_new_for_commandline_arg (s_options.drmdev_path);
-    g_autoptr(DyDrmModeMonitor) monitor = dy_drm_mode_monitor_new (drmdev_file, error);
+    g_autoptr(CogDrmModeMonitor) monitor = cog_drm_mode_monitor_new (drmdev_file, error);
     if (!monitor)
         return FALSE;
 
@@ -174,9 +171,9 @@ attach_drm_mode_monitor (DyLauncher *launcher,
     return TRUE;
 }
 
-#endif /* DY_USE_DRM_MODE_MONITOR */
+#endif /* COG_USE_DRM_MODE_MONITOR */
 
-#endif /* DY_USE_MODE_MONITOR */
+#endif /* COG_USE_MODE_MONITOR */
 
 
 static int
@@ -185,7 +182,7 @@ on_handle_local_options (GApplication *application,
                          void         *user_data)
 {
     if (s_options.version) {
-        g_print ("%s\n", DY_VERSION_STRING);
+        g_print ("%s\n", COG_VERSION_STRING);
         return EXIT_SUCCESS;
     }
     if (s_options.print_appid) {
@@ -208,8 +205,8 @@ on_handle_local_options (GApplication *application,
 
     const char *uri = NULL;
     if (!s_options.arguments) {
-        if (!(uri = g_getenv ("DINGHY_URL"))) {
-            g_printerr ("%s: URL not passed in the command line, and DINGHY_URL not set\n", g_get_prgname ());
+        if (!(uri = g_getenv ("COG_URL"))) {
+            g_printerr ("%s: URL not passed in the command line, and COG_URL not set\n", g_get_prgname ());
             return EXIT_FAILURE;
         }
     } else if (g_strv_length (s_options.arguments) > 1) {
@@ -220,7 +217,7 @@ on_handle_local_options (GApplication *application,
     }
 
     g_autoptr(GError) error = NULL;
-    g_autofree char *utf8_uri = dy_uri_guess_from_user_input (uri, TRUE, &error);
+    g_autofree char *utf8_uri = cog_uri_guess_from_user_input (uri, TRUE, &error);
     if (!utf8_uri) {
         g_printerr ("%s: URI '%s' is invalid UTF-8: %s\n",
                     g_get_prgname (), uri, error->message);
@@ -232,7 +229,7 @@ on_handle_local_options (GApplication *application,
     /*
      * Validate the supplied local URI handler specification and check
      * whether the directory exists. Note that this creation of the
-     * corresponding DyURIHandler objects is done at GApplication::startup.
+     * corresponding CogURIHandler objects is done at GApplication::startup.
      */
     for (size_t i = 0; s_options.dir_handlers && s_options.dir_handlers[i]; i++) {
         char *colon = strchr (s_options.dir_handlers[i], ':');
@@ -257,24 +254,24 @@ on_handle_local_options (GApplication *application,
         g_autoptr(GFile) file = g_file_new_for_commandline_arg (colon + 1);
 
         g_autoptr(GError) error = NULL;
-        if (!dy_directory_files_handler_is_suitable_path (file, &error)) {
+        if (!cog_directory_files_handler_is_suitable_path (file, &error)) {
             g_printerr ("%s: %s\n", g_get_prgname (), error->message);
             return EXIT_FAILURE;
         }
 
         *colon = '\0';  /* NULL-terminate the URI scheme name. */
-        g_autoptr(DyRequestHandler) handler = dy_directory_files_handler_new (file);
-        dy_launcher_set_request_handler (DY_LAUNCHER (application),
-                                         s_options.dir_handlers[i],
-                                         handler);
+        g_autoptr(CogRequestHandler) handler = cog_directory_files_handler_new (file);
+        cog_launcher_set_request_handler (COG_LAUNCHER (application),
+                                          s_options.dir_handlers[i],
+                                          handler);
     }
 
-    dy_launcher_set_home_uri (DY_LAUNCHER (application), utf8_uri);
+    cog_launcher_set_home_uri (COG_LAUNCHER (application), utf8_uri);
 
-#if DY_USE_MODE_MONITOR
+#if COG_USE_MODE_MONITOR
     if (s_options.sysfs_path) {
         g_autoptr(GError) error = NULL;
-        if (!attach_sysfs_mode_monitor (DY_LAUNCHER (application), &error)) {
+        if (!attach_sysfs_mode_monitor (COG_LAUNCHER (application), &error)) {
             g_printerr ("%s: Cannot monitor SysFS path '%s': %s\n",
                         g_get_prgname (), s_options.sysfs_path, error->message);
             return EXIT_FAILURE;
@@ -282,28 +279,28 @@ on_handle_local_options (GApplication *application,
         g_clear_pointer (&s_options.sysfs_path, g_free);
     }
 
-#if DY_USE_DRM_MODE_MONITOR
+#if COG_USE_DRM_MODE_MONITOR
     if (s_options.drmdev_path) {
         g_autoptr(GError) error = NULL;
-        if (!attach_drm_mode_monitor (DY_LAUNCHER (application), &error)) {
+        if (!attach_drm_mode_monitor (COG_LAUNCHER (application), &error)) {
             g_printerr ("%s: Cannot monitor DRM/KMS device '%s': %s\n",
                         g_get_prgname (), s_options.drmdev_path, error->message);
             return EXIT_FAILURE;
         }
         g_clear_pointer (&s_options.drmdev_path, g_free);
     }
-#endif /* DY_USE_DRM_MODE_MONITOR */
-#endif /* DY_USE_MODE_MONITOR */
+#endif /* COG_USE_DRM_MODE_MONITOR */
+#endif /* COG_USE_MODE_MONITOR */
 
     return -1;  /* Continue startup. */
 }
 
 
 static WebKitWebView*
-on_create_web_view (DyLauncher *launcher,
-                    void       *user_data)
+on_create_web_view (CogLauncher *launcher,
+                    void        *user_data)
 {
-    WebKitWebContext *web_context = dy_launcher_get_web_context (launcher);
+    WebKitWebContext *web_context = cog_launcher_get_web_context (launcher);
 
     if (s_options.doc_viewer) {
         webkit_web_context_set_cache_model (web_context,
@@ -317,12 +314,12 @@ on_create_web_view (DyLauncher *launcher,
                                            "enable-write-console-messages-to-stdout", s_options.log_console,
                                            NULL);
 
+#if !COG_USE_WEBKITGTK
     WebKitWebViewBackend *view_backend = NULL;
-#if !(DY_USE_WEBKITGTK)
-    DyPlatform *platform = user_data;
+    CogPlatform *platform = user_data;
     if (platform) {
         GError *error = NULL;
-        view_backend = dy_platform_get_view_backend (platform, NULL, &error);
+        view_backend = cog_platform_get_view_backend (platform, NULL, &error);
         if (!view_backend) {
             g_assert_nonnull (error);
             g_printerr ("%s, Failed to get platform's view backend: %s\n",
@@ -336,7 +333,7 @@ on_create_web_view (DyLauncher *launcher,
                                                       "settings", settings,
                                                       "web-context", web_context,
                                                       "zoom-level", s_options.scale_factor,
-#if !(DY_USE_WEBKITGTK)
+#if !(COG_USE_WEBKITGTK)
                                                       "backend", view_backend,
 #endif
                                                       NULL);
@@ -349,24 +346,24 @@ on_create_web_view (DyLauncher *launcher,
             break;
 
         case WEBPROCESS_FAIL_EXIT:
-            dy_web_view_connect_web_process_crashed_exit_handler (web_view, EXIT_FAILURE);
+            cog_web_view_connect_web_process_crashed_exit_handler (web_view, EXIT_FAILURE);
             break;
 
         case WEBPROCESS_FAIL_EXIT_OK:
-            dy_web_view_connect_web_process_crashed_exit_handler (web_view, EXIT_SUCCESS);
+            cog_web_view_connect_web_process_crashed_exit_handler (web_view, EXIT_SUCCESS);
             break;
 
         case WEBPROCESS_FAIL_RESTART:
             // TODO: Un-hardcode the 5 retries per second.
-            dy_web_view_connect_web_process_crashed_restart_handler (web_view, 5, 1000);
+            cog_web_view_connect_web_process_crashed_restart_handler (web_view, 5, 1000);
             break;
 
         default:
             g_assert_not_reached();
     }
 
-    dy_web_view_connect_default_progress_handlers (web_view);
-    dy_web_view_connect_default_error_handlers (web_view);
+    cog_web_view_connect_default_progress_handlers (web_view);
+    cog_web_view_connect_default_error_handlers (web_view);
 
     return g_steal_pointer (&web_view);
 }
@@ -375,34 +372,34 @@ on_create_web_view (DyLauncher *launcher,
 int
 main (int argc, char *argv[])
 {
-    g_autoptr(GApplication) app = G_APPLICATION (dy_launcher_get_default ());
+    g_autoptr(GApplication) app = G_APPLICATION (cog_launcher_get_default ());
     g_application_add_main_option_entries (app, s_cli_options);
 
-    DyPlatform *platform = NULL;
-
-#if !(DY_USE_WEBKITGTK)
+#if COG_USE_WEBKITGTK
+    void *platform = NULL;
+#else
     /*
-     * Here we resolve the DyPlatform we are going to use. A Dinghy platform
+     * Here we resolve the CogPlatform we are going to use. A Cog platform
      * is dynamically loaded object
      * that abstracts the specifics about how a WebView's WPE backend is going
      * to be constructed and rendered on a given platform.
      */
 
     /*
-     * @FIXME: for now this is hardcoded to use DyPlatformFdo, which
+     * @FIXME: for now this is hardcoded to use CogPlatformFdo, which
      * essentially uses WPEBackend-fdo and renders on a running wayland
      * compositor.
      */
-    const gchar *platform_soname = "libdinghyplatform-fdo.so";
+    const gchar *platform_soname = "libcogplatform-fdo.so";
 
-    platform = dy_platform_new ();
-    if (dy_platform_try_load (platform, platform_soname)) {
+    CogPlatform *platform = cog_platform_new ();
+    if (cog_platform_try_load (platform, platform_soname)) {
         GError *error = NULL;
-        if (!dy_platform_setup (platform, DY_LAUNCHER (app), "", &error)) {
+        if (!cog_platform_setup (platform, COG_LAUNCHER (app), "", &error)) {
             g_printerr ("%s: Failed to load FDO platform: %s\n",
                         g_get_prgname (),
                         error->message);
-            dy_platform_free (platform);
+            cog_platform_free (platform);
             platform = NULL;
         }
     }
@@ -415,10 +412,10 @@ main (int argc, char *argv[])
 
     int result = g_application_run (app, argc, argv);
 
-#if !(DY_USE_WEBKITGTK)
+#if !COG_USE_WEBKITGTK
     if (platform) {
-        dy_platform_teardown (platform);
-        dy_platform_free (platform);
+        cog_platform_teardown (platform);
+        cog_platform_free (platform);
     }
 #endif
 

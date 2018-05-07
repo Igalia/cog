@@ -1,30 +1,30 @@
 /*
- * dy-gtk-utils.c
- * Copyright (C) 2017 Adrian Perez <aperez@igalia.com>
+ * cog-gtk-utils.c
+ * Copyright (C) 2017-2018 Adrian Perez <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
  */
 
-#include "dy-gtk-utils.h"
-#include "dy-launcher.h"
+#include "cog-gtk-utils.h"
+#include "cog-launcher.h"
 #include <gtk/gtk.h>
 
 
 GtkWidget*
-dy_gtk_create_window (DyLauncher *launcher)
+cog_gtk_create_window (CogLauncher *launcher)
 {
     GtkWidget *button;
 
     g_return_val_if_fail (launcher, NULL);
 
-    GtkWidget *web_view = GTK_WIDGET (dy_launcher_get_web_view (launcher));
+    GtkWidget *web_view = GTK_WIDGET (cog_launcher_get_web_view (launcher));
     g_return_val_if_fail (web_view, NULL);
 
     gtk_window_set_default_icon_name ("applications-internet");
 
     GtkWidget *header = gtk_header_bar_new ();  // Floating.
     gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (header), TRUE);
-    gtk_header_bar_set_title (GTK_HEADER_BAR (header), "Dinghy");
+    gtk_header_bar_set_title (GTK_HEADER_BAR (header), "Cog");
     g_object_bind_property (web_view, "uri", header, "subtitle", G_BINDING_DEFAULT);
 
     /* HBox used to show Previous/Next buttons linked */
@@ -67,11 +67,11 @@ dy_gtk_create_window (DyLauncher *launcher)
 
 
 void
-dy_gtk_present_window (DyLauncher *launcher)
+cog_gtk_present_window (CogLauncher *launcher)
 {
-    g_return_if_fail (DY_IS_LAUNCHER (launcher));
+    g_return_if_fail (COG_IS_LAUNCHER (launcher));
 
-    GtkWidget *web_view = GTK_WIDGET (dy_launcher_get_web_view (launcher));
+    GtkWidget *web_view = GTK_WIDGET (cog_launcher_get_web_view (launcher));
     g_assert_nonnull (web_view);
 
     GtkWidget *toplevel = gtk_widget_get_toplevel (web_view);

@@ -1,52 +1,52 @@
 /*
- * dy-sysfs-mode-monitor.c
- * Copyright (C) 2017 Adrian Perez <aperez@igalia.com>
+ * cog-sysfs-mode-monitor.c
+ * Copyright (C) 2017-2018 Adrian Perez <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
  */
 
-#include "dy-mode-monitor.h"
-#include "dy-sysfs-mode-monitor.h"
+#include "cog-mode-monitor.h"
+#include "cog-sysfs-mode-monitor.h"
 #include <errno.h>
 #include <gio/gio.h>
 #include <glib/gstdio.h>
 
 
-#ifndef DY_SYSFS_MODE_MONITOR_RATE_LIMIT
-#define DY_SYSFS_MODE_MONITOR_RATE_LIMIT 1000
-#endif /* !DY_SYSFS_MODE_MONITOR_RATE_LIMIT */
+#ifndef COG_SYSFS_MODE_MONITOR_RATE_LIMIT
+#define COG_SYSFS_MODE_MONITOR_RATE_LIMIT 1000
+#endif /* !COG_SYSFS_MODE_MONITOR_RATE_LIMIT */
 
 
-struct _DySysfsModeMonitor
+struct _CogSysfsModeMonitor
 {
-    GObject           parent;
-    DyModeMonitorInfo mode_info;
-    GFileMonitor     *filemon;
-    GFile            *file;
-    char             *path;  /* Caches result of g_file_get_path(). */
+    GObject            parent;
+    CogModeMonitorInfo mode_info;
+    GFileMonitor      *filemon;
+    GFile             *file;
+    char              *path;  /* Caches result of g_file_get_path(). */
 };
 
 
-static const DyModeMonitorInfo*
-dy_sysfs_mode_monitor_get_info (DyModeMonitor *monitor)
+static const CogModeMonitorInfo*
+cog_sysfs_mode_monitor_get_info (CogModeMonitor *monitor)
 {
-    g_assert (DY_IS_SYSFS_MODE_MONITOR (monitor));
-    return &(DY_SYSFS_MODE_MONITOR (monitor)->mode_info);
+    g_assert (COG_IS_SYSFS_MODE_MONITOR (monitor));
+    return &(COG_SYSFS_MODE_MONITOR (monitor)->mode_info);
 }
 
 
 static void
-dy_mode_monitor_interface_init (DyModeMonitorInterface *iface)
+cog_mode_monitor_interface_init (CogModeMonitorInterface *iface)
 {
-    iface->get_info = dy_sysfs_mode_monitor_get_info;
+    iface->get_info = cog_sysfs_mode_monitor_get_info;
 }
 
 
-G_DEFINE_TYPE_WITH_CODE (DySysfsModeMonitor,
-                         dy_sysfs_mode_monitor,
+G_DEFINE_TYPE_WITH_CODE (CogSysfsModeMonitor,
+                         cog_sysfs_mode_monitor,
                          G_TYPE_OBJECT,
-                         G_IMPLEMENT_INTERFACE (DY_TYPE_MODE_MONITOR,
-                                                dy_mode_monitor_interface_init))
+                         G_IMPLEMENT_INTERFACE (COG_TYPE_MODE_MONITOR,
+                                                cog_mode_monitor_interface_init))
 
 
 enum {
@@ -61,18 +61,18 @@ static GParamSpec *s_properties[N_PROPERTIES] = { NULL, };
 
 
 static void
-dy_sysfs_mode_monitor_get_property (GObject    *object,
-                                    unsigned    prop_id,
-                                    GValue     *value,
-                                    GParamSpec *pspec)
+cog_sysfs_mode_monitor_get_property (GObject    *object,
+                                     unsigned    prop_id,
+                                     GValue     *value,
+                                     GParamSpec *pspec)
 {
-    DySysfsModeMonitor *monitor = DY_SYSFS_MODE_MONITOR (object);
+    CogSysfsModeMonitor *monitor = COG_SYSFS_MODE_MONITOR (object);
     switch (prop_id) {
         case PROP_MODE_ID:
             g_value_set_string (value, monitor->mode_info.mode_id);
             break;
         case PROP_PATH:
-            g_value_set_string (value, dy_sysfs_mode_monitor_get_path (monitor));
+            g_value_set_string (value, cog_sysfs_mode_monitor_get_path (monitor));
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -81,28 +81,28 @@ dy_sysfs_mode_monitor_get_property (GObject    *object,
 
 
 static void
-dy_sysfs_mode_monitor_dispose (GObject *object)
+cog_sysfs_mode_monitor_dispose (GObject *object)
 {
-    DySysfsModeMonitor *monitor = DY_SYSFS_MODE_MONITOR (object);
+    CogSysfsModeMonitor *monitor = COG_SYSFS_MODE_MONITOR (object);
 
     g_clear_object (&monitor->filemon);
     g_clear_object (&monitor->file);
     g_clear_pointer (&monitor->path, g_free);
     g_clear_pointer (&monitor->mode_info.mode_id, g_free);
 
-    G_OBJECT_CLASS (dy_sysfs_mode_monitor_parent_class)->dispose (object);
+    G_OBJECT_CLASS (cog_sysfs_mode_monitor_parent_class)->dispose (object);
 }
 
 
 static void
-dy_sysfs_mode_monitor_class_init (DySysfsModeMonitorClass *klass)
+cog_sysfs_mode_monitor_class_init (CogSysfsModeMonitorClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
-    object_class->dispose = dy_sysfs_mode_monitor_dispose;
-    object_class->get_property = dy_sysfs_mode_monitor_get_property;
+    object_class->dispose = cog_sysfs_mode_monitor_dispose;
+    object_class->get_property = cog_sysfs_mode_monitor_get_property;
 
-    DyModeMonitorInterface *mmon_iface =
-        g_type_default_interface_ref (DY_TYPE_MODE_MONITOR);
+    CogModeMonitorInterface *mmon_iface =
+        g_type_default_interface_ref (COG_TYPE_MODE_MONITOR);
 
     s_properties[PROP_PATH] =
         g_param_spec_string ("path",
@@ -127,13 +127,13 @@ dy_sysfs_mode_monitor_class_init (DySysfsModeMonitorClass *klass)
 
 
 static void
-dy_sysfs_mode_monitor_init (DySysfsModeMonitor *monitor)
+cog_sysfs_mode_monitor_init (CogSysfsModeMonitor *monitor)
 {
 }
 
 
 static inline void
-dy_sysfs_mode_monitor_fill_info_from_mode_id (DyModeMonitorInfo *info)
+cog_sysfs_mode_monitor_fill_info_from_mode_id (CogModeMonitorInfo *info)
 {
     char leading_char, lacing;
     uint32_t refresh_rate;
@@ -150,8 +150,8 @@ dy_sysfs_mode_monitor_fill_info_from_mode_id (DyModeMonitorInfo *info)
 
 
 static gboolean
-dy_sysfs_mode_monitor_read_mode_sync (DySysfsModeMonitor *monitor,
-                                      GError            **error)
+cog_sysfs_mode_monitor_read_mode_sync (CogSysfsModeMonitor *monitor,
+                                       GError             **error)
 {
     g_assert_nonnull (monitor);
 
@@ -183,7 +183,7 @@ dy_sysfs_mode_monitor_read_mode_sync (DySysfsModeMonitor *monitor,
         /* Value has changed. Update and notify. */
         g_clear_pointer (&monitor->mode_info.mode_id, g_free);
         monitor->mode_info.mode_id = g_steal_pointer (&line);
-        dy_sysfs_mode_monitor_fill_info_from_mode_id (&monitor->mode_info);
+        cog_sysfs_mode_monitor_fill_info_from_mode_id (&monitor->mode_info);
         g_object_notify_by_pspec (G_OBJECT (monitor), s_properties[PROP_MODE_ID]);
     }
 
@@ -192,31 +192,31 @@ dy_sysfs_mode_monitor_read_mode_sync (DySysfsModeMonitor *monitor,
 
 
 static void
-on_file_monitor_changed (GFileMonitor       *filemon,
-                         GFile              *file,
-                         GFile              *other_file,
-                         GFileMonitorEvent   event,
-                         DySysfsModeMonitor *monitor)
+on_file_monitor_changed (GFileMonitor        *filemon,
+                         GFile               *file,
+                         GFile               *other_file,
+                         GFileMonitorEvent    event,
+                         CogSysfsModeMonitor *monitor)
 {
     if (event == G_FILE_MONITOR_EVENT_CHANGES_DONE_HINT) {
         g_autoptr(GError) error = NULL;
-        if (!dy_sysfs_mode_monitor_read_mode_sync (monitor, &error)) {
+        if (!cog_sysfs_mode_monitor_read_mode_sync (monitor, &error)) {
             g_warning ("Cannot read '%s': %s",
-                       dy_sysfs_mode_monitor_get_path (monitor),
+                       cog_sysfs_mode_monitor_get_path (monitor),
                        error->message);
         }
     }
 }
 
 
-DySysfsModeMonitor*
-dy_sysfs_mode_monitor_new (GFile   *file,
-                           GError **error)
+CogSysfsModeMonitor*
+cog_sysfs_mode_monitor_new (GFile   *file,
+                            GError **error)
 {
     g_return_val_if_fail (file != NULL, NULL);
 
-    g_autoptr(DySysfsModeMonitor) monitor =
-        g_object_new (DY_TYPE_SYSFS_MODE_MONITOR, NULL);
+    g_autoptr(CogSysfsModeMonitor) monitor =
+        g_object_new (COG_TYPE_SYSFS_MODE_MONITOR, NULL);
     monitor->file = g_object_ref_sink (file);
     monitor->path = g_file_get_path (file);
 
@@ -235,7 +235,7 @@ dy_sysfs_mode_monitor_new (GFile   *file,
      */
     g_object_freeze_notify (G_OBJECT (monitor));
 
-    if (!dy_sysfs_mode_monitor_read_mode_sync (monitor, error) ||
+    if (!cog_sysfs_mode_monitor_read_mode_sync (monitor, error) ||
         !(monitor->filemon = g_file_monitor_file (file,
                                                   G_FILE_MONITOR_NONE,
                                                   NULL,
@@ -243,7 +243,7 @@ dy_sysfs_mode_monitor_new (GFile   *file,
         return NULL;
 
     g_file_monitor_set_rate_limit (monitor->filemon,
-                                   DY_SYSFS_MODE_MONITOR_RATE_LIMIT);
+                                   COG_SYSFS_MODE_MONITOR_RATE_LIMIT);
 
 
     g_signal_connect (monitor->filemon,
@@ -257,24 +257,24 @@ dy_sysfs_mode_monitor_new (GFile   *file,
 
 
 const char*
-dy_sysfs_mode_monitor_get_path (DySysfsModeMonitor *monitor)
+cog_sysfs_mode_monitor_get_path (CogSysfsModeMonitor *monitor)
 {
     g_return_val_if_fail (monitor != NULL, NULL);
     return monitor->path;
 }
 
 
-#ifdef DY_SYSFS_MODE_MONITOR_TEST_MAIN
+#ifdef COG_SYSFS_MODE_MONITOR_TEST_MAIN
 #include <string.h>
 
 static void
-on_monitor_mode_changed (DyModeMonitor *monitor,
-                         GParamSpec    *pspec,
-                         void          *user_data)
+on_monitor_mode_changed (CogModeMonitor *monitor,
+                         GParamSpec     *pspec,
+                         void           *user_data)
 {
-    const DyModeMonitorInfo *info = dy_mode_monitor_get_info (monitor);
+    const CogModeMonitorInfo *info = cog_mode_monitor_get_info (monitor);
     g_print ("Monitor [%s] mode %" PRIu32 "x%" PRIu32 " (%s)\n",
-             dy_sysfs_mode_monitor_get_path (DY_SYSFS_MODE_MONITOR (monitor)),
+             cog_sysfs_mode_monitor_get_path (COG_SYSFS_MODE_MONITOR (monitor)),
              info->width, info->height, info->mode_id);
 }
 
@@ -291,7 +291,7 @@ main (int argc, char **argv)
 
     g_autoptr(GError) error = NULL;
     g_autoptr(GFile) file = g_file_new_for_commandline_arg (argv[1]);
-    g_autoptr(DySysfsModeMonitor) monitor = dy_sysfs_mode_monitor_new (file, &error);
+    g_autoptr(CogSysfsModeMonitor) monitor = cog_sysfs_mode_monitor_new (file, &error);
     if (!monitor) {
         g_autofree char *path = g_file_get_path (file);
         g_printerr ("%s: Cannot monitor '%s': %s", g_get_prgname (), path, error->message);

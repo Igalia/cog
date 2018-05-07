@@ -1,24 +1,24 @@
 /*
- * dinghyctl.c
+ * cogctl.c
  * Copyright (C) 2018 Adrian Perez <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
  */
 
-#define DY_INSIDE_DINGHY__ 1
+#define COG_INSIDE_COG__ 1
 
-#include "dy-config.h"
-#include "dy-utils.h"
+#include "cog-config.h"
+#include "cog-utils.h"
 
 #include <gio/gio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef DY_DEFAULT_APPID
-#  if DY_USE_WEBKITGTK
-#    define DY_DEFAULT_APPID "com.igalia.DinghyGtk"
+#ifndef COG_DEFAULT_APPID
+#  if COG_USE_WEBKITGTK
+#    define COG_DEFAULT_APPID "com.igalia.CogGtk"
 #  else
-#    define DY_DEFAULT_APPID "com.igalia.Dinghy"
+#    define COG_DEFAULT_APPID "com.igalia.Cog"
 #  endif
 #endif
 
@@ -31,13 +31,13 @@ static struct {
     char    *objpath;
     gboolean system_bus;
 } s_options = {
-    .appid = DY_DEFAULT_APPID,
+    .appid = COG_DEFAULT_APPID,
 };
 
 
 static GOptionEntry s_cli_options[] = {
     { "appid", 'A', 0, G_OPTION_ARG_STRING, &s_options.appid,
-        "Application identifier of the Dinghy instance to control",
+        "Application identifier of the Cog instance to control",
         "ID" },
     { "object-path", 'o', 0, G_OPTION_ARG_STRING, &s_options.objpath,
         "Object path implementing the org.gtk.Actions interface",
@@ -172,7 +172,7 @@ cmd_open (const char               *name,
 
     g_autoptr(GError) error = NULL;
     g_autofree char *utf8_uri =
-        dy_uri_guess_from_user_input (argv[1], TRUE, &error);
+        cog_uri_guess_from_user_input (argv[1], TRUE, &error);
     if (!utf8_uri) {
         g_printerr ("%s\n", error->message);
         return EXIT_FAILURE;
@@ -294,7 +294,7 @@ cmd_find_by_name (const char *name)
         },
         {
             .name = "ping",
-            .desc = "Check whether Dinghy is running",
+            .desc = "Check whether Cog is running",
             .handler = cmd_ping,
         },
         {
@@ -322,11 +322,11 @@ cmd_find_by_name (const char *name)
 
 static const char s_extended_help_text[] =
     "For a list of commands use:\n"
-    "  dinghyctl help\n"
+    "  cogctl help\n"
     "\n"
     "Help on each command can be obtained with one of:\n"
-    "  dinghyctl help <command>\n"
-    "  dinghyctl <command> --help\n";
+    "  cogctl help <command>\n"
+    "  cogctl <command> --help\n";
 
 
 int
@@ -350,7 +350,7 @@ main (int argc, char **argv)
     }
 
     if (!s_options.objpath) {
-        s_options.objpath = dy_appid_to_dbus_object_path (s_options.appid);
+        s_options.objpath = cog_appid_to_dbus_object_path (s_options.appid);
     }
     if (!g_variant_is_object_path (s_options.objpath)) {
         g_printerr ("Invalid D-Bus object path: %s\n", s_options.objpath);

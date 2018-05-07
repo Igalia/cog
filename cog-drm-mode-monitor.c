@@ -1,21 +1,21 @@
 /*
- * dy-drm-mode-monitor.c
- * Copyright (C) 2017 Adrian Perez <aperez@igalia.com>
+ * cog-drm-mode-monitor.c
+ * Copyright (C) 2017-2018 Adrian Perez <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
  */
 
-#include "dy-mode-monitor.h"
-#include "dy-drm-mode-monitor.h"
+#include "cog-mode-monitor.h"
+#include "cog-drm-mode-monitor.h"
 #include <glib-unix.h>
 #include <glib/gstdio.h>
 #include <libudev.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
-#ifndef DY_DRM_MODE_MONITOR_SETTLING_DELAY
-#define DY_DRM_MODE_MONITOR_SETTLING_DELAY 0.5
-#endif /* !DY_DRM_MODE_MONITOR_SETTLING_DELAY */
+#ifndef COG_DRM_MODE_MONITOR_SETTLING_DELAY
+#define COG_DRM_MODE_MONITOR_SETTLING_DELAY 0.5
+#endif /* !COG_DRM_MODE_MONITOR_SETTLING_DELAY */
 
 
 /* Allow using g_auto* with libudev structures. */
@@ -28,44 +28,44 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC (udev_device_t, udev_device_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (udev_monitor_t, udev_monitor_unref)
 
 /* Ditto for libdrm types. */
-typedef drmModeCrtc* DyDrmCrtcArray;
-typedef drmModeConnector* DyDrmConnectorArray;
+typedef drmModeCrtc* CogDrmCrtcArray;
+typedef drmModeConnector* CogDrmConnectorArray;
 
-static void dy_drm_crct_array_free (DyDrmCrtcArray *crtcs);
-static void dy_drm_connector_array_free (DyDrmConnectorArray *connectors);
+static void cog_drm_crct_array_free (CogDrmCrtcArray *crtcs);
+static void cog_drm_connector_array_free (CogDrmConnectorArray *connectors);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (drmModeFB, drmModeFreeFB)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (drmModeRes, drmModeFreeResources)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (drmModeCrtc, drmModeFreeCrtc)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (DyDrmCrtcArray, dy_drm_crct_array_free)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (DyDrmConnectorArray, dy_drm_connector_array_free)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (CogDrmCrtcArray, cog_drm_crct_array_free)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (CogDrmConnectorArray, cog_drm_connector_array_free)
 
 
-struct _DyDrmModeMonitor
+struct _CogDrmModeMonitor
 {
-    GObject           parent;
-    DyModeMonitorInfo mode_info;
-    GFile            *file;
-    char             *path;  /* Caches result of g_file_get_path(). */
-    int               fd;
-    udev_t           *udev;
-    udev_monitor_t   *udev_mon;
-    GTimer           *timer;
-    guint             idle_tag;
-    guint             source_tag;
+    GObject            parent;
+    CogModeMonitorInfo mode_info;
+    GFile             *file;
+    char              *path;  /* Caches result of g_file_get_path(). */
+    int                fd;
+    udev_t            *udev;
+    udev_monitor_t    *udev_mon;
+    GTimer            *timer;
+    guint              idle_tag;
+    guint              source_tag;
 };
 
 
-G_DEFINE_QUARK (DyDrmModeMonitorError, dy_drm_mode_monitor_error)
+G_DEFINE_QUARK (CogDrmModeMonitorError, cog_drm_mode_monitor_error)
 
 
-static DyDrmCrtcArray*
-dy_drm_crtc_array_read (int fd, drmModeRes *resources)
+static CogDrmCrtcArray*
+cog_drm_crtc_array_read (int fd, drmModeRes *resources)
 {
     g_assert_cmpint (fd, >=, 0);
     g_assert_nonnull (resources);
 
-    g_autoptr(DyDrmCrtcArray) crtcs = g_new0 (drmModeCrtc*, resources->count_crtcs + 1);
+    g_autoptr(CogDrmCrtcArray) crtcs = g_new0 (drmModeCrtc*, resources->count_crtcs + 1);
     for (unsigned i = 0; i < resources->count_crtcs; i++) {
         if (!(crtcs[i] = drmModeGetCrtc (fd, resources->crtcs[i])))
             break;
@@ -74,7 +74,7 @@ dy_drm_crtc_array_read (int fd, drmModeRes *resources)
 }
 
 static void
-dy_drm_crct_array_free (DyDrmCrtcArray *crtcs)
+cog_drm_crct_array_free (CogDrmCrtcArray *crtcs)
 {
     if (crtcs) {
         for (unsigned i = 0; crtcs[i]; i++)
@@ -84,15 +84,15 @@ dy_drm_crct_array_free (DyDrmCrtcArray *crtcs)
 }
 
 
-static DyDrmConnectorArray*
-dy_drm_connector_array_read (int                 fd,
-                             drmModeRes         *resources,
-                             drmModeConnector* (*readConnector) (int, uint32_t))
+static CogDrmConnectorArray*
+cog_drm_connector_array_read (int                 fd,
+                              drmModeRes         *resources,
+                              drmModeConnector* (*readConnector) (int, uint32_t))
 {
     g_assert_cmpint (fd, >=, 0);
     g_assert_nonnull (resources);
 
-    g_autoptr(DyDrmConnectorArray) connectors = g_new0 (drmModeConnector*, resources->count_connectors + 1);
+    g_autoptr(CogDrmConnectorArray) connectors = g_new0 (drmModeConnector*, resources->count_connectors + 1);
     for (unsigned i = 0; i < resources->count_connectors; i++) {
         if (!(connectors[i] = (*readConnector) (fd, resources->connectors[i])))
             break;
@@ -102,7 +102,7 @@ dy_drm_connector_array_read (int                 fd,
 
 
 static void
-dy_drm_connector_array_free (DyDrmConnectorArray *connectors)
+cog_drm_connector_array_free (CogDrmConnectorArray *connectors)
 {
     if (connectors) {
         for (unsigned i = 0; connectors[i]; i++)
@@ -112,26 +112,26 @@ dy_drm_connector_array_free (DyDrmConnectorArray *connectors)
 }
 
 
-static const DyModeMonitorInfo*
-dy_drm_mode_monitor_get_info (DyModeMonitor *monitor)
+static const CogModeMonitorInfo*
+cog_drm_mode_monitor_get_info (CogModeMonitor *monitor)
 {
-    g_assert (DY_IS_DRM_MODE_MONITOR (monitor));
-    return &(DY_DRM_MODE_MONITOR (monitor)->mode_info);
+    g_assert (COG_IS_DRM_MODE_MONITOR (monitor));
+    return &(COG_DRM_MODE_MONITOR (monitor)->mode_info);
 }
 
 
 static void
-dy_mode_monitor_interface_init (DyModeMonitorInterface *iface)
+cog_mode_monitor_interface_init (CogModeMonitorInterface *iface)
 {
-    iface->get_info = dy_drm_mode_monitor_get_info;
+    iface->get_info = cog_drm_mode_monitor_get_info;
 }
 
 
-G_DEFINE_TYPE_WITH_CODE (DyDrmModeMonitor,
-                         dy_drm_mode_monitor,
+G_DEFINE_TYPE_WITH_CODE (CogDrmModeMonitor,
+                         cog_drm_mode_monitor,
                          G_TYPE_OBJECT,
-                         G_IMPLEMENT_INTERFACE (DY_TYPE_MODE_MONITOR,
-                                                dy_mode_monitor_interface_init))
+                         G_IMPLEMENT_INTERFACE (COG_TYPE_MODE_MONITOR,
+                                                cog_mode_monitor_interface_init))
 
 enum {
     PROP_0,
@@ -145,18 +145,18 @@ static GParamSpec *s_properties[N_PROPERTIES] = { NULL, };
 
 
 static void
-dy_drm_mode_monitor_get_property (GObject    *object,
-                                  unsigned    prop_id,
-                                  GValue     *value,
-                                  GParamSpec *pspec)
+cog_drm_mode_monitor_get_property (GObject    *object,
+                                   unsigned    prop_id,
+                                   GValue     *value,
+                                   GParamSpec *pspec)
 {
-    DyDrmModeMonitor *monitor = DY_DRM_MODE_MONITOR (object);
+    CogDrmModeMonitor *monitor = COG_DRM_MODE_MONITOR (object);
     switch (prop_id) {
         case PROP_MODE_ID:
             g_value_set_string (value, monitor->mode_info.mode_id);
             break;
         case PROP_DEVICE_PATH:
-            g_value_set_string (value, dy_drm_mode_monitor_get_device_path (monitor));
+            g_value_set_string (value, cog_drm_mode_monitor_get_device_path (monitor));
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -165,9 +165,9 @@ dy_drm_mode_monitor_get_property (GObject    *object,
 
 
 static void
-dy_drm_mode_monitor_dispose (GObject *object)
+cog_drm_mode_monitor_dispose (GObject *object)
 {
-    DyDrmModeMonitor *monitor = DY_DRM_MODE_MONITOR (object);
+    CogDrmModeMonitor *monitor = COG_DRM_MODE_MONITOR (object);
 
     if (monitor->source_tag) {
         g_source_remove (monitor->source_tag);
@@ -189,19 +189,19 @@ dy_drm_mode_monitor_dispose (GObject *object)
     g_clear_pointer (&monitor->path, g_free);
     g_clear_object (&monitor->file);
 
-    G_OBJECT_CLASS (dy_drm_mode_monitor_parent_class)->dispose (object);
+    G_OBJECT_CLASS (cog_drm_mode_monitor_parent_class)->dispose (object);
 }
 
 
 static void
-dy_drm_mode_monitor_class_init (DyDrmModeMonitorClass *klass)
+cog_drm_mode_monitor_class_init (CogDrmModeMonitorClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
-    object_class->dispose = dy_drm_mode_monitor_dispose;
-    object_class->get_property = dy_drm_mode_monitor_get_property;
+    object_class->dispose = cog_drm_mode_monitor_dispose;
+    object_class->get_property = cog_drm_mode_monitor_get_property;
     
-    DyModeMonitorInterface *mmon_iface =
-        g_type_default_interface_ref (DY_TYPE_MODE_MONITOR);
+    CogModeMonitorInterface *mmon_iface =
+        g_type_default_interface_ref (COG_TYPE_MODE_MONITOR);
 
     s_properties[PROP_DEVICE_PATH] =
         g_param_spec_string ("device-path",
@@ -226,13 +226,13 @@ dy_drm_mode_monitor_class_init (DyDrmModeMonitorClass *klass)
 
 
 static void
-dy_drm_mode_monitor_init (DyDrmModeMonitor *monitor)
+cog_drm_mode_monitor_init (CogDrmModeMonitor *monitor)
 {
 }
 
 
 static void
-dy_drm_mode_monitor_read_drm_resources (DyDrmModeMonitor *monitor)
+cog_drm_mode_monitor_read_drm_resources (CogDrmModeMonitor *monitor)
 {
     g_assert_nonnull (monitor);
     g_assert_cmpint (monitor->fd, >=, 0);
@@ -247,8 +247,8 @@ dy_drm_mode_monitor_read_drm_resources (DyDrmModeMonitor *monitor)
      * Fetching information for connectors probes them, which will make it
      * possible to get accurate information about the resolution. (Ugh.)
      */
-    g_autoptr(DyDrmConnectorArray) connectors =
-        dy_drm_connector_array_read (monitor->fd, resources, drmModeGetConnector);
+    g_autoptr(CogDrmConnectorArray) connectors =
+        cog_drm_connector_array_read (monitor->fd, resources, drmModeGetConnector);
 
 #ifndef NDEBUG
     for (unsigned i = 0; connectors[i]; i++) {
@@ -263,7 +263,7 @@ dy_drm_mode_monitor_read_drm_resources (DyDrmModeMonitor *monitor)
     }
 #endif
 
-    g_autoptr(DyDrmCrtcArray) crtcs = dy_drm_crtc_array_read (monitor->fd, resources);
+    g_autoptr(CogDrmCrtcArray) crtcs = cog_drm_crtc_array_read (monitor->fd, resources);
     drmModeCrtc *crtc = NULL;
 
     for (unsigned i = 0; crtcs[i]; i++) {
@@ -325,9 +325,9 @@ dy_drm_mode_monitor_read_drm_resources (DyDrmModeMonitor *monitor)
 static gboolean
 on_drm_mode_monitor_idle_timer (gpointer user_data)
 {
-    g_autoptr(DyDrmModeMonitor) monitor = g_object_ref (DY_DRM_MODE_MONITOR (user_data));
+    g_autoptr(CogDrmModeMonitor) monitor = g_object_ref (COG_DRM_MODE_MONITOR (user_data));
 
-    if (g_timer_elapsed (monitor->timer, NULL) < DY_DRM_MODE_MONITOR_SETTLING_DELAY)
+    if (g_timer_elapsed (monitor->timer, NULL) < COG_DRM_MODE_MONITOR_SETTLING_DELAY)
         return TRUE;   /* Be invoked again. */
 
     /*
@@ -338,7 +338,7 @@ on_drm_mode_monitor_idle_timer (gpointer user_data)
     g_timer_reset (monitor->timer);
     g_timer_stop (monitor->timer);
 
-    dy_drm_mode_monitor_read_drm_resources (monitor);
+    cog_drm_mode_monitor_read_drm_resources (monitor);
 
     g_clear_pointer (&monitor->timer, g_timer_destroy);
     monitor->idle_tag = 0;
@@ -351,7 +351,7 @@ on_drm_mode_monitor_udev_fd_ready (int          fd,
                                    GIOCondition condition,
                                    void        *user_data)
 {
-    g_autoptr(DyDrmModeMonitor) monitor = g_object_ref (DY_DRM_MODE_MONITOR (user_data));
+    g_autoptr(CogDrmModeMonitor) monitor = g_object_ref (COG_DRM_MODE_MONITOR (user_data));
     g_autoptr(udev_device_t) device = udev_monitor_receive_device (monitor->udev_mon);
 
     if (!device) {
@@ -374,20 +374,20 @@ beach:
 }
 
 
-DyDrmModeMonitor*
-dy_drm_mode_monitor_new (GFile   *file,
-                         GError **error)
+CogDrmModeMonitor*
+cog_drm_mode_monitor_new (GFile   *file,
+                          GError **error)
 {
     if (!drmAvailable ()) {
         g_set_error_literal (error,
-                             DY_DRM_MODE_MONITOR_ERROR,
-                             DY_DRM_MODE_MONITOR_ERROR_UNAVAILABLE,
+                             COG_DRM_MODE_MONITOR_ERROR,
+                             COG_DRM_MODE_MONITOR_ERROR_UNAVAILABLE,
                              "DRM/KMS unavailable: No drivers loaded or no compatible harware attached");
         return NULL;
     }
 
-    g_autoptr(DyDrmModeMonitor) monitor =
-        g_object_new (DY_TYPE_DRM_MODE_MONITOR, NULL);
+    g_autoptr(CogDrmModeMonitor) monitor =
+        g_object_new (COG_TYPE_DRM_MODE_MONITOR, NULL);
     monitor->file = file ? g_object_ref_sink (file) : g_file_new_for_path ("/dev/dri/card0");
     monitor->path = g_file_get_path (monitor->file);
     monitor->fd = -1;
@@ -412,14 +412,14 @@ dy_drm_mode_monitor_new (GFile   *file,
 
     /* Read the current settings on creation, without emitting signals. */
     g_object_freeze_notify (G_OBJECT (monitor));
-    dy_drm_mode_monitor_read_drm_resources (monitor);
+    cog_drm_mode_monitor_read_drm_resources (monitor);
     
     if (!(monitor->udev = udev_new ()) ||
         !(monitor->udev_mon = udev_monitor_new_from_netlink (monitor->udev, "udev")))
     {
         g_set_error_literal (error,
-                             DY_DRM_MODE_MONITOR_ERROR,
-                             DY_DRM_MODE_MONITOR_ERROR_UDEV,
+                             COG_DRM_MODE_MONITOR_ERROR,
+                             COG_DRM_MODE_MONITOR_ERROR_UDEV,
                              "Cannot connect to udev");
         return NULL;
     }
@@ -428,16 +428,16 @@ dy_drm_mode_monitor_new (GFile   *file,
                                                          "drm",
                                                          "drm_minor") < 0) {
         g_set_error_literal (error,
-                             DY_DRM_MODE_MONITOR_ERROR,
-                             DY_DRM_MODE_MONITOR_ERROR_UDEV,
+                             COG_DRM_MODE_MONITOR_ERROR,
+                             COG_DRM_MODE_MONITOR_ERROR_UDEV,
                              "Failed to set DRM udev filter");
         return NULL;
     }
 
     if (udev_monitor_enable_receiving (monitor->udev_mon) < 0) {
         g_set_error_literal (error,
-                             DY_DRM_MODE_MONITOR_ERROR,
-                             DY_DRM_MODE_MONITOR_ERROR_UDEV,
+                             COG_DRM_MODE_MONITOR_ERROR,
+                             COG_DRM_MODE_MONITOR_ERROR_UDEV,
                              "Failed to enable reception of udev events");
         return NULL;
     }
@@ -456,22 +456,22 @@ dy_drm_mode_monitor_new (GFile   *file,
 
 
 const char*
-dy_drm_mode_monitor_get_device_path (DyDrmModeMonitor *monitor)
+cog_drm_mode_monitor_get_device_path (CogDrmModeMonitor *monitor)
 {
-    g_return_val_if_fail (DY_IS_DRM_MODE_MONITOR (monitor), NULL);
+    g_return_val_if_fail (COG_IS_DRM_MODE_MONITOR (monitor), NULL);
     return monitor->path;
 }
 
 
-#ifdef DY_DRM_MODE_MONITOR_TEST_MAIN
+#ifdef COG_DRM_MODE_MONITOR_TEST_MAIN
 #include <string.h>
 
 static void
-on_monitor_mode_changed (DyModeMonitor *monitor,
-                         GParamSpec    *pspec,
-                         void          *user_data)
+on_monitor_mode_changed (CogModeMonitor *monitor,
+                         GParamSpec     *pspec,
+                         void           *user_data)
 {
-    const DyModeMonitorInfo *info = dy_mode_monitor_get_info (monitor);
+    const CogModeMonitorInfo *info = cog_mode_monitor_get_info (monitor);
     g_print ("Monitor mode %" PRIu32 "x%" PRIu32 " (%s)\n",
              info->width, info->height, info->mode_id);
 }
@@ -483,13 +483,13 @@ main (int argc, char **argv)
     g_set_prgname (slash ? slash + 1 : argv[0]);
 
     g_autoptr(GError) error = NULL;
-    g_autoptr(DyDrmModeMonitor) monitor = dy_drm_mode_monitor_new (NULL, &error);
+    g_autoptr(CogDrmModeMonitor) monitor = cog_drm_mode_monitor_new (NULL, &error);
     if (!monitor) {
         g_printerr ("%s: Cannot monitor: %s", g_get_prgname (), error->message);
         return 1;
     }
 
-    on_monitor_mode_changed (DY_MODE_MONITOR (monitor), NULL, NULL);
+    on_monitor_mode_changed (COG_MODE_MONITOR (monitor), NULL, NULL);
     g_signal_connect (monitor, "notify::mode-id",
                       G_CALLBACK (on_monitor_mode_changed), NULL);
 
