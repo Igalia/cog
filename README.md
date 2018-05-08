@@ -23,7 +23,7 @@ This project provides the following components:
 Dependencies
 ------------
 
-- WebKit WPE, or WebKitGTK+ 2.18.x when building with `DY_USE_WEBKITGTK`.
+- WebKit WPE, or WebKitGTK+ 2.18.x when building with `COG_USE_WEBKITGTK`.
 - [WPEBackend](https://github.com/WebPlatformForEmbedded/WPEBackend).
 - [GLib](https://gitlab.gnome.org/GNOME/glib/) 2.40 or newer.
 
