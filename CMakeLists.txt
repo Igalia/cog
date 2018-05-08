@@ -129,7 +129,7 @@ if (NOT COG_USE_WEBKITGTK)
 set(COGPLATFORM_VERSION "0.1.0")
 
 set(COGPLATFORM_FDO_SOURCES
-    cog-platform-fdo.c
+    platform/cog-platform-fdo.c
     wayland/xdg-shell-unstable-v6-protocol.c
     wayland/fullscreen-shell-unstable-v1-protocol.c
 )
