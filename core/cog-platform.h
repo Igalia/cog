@@ -14,7 +14,6 @@
 #endif
 
 #include <glib.h>
-#include "cog-config.h"
 #include "cog-launcher.h"
 
 G_BEGIN_DECLS

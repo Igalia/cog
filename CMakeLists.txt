@@ -34,37 +34,37 @@ endif()
 add_definitions(-DCOG_INSIDE_COG__=1)
 add_definitions(-DG_LOG_DOMAIN=\"Cog\")
 
-configure_file(cog-config.h.in cog-config.h @ONLY)
+configure_file(core/cog-config.h.in cog-config.h @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 find_package(PkgConfig)
 
 # libcogcore
 set(COGCORE_API_HEADERS
-    cog.h
-    cog-launcher.h
-    cog-request-handler.h
-    cog-directory-files-handler.h
-    cog-utils.h
-    cog-webkit-utils.h
+    core/cog.h
+    core/cog-launcher.h
+    core/cog-request-handler.h
+    core/cog-directory-files-handler.h
+    core/cog-utils.h
+    core/cog-webkit-utils.h
     ${CMAKE_CURRENT_BINARY_DIR}/cog-config.h
 )
 set(COGCORE_SOURCES
-    cog-launcher.c
-    cog-request-handler.c
-    cog-directory-files-handler.c
-    cog-utils.c
-    cog-webkit-utils.c
+    core/cog-launcher.c
+    core/cog-request-handler.c
+    core/cog-directory-files-handler.c
+    core/cog-utils.c
+    core/cog-webkit-utils.c
 )
 
 pkg_check_modules(GIO REQUIRED gio-2.0)
 pkg_check_modules(SOUP REQUIRED libsoup-2.4)
 if (COG_USE_WEBKITGTK)
-    list(APPEND COGCORE_SOURCES cog-gtk-utils.c)
+    list(APPEND COGCORE_SOURCES core/cog-gtk-utils.c)
     pkg_check_modules(WEB_ENGINE REQUIRED webkit2gtk-4.0)
 else ()
-    list(APPEND COGCORE_API_HEADERS cog-platform.h)
-    list(APPEND COGCORE_SOURCES cog-platform.c)
+    list(APPEND COGCORE_API_HEADERS core/cog-platform.h)
+    list(APPEND COGCORE_SOURCES core/cog-platform.c)
     pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit-0.1 wpe-0.1)
 endif ()
 
@@ -87,9 +87,9 @@ if (COG_DBUS_SYSTEM_BUS)
     add_definitions(-DCOG_DBUS_OWN_USER=\"${COG_DBUS_OWN_USER}\")
 endif ()
 
-add_library(cogcore ${COGCORE_SOURCES})
+add_library(cogcore SHARED ${COGCORE_SOURCES})
 set_property(TARGET cogcore PROPERTY C_STANDARD 99)
-target_include_directories(cogcore PUBLIC ${COGCORE_INCLUDE_DIRS})
+target_include_directories(cogcore PUBLIC core ${COGCORE_INCLUDE_DIRS})
 target_compile_options(cogcore PUBLIC ${COGCORE_CFLAGS})
 target_link_libraries(cogcore ${COGCORE_LDFLAGS})
 
@@ -97,7 +97,7 @@ add_executable(cog cog.c)
 set_property(TARGET cog PROPERTY C_STANDARD 99)
 target_link_libraries(cog cogcore -ldl)
 
-add_executable(cogctl cogctl.c cog-utils.c)
+add_executable(cogctl cogctl.c core/cog-utils.c)
 set_property(TARGET cogctl PROPERTY C_STANDARD 99)
 target_include_directories(cogctl PUBLIC ${GIO_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
 target_compile_options(cogctl PUBLIC ${GIO_CFLAGS_OTHER} ${SOUP_CFLAGS_OTHER})
@@ -116,7 +116,7 @@ install(FILES ${COGCORE_API_HEADERS}
     COMPONENT "development"
 )
 
-configure_file(cogcore.pc.in cogcore.pc @ONLY)
+configure_file(core/cogcore.pc.in cogcore.pc @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cogcore.pc
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
     COMPONENT "development"
@@ -126,7 +126,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cogcore.pc
 
 if (NOT COG_USE_WEBKITGTK)
 
-project(cogplatform-fdo LANGUAGES C VERSION 0.1.0 DESCRIPTION "Cog FDO platform")
+set(COGPLATFORM_VERSION "0.1.0")
 
 set(COGPLATFORM_FDO_SOURCES
     cog-platform-fdo.c
@@ -142,12 +142,12 @@ set(COGPLATFORM_FDO_LDFLAGS ${COGPLATFORM_FDO_DEPS_LDFLAGS})
 
 add_library(cogplatform-fdo SHARED ${COGPLATFORM_FDO_SOURCES})
 
-set_property(TARGET cogplatform-fdo PROPERTY VERSION ${PROJECT_VERSION})
+set_property(TARGET cogplatform-fdo PROPERTY VERSION ${COGPLATFORM_VERSION})
 
 set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
 target_include_directories(cogplatform-fdo PUBLIC ${COGPLATFORM_FDO_INCLUDE_DIRS})
 target_compile_options(cogplatform-fdo PUBLIC ${COGPLATFORM_FDO_CFLAGS})
-target_link_libraries(cogplatform-fdo ${COGPLATFORM_FDO_LDFLAGS})
+target_link_libraries(cogplatform-fdo cogcore ${COGPLATFORM_FDO_LDFLAGS})
 
 install(TARGETS cogplatform-fdo
     DESTINATION ${CMAKE_INSTALL_LIBDIR}

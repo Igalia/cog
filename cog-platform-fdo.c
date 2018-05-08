@@ -5,7 +5,7 @@
  * Distributed under terms of the MIT license.
  */
 
-#include "cog.h"
+#include <cog.h>
 
 #include <assert.h>
 #include <stdbool.h>

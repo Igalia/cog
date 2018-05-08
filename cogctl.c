@@ -8,7 +8,7 @@
 #define COG_INSIDE_COG__ 1
 
 #include "cog-config.h"
-#include "cog-utils.h"
+#include "core/cog-utils.h"
 
 #include <gio/gio.h>
 #include <stdlib.h>

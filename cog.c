@@ -8,7 +8,11 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "cog.h"
+#include "core/cog.h"
+
+#if !COG_USE_WEBKITGTK
+# include "cog-platform.h"
+#endif
 
 
 enum webprocess_fail_action {
