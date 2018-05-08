@@ -231,9 +231,7 @@ on_create_web_view (CogLauncher *launcher,
         view_backend = cog_platform_get_view_backend (platform, NULL, &error);
         if (!view_backend) {
             g_assert_nonnull (error);
-            g_printerr ("%s, Failed to get platform's view backend: %s\n",
-                        g_get_prgname (),
-                        error->message);
+            g_warning ("Failed to get platform's view backend: %s", error->message);
         }
     }
 #endif
@@ -305,9 +303,7 @@ main (int argc, char *argv[])
     if (cog_platform_try_load (platform, platform_soname)) {
         g_autoptr(GError) error = NULL;
         if (!cog_platform_setup (platform, COG_LAUNCHER (app), "", &error)) {
-            g_printerr ("%s: Failed to load FDO platform: %s\n",
-                        g_get_prgname (),
-                        error->message);
+            g_warning ("Failed to load FDO platform: %s", error->message);
         }
     }
 #endif
