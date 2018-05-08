@@ -130,8 +130,8 @@ set(COGPLATFORM_VERSION "0.1.0")
 
 set(COGPLATFORM_FDO_SOURCES
     cog-platform-fdo.c
-    xdg-shell-unstable-v6-protocol.c
-    fullscreen-shell-unstable-v1-protocol.c
+    wayland/xdg-shell-unstable-v6-protocol.c
+    wayland/fullscreen-shell-unstable-v1-protocol.c
 )
 
 pkg_check_modules(COGPLATFORM_FDO_DEPS REQUIRED wpe-webkit-0.1 wpe-0.1 wpebackend-fdo-0.1 egl glesv2 wayland-egl xkbcommon)
@@ -145,7 +145,7 @@ add_library(cogplatform-fdo SHARED ${COGPLATFORM_FDO_SOURCES})
 set_property(TARGET cogplatform-fdo PROPERTY VERSION ${COGPLATFORM_VERSION})
 
 set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
-target_include_directories(cogplatform-fdo PUBLIC ${COGPLATFORM_FDO_INCLUDE_DIRS})
+target_include_directories(cogplatform-fdo PUBLIC wayland ${COGPLATFORM_FDO_INCLUDE_DIRS})
 target_compile_options(cogplatform-fdo PUBLIC ${COGPLATFORM_FDO_CFLAGS})
 target_link_libraries(cogplatform-fdo cogcore ${COGPLATFORM_FDO_LDFLAGS})
 
