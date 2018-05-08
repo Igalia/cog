@@ -90,6 +90,7 @@ endif ()
 
 add_library(cogcore SHARED ${COGCORE_SOURCES})
 set_property(TARGET cogcore PROPERTY C_STANDARD 99)
+set_property(TARGET cogcore PROPERTY VERSION ${PROJECT_VERSION})
 target_include_directories(cogcore PUBLIC core ${COGCORE_INCLUDE_DIRS})
 target_compile_options(cogcore PUBLIC ${COGCORE_CFLAGS})
 target_link_libraries(cogcore ${COGCORE_LDFLAGS})
