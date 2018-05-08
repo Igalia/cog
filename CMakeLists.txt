@@ -8,6 +8,7 @@ set(COG_DBUS_OWN_USER "" CACHE STRING
     "Additional user allowed to own the well-known name on the system bus")
 
 option(COG_USE_WEBKITGTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
+option(COG_PLATFORM_FDO "Build the FDO platform module" ON)
 set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
 
@@ -124,7 +125,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cogcore.pc
 
 # libcogplaform-fdo
 
-if (NOT COG_USE_WEBKITGTK)
+if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
 
 set(COGPLATFORM_VERSION "0.1.0")
 
