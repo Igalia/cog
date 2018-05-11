@@ -137,7 +137,7 @@ set(COGPLATFORM_FDO_SOURCES
     wayland/fullscreen-shell-unstable-v1-protocol.c
 )
 
-pkg_check_modules(COGPLATFORM_FDO_DEPS REQUIRED wpe-webkit-0.1 wpe-0.1 wpebackend-fdo-0.1 egl wayland-egl xkbcommon)
+pkg_check_modules(COGPLATFORM_FDO_DEPS REQUIRED wpe-webkit-0.1 wpe-0.1 wpebackend-fdo-0.1 egl xkbcommon)
 
 set(COGPLATFORM_FDO_INCLUDE_DIRS ${COGPLATFORM_FDO_DEPS_INCLUDE_DIRS})
 set(COGPLATFORM_FDO_CFLAGS ${COGPLATFORM_FDO_DEPS_CFLAGS_OTHER})
@@ -149,6 +149,9 @@ set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
 target_include_directories(cogplatform-fdo PUBLIC wayland ${COGPLATFORM_FDO_INCLUDE_DIRS})
 target_compile_options(cogplatform-fdo PUBLIC ${COGPLATFORM_FDO_CFLAGS})
 target_link_libraries(cogplatform-fdo cogcore ${COGPLATFORM_FDO_LDFLAGS})
+
+add_definitions(-DWL_EGL_PLATFORM=1)
+add_definitions(-DEGL_API_FB=1)
 
 install(TARGETS cogplatform-fdo
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
