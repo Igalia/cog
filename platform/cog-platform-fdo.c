@@ -451,49 +451,12 @@ pointer_on_axis (void* data,
     wpe_view_backend_dispatch_axis_event (wpe_view_data.backend, &event);
 }
 
-static void
-pointer_on_frame (void* data,
-                  struct wl_pointer *pointer)
-{
-    /* @FIXME: buffer pointer events and handle them in frame. That's the
-     * recommended usage of this interface.
-     */
-}
-
-static void
-pointer_on_axis_source (void *data,
-                        struct wl_pointer *wl_pointer,
-                        uint32_t axis_source)
-{
-}
-
-static void
-pointer_on_axis_stop (void *data,
-                      struct wl_pointer *wl_pointer,
-                      uint32_t time,
-                      uint32_t axis)
-{
-}
-
-static void
-pointer_on_axis_discrete (void *data,
-                          struct wl_pointer *wl_pointer,
-                          uint32_t axis,
-                          int32_t discrete)
-{
-}
-
 static const struct wl_pointer_listener pointer_listener = {
     .enter = pointer_on_enter,
     .leave = pointer_on_leave,
     .motion = pointer_on_motion,
     .button = pointer_on_button,
     .axis = pointer_on_axis,
-
-    .frame = pointer_on_frame,
-    .axis_source = pointer_on_axis_source,
-    .axis_stop = pointer_on_axis_stop,
-    .axis_discrete = pointer_on_axis_discrete,
 };
 
 static void
