@@ -1270,6 +1270,15 @@ cog_platform_setup (CogPlatform *platform,
     /* init WPE host data */
     wpe_fdo_initialize_for_egl_display (egl_data.display);
 
+    /* If using wl_shell, open in fullscreen by default. */
+    if (win_data.shell_surface != NULL) {
+        wl_shell_surface_set_fullscreen (win_data.shell_surface,
+                                       WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE,
+                                       0,
+                                       NULL);
+        win_data.is_fullscreen = true;
+    }
+
     return TRUE;
 }
 
