@@ -108,24 +108,55 @@ cog_handle_web_view_load_failed_with_tls_errors (WebKitWebView       *web_view,
 
 
 gboolean
-cog_handle_web_view_web_process_crashed (WebKitWebView *web_view,
-                                         void          *userdata)
+cog_handle_web_view_web_process_terminated (WebKitWebView                     *web_view,
+                                            WebKitWebProcessTerminationReason  reason,
+                                            void                              *userdata)
 {
-    static const char *message = 
-        "The renderer process crashed. Reloading the page may fix"
-        " intermittent failures.";
+    const char *message = NULL;
+    const char *title = NULL;
+
+    switch (reason) {
+        case WEBKIT_WEB_PROCESS_CRASHED:
+            message = "The renderer process crashed. Reloading the page may"
+                " fix intermittent failures.";
+            title = "Crash!";
+            break;
+
+        case WEBKIT_WEB_PROCESS_EXCEEDED_MEMORY_LIMIT:
+            message = "The renderer process ran out of memory. You may try"
+                " reloading the page to restart it.";
+            title = "Out of memory!";
+            break;
+
+        default:
+            g_assert_not_reached ();
+    }
     return load_error_page (web_view,
                             webkit_web_view_get_uri (web_view),
-                            "Crash!",
+                            title,
                             message);
 }
 
 
 gboolean
-cog_handle_web_view_web_process_crashed_exit (WebKitWebView *web_view,
-                                              void          *userdata)
+cog_handle_web_view_web_process_terminated_exit (WebKitWebView                     *web_view,
+                                                 WebKitWebProcessTerminationReason  reason,
+                                                 void                              *userdata)
 {
-    g_critical ("The rendered process crashed, exiting...");
+    const char *reason_string = NULL;
+
+    switch (reason) {
+        case WEBKIT_WEB_PROCESS_CRASHED:
+            reason_string = "crashed";
+            break;
+        case WEBKIT_WEB_PROCESS_EXCEEDED_MEMORY_LIMIT:
+            reason_string = "ran out of memory";
+            break;
+        default:
+            g_assert_not_reached ();
+    }
+
+    g_critical ("The rendered process %s, exiting...", reason_string);
     exit (GPOINTER_TO_INT (userdata));
 }
 
@@ -148,10 +179,10 @@ reset_recovery_tries (struct RestartData *restart)
 
 
 static gboolean
-on_web_process_crashed_restart (WebKitWebView *web_view, void *userdata)
+on_web_process_terminated_restart (WebKitWebView                     *web_view,
+                                   WebKitWebProcessTerminationReason  reason,
+                                   struct RestartData                *restart)
 {
-    struct RestartData *restart = userdata;
-
 #if GLIB_CHECK_VERSION(2, 56, 0)
     g_clear_handle_id (&restart->tries_timeout_id, g_source_remove);
 #else
@@ -162,13 +193,13 @@ on_web_process_crashed_restart (WebKitWebView *web_view, void *userdata)
 #endif // GLIB_CHECK_VERSION
 
     if (++restart->tries >= restart->max_tries) {
-        g_critical ("Renderer process crashed and failed to recover within %ums",
+        g_critical ("Renderer process terminated and failed to recover within %ums",
                     restart->try_window_ms);
         // Chain up to the handler that renders an error page.
-        return cog_handle_web_view_web_process_crashed (web_view, NULL);
+        return cog_handle_web_view_web_process_terminated (web_view, reason, NULL);
     }
 
-    g_warning ("Renderer process crashed, restarting (attempt %u/%u).",
+    g_warning ("Renderer process terminated, restarting (attempt %u/%u).",
                restart->tries, restart->max_tries);
     webkit_web_view_reload (web_view);
 
@@ -189,9 +220,9 @@ free_restart_data (void *restart, G_GNUC_UNUSED GClosure *closure)
 
 
 gulong
-cog_web_view_connect_web_process_crashed_restart_handler (WebKitWebView *web_view,
-                                                          unsigned       max_tries,
-                                                          unsigned       try_window_ms)
+cog_web_view_connect_web_process_terminated_restart_handler (WebKitWebView *web_view,
+                                                             unsigned       max_tries,
+                                                             unsigned       try_window_ms)
 {
     g_return_val_if_fail (WEBKIT_IS_WEB_VIEW (web_view), 0);
     g_return_val_if_fail (max_tries > 0, 0);
@@ -201,8 +232,8 @@ cog_web_view_connect_web_process_crashed_restart_handler (WebKitWebView *web_vie
     restart->try_window_ms = try_window_ms;
 
     return g_signal_connect_data (web_view,
-                                  "web-process-crashed",
-                                  G_CALLBACK (on_web_process_crashed_restart),
+                                  "web-process-terminated",
+                                  G_CALLBACK (on_web_process_terminated_restart),
                                   restart,
                                   free_restart_data,
                                   0);
@@ -220,8 +251,8 @@ cog_web_view_connect_default_error_handlers (WebKitWebView *web_view)
             cog_handle_web_view_load_failed },
         { "load-failed-with-tls-errors",
             cog_handle_web_view_load_failed_with_tls_errors },
-        { "web-process-crashed",
-            cog_handle_web_view_web_process_crashed },
+        { "web-process-terminated",
+            cog_handle_web_view_web_process_terminated },
     };
     
     for (unsigned i = 0; i < G_N_ELEMENTS (handlers); i++)
