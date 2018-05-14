@@ -1021,11 +1021,6 @@ draw (void)
 {
     glViewport (0, 0, win_data.width, win_data.height);
 
-    /*
-    glClearColor (0.0, 0.0, 0.0, 1.0);
-    glClear (GL_COLOR_BUFFER_BIT);
-    */
-
     egl_data.glEglImageTargetTexture2D (GL_TEXTURE_2D, wpe_view_data.image);
 
     static const GLfloat s_vertices[4][2] = {
