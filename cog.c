@@ -6,6 +6,7 @@
  * Distributed under terms of the MIT license.
  */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include "core/cog.h"
@@ -34,6 +35,12 @@ static struct {
     gdouble  scale_factor;
     GStrv    dir_handlers;
     GStrv    arguments;
+#if !COG_USE_WEBKITGTK
+    union {
+        char *platform_name;
+        CogPlatform *platform;
+    };
+#endif // !COG_USE_WEBKITGTK
     union {
         char *action_name;
         enum webprocess_fail_action action_id;
@@ -75,6 +82,11 @@ static GOptionEntry s_cli_options[] =
         &s_options.on_failure.action_name,
         "Action on WebProcess failures: error-page (default), exit, exit-ok, restart.",
         "ACTION" },
+#if !COG_USE_WEBKITGTK
+    { "platform", 'P', 0, G_OPTION_ARG_STRING, &s_options.platform_name,
+        "Platform plug-in to use.",
+        "NAME" },
+#endif // !COG_USE_WEBKITGTK
     { G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments,
         "", "[URL]" },
     { NULL }
@@ -205,6 +217,61 @@ on_handle_local_options (GApplication *application,
 }
 
 
+#if !COG_USE_WEBKITGTK
+static gboolean
+platform_setup (CogLauncher *launcher)
+{
+    /*
+     * Here we resolve the CogPlatform we are going to use. A Cog platform
+     * is dynamically loaded object that abstracts the specifics about how
+     * a WebView's WPE backend is going to be constructed and rendered on
+     * a given platform.
+     */
+
+    g_debug ("%s: Platform name: %s", __func__, s_options.platform_name);
+
+    if (s_options.platform_name) {
+        g_autofree char *platform_soname =
+            g_strdup_printf ("libcogplatform-%s.so", s_options.platform_name);
+        g_clear_pointer (&s_options.platform_name, g_free);
+
+        g_debug ("%s: Platform plugin: %s", platform_soname);
+
+        g_autoptr(CogPlatform) platform = cog_platform_new ();
+        if (!cog_platform_try_load (platform, platform_soname)) {
+            g_warning ("Could not load: %s (possible cause: %s).\n",
+                       platform_soname, strerror (errno));
+            return FALSE;
+        }
+
+        g_autoptr(GError) error = NULL;
+        if (!cog_platform_setup (platform, launcher, "", &error)) {
+            g_warning ("Platform setup failed: %s", error->message);
+            return FALSE;
+        }
+
+        s_options.platform = g_steal_pointer (&platform);
+    }
+
+    g_debug ("%s: Platform = %p", __func__, s_options.platform);
+    return TRUE;
+}
+
+
+static void
+on_shutdown (CogLauncher *launcher G_GNUC_UNUSED, void *user_data G_GNUC_UNUSED)
+{
+    g_debug ("%s: Platform = %p", __func__, s_options.platform);
+
+    if (s_options.platform) {
+        cog_platform_teardown (s_options.platform);
+        g_clear_pointer (&s_options.platform, cog_platform_free);
+        g_debug ("%s: Platform teardown completed.", __func__);
+    }
+}
+#endif // !COG_USE_WEBKITGTK
+
+
 static WebKitWebView*
 on_create_web_view (CogLauncher *launcher,
                     void        *user_data)
@@ -225,22 +292,35 @@ on_create_web_view (CogLauncher *launcher,
 
 #if !COG_USE_WEBKITGTK
     WebKitWebViewBackend *view_backend = NULL;
-    CogPlatform *platform = user_data;
-    if (platform) {
+
+    // Try to load the platform plug-in specified in the command line.
+    if (platform_setup (launcher)) {
         g_autoptr(GError) error = NULL;
-        view_backend = cog_platform_get_view_backend (platform, NULL, &error);
+        view_backend = cog_platform_get_view_backend (s_options.platform, NULL, &error);
         if (!view_backend) {
             g_assert_nonnull (error);
             g_warning ("Failed to get platform's view backend: %s", error->message);
         }
     }
+
+    // If the platform plug-in failed, try the default WPE backend.
+    if (!view_backend) {
+        g_debug ("Instantiating default WPE backend as fall-back.");
+        view_backend = webkit_web_view_backend_new (wpe_view_backend_create (),
+                                                    NULL, NULL);
+    }
+
+    // At this point, either the platform plug-in or the default WPE backend
+    // must have succeeded in providing a WebKitWebViewBackend* instance.
+    if (!view_backend)
+        g_error ("Could not instantiate any WPE backend.");
 #endif
 
     g_autoptr(WebKitWebView) web_view = g_object_new (WEBKIT_TYPE_WEB_VIEW,
                                                       "settings", settings,
                                                       "web-context", web_context,
                                                       "zoom-level", s_options.scale_factor,
-#if !(COG_USE_WEBKITGTK)
+#if !COG_USE_WEBKITGTK
                                                       "backend", view_backend,
 #endif
                                                       NULL);
@@ -282,43 +362,14 @@ main (int argc, char *argv[])
     g_autoptr(GApplication) app = G_APPLICATION (cog_launcher_get_default ());
     g_application_add_main_option_entries (app, s_cli_options);
 
-#if COG_USE_WEBKITGTK
-    void *platform = NULL;
-#else
-    /*
-     * Here we resolve the CogPlatform we are going to use. A Cog platform
-     * is dynamically loaded object
-     * that abstracts the specifics about how a WebView's WPE backend is going
-     * to be constructed and rendered on a given platform.
-     */
-
-    /*
-     * @FIXME: for now this is hardcoded to use CogPlatformFdo, which
-     * essentially uses WPEBackend-fdo and renders on a running wayland
-     * compositor.
-     */
-    const gchar *platform_soname = "libcogplatform-fdo.so";
-
-    g_autoptr(CogPlatform) platform = cog_platform_new ();
-    if (cog_platform_try_load (platform, platform_soname)) {
-        g_autoptr(GError) error = NULL;
-        if (!cog_platform_setup (platform, COG_LAUNCHER (app), "", &error)) {
-            g_warning ("Failed to load FDO platform: %s", error->message);
-        }
-    }
-#endif
+#if !COG_USE_WEBKITGTK
+    g_signal_connect (app, "shutdown", G_CALLBACK (on_shutdown), NULL);
+#endif // !COG_USE_WEBKITGTK
 
     g_signal_connect (app, "handle-local-options",
                       G_CALLBACK (on_handle_local_options), NULL);
     g_signal_connect (app, "create-web-view",
-                      G_CALLBACK (on_create_web_view), platform);
+                      G_CALLBACK (on_create_web_view), NULL);
 
-    int result = g_application_run (app, argc, argv);
-
-#if !COG_USE_WEBKITGTK
-    if (platform)
-        cog_platform_teardown (platform);
-#endif
-
-    return result;
+    return g_application_run (app, argc, argv);
 }
