@@ -227,6 +227,29 @@ setup_wayland_event_source (GMainContext *main_context,
 }
 
 static void
+configure_surface_geometry (int32_t width, int32_t height)
+{
+    const char* env_var;
+    if (width == 0) {
+        env_var = g_getenv("COG_PLATFORM_FDO_VIEW_WIDTH");
+        if (env_var != NULL)
+            width = (int32_t) g_ascii_strtod(env_var, NULL);
+        else
+            width = DEFAULT_WIDTH;
+    }
+    if (height == 0) {
+        env_var = g_getenv("COG_PLATFORM_FDO_VIEW_HEIGHT");
+        if (env_var != NULL)
+            height = (int32_t) g_ascii_strtod(env_var, NULL);
+        else
+            height = DEFAULT_HEIGHT;
+    }
+
+    win_data.width = width;
+    win_data.height = height;
+}
+
+static void
 resize_window (void)
 {
     wl_egl_window_resize (win_data.egl_window,
@@ -253,10 +276,7 @@ shell_surface_configure (void *data,
                          uint32_t edges,
                          int32_t width, int32_t height)
 {
-    win_data.width = width;
-    win_data.height = height;
-    if (width == 0 || height == 0)
-        return;
+    configure_surface_geometry (width, height);
 
     printf ("New wl_shell configuration: (%u, %u)\n", width, height);
 
@@ -284,9 +304,6 @@ xdg_surface_on_configure (void *data,
                           uint32_t serial)
 {
     zxdg_surface_v6_ack_configure (surface, serial);
-
-    if (win_data.width == 0 || win_data.height == 0)
-        return;
 }
 
 static const struct zxdg_surface_v6_listener xdg_surface_listener = {
@@ -299,24 +316,7 @@ xdg_toplevel_on_configure (void *data,
                            int32_t width, int32_t height,
                            struct wl_array *states)
 {
-    const char* env_var;
-    if (width == 0) {
-        env_var = g_getenv("WPE_FDO_VIEW_WIDTH");
-        if (env_var != NULL)
-            width = (int32_t) g_ascii_strtod(env_var, NULL);
-        else
-            width = DEFAULT_WIDTH;
-    }
-    if (height == 0) {
-        env_var = g_getenv("WPE_FDO_VIEW_HEIGHT");
-        if (env_var != NULL)
-            height = (int32_t) g_ascii_strtod(env_var, NULL);
-        else
-            height = DEFAULT_HEIGHT;
-    }
-
-    win_data.width = width;
-    win_data.height = height;
+    configure_surface_geometry (width, height);
 
     printf ("New XDG toplevel configuration: (%u, %u)\n", width, height);
 
@@ -1230,13 +1230,8 @@ create_window (void)
                                        0);
         wl_shell_surface_set_toplevel (win_data.shell_surface);
 
-        if (false) {
-            wl_shell_surface_set_fullscreen (win_data.shell_surface,
-                                             WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE,
-                                             0,
-                                             NULL);
-            wl_display_roundtrip (wl_data.display);
-        }
+        /* wl_shell needs an initial surface configuration. */
+        configure_surface_geometry (0, 0);
     }
 
     win_data.egl_window = wl_egl_window_create (win_data.wl_surface,
@@ -1262,7 +1257,7 @@ create_window (void)
         assert (!"Error make the EGL context current\n");
     }
 
-    const char* env_var = g_getenv("WPE_FDO_VIEW_FULLSCREEN");
+    const char* env_var = g_getenv("COG_PLATFORM_FDO_VIEW_FULLSCREEN");
     if (env_var != NULL && g_ascii_strtod(env_var, NULL) >= 1.0) {
         zxdg_toplevel_v6_set_fullscreen(win_data.xdg_toplevel, NULL);
         win_data.is_fullscreen = TRUE;
