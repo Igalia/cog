@@ -333,16 +333,16 @@ on_create_web_view (CogLauncher *launcher,
             break;
 
         case WEBPROCESS_FAIL_EXIT:
-            cog_web_view_connect_web_process_crashed_exit_handler (web_view, EXIT_FAILURE);
+            cog_web_view_connect_web_process_terminated_exit_handler (web_view, EXIT_FAILURE);
             break;
 
         case WEBPROCESS_FAIL_EXIT_OK:
-            cog_web_view_connect_web_process_crashed_exit_handler (web_view, EXIT_SUCCESS);
+            cog_web_view_connect_web_process_terminated_exit_handler (web_view, EXIT_SUCCESS);
             break;
 
         case WEBPROCESS_FAIL_RESTART:
             // TODO: Un-hardcode the 5 retries per second.
-            cog_web_view_connect_web_process_crashed_restart_handler (web_view, 5, 1000);
+            cog_web_view_connect_web_process_terminated_restart_handler (web_view, 5, 1000);
             break;
 
         default:

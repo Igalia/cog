@@ -44,25 +44,27 @@ gboolean cog_handle_web_view_load_failed_with_tls_errors (WebKitWebView       *w
                                                           GTlsCertificateFlags errors,
                                                           void                *user_data);
 
-gboolean cog_handle_web_view_web_process_crashed (WebKitWebView *web_view,
-                                                  void          *userdata);
-gboolean cog_handle_web_view_web_process_crashed_exit (WebKitWebView *web_view,
-                                                       void          *userdata);
+gboolean cog_handle_web_view_web_process_terminated (WebKitWebView                     *web_view,
+                                                     WebKitWebProcessTerminationReason  reason,
+                                                     void                              *userdata);
+gboolean cog_handle_web_view_web_process_terminated_exit (WebKitWebView                     *web_view,
+                                                          WebKitWebProcessTerminationReason  reason,
+                                                          void                              *userdata);
 
 static inline gulong
-cog_web_view_connect_web_process_crashed_exit_handler (WebKitWebView* web_view,
-                                                       int exit_code)
+cog_web_view_connect_web_process_terminated_exit_handler (WebKitWebView* web_view,
+                                                          int            exit_code)
 {
     g_return_val_if_fail (WEBKIT_IS_WEB_VIEW (web_view), 0);
     return g_signal_connect (web_view,
-                             "web-process-crashed",
-                             G_CALLBACK (cog_handle_web_view_web_process_crashed_exit),
+                             "web-process-terminated",
+                             G_CALLBACK (cog_handle_web_view_web_process_terminated_exit),
                              GINT_TO_POINTER (exit_code));
 }
 
-gulong cog_web_view_connect_web_process_crashed_restart_handler (WebKitWebView *web_view,
-                                                                 unsigned       max_tries,
-                                                                 unsigned       try_window_ms);
+gulong cog_web_view_connect_web_process_terminated_restart_handler (WebKitWebView *web_view,
+                                                                    unsigned       max_tries,
+                                                                    unsigned       try_window_ms);
 
 void cog_web_view_connect_default_error_handlers (WebKitWebView *web_view);
 
