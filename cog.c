@@ -235,7 +235,7 @@ platform_setup (CogLauncher *launcher)
             g_strdup_printf ("libcogplatform-%s.so", s_options.platform_name);
         g_clear_pointer (&s_options.platform_name, g_free);
 
-        g_debug ("%s: Platform plugin: %s", platform_soname);
+        g_debug ("%s: Platform plugin: %s", __func__, platform_soname);
 
         g_autoptr(CogPlatform) platform = cog_platform_new ();
         if (!cog_platform_try_load (platform, platform_soname)) {
