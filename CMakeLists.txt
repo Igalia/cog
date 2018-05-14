@@ -128,8 +128,6 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cogcore.pc
 
 if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
 
-set(COGPLATFORM_VERSION "0.1.0")
-
 set(COGPLATFORM_FDO_SOURCES
     platform/cog-platform-fdo.c
     wayland/xdg-shell-unstable-v6-protocol.c
@@ -142,9 +140,7 @@ set(COGPLATFORM_FDO_INCLUDE_DIRS ${COGPLATFORM_FDO_DEPS_INCLUDE_DIRS})
 set(COGPLATFORM_FDO_CFLAGS ${COGPLATFORM_FDO_DEPS_CFLAGS_OTHER})
 set(COGPLATFORM_FDO_LDFLAGS ${COGPLATFORM_FDO_DEPS_LDFLAGS})
 
-add_library(cogplatform-fdo SHARED ${COGPLATFORM_FDO_SOURCES})
-
-set_property(TARGET cogplatform-fdo PROPERTY VERSION ${COGPLATFORM_VERSION})
+add_library(cogplatform-fdo MODULE ${COGPLATFORM_FDO_SOURCES})
 
 set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
 target_include_directories(cogplatform-fdo PUBLIC wayland ${COGPLATFORM_FDO_INCLUDE_DIRS})
