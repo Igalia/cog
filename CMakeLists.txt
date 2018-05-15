@@ -147,6 +147,13 @@ target_include_directories(cogplatform-fdo PUBLIC wayland ${COGPLATFORM_FDO_INCL
 target_compile_options(cogplatform-fdo PUBLIC ${COGPLATFORM_FDO_CFLAGS})
 target_link_libraries(cogplatform-fdo cogcore ${COGPLATFORM_FDO_LDFLAGS})
 
+# Create a libWPEBackend-default.so symlink to libWPEBackend-fdo-0.1.so.0 and install it.
+add_custom_command(TARGET cogplatform-fdo
+                   POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E create_symlink libWPEBackend-fdo-0.1.so.0 ${CMAKE_CURRENT_BINARY_DIR}/libWPEBackend-default.so
+)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libWPEBackend-default.so DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
 install(TARGETS cogplatform-fdo
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
     COMPONENT "runtime"
