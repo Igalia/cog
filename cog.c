@@ -230,28 +230,29 @@ platform_setup (CogLauncher *launcher)
 
     g_debug ("%s: Platform name: %s", __func__, s_options.platform_name);
 
-    if (s_options.platform_name) {
-        g_autofree char *platform_soname =
-            g_strdup_printf ("libcogplatform-%s.so", s_options.platform_name);
-        g_clear_pointer (&s_options.platform_name, g_free);
+    if (!s_options.platform_name)
+        return FALSE;
 
-        g_debug ("%s: Platform plugin: %s", __func__, platform_soname);
+    g_autofree char *platform_soname =
+        g_strdup_printf ("libcogplatform-%s.so", s_options.platform_name);
+    g_clear_pointer (&s_options.platform_name, g_free);
 
-        g_autoptr(CogPlatform) platform = cog_platform_new ();
-        if (!cog_platform_try_load (platform, platform_soname)) {
-            g_warning ("Could not load: %s (possible cause: %s).\n",
-                       platform_soname, strerror (errno));
-            return FALSE;
-        }
+    g_debug ("%s: Platform plugin: %s", __func__, platform_soname);
 
-        g_autoptr(GError) error = NULL;
-        if (!cog_platform_setup (platform, launcher, "", &error)) {
-            g_warning ("Platform setup failed: %s", error->message);
-            return FALSE;
-        }
-
-        s_options.platform = g_steal_pointer (&platform);
+    g_autoptr(CogPlatform) platform = cog_platform_new ();
+    if (!cog_platform_try_load (platform, platform_soname)) {
+        g_warning ("Could not load: %s (possible cause: %s).\n",
+                   platform_soname, strerror (errno));
+        return FALSE;
     }
+
+    g_autoptr(GError) error = NULL;
+    if (!cog_platform_setup (platform, launcher, "", &error)) {
+        g_warning ("Platform setup failed: %s", error->message);
+        return FALSE;
+    }
+
+    s_options.platform = g_steal_pointer (&platform);
 
     g_debug ("%s: Platform = %p", __func__, s_options.platform);
     return TRUE;
