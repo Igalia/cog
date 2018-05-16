@@ -1073,6 +1073,53 @@ on_export_buffer_resource (void* data, struct wl_resource* buffer_resource)
 }
 
 static void
+on_export_linux_dmabuf (void *data,
+                        uint32_t width,
+                        uint32_t height,
+                        uint32_t format,
+                        uint32_t flags,
+                        uint32_t num_planes,
+                        const int32_t *fds,
+                        const uint32_t *strides,
+                        const uint32_t *offsets,
+                        const uint64_t *modifiers)
+{
+    EGLint attribs[50];
+    int atti = 0;
+
+    attribs[atti++] = EGL_WIDTH;
+    attribs[atti++] = width;
+    attribs[atti++] = EGL_HEIGHT;
+    attribs[atti++] = height;
+    attribs[atti++] = EGL_LINUX_DRM_FOURCC_EXT;
+    attribs[atti++] = format;
+
+    for (int i = 0; i < num_planes; i++) {
+        attribs[atti++] = EGL_DMA_BUF_PLANE0_FD_EXT;
+        attribs[atti++] = fds[i];
+        attribs[atti++] = EGL_DMA_BUF_PLANE0_OFFSET_EXT;
+        attribs[atti++] = offsets[i];
+        attribs[atti++] = EGL_DMA_BUF_PLANE0_PITCH_EXT;
+        attribs[atti++] = strides[i];
+        attribs[atti++] = EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT;
+        attribs[atti++] = modifiers[i] & 0xFFFFFFFF;
+        attribs[atti++] = EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT;
+        attribs[atti++] = modifiers[i] >> 32;
+    }
+
+    attribs[atti++] = EGL_NONE;
+
+    wpe_view_data.image = egl_data.eglCreateImage (egl_data.display,
+                                                   EGL_NO_CONTEXT,
+                                                   EGL_LINUX_DMA_BUF_EXT,
+                                                   NULL,
+                                                   attribs);
+    assert (wpe_view_data.image != NULL);
+
+    draw ();
+}
+
+static void
 init_wayland (void)
 {
     wl_data.display = wl_display_connect (NULL);
@@ -1493,6 +1540,7 @@ cog_platform_get_view_backend (CogPlatform   *platform,
 {
     static struct wpe_view_backend_exportable_fdo_client exportable_client = {
         .export_buffer_resource = on_export_buffer_resource,
+        .export_linux_dmabuf = on_export_linux_dmabuf,
     };
 
     wpe_host_data.exportable =
