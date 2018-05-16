@@ -72,8 +72,8 @@ static GOptionEntry s_cli_options[] =
         "ACTION" },
 #if !COG_USE_WEBKITGTK
     { "platform", 'P', 0, G_OPTION_ARG_STRING, &s_options.platform_name,
-        "Platform plug-in to use.",
-        "NAME" },
+        "Platform plug-in to use and optional parameters.",
+        "NAME[:PARAMS]" },
 #endif // !COG_USE_WEBKITGTK
     { G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments,
         "", "[URL]" },
@@ -216,15 +216,22 @@ platform_setup (CogLauncher *launcher)
      * a given platform.
      */
 
-    g_debug ("%s: Platform name: %s", __func__, s_options.platform_name);
-
     if (!s_options.platform_name)
         return FALSE;
 
+    char *params = strchr (s_options.platform_name, ':');
+    if (params) {
+        *params = '\0';
+        params++;
+    } else {
+        params = "";
+    }
+
     g_autofree char *platform_soname =
         g_strdup_printf ("libcogplatform-%s.so", s_options.platform_name);
-    g_clear_pointer (&s_options.platform_name, g_free);
 
+    g_debug ("%s: Platform name: %s", __func__, s_options.platform_name);
+    g_debug ("%s: Platform params: %s", __func__, params);
     g_debug ("%s: Platform plugin: %s", __func__, platform_soname);
 
     g_autoptr(CogPlatform) platform = cog_platform_new ();
@@ -235,11 +242,13 @@ platform_setup (CogLauncher *launcher)
     }
 
     g_autoptr(GError) error = NULL;
-    if (!cog_platform_setup (platform, launcher, "", &error)) {
+    if (!cog_platform_setup (platform, launcher, params, &error)) {
         g_warning ("Platform setup failed: %s", error->message);
         return FALSE;
     }
 
+    // Replace command line parameter string with the CogPlatform object.
+    g_clear_pointer (&s_options.platform_name, g_free);
     s_options.platform = g_steal_pointer (&platform);
 
     g_debug ("%s: Platform = %p", __func__, s_options.platform);

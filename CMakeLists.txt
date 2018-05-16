@@ -127,32 +127,41 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cogcore.pc
     COMPONENT "development"
 )
 
-# libcogplaform-fdo
 
-if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
+if (NOT COG_USE_WEBKITGTK)
+    # libcogplaform-nil
+    add_library(cogplatform-nil MODULE platform/cog-platform-nil.c)
+    set_property(TARGET cogplatform-nil PROPERTY C_STANDARD 99)
+    target_link_libraries(cogplatform-nil cogcore)
+    install(TARGETS cogplatform-nil
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        COMPONENT "runtime"
+    )
 
-set(COGPLATFORM_FDO_SOURCES
-    platform/cog-platform-fdo.c
-    wayland/xdg-shell-unstable-v6-protocol.c
-    wayland/fullscreen-shell-unstable-v1-protocol.c
-)
+    # libcogplaform-fdo
+    if (COG_PLATFORM_FDO)
+        set(COGPLATFORM_FDO_SOURCES
+            platform/cog-platform-fdo.c
+            wayland/xdg-shell-unstable-v6-protocol.c
+            wayland/fullscreen-shell-unstable-v1-protocol.c
+        )
 
-pkg_check_modules(COGPLATFORM_FDO_DEPS REQUIRED wpe-webkit-0.1 wpe-0.1 wpebackend-fdo-0.1 egl wayland-egl xkbcommon)
+        pkg_check_modules(COGPLATFORM_FDO_DEPS REQUIRED wpe-webkit-0.1 wpe-0.1 wpebackend-fdo-0.1 egl glesv2 wayland-egl xkbcommon)
 
-set(COGPLATFORM_FDO_INCLUDE_DIRS ${COGPLATFORM_FDO_DEPS_INCLUDE_DIRS})
-set(COGPLATFORM_FDO_CFLAGS ${COGPLATFORM_FDO_DEPS_CFLAGS_OTHER})
-set(COGPLATFORM_FDO_LDFLAGS ${COGPLATFORM_FDO_DEPS_LDFLAGS})
+        set(COGPLATFORM_FDO_INCLUDE_DIRS ${COGPLATFORM_FDO_DEPS_INCLUDE_DIRS})
+        set(COGPLATFORM_FDO_CFLAGS ${COGPLATFORM_FDO_DEPS_CFLAGS_OTHER})
+        set(COGPLATFORM_FDO_LDFLAGS ${COGPLATFORM_FDO_DEPS_LDFLAGS})
 
-add_library(cogplatform-fdo MODULE ${COGPLATFORM_FDO_SOURCES})
+        add_library(cogplatform-fdo MODULE ${COGPLATFORM_FDO_SOURCES})
 
-set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
-target_include_directories(cogplatform-fdo PUBLIC wayland ${COGPLATFORM_FDO_INCLUDE_DIRS})
-target_compile_options(cogplatform-fdo PUBLIC ${COGPLATFORM_FDO_CFLAGS})
-target_link_libraries(cogplatform-fdo cogcore ${COGPLATFORM_FDO_LDFLAGS})
+        set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
+        target_include_directories(cogplatform-fdo PUBLIC wayland ${COGPLATFORM_FDO_INCLUDE_DIRS})
+        target_compile_options(cogplatform-fdo PUBLIC ${COGPLATFORM_FDO_CFLAGS})
+        target_link_libraries(cogplatform-fdo cogcore ${COGPLATFORM_FDO_LDFLAGS})
 
-install(TARGETS cogplatform-fdo
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    COMPONENT "runtime"
-)
-
+        install(TARGETS cogplatform-fdo
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            COMPONENT "runtime"
+        )
+    endif (COG_PLATFORM_FDO)
 endif ()  # !COG_USE_WEBKITGTK
