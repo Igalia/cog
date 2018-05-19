@@ -148,7 +148,11 @@ wl_src_prepare (GSource *base, gint *timeout)
     struct wl_event_source *src = (struct wl_event_source *) base;
 
     *timeout = -1;
-    wl_display_dispatch_pending (src->display);
+
+    while (wl_display_prepare_read (src->display) != 0) {
+        if (wl_display_dispatch_pending (src->display) < 0)
+            return false;
+    }
     wl_display_flush (src->display);
 
     return false;
@@ -158,7 +162,15 @@ static gboolean
 wl_src_check (GSource *base)
 {
     struct wl_event_source *src = (struct wl_event_source *) base;
-    return !! src->pfd.revents;
+
+    if (src->pfd.revents & G_IO_IN) {
+        if (wl_display_read_events(src->display) < 0)
+            return false;
+        return true;
+    } else {
+        wl_display_cancel_read(src->display);
+        return false;
+    }
 }
 
 static gboolean
@@ -166,8 +178,10 @@ wl_src_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
 {
     struct wl_event_source *src = (struct wl_event_source *) base;
 
-    if (src->pfd.revents & G_IO_IN)
-        wl_display_dispatch (src->display);
+    if (src->pfd.revents & G_IO_IN) {
+        if (wl_display_dispatch_pending(src->display) < 0)
+            return false;
+    }
 
     if (src->pfd.revents & (G_IO_ERR | G_IO_HUP))
         return false;
