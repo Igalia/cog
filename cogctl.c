@@ -312,7 +312,7 @@ cmd_find_by_name (const char *name)
         },
     };
 
-    for (unsigned i = 0; i < G_N_ELEMENTS (cmdlist); i++)
+    for (unsigned i = 0; cmdlist[i].name; i++)
         if (strcmp (cmdlist[i].name, name) == 0)
             return &cmdlist[i];
 
