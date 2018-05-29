@@ -23,8 +23,6 @@
 #include <wayland-egl.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 
 /* for mmap */
 #include <sys/mman.h>
@@ -90,7 +88,6 @@ static struct {
 static struct {
     struct egl_display *display;
     EGLContext context;
-    PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEglImageTargetTexture2D;
     PFNEGLCREATEIMAGEKHRPROC eglCreateImage;
     PFNEGLDESTROYIMAGEKHRPROC eglDestroyImage;
     EGLConfig egl_config;
@@ -110,12 +107,6 @@ static struct {
 
     bool is_fullscreen;
 } win_data;
-
-static struct gl_data {
-    GLuint program;
-    GLuint tex;
-    GLuint tex_loc;
-} gl_data = {0, };
 
 static struct {
     struct xkb_context* context;
@@ -142,13 +133,11 @@ static struct {
     WebKitWebView *view;
     struct wl_resource* current_buffer;
     EGLImageKHR image;
+    struct wl_buffer *buffer;
     struct wl_callback *frame_callback;
 
     double zoom_level;
 } wpe_view_data = {NULL, };
-
-
-static void draw (void);
 
 
 struct wl_event_source {
@@ -998,6 +987,8 @@ on_surface_frame (void *data, struct wl_callback *callback, uint32_t time)
         egl_data.eglDestroyImage (egl_data.display, wpe_view_data.image);
         wpe_view_data.image = NULL;
     }
+
+    g_clear_pointer (&wpe_view_data.buffer, wl_buffer_destroy);
 }
 
 static const struct wl_callback_listener frame_listener = {
@@ -1017,43 +1008,6 @@ request_frame (void)
 }
 
 static void
-draw (void)
-{
-    glViewport (0, 0, win_data.width, win_data.height);
-
-    egl_data.glEglImageTargetTexture2D (GL_TEXTURE_2D, wpe_view_data.image);
-
-    static const GLfloat s_vertices[4][2] = {
-        { -1.0,  1.0 },
-        {  1.0,  1.0 },
-        { -1.0, -1.0 },
-        {  1.0, -1.0 },
-    };
-
-    static const GLfloat s_texturePos[4][2] = {
-        { 0, 0 },
-        { 1, 0 },
-        { 0, 1 },
-        { 1, 1 },
-    };
-
-    glVertexAttribPointer (0, 2, GL_FLOAT, GL_FALSE, 0, s_vertices);
-    glVertexAttribPointer (1, 2, GL_FLOAT, GL_FALSE, 0, s_texturePos);
-
-    glEnableVertexAttribArray (0);
-    glEnableVertexAttribArray (1);
-
-    glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
-
-    glDisableVertexAttribArray (0);
-    glDisableVertexAttribArray (1);
-
-    request_frame ();
-
-    eglSwapBuffers (egl_data.display, win_data.egl_surface);
-}
-
-static void
 on_export_buffer_resource (void* data, struct wl_resource* buffer_resource)
 {
     wpe_view_data.current_buffer = buffer_resource;
@@ -1069,7 +1023,26 @@ on_export_buffer_resource (void* data, struct wl_resource* buffer_resource)
                                                    image_attrs);
     assert (wpe_view_data.image != NULL);
 
-    draw ();
+    static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
+        eglCreateWaylandBufferFromImageWL;
+    if (eglCreateWaylandBufferFromImageWL == NULL) {
+        eglCreateWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
+            eglGetProcAddress ("eglCreateWaylandBufferFromImageWL");
+        g_assert_nonnull (eglCreateWaylandBufferFromImageWL);
+    }
+
+    wpe_view_data.buffer = eglCreateWaylandBufferFromImageWL (egl_data.display,
+                                                              wpe_view_data.image);
+    g_assert_nonnull (wpe_view_data.buffer);
+
+    wl_surface_attach (win_data.wl_surface, wpe_view_data.buffer, 0, 0);
+    wl_surface_damage (win_data.wl_surface,
+                       0, 0,
+                       win_data.width, win_data.height);
+
+    request_frame ();
+
+    wl_surface_commit (win_data.wl_surface);
 }
 
 static void
@@ -1162,10 +1135,6 @@ init_egl (void)
                                          EGL_NO_CONTEXT,
                                          context_attribs);
     assert (egl_data.context != NULL);
-
-    egl_data.glEglImageTargetTexture2D = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)
-        eglGetProcAddress ("glEGLImageTargetTexture2DOES");
-    assert (egl_data.glEglImageTargetTexture2D != NULL);
 
     egl_data.eglCreateImage = (PFNEGLCREATEIMAGEKHRPROC)
         eglGetProcAddress ("eglCreateImageKHR");
@@ -1324,118 +1293,6 @@ clear_input (void)
         xkb_context_unref (xkb_data.context);
 }
 
-static bool
-gl_utils_print_shader_log (GLuint shader)
-{
-    GLint length;
-    char buffer[4096] = {0};
-    GLint success;
-
-    glGetShaderiv (shader, GL_INFO_LOG_LENGTH, &length);
-    if (length == 0)
-        return true;
-
-    glGetShaderInfoLog (shader, 4096, NULL, buffer);
-    if (strlen (buffer) > 0)
-        printf ("Shader compilation log: %s\n", buffer);
-
-    glGetShaderiv (shader, GL_COMPILE_STATUS, &success);
-
-    return success == GL_TRUE;
-}
-
-static GLuint
-gl_utils_load_shader (const char *shader_source, GLenum type)
-{
-    GLuint shader = glCreateShader (type);
-
-    glShaderSource (shader, 1, &shader_source, NULL);
-    assert (glGetError () == GL_NO_ERROR);
-    glCompileShader (shader);
-    assert (glGetError () == GL_NO_ERROR);
-
-    gl_utils_print_shader_log (shader);
-
-    return shader;
-}
-
-static void
-init_gles (void)
-{
-    const char *VERTEX_SOURCE =
-        "attribute vec2 pos;\n"
-        "attribute vec2 texture;\n"
-        "varying vec2 v_texture;\n"
-        "void main() {\n"
-        "  v_texture = texture;\n"
-        "  gl_Position = vec4(pos, 0, 1);\n"
-        "}\n";
-
-    const char *FRAGMENT_SOURCE =
-        "precision mediump float;\n"
-        "uniform sampler2D u_tex;\n"
-        "varying vec2 v_texture;\n"
-        "void main() {\n"
-        "  gl_FragColor = texture2D(u_tex, v_texture);\n"
-        "}\n";
-
-    GLuint vertex_shader = gl_utils_load_shader (VERTEX_SOURCE,
-                                                 GL_VERTEX_SHADER);
-    assert (vertex_shader >= 0);
-    assert (glGetError () == GL_NO_ERROR);
-
-    GLuint fragment_shader = gl_utils_load_shader (FRAGMENT_SOURCE,
-                                                   GL_FRAGMENT_SHADER);
-    assert (fragment_shader >= 0);
-    assert (glGetError () == GL_NO_ERROR);
-
-    gl_data.program = glCreateProgram ();
-    assert (glGetError () == GL_NO_ERROR);
-    glAttachShader (gl_data.program, vertex_shader);
-    assert (glGetError () == GL_NO_ERROR);
-    glAttachShader (gl_data.program, fragment_shader);
-    assert (glGetError () == GL_NO_ERROR);
-
-    glBindAttribLocation (gl_data.program, 0, "pos");
-    glBindAttribLocation (gl_data.program, 1, "texture");
-
-    glLinkProgram (gl_data.program);
-    assert (glGetError () == GL_NO_ERROR);
-
-    glDeleteShader (vertex_shader);
-    glDeleteShader (fragment_shader);
-
-    glUseProgram (gl_data.program);
-    assert (glGetError () == GL_NO_ERROR);
-
-    glEnable (GL_BLEND);
-    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    gl_data.tex_loc = glGetUniformLocation (gl_data.program, "u_tex");
-    assert (gl_data.tex_loc != -1);
-
-    glGenTextures (1, &gl_data.tex);
-    assert (glGetError () == GL_NO_ERROR);
-    assert (gl_data.tex > 0);
-    glBindTexture (GL_TEXTURE_2D, gl_data.tex);
-    assert (glGetError () == GL_NO_ERROR);
-    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    glActiveTexture (GL_TEXTURE0);
-    glUniform1i (gl_data.tex_loc, 0);
-}
-
-static void
-clear_gles (void)
-{
-    glUseProgram (0);
-    glDeleteProgram (gl_data.program);
-    glDeleteTextures (1, &gl_data.tex);
-}
-
 gboolean
 cog_platform_setup (CogPlatform *platform,
                     CogLauncher *_launcher,
@@ -1451,7 +1308,6 @@ cog_platform_setup (CogPlatform *platform,
     init_egl ();
     create_window ();
     init_input ();
-    init_gles ();
 
     /* init WPE host data */
     wpe_fdo_initialize_for_egl_display (egl_data.display);
@@ -1469,6 +1325,7 @@ cog_platform_teardown (CogPlatform *platform)
         wl_callback_destroy (wpe_view_data.frame_callback);
     if (wpe_view_data.image != NULL)
         egl_data.eglDestroyImage (egl_data.display, wpe_view_data.image);
+    g_clear_pointer (&wpe_view_data.buffer, wl_buffer_destroy);
     // g_object_unref (wpe_view_data.view);
     /* @FIXME: check why this segfaults
     wpe_view_backend_destroy (wpe_view_data.backend);
@@ -1479,7 +1336,6 @@ cog_platform_teardown (CogPlatform *platform)
     wpe_view_backend_exportable_fdo_destroy (wpe_host_data.exportable);
     */
 
-    clear_gles ();
     clear_input ();
     destroy_window ();
     clear_egl ();

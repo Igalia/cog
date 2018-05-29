@@ -137,7 +137,7 @@ set(COGPLATFORM_FDO_SOURCES
     wayland/fullscreen-shell-unstable-v1-protocol.c
 )
 
-pkg_check_modules(COGPLATFORM_FDO_DEPS REQUIRED wpe-webkit-0.1 wpe-0.1 wpebackend-fdo-0.1 egl glesv2 wayland-egl xkbcommon)
+pkg_check_modules(COGPLATFORM_FDO_DEPS REQUIRED wpe-webkit-0.1 wpe-0.1 wpebackend-fdo-0.1 egl wayland-egl xkbcommon)
 
 set(COGPLATFORM_FDO_INCLUDE_DIRS ${COGPLATFORM_FDO_DEPS_INCLUDE_DIRS})
 set(COGPLATFORM_FDO_CFLAGS ${COGPLATFORM_FDO_DEPS_CFLAGS_OTHER})
