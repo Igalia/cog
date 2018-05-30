@@ -129,7 +129,6 @@ static struct {
 
 static struct {
     struct wpe_view_backend *backend;
-    struct wl_resource* current_buffer;
     EGLImageKHR image;
     struct wl_buffer *buffer;
     struct wl_callback *frame_callback;
@@ -988,14 +987,9 @@ on_surface_frame (void *data, struct wl_callback *callback, uint32_t time)
     wpe_view_backend_exportable_fdo_dispatch_frame_complete
         (wpe_host_data.exportable);
 
-    if (wpe_view_data.current_buffer != NULL) {
-        wpe_view_backend_exportable_fdo_dispatch_release_buffer
-            (wpe_host_data.exportable, wpe_view_data.current_buffer);
-        wpe_view_data.current_buffer = NULL;
-    }
-
     if (wpe_view_data.image != NULL) {
-        egl_data.eglDestroyImage (egl_data.display, wpe_view_data.image);
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_image (wpe_host_data.exportable,
+                                                                    wpe_view_data.image);
         wpe_view_data.image = NULL;
     }
 
@@ -1018,21 +1012,11 @@ request_frame (void)
                               NULL);
 }
 
-static void
-on_export_buffer_resource (void* data, struct wl_resource* buffer_resource)
-{
-    wpe_view_data.current_buffer = buffer_resource;
 
-    static EGLint image_attrs[] = {
-        EGL_WAYLAND_PLANE_WL, 0,
-        EGL_NONE
-    };
-    wpe_view_data.image = egl_data.eglCreateImage (egl_data.display,
-                                                   EGL_NO_CONTEXT,
-                                                   EGL_WAYLAND_BUFFER_WL,
-                                                   buffer_resource,
-                                                   image_attrs);
-    assert (wpe_view_data.image != NULL);
+static void
+on_export_egl_image(void *data, EGLImageKHR image)
+{
+    wpe_view_data.image = image;
 
     static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
         eglCreateWaylandBufferFromImageWL;
@@ -1356,15 +1340,15 @@ cog_platform_get_view_backend (CogPlatform   *platform,
                                WebKitWebView *related_view,
                                GError       **error)
 {
-    static struct wpe_view_backend_exportable_fdo_client exportable_client = {
-        .export_buffer_resource = on_export_buffer_resource,
+    static struct wpe_view_backend_exportable_fdo_egl_client exportable_egl_client = {
+        .export_egl_image = on_export_egl_image,
     };
 
     wpe_host_data.exportable =
-        wpe_view_backend_exportable_fdo_create (&exportable_client,
-                                                NULL,
-                                                DEFAULT_WIDTH,
-                                                DEFAULT_HEIGHT);
+        wpe_view_backend_exportable_fdo_egl_create (&exportable_egl_client,
+                                                    NULL,
+                                                    DEFAULT_WIDTH,
+                                                    DEFAULT_HEIGHT);
     assert (wpe_host_data.exportable != NULL);
 
     /* init WPE view backend */
