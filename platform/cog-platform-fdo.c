@@ -39,7 +39,6 @@
 
 #define DEFAULT_ZOOM_STEP 0.1f
 
-static CogLauncher *launcher = NULL;
 
 static struct {
     struct wl_display *display;
@@ -130,7 +129,6 @@ static struct {
 
 static struct {
     struct wpe_view_backend *backend;
-    WebKitWebView *view;
     struct wl_resource* current_buffer;
     EGLImageKHR image;
     struct wl_buffer *buffer;
@@ -315,7 +313,7 @@ xdg_toplevel_on_configure (void *data,
 static void
 xdg_toplevel_on_close (void *data, struct zxdg_toplevel_v6 *xdg_toplevel)
 {
-    g_application_quit (G_APPLICATION (launcher));
+    g_application_quit (g_application_get_default ());
 }
 
 static const struct zxdg_toplevel_v6_listener xdg_toplevel_listener = {
@@ -567,6 +565,9 @@ capture_app_key_bindings (uint32_t keysym,
                           uint32_t state,
                           uint8_t modifiers)
 {
+    CogLauncher *launcher = cog_launcher_get_default ();
+    WebKitWebView *web_view = cog_launcher_get_web_view (launcher);
+
     if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         /* fullscreen */
         if (modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F11) {
@@ -587,7 +588,7 @@ capture_app_key_bindings (uint32_t keysym,
         else if (modifiers == wpe_input_keyboard_modifier_control &&
                  unicode == XKB_KEY_equal && keysym == XKB_KEY_equal) {
             wpe_view_data.zoom_level += DEFAULT_ZOOM_STEP;
-            webkit_web_view_set_zoom_level (wpe_view_data.view,
+            webkit_web_view_set_zoom_level (web_view,
                                             wpe_view_data.zoom_level);
             return true;
         }
@@ -595,7 +596,7 @@ capture_app_key_bindings (uint32_t keysym,
         else if (modifiers == wpe_input_keyboard_modifier_control &&
                  unicode == 0x2D && keysym == 0x2D) {
             wpe_view_data.zoom_level -= DEFAULT_ZOOM_STEP;
-            webkit_web_view_set_zoom_level (wpe_view_data.view,
+            webkit_web_view_set_zoom_level (web_view,
                                             wpe_view_data.zoom_level);
             return true;
         }
@@ -603,20 +604,20 @@ capture_app_key_bindings (uint32_t keysym,
         else if (modifiers == wpe_input_keyboard_modifier_control &&
                  unicode == XKB_KEY_0 && keysym == XKB_KEY_0) {
             wpe_view_data.zoom_level = 1.0f;
-            webkit_web_view_set_zoom_level (wpe_view_data.view,
+            webkit_web_view_set_zoom_level (web_view,
                                             wpe_view_data.zoom_level);
             return true;
         }
         /* Alt+Left, navigate back */
         else if (modifiers == wpe_input_keyboard_modifier_alt &&
                  unicode == 0 && keysym == XKB_KEY_Left) {
-            webkit_web_view_go_back (wpe_view_data.view);
+            webkit_web_view_go_back (web_view);
             return true;
         }
         /* Alt+Right, navigate forward */
         else if (modifiers == wpe_input_keyboard_modifier_alt &&
                  unicode == 0 && keysym == XKB_KEY_Right) {
-            webkit_web_view_go_forward (wpe_view_data.view);
+            webkit_web_view_go_forward (web_view);
             return true;
         }
     }
@@ -1154,7 +1155,7 @@ clear_egl (void)
 }
 
 static void
-create_window (void)
+create_window (CogLauncher *launcher)
 {
     win_data.wl_surface = wl_compositor_create_surface (wl_data.compositor);
     assert (win_data.wl_surface != NULL);
@@ -1295,18 +1296,16 @@ clear_input (void)
 
 gboolean
 cog_platform_setup (CogPlatform *platform,
-                    CogLauncher *_launcher,
+                    CogLauncher *launcher,
                     const char  *params,
                     GError     **error)
 {
     g_assert_nonnull (platform);
-    g_return_val_if_fail (COG_IS_LAUNCHER (_launcher), FALSE);
-
-    launcher = _launcher;
+    g_return_val_if_fail (COG_IS_LAUNCHER (launcher), FALSE);
 
     init_wayland ();
     init_egl ();
-    create_window ();
+    create_window (launcher);
     init_input ();
 
     /* init WPE host data */
@@ -1326,7 +1325,7 @@ cog_platform_teardown (CogPlatform *platform)
     if (wpe_view_data.image != NULL)
         egl_data.eglDestroyImage (egl_data.display, wpe_view_data.image);
     g_clear_pointer (&wpe_view_data.buffer, wl_buffer_destroy);
-    // g_object_unref (wpe_view_data.view);
+
     /* @FIXME: check why this segfaults
     wpe_view_backend_destroy (wpe_view_data.backend);
     */
