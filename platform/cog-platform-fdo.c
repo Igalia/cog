@@ -133,8 +133,6 @@ static struct {
     EGLImageKHR image;
     struct wl_buffer *buffer;
     struct wl_callback *frame_callback;
-
-    double zoom_level;
 } wpe_view_data = {NULL, };
 
 
@@ -587,25 +585,23 @@ capture_app_key_bindings (uint32_t keysym,
         /* Ctrl+Plus, zoom in */
         else if (modifiers == wpe_input_keyboard_modifier_control &&
                  unicode == XKB_KEY_equal && keysym == XKB_KEY_equal) {
-            wpe_view_data.zoom_level += DEFAULT_ZOOM_STEP;
+            const double level = webkit_web_view_get_zoom_level (web_view);
             webkit_web_view_set_zoom_level (web_view,
-                                            wpe_view_data.zoom_level);
+                                            level + DEFAULT_ZOOM_STEP);
             return true;
         }
         /* Ctrl+Minus, zoom out */
         else if (modifiers == wpe_input_keyboard_modifier_control &&
                  unicode == 0x2D && keysym == 0x2D) {
-            wpe_view_data.zoom_level -= DEFAULT_ZOOM_STEP;
+            const double level = webkit_web_view_get_zoom_level (web_view);
             webkit_web_view_set_zoom_level (web_view,
-                                            wpe_view_data.zoom_level);
+                                            level - DEFAULT_ZOOM_STEP);
             return true;
         }
         /* Ctrl+0, restore zoom level to 1.0 */
         else if (modifiers == wpe_input_keyboard_modifier_control &&
                  unicode == XKB_KEY_0 && keysym == XKB_KEY_0) {
-            wpe_view_data.zoom_level = 1.0f;
-            webkit_web_view_set_zoom_level (web_view,
-                                            wpe_view_data.zoom_level);
+            webkit_web_view_set_zoom_level (web_view, 1.0f);
             return true;
         }
         /* Alt+Left, navigate back */
