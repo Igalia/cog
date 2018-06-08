@@ -230,8 +230,14 @@ platform_setup (CogLauncher *launcher)
 
     g_debug ("%s: Platform name: %s", __func__, s_options.platform_name);
 
-    if (!s_options.platform_name)
+    if (!s_options.platform_name) {
+#if COG_PLATFORM_FDO
+        // if no platform specified, try to use fdo if available.
+        s_options.platform_name = g_strdup("fdo");
+#else
         return FALSE;
+#endif
+    }
 
     g_autofree char *platform_soname =
         g_strdup_printf ("libcogplatform-%s.so", s_options.platform_name);

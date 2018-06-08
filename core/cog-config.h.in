@@ -15,6 +15,7 @@
 #cmakedefine COG_DEFAULT_APPID "@COG_DEFAULT_APPID@"
 #cmakedefine COG_DEFAULT_HOME_URI "@COG_DEFAULT_HOME_URI@"
 #cmakedefine01 COG_USE_WEBKITGTK
+#cmakedefine01 COG_PLATFORM_FDO
 
 /* FIXME: Perhaps make this a cmake define instead. */
 #define COG_DEFAULT_APPNAME "Cog"
