@@ -259,18 +259,18 @@ cog_option_entries_from_class (GObjectClass *klass)
 
         // Pick only properties of basic types we know how to convert.
         const GType prop_type = G_PARAM_SPEC_VALUE_TYPE (prop);
+        const char *type_name = NULL;
         switch (prop_type) {
-            case G_TYPE_BOOLEAN:
+            case G_TYPE_BOOLEAN: type_name = "BOOL"; break;
             case G_TYPE_DOUBLE:
-            case G_TYPE_FLOAT:
+            case G_TYPE_FLOAT: type_name = "FLOAT"; break;
             case G_TYPE_INT64:
             case G_TYPE_INT:
-            case G_TYPE_LONG:
-            case G_TYPE_STRING:
+            case G_TYPE_LONG: type_name = "INTEGER"; break;
+            case G_TYPE_STRING: type_name = "STRING"; break;
             case G_TYPE_UINT:
             case G_TYPE_UINT64:
-            case G_TYPE_ULONG:
-                break;
+            case G_TYPE_ULONG: type_name = "UNSIGNED"; break;
             default:
                 continue;
         }
@@ -281,7 +281,7 @@ cog_option_entries_from_class (GObjectClass *klass)
         entry->arg = G_OPTION_ARG_CALLBACK;
         entry->arg_data = option_entry_parse_to_property;
         entry->description = g_param_spec_get_blurb (prop);
-        entry->arg_description = g_type_name (prop_type);
+        entry->arg_description = type_name;
         if (prop_type == G_TYPE_BOOLEAN && g_str_has_prefix (entry->long_name, "enable-"))
             entry->flags |= G_OPTION_FLAG_OPTIONAL_ARG;
     }

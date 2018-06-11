@@ -606,8 +606,14 @@ cog_launcher_add_web_settings_option_entries (CogLauncher *launcher)
 
     g_autoptr(GOptionGroup) option_group =
         g_option_group_new ("websettings",
-                            "WebKit settings",
-                            "WebKit settings",
+                            "WebKitSettings options can be used to configure features exposed to the loaded Web content.\n"
+                            "\n"
+                            "  BOOL values are either 'true', '1', 'false', or '0'. Ommitting the value implies '1'.\n"
+                            "  INTEGER values can be decimal, octal (prefix '0'), or hexadecimal (prefix '0x').\n"
+                            "  UNSIGNED values behave like INTEGER, but negative values are not accepted.\n"
+                            "  FLOAT values may optionally use decimal separators and scientific notation.\n"
+                            "  STRING values may need quoting when passed from the shell.\n",
+                            "Show WebKitSettings options",
                             launcher->web_settings,
                             NULL);
     g_option_group_add_entries (option_group, option_entries);
