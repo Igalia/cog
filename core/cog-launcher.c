@@ -17,6 +17,7 @@
 
 struct _CogLauncher {
     CogLauncherBase   parent;
+    WebKitSettings   *web_settings;
     WebKitWebContext *web_context;
     WebKitWebView    *web_view;
     char             *home_uri;
@@ -36,6 +37,7 @@ static int s_signals[LAST_SIGNAL] = { 0, };
 
 enum {
     PROP_0,
+    PROP_WEB_SETTINGS,
     PROP_WEB_CONTEXT,
     PROP_WEB_VIEW,
     PROP_HOME_URI,
@@ -167,17 +169,17 @@ cog_launcher_startup (GApplication *application)
      * Create the web view ourselves if the signal handler did not.
      */
     if (!launcher->web_view) {
-        g_autoptr(WebKitSettings) settings =
-            webkit_settings_new_with_settings ("enable-developer-extras", TRUE, NULL);
         launcher->web_view = WEBKIT_WEB_VIEW (g_object_new (WEBKIT_TYPE_WEB_VIEW,
-                                                            "settings", settings,
+                                                            "settings", cog_launcher_get_web_settings (launcher),
                                                             "web-context", cog_launcher_get_web_context (launcher),
                                                             NULL));
     }
 
     /*
-     * The web context being used must be the same created by CogLauncher.
+     * The web context and settings being used by the web view must be
+     * the same that were pre-created by CogLauncher.
      */
+    g_assert (webkit_web_view_get_settings (launcher->web_view) == cog_launcher_get_web_settings (launcher));
     g_assert (webkit_web_view_get_context (launcher->web_view) == cog_launcher_get_web_context (launcher));
 
     /*
@@ -226,6 +228,9 @@ cog_launcher_get_property (GObject    *object,
 {
     CogLauncher *launcher = COG_LAUNCHER (object);
     switch (prop_id) {
+        case PROP_WEB_SETTINGS:
+            g_value_set_object (value, cog_launcher_get_web_settings (launcher));
+            break;
         case PROP_WEB_CONTEXT:
             g_value_set_object (value, cog_launcher_get_web_context (launcher));
             break;
@@ -265,6 +270,7 @@ cog_launcher_dispose (GObject *object)
 
     g_clear_object (&launcher->web_view);
     g_clear_object (&launcher->web_context);
+    g_clear_object (&launcher->web_settings);
 
     g_clear_pointer (&launcher->request_handlers, g_hash_table_unref);
 
@@ -327,6 +333,8 @@ cog_launcher_constructed (GObject *object)
 
     CogLauncher *launcher = COG_LAUNCHER (object);
 
+    launcher->web_settings = g_object_ref_sink (webkit_settings_new ());
+
     cog_launcher_add_action (launcher, "quit", on_action_quit, NULL);
     cog_launcher_add_action (launcher, "previous", on_action_prev, NULL);
     cog_launcher_add_action (launcher, "next", on_action_next, NULL);
@@ -359,6 +367,14 @@ cog_launcher_class_init (CogLauncherClass *klass)
     application_class->open = cog_launcher_open;
     application_class->startup = cog_launcher_startup;
     application_class->activate = cog_launcher_activate;
+
+    s_properties[PROP_WEB_SETTINGS] =
+        g_param_spec_object ("web-settings",
+                             "Web Settings",
+                             "The WebKitSettings for the launcher",
+                             WEBKIT_TYPE_SETTINGS,
+                             G_PARAM_READABLE |
+                             G_PARAM_STATIC_STRINGS);
 
     s_properties[PROP_WEB_CONTEXT] =
         g_param_spec_object ("web-context",
@@ -445,6 +461,14 @@ cog_launcher_get_web_context (CogLauncher *launcher)
 {
     g_return_val_if_fail (COG_IS_LAUNCHER (launcher), NULL);
     return launcher->web_context;
+}
+
+
+WebKitSettings*
+cog_launcher_get_web_settings (CogLauncher *launcher)
+{
+    g_return_val_if_fail (COG_IS_LAUNCHER (launcher), NULL);
+    return launcher->web_settings;
 }
 
 
@@ -564,4 +588,35 @@ cog_launcher_set_request_handler (CogLauncher       *launcher,
     }
 
     request_handler_map_entry_register (scheme, entry, launcher->web_context);
+}
+
+
+void
+cog_launcher_add_web_settings_option_entries (CogLauncher *launcher)
+{
+    g_return_if_fail (COG_IS_LAUNCHER (launcher));
+
+    g_autofree GOptionEntry *option_entries =
+        cog_option_entries_from_class (G_OBJECT_GET_CLASS (launcher->web_settings));
+    if (!option_entries) {
+        g_critical ("Could not deduce option entries for WebKitSettings."
+                    " This should not happen, continuing but YMMV.");
+        return;
+    }
+
+    g_autoptr(GOptionGroup) option_group =
+        g_option_group_new ("websettings",
+                            "WebKitSettings options can be used to configure features exposed to the loaded Web content.\n"
+                            "\n"
+                            "  BOOL values are either 'true', '1', 'false', or '0'. Ommitting the value implies '1'.\n"
+                            "  INTEGER values can be decimal, octal (prefix '0'), or hexadecimal (prefix '0x').\n"
+                            "  UNSIGNED values behave like INTEGER, but negative values are not accepted.\n"
+                            "  FLOAT values may optionally use decimal separators and scientific notation.\n"
+                            "  STRING values may need quoting when passed from the shell.\n",
+                            "Show WebKitSettings options",
+                            launcher->web_settings,
+                            NULL);
+    g_option_group_add_entries (option_group, option_entries);
+    g_application_add_option_group (G_APPLICATION (launcher),
+                                    g_steal_pointer (&option_group));
 }
