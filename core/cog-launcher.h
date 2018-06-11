@@ -44,6 +44,7 @@ struct _CogLauncherClass
 CogLauncher      *cog_launcher_get_default         (void);
 WebKitWebView    *cog_launcher_get_web_view        (CogLauncher       *launcher);
 WebKitWebContext *cog_launcher_get_web_context     (CogLauncher       *launcher);
+WebKitSettings   *cog_launcher_get_web_settings    (CogLauncher       *launcher);
 const char       *cog_launcher_get_home_uri        (CogLauncher       *launcher);
 void              cog_launcher_set_home_uri        (CogLauncher       *launcher,
                                                     const char        *home_uri);
@@ -51,6 +52,8 @@ void              cog_launcher_set_home_uri        (CogLauncher       *launcher,
 void              cog_launcher_set_request_handler (CogLauncher       *launcher,
                                                     const char        *scheme,
                                                     CogRequestHandler *handler);
+
+void  cog_launcher_add_web_settings_option_entries (CogLauncher       *launcher);
 
 G_END_DECLS
 
