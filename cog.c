@@ -29,9 +29,6 @@ static struct {
     gboolean version;
     gboolean print_appid;
     gboolean doc_viewer;
-    gboolean dev_tools;
-    gboolean webgl;
-    gboolean log_console;
     gdouble  scale_factor;
     GStrv    dir_handlers;
     GStrv    arguments;
@@ -57,15 +54,6 @@ static GOptionEntry s_cli_options[] =
         NULL },
     { "print-appid", '\0', 0, G_OPTION_ARG_NONE, &s_options.print_appid,
         "Print application ID and exit",
-        NULL },
-    { "dev-tools", 'D', 0, G_OPTION_ARG_NONE, &s_options.dev_tools,
-        "Enable usage of the inspector and JavaScript console",
-        NULL },
-    { "log-console", 'v', 0, G_OPTION_ARG_NONE, &s_options.log_console,
-        "Log JavaScript console messages to standard output",
-        NULL },
-    { "webgl", '\0', 0, G_OPTION_ARG_NONE, &s_options.webgl,
-        "Allow web content to use the WebGL API",
         NULL },
     { "scale", '\0', 0, G_OPTION_ARG_DOUBLE, &s_options.scale_factor,
         "Zoom/Scaling factor (default: 1.0, no scaling)",
@@ -284,13 +272,6 @@ on_create_web_view (CogLauncher *launcher,
                                             WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
     }
 
-    g_autoptr(WebKitSettings) settings =
-        webkit_settings_new_with_settings ("enable-developer-extras", s_options.dev_tools,
-                                           "enable-page-cache", !s_options.doc_viewer,
-                                           "enable-webgl", s_options.webgl,
-                                           "enable-write-console-messages-to-stdout", s_options.log_console,
-                                           NULL);
-
 #if !COG_USE_WEBKITGTK
     WebKitWebViewBackend *view_backend = NULL;
 
@@ -318,7 +299,7 @@ on_create_web_view (CogLauncher *launcher,
 #endif
 
     g_autoptr(WebKitWebView) web_view = g_object_new (WEBKIT_TYPE_WEB_VIEW,
-                                                      "settings", settings,
+                                                      "settings", cog_launcher_get_web_settings (launcher),
                                                       "web-context", web_context,
                                                       "zoom-level", s_options.scale_factor,
 #if !COG_USE_WEBKITGTK
@@ -362,6 +343,7 @@ main (int argc, char *argv[])
 {
     g_autoptr(GApplication) app = G_APPLICATION (cog_launcher_get_default ());
     g_application_add_main_option_entries (app, s_cli_options);
+    cog_launcher_add_web_settings_option_entries (COG_LAUNCHER (app));
 
 #if !COG_USE_WEBKITGTK
     g_signal_connect (app, "shutdown", G_CALLBACK (on_shutdown), NULL);
