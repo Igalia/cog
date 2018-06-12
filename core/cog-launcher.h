@@ -54,6 +54,7 @@ void              cog_launcher_set_request_handler (CogLauncher       *launcher,
                                                     CogRequestHandler *handler);
 
 void  cog_launcher_add_web_settings_option_entries (CogLauncher       *launcher);
+void  cog_launcher_add_web_cookies_option_entries  (CogLauncher       *launcher);
 
 G_END_DECLS
 
