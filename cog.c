@@ -341,9 +341,19 @@ on_create_web_view (CogLauncher *launcher,
 int
 main (int argc, char *argv[])
 {
+    // We need to set the program name early because constructing the
+    // CogLauncher instance will use g_get_prgname() to determine where
+    // to store the caches for Web content.
+    {
+        const char *dir_separator = strrchr (argv[0], G_DIR_SEPARATOR);
+        g_set_prgname (dir_separator ? dir_separator + 1 : argv[0]);
+        g_set_application_name ("Cog");
+    }
+
     g_autoptr(GApplication) app = G_APPLICATION (cog_launcher_get_default ());
     g_application_add_main_option_entries (app, s_cli_options);
     cog_launcher_add_web_settings_option_entries (COG_LAUNCHER (app));
+    cog_launcher_add_web_cookies_option_entries (COG_LAUNCHER (app));
 
 #if !COG_USE_WEBKITGTK
     g_signal_connect (app, "shutdown", G_CALLBACK (on_shutdown), NULL);
