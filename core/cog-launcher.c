@@ -649,6 +649,138 @@ option_entry_parse_cookie_store (const char          *option G_GNUC_UNUSED,
 }
 
 
+
+typedef void (*CookieFlagCallback) (SoupCookie*, gboolean);
+
+static void
+cookie_set_session (SoupCookie *cookie, gboolean session)
+{
+    if (session)
+        soup_cookie_set_expires (cookie, NULL);
+}
+
+
+static inline CookieFlagCallback
+option_entry_parse_cookie_add_get_flag_callback (const char *name)
+{
+    static const struct {
+        const char *name;
+        CookieFlagCallback callback;
+    } flag_map[] = {
+        { "httponly", soup_cookie_set_http_only },
+        { "secure",   soup_cookie_set_secure    },
+        { "session",  cookie_set_session        },
+    };
+
+    for (unsigned i = 0; i < G_N_ELEMENTS (flag_map); i++)
+        if (strcmp (name, flag_map[i].name) == 0)
+            return flag_map[i].callback;
+
+    return NULL;
+}
+
+
+static void
+on_cookie_added (WebKitCookieManager *cookie_manager,
+                 GAsyncResult        *result,
+                 GMainLoop           *loop)
+{
+    g_autoptr(GError) error = NULL;
+    if (!webkit_cookie_manager_add_cookie_finish (cookie_manager, result, &error)) {
+        g_warning ("Error setting cookie: %s", error->message);
+    }
+    g_main_loop_quit (loop);
+}
+
+
+static gboolean
+option_entry_parse_cookie_add (const char          *option G_GNUC_UNUSED,
+                               const char          *value,
+                               WebKitCookieManager *cookie_manager,
+                               GError             **error G_GNUC_UNUSED)
+{
+    g_autofree char *domain = g_strdup (value);
+
+    char *flagstr = strchr (domain, ':');
+    if (!flagstr)
+        goto bad_format;
+    *flagstr++ = '\0';
+
+    char *contents = strchr (flagstr, ':');
+    if (!contents)
+        goto bad_format;
+
+    // The domain might include a port in the domain, in that
+    // case skip forward to the next colon after the port number.
+    if (g_ascii_isdigit (contents[1])) {
+        if (!(contents = strchr (contents + 1, ':')))
+            goto bad_format;
+    }
+    *contents++ = '\0';
+
+    // The contents of the cookie cannot be empty.
+    if (!contents[0])
+        goto bad_format;
+
+    g_autoptr(SoupCookie) cookie = soup_cookie_parse (contents, NULL);
+    if (!cookie)
+        goto bad_format;
+
+    soup_cookie_set_domain (cookie, domain);
+
+    // Go through the flags.
+    if (flagstr && flagstr[0]) {
+        g_auto(GStrv) flags = g_strsplit (flagstr, ",", -1);
+
+        for (unsigned i = 0; flags[i] != NULL; i++) {
+            // Skip the optional leading +/- signs.
+            const char *flag = flags[i];
+            gboolean flag_value = flag[0] != '-';
+            if (flag[0] == '+' || flag[0] == '-')
+                flag++;
+
+            const CookieFlagCallback flag_callback =
+                option_entry_parse_cookie_add_get_flag_callback (flag);
+            if (!flag_callback) {
+                g_set_error (error,
+                             G_OPTION_ERROR,
+                             G_OPTION_ERROR_BAD_VALUE,
+                             "Invalid cookie flag '%s'",
+                             flag);
+                return FALSE;
+            }
+            (*flag_callback) (cookie, flag_value);
+        }
+    }
+
+    // XXX: If the cookie has no path defined, conversion to WebKit's
+    //      internal format will fail and the WebProcess will spit ouy
+    //      a critical error -- and the cookie won't be set. Workaround
+    //      the issue while this is not fixed inside WebKit.
+    if (!soup_cookie_get_path (cookie))
+        soup_cookie_set_path (cookie, "/");
+
+    // Adding a cookie is an asynchronous operation, so spin up an
+    // event loop until to block until the operation completes.
+    g_autoptr(GMainLoop) loop = g_main_loop_new (NULL, FALSE);
+    webkit_cookie_manager_add_cookie (cookie_manager,
+                                      cookie,
+                                      NULL,  // GCancellable
+                                      (GAsyncReadyCallback) on_cookie_added,
+                                      loop);
+    g_main_loop_run (loop);
+    return TRUE;
+
+bad_format:
+    g_set_error (error,
+                 G_OPTION_ERROR,
+                 G_OPTION_ERROR_BAD_VALUE,
+                 "Invalid cookie specification '%s'",
+                 value);
+    return FALSE;
+}
+
+
 static GOptionEntry s_cookies_options[] =
 {
     {
@@ -657,6 +789,13 @@ static GOptionEntry s_cookies_options[] =
         .arg_data = option_entry_parse_cookie_store,
         .description = "When to store cookies: always (default), never, nothirdparty.",
         .arg_description = "MODE",
+    },
+    {
+        .long_name = "cookie-add",
+        .arg = G_OPTION_ARG_CALLBACK,
+        .arg_data = option_entry_parse_cookie_add,
+        .description = "Pre-set a cookie, available flags: httponly, secure, session.",
+        .arg_description = "DOMAIN:[FLAG,-FLAG,..]:CONTENTS",
     },
     { NULL }
 };
