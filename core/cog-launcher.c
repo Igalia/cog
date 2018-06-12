@@ -619,35 +619,71 @@ cog_launcher_add_web_settings_option_entries (CogLauncher *launcher)
 }
 
 
+typedef struct {
+    GMainLoop               *loop;
+    WebKitCookieAcceptPolicy result;
+} GetCookieAcceptPolicyData;
+
+
+static void
+on_got_cookie_accept_policy (WebKitCookieManager       *manager,
+                             GAsyncResult              *result,
+                             GetCookieAcceptPolicyData *data)
+{
+    data->result =
+        webkit_cookie_manager_get_accept_policy_finish (manager, result, NULL);
+    g_main_loop_quit (data->loop);
+}
+
+
+static WebKitCookieAcceptPolicy
+cookie_manager_get_accept_policy (WebKitCookieManager *cookie_manager)
+{
+    g_autoptr(GMainLoop) loop = g_main_loop_new (NULL, FALSE);
+    GetCookieAcceptPolicyData data = { .loop = loop };
+    webkit_cookie_manager_get_accept_policy (cookie_manager,
+                                             NULL,  // GCancellable
+                                             (GAsyncReadyCallback) on_got_cookie_accept_policy,
+                                             &data);
+    g_main_loop_run (loop);
+    return data.result;
+}
+
+
 static gboolean
 option_entry_parse_cookie_store (const char          *option G_GNUC_UNUSED,
                                  const char          *value,
                                  WebKitCookieManager *cookie_manager,
                                  GError             **error)
 {
-    static const struct {
-        const char              *name;
-        WebKitCookieAcceptPolicy policy;
-    } value_map[] = {
-        { "always",       WEBKIT_COOKIE_POLICY_ACCEPT_ALWAYS         },
-        { "never",        WEBKIT_COOKIE_POLICY_ACCEPT_NEVER          },
-        { "nothirdparty", WEBKIT_COOKIE_POLICY_ACCEPT_NO_THIRD_PARTY },
-    };
-
-    for (unsigned i = 0; i < G_N_ELEMENTS (value_map); i++) {
-        if (strcmp (value, value_map[i].name) == 0) {
-            webkit_cookie_manager_set_accept_policy (cookie_manager,
-                                                     value_map[i].policy);
-            return TRUE;
+    if (strcmp (value, "help") == 0) {
+        const WebKitCookieAcceptPolicy default_mode =
+            cookie_manager_get_accept_policy (cookie_manager);
+        g_autoptr(GEnumClass) enum_class =
+            g_type_class_ref (WEBKIT_TYPE_COOKIE_ACCEPT_POLICY);
+        for (unsigned i = 0; i < enum_class->n_values; i++) {
+            const char *format = (enum_class->values[i].value == default_mode)
+                ? "%s (default)\n"
+                : "%s\n";
+            g_print (format, enum_class->values[i].value_nick);
         }
+        exit (EXIT_SUCCESS);
+        g_assert_not_reached ();
     }
 
-    g_set_error (error,
-                 G_OPTION_ERROR,
-                 G_OPTION_ERROR_BAD_VALUE,
-                 "Invalid cookie mode '%s'",
-                 value);
-    return FALSE;
+    const GEnumValue *enum_value =
+        cog_g_enum_get_value (WEBKIT_TYPE_COOKIE_ACCEPT_POLICY, value);
+    if (!enum_value) {
+        g_set_error (error,
+                     G_OPTION_ERROR,
+                     G_OPTION_ERROR_BAD_VALUE,
+                     "Invalid cookie storing mode '%s'",
+                     value);
+        return FALSE;
+    }
+
+    webkit_cookie_manager_set_accept_policy (cookie_manager, enum_value->value);
+    return TRUE;
 }
 
 
@@ -869,7 +905,7 @@ static GOptionEntry s_cookies_options[] =
         .long_name = "cookie-store",
         .arg = G_OPTION_ARG_CALLBACK,
         .arg_data = option_entry_parse_cookie_store,
-        .description = "When to store cookies: always (default), never, nothirdparty.",
+        .description = "How to store cookies. Pass 'help' for a list of modes.",
         .arg_description = "MODE",
     },
     {
