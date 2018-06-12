@@ -789,6 +789,15 @@ option_entry_parse_cookie_jar (const char          *option G_GNUC_UNUSED,
                                WebKitCookieManager *cookie_manager,
                                GError             **error)
 {
+    if (strcmp (value, "help") == 0) {
+        g_autoptr(GEnumClass) enum_class =
+            g_type_class_ref (WEBKIT_TYPE_COOKIE_PERSISTENT_STORAGE);
+        for (unsigned i = 0; i < enum_class->n_values; i++)
+            g_print ("%s\n", enum_class->values[i].value_nick);
+        exit (EXIT_SUCCESS);
+        g_assert_not_reached ();
+    }
+
     g_autofree char *cookie_jar_path = NULL;
     g_autofree char *format_name = g_strdup (value);
     char *path = strchr (format_name, ':');
@@ -874,7 +883,7 @@ static GOptionEntry s_cookies_options[] =
         .long_name = "cookie-jar",
         .arg = G_OPTION_ARG_CALLBACK,
         .arg_data = option_entry_parse_cookie_jar,
-        .description = "Enable persisting cookies to disk in a given format (text, sqlite).",
+        .description = "Enable persisting cookies to disk. Pass 'help' for a list of formats.",
         .arg_description = "FORMAT[:PATH]",
     },
     { NULL }
