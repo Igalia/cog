@@ -14,6 +14,8 @@
 # include "cog-gtk-utils.h"
 #endif
 
+#include <string.h>
+
 
 struct _CogLauncher {
     CogLauncherBase   parent;
@@ -109,35 +111,6 @@ static void request_handler_map_entry_register (const char*, RequestHandlerMapEn
 
 
 static void
-cog_launcher_create_web_context (CogLauncher *launcher)
-{
-    g_autofree char *data_dir = g_build_filename (g_get_user_data_dir (),
-                                                  g_get_prgname (),
-                                                  NULL);
-    g_autofree char *cache_dir = g_build_filename (g_get_user_cache_dir (),
-                                                   g_get_prgname (),
-                                                   NULL);
-
-    g_autoptr(WebKitWebsiteDataManager) manager =
-        webkit_website_data_manager_new ("base-data-directory", data_dir,
-                                         "base-cache-directory", cache_dir,
-                                         NULL);
-
-    launcher->web_context = webkit_web_context_new_with_website_data_manager (manager);
-
-    /*
-     * Request handlers can be registered with CogLauncher before the web
-     * context is created: register them now that it has been created.
-     */
-    if (launcher->request_handlers) {
-        g_hash_table_foreach (launcher->request_handlers,
-                              (GHFunc) request_handler_map_entry_register,
-                              launcher->web_context);
-    }
-}
-
-
-static void
 cog_launcher_open (GApplication *application,
                    GFile       **files,
                    int           n_files,
@@ -158,7 +131,16 @@ cog_launcher_startup (GApplication *application)
     G_APPLICATION_CLASS (cog_launcher_parent_class)->startup (application);
 
     CogLauncher *launcher = COG_LAUNCHER (application);
-    cog_launcher_create_web_context (launcher);
+
+    /*
+     * Request handlers can be registered with CogLauncher before the web
+     * context is created: register them now that it has been created.
+     */
+    if (launcher->request_handlers) {
+        g_hash_table_foreach (launcher->request_handlers,
+                              (GHFunc) request_handler_map_entry_register,
+                              launcher->web_context);
+    }
 
     g_signal_emit (launcher,
                    s_signals[CREATE_WEB_VIEW],
@@ -334,6 +316,21 @@ cog_launcher_constructed (GObject *object)
     CogLauncher *launcher = COG_LAUNCHER (object);
 
     launcher->web_settings = g_object_ref_sink (webkit_settings_new ());
+
+    g_autofree char *data_dir = g_build_filename (g_get_user_data_dir (),
+                                                  g_get_prgname (),
+                                                  NULL);
+    g_autofree char *cache_dir = g_build_filename (g_get_user_cache_dir (),
+                                                   g_get_prgname (),
+                                                   NULL);
+
+    g_autoptr(WebKitWebsiteDataManager) manager =
+        webkit_website_data_manager_new ("base-data-directory", data_dir,
+                                         "base-cache-directory", cache_dir,
+                                         NULL);
+
+    launcher->web_context =
+        webkit_web_context_new_with_website_data_manager (manager);
 
     cog_launcher_add_action (launcher, "quit", on_action_quit, NULL);
     cog_launcher_add_action (launcher, "previous", on_action_prev, NULL);
@@ -617,6 +614,68 @@ cog_launcher_add_web_settings_option_entries (CogLauncher *launcher)
                             launcher->web_settings,
                             NULL);
     g_option_group_add_entries (option_group, option_entries);
+    g_application_add_option_group (G_APPLICATION (launcher),
+                                    g_steal_pointer (&option_group));
+}
+
+
+static gboolean
+option_entry_parse_cookie_store (const char          *option G_GNUC_UNUSED,
+                                 const char          *value,
+                                 WebKitCookieManager *cookie_manager,
+                                 GError             **error)
+{
+    static const struct {
+        const char              *name;
+        WebKitCookieAcceptPolicy policy;
+    } value_map[] = {
+        { "always",       WEBKIT_COOKIE_POLICY_ACCEPT_ALWAYS         },
+        { "never",        WEBKIT_COOKIE_POLICY_ACCEPT_NEVER          },
+        { "nothirdparty", WEBKIT_COOKIE_POLICY_ACCEPT_NO_THIRD_PARTY },
+    };
+
+    for (unsigned i = 0; i < G_N_ELEMENTS (value_map); i++) {
+        if (strcmp (value, value_map[i].name) == 0) {
+            webkit_cookie_manager_set_accept_policy (cookie_manager,
+                                                     value_map[i].policy);
+            return TRUE;
+        }
+    }
+
+    g_set_error (error,
+                 G_OPTION_ERROR,
+                 G_OPTION_ERROR_BAD_VALUE,
+                 "Invalid cookie mode '%s'",
+                 value);
+    return FALSE;
+}
+
+
+static GOptionEntry s_cookies_options[] =
+{
+    {
+        .long_name = "cookie-store",
+        .arg = G_OPTION_ARG_CALLBACK,
+        .arg_data = option_entry_parse_cookie_store,
+        .description = "When to store cookies: always (default), never, nothirdparty.",
+        .arg_description = "MODE",
+    },
+    { NULL }
+};
+
+
+void
+cog_launcher_add_web_cookies_option_entries (CogLauncher *launcher)
+{
+    g_return_if_fail (COG_IS_LAUNCHER (launcher));
+
+    g_autoptr(GOptionGroup) option_group =
+        g_option_group_new ("cookies",
+                            "Options which control storage and bahviour of cookies.\n",
+                            "Show options for cookies",
+                            webkit_web_context_get_cookie_manager (launcher->web_context),
+                            NULL);
+    g_option_group_add_entries (option_group, s_cookies_options);
     g_application_add_option_group (G_APPLICATION (launcher),
                                     g_steal_pointer (&option_group));
 }
