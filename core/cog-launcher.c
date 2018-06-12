@@ -783,6 +783,77 @@ bad_format:
 }
 
 
+static gboolean
+option_entry_parse_cookie_jar (const char          *option G_GNUC_UNUSED,
+                               const char          *value,
+                               WebKitCookieManager *cookie_manager,
+                               GError             **error)
+{
+    g_autofree char *cookie_jar_path = NULL;
+    g_autofree char *format_name = g_strdup (value);
+    char *path = strchr (format_name, ':');
+
+    if (path) {
+        *path++ = '\0';
+        g_autoptr(GFile) cookie_jar = g_file_new_for_path (path);
+        cookie_jar_path = g_file_get_path (cookie_jar);
+
+        if (!g_file_is_native (cookie_jar)) {
+            g_set_error (error,
+                         G_OPTION_ERROR,
+                         G_OPTION_ERROR_BAD_VALUE,
+                         "Path '%s' is not local",
+                         cookie_jar_path);
+            return FALSE;
+        }
+
+        GFileType file_type =
+            g_file_query_file_type (cookie_jar, G_FILE_QUERY_INFO_NONE, NULL);
+        switch (file_type) {
+            case G_FILE_TYPE_UNKNOWN:  // Does not exist yet, will be created.
+            case G_FILE_TYPE_REGULAR:
+                break;
+            default:
+                g_set_error (error,
+                             G_OPTION_ERROR,
+                             G_OPTION_ERROR_BAD_VALUE,
+                             "Cannot use %s path '%s' for cookies",
+                             cog_g_enum_get_nick (G_TYPE_FILE_TYPE, file_type),
+                             cookie_jar_path);
+                return FALSE;
+        }
+    }
+
+    const GEnumValue *enum_value =
+        cog_g_enum_get_value (WEBKIT_TYPE_COOKIE_PERSISTENT_STORAGE, format_name);
+    if (!enum_value) {
+        g_set_error (error,
+                     G_OPTION_ERROR,
+                     G_OPTION_ERROR_BAD_VALUE,
+                     "Invalid cookie jar format '%s'",
+                     value);
+        return FALSE;
+    }
+
+    if (!cookie_jar_path) {
+        g_autofree char *file_name = g_strconcat ("cookies.", format_name, NULL);
+        WebKitWebContext *context =
+            cog_launcher_get_web_context (cog_launcher_get_default ());
+        WebKitWebsiteDataManager *data_manager =
+            webkit_web_context_get_website_data_manager (context);
+        cookie_jar_path =
+            g_build_filename (webkit_website_data_manager_get_base_data_directory (data_manager),
+                              file_name,
+                              NULL);
+    }
+
+    webkit_cookie_manager_set_persistent_storage (cookie_manager,
+                                                  cookie_jar_path,
+                                                  enum_value->value);
+    return TRUE;
+}
+
+
 static GOptionEntry s_cookies_options[] =
 {
     {
@@ -798,6 +869,13 @@ static GOptionEntry s_cookies_options[] =
         .arg_data = option_entry_parse_cookie_add,
         .description = "Pre-set a cookie, available flags: httponly, secure, session.",
         .arg_description = "DOMAIN:[FLAG,-FLAG,..]:CONTENTS",
+    },
+    {
+        .long_name = "cookie-jar",
+        .arg = G_OPTION_ARG_CALLBACK,
+        .arg_data = option_entry_parse_cookie_jar,
+        .description = "Enable persisting cookies to disk in a given format (text, sqlite).",
+        .arg_description = "FORMAT[:PATH]",
     },
     { NULL }
 };

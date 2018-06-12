@@ -11,11 +11,13 @@
 # error "Do not include this header directly, use <cog.h> instead"
 #endif
 
-#include <glib.h>
+#include <glib-object.h>
 
 G_BEGIN_DECLS
 
 typedef struct _GObjectClass GObjectClass;
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (GEnumClass, g_type_class_unref)
 
 
 char* cog_appid_to_dbus_object_path (const char *appid)
@@ -26,5 +28,23 @@ char* cog_uri_guess_from_user_input (const char *uri_like,
                                      GError    **error);
 
 GOptionEntry* cog_option_entries_from_class (GObjectClass *klass);
+
+
+static inline const char*
+cog_g_enum_get_nick (GType enum_type, int value)
+{
+    g_autoptr(GEnumClass) enum_class = g_type_class_ref (enum_type);
+    const GEnumValue *enum_value = g_enum_get_value (enum_class, value);
+    return enum_value ? enum_value->value_nick : NULL;
+}
+
+
+static inline const GEnumValue*
+cog_g_enum_get_value (GType enum_type, const char *nick)
+{
+    g_autoptr(GEnumClass) enum_class = g_type_class_ref (enum_type);
+    return g_enum_get_value_by_nick (enum_class, nick);
+}
+
 
 G_END_DECLS
