@@ -35,7 +35,6 @@ endif()
 add_definitions(-DCOG_INSIDE_COG__=1)
 add_definitions(-DG_LOG_DOMAIN=\"Cog\")
 
-configure_file(core/cog-config.h.in cog-config.h @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 find_package(PkgConfig)
@@ -137,11 +136,17 @@ set(COGPLATFORM_FDO_SOURCES
     wayland/fullscreen-shell-unstable-v1-protocol.c
 )
 
+set(WAYLAND_1_10_OR_GREATER OFF)
+pkg_check_modules(WAYLAND REQUIRED wayland-client)
+if (NOT (WAYLAND_VERSION VERSION_LESS 1.10))
+    set(WAYLAND_1_10_OR_GREATER ON)
+endif ()
+
 pkg_check_modules(COGPLATFORM_FDO_DEPS REQUIRED wpe-webkit-0.1 wpe-0.1 wpebackend-fdo-0.1 egl wayland-egl xkbcommon)
 
-set(COGPLATFORM_FDO_INCLUDE_DIRS ${COGPLATFORM_FDO_DEPS_INCLUDE_DIRS})
-set(COGPLATFORM_FDO_CFLAGS ${COGPLATFORM_FDO_DEPS_CFLAGS_OTHER})
-set(COGPLATFORM_FDO_LDFLAGS ${COGPLATFORM_FDO_DEPS_LDFLAGS})
+set(COGPLATFORM_FDO_INCLUDE_DIRS ${COGPLATFORM_FDO_DEPS_INCLUDE_DIRS} ${WAYLAND_INCLUDE_DIRS})
+set(COGPLATFORM_FDO_CFLAGS ${COGPLATFORM_FDO_DEPS_CFLAGS_OTHER} ${WAYLAND_CFLAGS_OTHER})
+set(COGPLATFORM_FDO_LDFLAGS ${COGPLATFORM_FDO_DEPS_LDFLAGS} ${WAYLAND_LDFLAGS})
 
 add_library(cogplatform-fdo MODULE ${COGPLATFORM_FDO_SOURCES})
 
@@ -156,3 +161,5 @@ install(TARGETS cogplatform-fdo
 )
 
 endif ()  # !COG_USE_WEBKITGTK
+
+configure_file(core/cog-config.h.in cog-config.h @ONLY)
