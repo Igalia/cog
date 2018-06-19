@@ -14,6 +14,7 @@
 # include "cog-gtk-utils.h"
 #endif
 
+#include <stdlib.h>
 #include <string.h>
 
 
