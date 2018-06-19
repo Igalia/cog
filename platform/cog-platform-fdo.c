@@ -464,6 +464,8 @@ pointer_on_axis (void* data,
     wpe_view_backend_dispatch_axis_event (wpe_view_data.backend, &event);
 }
 
+#if WAYLAND_1_10_OR_GREATER
+
 static void
 pointer_on_frame (void* data,
                   struct wl_pointer *pointer)
@@ -496,6 +498,8 @@ pointer_on_axis_discrete (void *data,
 {
 }
 
+#endif /* WAYLAND_1_10_OR_GREATER */
+
 static const struct wl_pointer_listener pointer_listener = {
     .enter = pointer_on_enter,
     .leave = pointer_on_leave,
@@ -503,10 +507,12 @@ static const struct wl_pointer_listener pointer_listener = {
     .button = pointer_on_button,
     .axis = pointer_on_axis,
 
+#if WAYLAND_1_10_OR_GREATER
     .frame = pointer_on_frame,
     .axis_source = pointer_on_axis_source,
     .axis_stop = pointer_on_axis_stop,
     .axis_discrete = pointer_on_axis_discrete,
+#endif /* WAYLAND_1_10_OR_GREATER */
 };
 
 static void
