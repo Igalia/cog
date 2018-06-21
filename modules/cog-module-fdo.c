@@ -1,5 +1,7 @@
 /*
- * cog-fdo-platform.c
+ * cog-module-fdo.c
+ *
+ * Copyright (C) 2018 Adrian Perez <aperez@igalia.com>
  * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  * Copyright (C) 2018 Adrian Perez de Castro <aperez@igalia.com>
  *
@@ -1367,7 +1369,7 @@ clear_input (void)
 }
 
 static gboolean
-cog_platform_setup (CogPlugin   *plugin,
+fdo_platform_setup (CogPlugin   *plugin,
                     const char  *params,
                     GError     **error)
 {
@@ -1398,7 +1400,7 @@ cog_platform_setup (CogPlugin   *plugin,
 }
 
 static void
-cog_platform_teardown (CogPlugin *plugin)
+fdo_platform_teardown (CogPlugin *plugin)
 {
     g_assert_nonnull (plugin);
 
@@ -1425,7 +1427,7 @@ cog_platform_teardown (CogPlugin *plugin)
 }
 
 static WebKitWebViewBackend*
-cog_platform_get_view_backend (CogPlugin     *plugin,
+fdo_platform_get_view_backend (CogPlugin     *plugin,
                                WebKitWebView *related_view,
                                GError       **error)
 {
@@ -1459,9 +1461,9 @@ G_MODULE_EXPORT gboolean
 cog_module_initialize (CogPluginRegistry *registry)
 {
     static CogPlugin fdo_plugin = {
-        .setup = cog_platform_setup,
-        .teardown = cog_platform_teardown,
-        .get_view_backend = cog_platform_get_view_backend,
+        .setup = fdo_platform_setup,
+        .teardown = fdo_platform_teardown,
+        .get_view_backend = fdo_platform_get_view_backend,
     };
     return cog_plugin_registry_add (registry, "platform", &fdo_plugin);
 }

@@ -8,7 +8,7 @@ set(COG_DBUS_OWN_USER "" CACHE STRING
     "Additional user allowed to own the well-known name on the system bus")
 
 option(COG_USE_WEBKITGTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
-option(COG_PLATFORM_FDO "Build the FDO platform module" ON)
+option(COG_MODULE_FDO "Build the FDO platform module" ON)
 set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
 
@@ -130,10 +130,10 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cogcore.pc
 
 # libcogplaform-fdo
 
-if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
+if (COG_MODULE_FDO AND NOT COG_USE_WEBKITGTK)
 
-set(COGPLATFORM_FDO_SOURCES
-    modules/cog-platform-fdo.c
+set(COG_MODULE_FDO_SOURCES
+    modules/cog-module-fdo.c
     wayland/xdg-shell-unstable-v6-protocol.c
     wayland/fullscreen-shell-unstable-v1-protocol.c
 )
@@ -144,33 +144,33 @@ if (NOT (WAYLAND_VERSION VERSION_LESS 1.10))
     set(WAYLAND_1_10_OR_GREATER ON)
 endif ()
 
-pkg_check_modules(COGPLATFORM_FDO_DEPS REQUIRED wpe-webkit-0.1 wpe-0.1 wpebackend-fdo-0.1 egl xkbcommon)
+pkg_check_modules(COG_MODULE_FDO_DEPS REQUIRED wpe-webkit-0.1 wpe-0.1 wpebackend-fdo-0.1 egl xkbcommon)
 pkg_check_modules(WAYLAND_EGL wayland-egl)
 
-set(COGPLATFORM_FDO_INCLUDE_DIRS
-    ${COGPLATFORM_FDO_DEPS_INCLUDE_DIRS}
+set(COG_MODULE_FDO_INCLUDE_DIRS
+    ${COG_MODULE_FDO_DEPS_INCLUDE_DIRS}
     ${WAYLAND_INCLUDE_DIRS}
     ${WAYLAND_EGL_INCLUDE_DIRS}
 )
-set(COGPLATFORM_FDO_CFLAGS
-    ${COGPLATFORM_FDO_DEPS_CFLAGS_OTHER}
+set(COG_MODULE_FDO_CFLAGS
+    ${COG_MODULE_FDO_DEPS_CFLAGS_OTHER}
     ${WAYLAND_CFLAGS_OTHER}
     ${WAYLAND_EGL_CFLAGS_OTHER}
 )
-set(COGPLATFORM_FDO_LDFLAGS
-    ${COGPLATFORM_FDO_DEPS_LDFLAGS}
+set(COG_MODULE_FDO_LDFLAGS
+    ${COG_MODULE_FDO_DEPS_LDFLAGS}
     ${WAYLAND_LDFLAGS}
     ${WAYLAND_EGL_LDFLAGS}
 )
 
-add_library(cogplatform-fdo MODULE ${COGPLATFORM_FDO_SOURCES})
+add_library(cogmodule-fdo MODULE ${COG_MODULE_FDO_SOURCES})
 
-set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
-target_include_directories(cogplatform-fdo PUBLIC wayland ${COGPLATFORM_FDO_INCLUDE_DIRS})
-target_compile_options(cogplatform-fdo PUBLIC ${COGPLATFORM_FDO_CFLAGS})
-target_link_libraries(cogplatform-fdo cogcore ${COGPLATFORM_FDO_LDFLAGS})
+set_property(TARGET cogmodule-fdo PROPERTY C_STANDARD 99)
+target_include_directories(cogmodule-fdo PUBLIC wayland ${COG_MODULE_FDO_INCLUDE_DIRS})
+target_compile_options(cogmodule-fdo PUBLIC ${COG_MODULE_FDO_CFLAGS})
+target_link_libraries(cogmodule-fdo cogcore ${COG_MODULE_FDO_LDFLAGS})
 
-install(TARGETS cogplatform-fdo
+install(TARGETS cogmodule-fdo
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
     COMPONENT "runtime"
 )
