@@ -177,4 +177,8 @@ install(TARGETS cogplatform-fdo
 
 endif ()  # !COG_USE_WEBKITGTK
 
+
+add_library(cogmodule-test MODULE modules/cog-module-test.c)
+target_link_libraries(cogmodule-test cogcore)
+
 configure_file(core/cog-config.h.in cog-config.h @ONLY)
