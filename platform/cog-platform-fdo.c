@@ -1224,7 +1224,14 @@ create_window (CogLauncher *launcher)
 
     const char* env_var = g_getenv("COG_PLATFORM_FDO_VIEW_FULLSCREEN");
     if (env_var != NULL && g_ascii_strtod(env_var, NULL) >= 1.0) {
-        zxdg_toplevel_v6_set_fullscreen(win_data.xdg_toplevel, NULL);
+        if (wl_data.xdg_shell != NULL) {
+            zxdg_toplevel_v6_set_fullscreen(win_data.xdg_toplevel, NULL);
+        } else if (wl_data.shell != NULL) {
+            wl_shell_surface_set_fullscreen (win_data.shell_surface,
+                                             WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE,
+                                             0,
+                                             NULL);
+        }
         win_data.is_fullscreen = TRUE;
     }
 }
