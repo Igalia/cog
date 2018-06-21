@@ -133,7 +133,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cogcore.pc
 if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
 
 set(COGPLATFORM_FDO_SOURCES
-    platform/cog-platform-fdo.c
+    modules/cog-platform-fdo.c
     wayland/xdg-shell-unstable-v6-protocol.c
     wayland/fullscreen-shell-unstable-v1-protocol.c
 )
