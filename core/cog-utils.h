@@ -15,6 +15,10 @@
 
 G_BEGIN_DECLS
 
+#define COG_EGL_ERROR  (cog_egl_error_quark ())
+GQuark cog_egl_error_quark (void);
+
+
 typedef struct _GObjectClass GObjectClass;
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (GEnumClass, g_type_class_unref)

@@ -12,6 +12,9 @@
 #include <string.h>
 
 
+G_DEFINE_QUARK (CogEGLError, cog_egl_error)
+
+
 char*
 cog_appid_to_dbus_object_path (const char *appid)
 {

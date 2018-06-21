@@ -41,19 +41,21 @@ find_package(PkgConfig)
 
 # libcogcore
 set(COGCORE_API_HEADERS
-    core/cog.h
-    core/cog-launcher.h
-    core/cog-request-handler.h
+    ${CMAKE_CURRENT_BINARY_DIR}/cog-config.h
     core/cog-directory-files-handler.h
+    core/cog-launcher.h
+    core/cog-plugin.h
+    core/cog-request-handler.h
     core/cog-shell.h
     core/cog-utils.h
     core/cog-webkit-utils.h
-    ${CMAKE_CURRENT_BINARY_DIR}/cog-config.h
+    core/cog.h
 )
 set(COGCORE_SOURCES
+    core/cog-directory-files-handler.c
     core/cog-launcher.c
     core/cog-request-handler.c
-    core/cog-directory-files-handler.c
+    core/cog-plugin.c
     core/cog-utils.c
     core/cog-shell.c
     core/cog-webkit-utils.c
@@ -68,8 +70,6 @@ if (COG_USE_WEBKITGTK)
         message(FATAL_ERROR "webkit2gtk-4.0 >= 2.20.0 is required.")
     endif ()
 else ()
-    list(APPEND COGCORE_API_HEADERS core/cog-platform.h)
-    list(APPEND COGCORE_SOURCES core/cog-platform.c)
     pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit-0.1 wpe-0.1)
 endif ()
 

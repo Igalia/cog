@@ -11,10 +11,6 @@
 #include <string.h>
 #include "core/cog.h"
 
-#if !COG_USE_WEBKITGTK
-# include "cog-platform.h"
-#endif
-
 
 enum webprocess_fail_action {
     WEBPROCESS_FAIL_UNKNOWN = 0,
@@ -32,12 +28,6 @@ static struct {
     gdouble  scale_factor;
     GStrv    dir_handlers;
     GStrv    arguments;
-#if !COG_USE_WEBKITGTK
-    union {
-        char *platform_name;
-        CogPlatform *platform;
-    };
-#endif // !COG_USE_WEBKITGTK
     union {
         char *action_name;
         enum webprocess_fail_action action_id;
@@ -45,6 +35,18 @@ static struct {
 } s_options = {
     .scale_factor = 1.0,
 };
+
+static CogPluginRegistry *s_plugins = NULL;
+
+
+static gboolean
+parse_module_option (const char *option_name G_GNUC_UNUSED,
+                     const char *module_path,
+                     void       *data G_GNUC_UNUSED,
+                     GError    **error)
+{
+    return cog_plugin_registry_load (s_plugins, module_path, error);
+}
 
 
 static GOptionEntry s_cli_options[] =
@@ -70,11 +72,9 @@ static GOptionEntry s_cli_options[] =
         &s_options.on_failure.action_name,
         "Action on WebProcess failures: error-page (default), exit, exit-ok, restart.",
         "ACTION" },
-#if !COG_USE_WEBKITGTK
-    { "platform", 'P', 0, G_OPTION_ARG_STRING, &s_options.platform_name,
-        "Platform plug-in to use.",
-        "NAME" },
-#endif // !COG_USE_WEBKITGTK
+    { "module", 'm', 0, G_OPTION_ARG_CALLBACK, parse_module_option,
+        "Load plugins from a module.",
+        "PATH" },
     { G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments,
         "", "[URL]" },
     { NULL }
@@ -204,60 +204,45 @@ on_handle_local_options (GApplication *application,
 }
 
 
-#if !COG_USE_WEBKITGTK
-static gboolean
-platform_setup (CogShell *shell)
+static void
+foreach_plugin_teardown (CogPluginRegistry *registry G_GNUC_UNUSED,
+                         const char        *name,
+                         CogPlugin         *plugin,
+                         void              *userdata G_GNUC_UNUSED)
 {
-    /*
-     * Here we resolve the CogPlatform we are going to use. A Cog platform
-     * is dynamically loaded object that abstracts the specifics about how
-     * a WebView's WPE backend is going to be constructed and rendered on
-     * a given platform.
-     */
-
-    g_debug ("%s: Platform name: %s", __func__, s_options.platform_name);
-
-    if (!s_options.platform_name)
-        return FALSE;
-
-    g_autofree char *platform_soname =
-        g_strdup_printf ("libcogplatform-%s.so", s_options.platform_name);
-    g_clear_pointer (&s_options.platform_name, g_free);
-
-    g_debug ("%s: Platform plugin: %s", __func__, platform_soname);
-
-    g_autoptr(CogPlatform) platform = cog_platform_new ();
-    if (!cog_platform_try_load (platform, platform_soname)) {
-        g_warning ("Could not load: %s (possible cause: %s).\n",
-                   platform_soname, strerror (errno));
-        return FALSE;
-    }
-
-    g_autoptr(GError) error = NULL;
-    if (!cog_platform_setup (platform, shell, "", &error)) {
-        g_warning ("Platform setup failed: %s", error->message);
-        return FALSE;
-    }
-
-    s_options.platform = g_steal_pointer (&platform);
-
-    g_debug ("%s: Platform = %p", __func__, s_options.platform);
-    return TRUE;
+    g_debug ("Plugin '%s' tearing down...", name);
+    g_debug ("Plugin '%s' torn down.", name);
 }
 
 
 static void
 on_shutdown (CogLauncher *launcher G_GNUC_UNUSED, void *user_data G_GNUC_UNUSED)
 {
-    g_debug ("%s: Platform = %p", __func__, s_options.platform);
-
-    if (s_options.platform) {
-        cog_platform_teardown (s_options.platform);
-        g_clear_pointer (&s_options.platform, cog_platform_free);
-        g_debug ("%s: Platform teardown completed.", __func__);
-    }
+    cog_plugin_registry_foreach (s_plugins,
+                                 (CogPluginForEachFunc) foreach_plugin_teardown,
+                                 NULL);
 }
-#endif // !COG_USE_WEBKITGTK
+
+
+static void
+foreach_plugin_setup (CogPluginRegistry *registry G_GNUC_UNUSED,
+                      const char        *name,
+                      CogPlugin         *plugin,
+                      gboolean          *failed)
+{
+    g_debug ("Plugin '%s' setting-up...", name);
+
+    // TODO: Figure out a better way of passing parameters. Probably
+    //       when loading the module, passed to cog_module_initialize().
+    //
+    g_autoptr(GError) error = NULL;
+    if (!cog_plugin_setup (plugin, "", &error)) {
+        g_printerr ("Cannot initialize plugin '%s': %s\n", name, error->message);
+        *failed = TRUE;
+    }
+
+    g_debug ("Plugin '%s' configured.", name);
+}
 
 
 static WebKitWebView*
@@ -270,13 +255,18 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
                                             WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
     }
 
-#if !COG_USE_WEBKITGTK
-    WebKitWebViewBackend *view_backend = NULL;
+    gboolean failed = FALSE;
+    cog_plugin_registry_foreach (s_plugins,
+                                 (CogPluginForEachFunc) foreach_plugin_setup,
+                                 &failed);
 
-    // Try to load the platform plug-in specified in the command line.
-    if (platform_setup (shell)) {
+#if !COG_USE_WEBKITGTK
+    // Try to find a loaded platform plug-in.
+    WebKitWebViewBackend *view_backend = NULL;
+    CogPlugin *platform_plugin = cog_plugin_registry_find (s_plugins, "platform");
+    if (platform_plugin) {
         g_autoptr(GError) error = NULL;
-        view_backend = cog_platform_get_view_backend (s_options.platform, NULL, &error);
+        view_backend = cog_plugin_get_view_backend (platform_plugin, NULL, &error);
         if (!view_backend) {
             g_assert_nonnull (error);
             g_warning ("Failed to get platform's view backend: %s", error->message);
@@ -348,15 +338,14 @@ main (int argc, char *argv[])
         g_set_application_name ("Cog");
     }
 
+    s_plugins = cog_plugin_registry_new ();
+
     g_autoptr(GApplication) app = G_APPLICATION (cog_launcher_get_default ());
     g_application_add_main_option_entries (app, s_cli_options);
     cog_launcher_add_web_settings_option_entries (COG_LAUNCHER (app));
     cog_launcher_add_web_cookies_option_entries (COG_LAUNCHER (app));
 
-#if !COG_USE_WEBKITGTK
     g_signal_connect (app, "shutdown", G_CALLBACK (on_shutdown), NULL);
-#endif // !COG_USE_WEBKITGTK
-
     g_signal_connect (app, "handle-local-options",
                       G_CALLBACK (on_handle_local_options), NULL);
     g_signal_connect (cog_launcher_get_shell (COG_LAUNCHER (app)), "create-view",

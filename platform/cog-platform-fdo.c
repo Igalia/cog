@@ -1103,7 +1103,7 @@ clear_wayland (void)
     do {                                                 \
         EGLint error_code_ ## __LINE__ = eglGetError (); \
         g_set_error ((_err),                             \
-                     COG_PLATFORM_EGL_ERROR,             \
+                     COG_EGL_ERROR,                      \
                      error_code_ ## __LINE__,            \
                      _msg " (%#06x)",                    \
                      error_code_ ## __LINE__);           \
@@ -1366,17 +1366,12 @@ clear_input (void)
     g_clear_pointer (&xkb_data.context, xkb_context_unref);
 }
 
-gboolean
-cog_platform_setup (CogPlatform *platform,
-                    CogShell    *shell G_GNUC_UNUSED,
+static gboolean
+cog_platform_setup (CogPlugin   *plugin,
                     const char  *params,
                     GError     **error)
 {
-    g_assert_nonnull (platform);
-    g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
-
-    if (!init_wayland (error))
-        return FALSE;
+    g_assert_nonnull (plugin);
 
     if (!init_egl (error)) {
         clear_wayland ();
@@ -1402,10 +1397,10 @@ cog_platform_setup (CogPlatform *platform,
     return TRUE;
 }
 
-void
-cog_platform_teardown (CogPlatform *platform)
+static void
+cog_platform_teardown (CogPlugin *plugin)
 {
-    g_assert_nonnull (platform);
+    g_assert_nonnull (plugin);
 
     /* free WPE view data */
     if (wpe_view_data.frame_callback != NULL)
@@ -1429,8 +1424,8 @@ cog_platform_teardown (CogPlatform *platform)
     clear_wayland ();
 }
 
-WebKitWebViewBackend*
-cog_platform_get_view_backend (CogPlatform   *platform,
+static WebKitWebViewBackend*
+cog_platform_get_view_backend (CogPlugin     *plugin,
                                WebKitWebView *related_view,
                                GError       **error)
 {
@@ -1457,4 +1452,16 @@ cog_platform_get_view_backend (CogPlatform   *platform,
     g_assert_nonnull (wk_view_backend);
 
     return wk_view_backend;
+}
+
+
+G_MODULE_EXPORT gboolean
+cog_module_initialize (CogPluginRegistry *registry)
+{
+    static CogPlugin fdo_plugin = {
+        .setup = cog_platform_setup,
+        .teardown = cog_platform_teardown,
+        .get_view_backend = cog_platform_get_view_backend,
+    };
+    return cog_plugin_registry_add (registry, "platform", &fdo_plugin);
 }
