@@ -6,6 +6,6 @@ Name: cogcore
 Description: Cog Core - WPE WebKit base launcher
 Version: @PROJECT_VERSION@
 
-Requires.private: wpe-webkit
+Requires.private: wpe-webkit-0.1
 Libs: -L${libdir} -lcogcore
 Cflags: -I${includedir}/cog
