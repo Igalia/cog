@@ -38,6 +38,26 @@ WebKitWebViewBackend *cog_platform_get_view_backend (CogPlatform   *platform,
                                                      WebKitWebView *related_view,
                                                      GError       **error);
 
+void
+cog_platform_view_show (CogPlatform         *platform,
+                        GAsyncReadyCallback  callback,
+                        gpointer             user_data);
+
+gboolean
+cog_platform_view_show_finish (CogPlatform  *platform,
+                               GAsyncResult *result,
+                               GError      **error);
+
+void
+cog_platform_view_hide (CogPlatform         *platform,
+                        GAsyncReadyCallback callback,
+                        gpointer            user_data);
+
+gboolean
+cog_platform_view_hide_finish (CogPlatform  *platform,
+                               GAsyncResult *result,
+                               GError      **error);
+
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (CogPlatform, cog_platform_free)
 
 G_END_DECLS

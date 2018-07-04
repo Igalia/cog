@@ -13,6 +13,8 @@
 
 struct _CogPlatform {
     void *so;
+    GMainContext *main_context;
+    GCancellable *cancellable;
 
     gboolean              (*setup)            (CogPlatform *platform,
                                                CogLauncher *launcher,
@@ -35,6 +37,9 @@ cog_platform_new (void)
 void
 cog_platform_free (CogPlatform *platform)
 {
+    if (platform->cancellable)
+        g_object_unref (platform->cancellable);
+
     g_clear_pointer (&platform->so, dlclose);
     g_slice_free (CogPlatform, platform);
 }
@@ -43,6 +48,9 @@ void
 cog_platform_teardown (CogPlatform *platform)
 {
     g_return_if_fail (platform != NULL);
+
+    if (platform->main_context)
+        g_main_context_unref (platform->main_context);
 
     platform->teardown (platform);
 }
@@ -88,6 +96,8 @@ cog_platform_setup (CogPlatform *platform,
     g_return_val_if_fail (platform != NULL, FALSE);
     g_return_val_if_fail (launcher != NULL, FALSE);
 
+    platform->main_context = g_main_context_ref_thread_default ();
+
     return platform->setup (platform, launcher, params, error);
 }
 
@@ -99,4 +109,68 @@ cog_platform_get_view_backend (CogPlatform   *platform,
     g_return_val_if_fail (platform != NULL, NULL);
 
     return platform->get_view_backend (platform, related_view, error);
+}
+
+void
+cog_platform_view_show (CogPlatform *platform,
+                        GAsyncReadyCallback callback,
+                        gpointer user_data)
+{
+    g_return_if_fail (platform != NULL);
+
+    /* @FIXME: Check that cancellable is null (e.g, another action
+     * is in progress.
+     */
+    GTask *task = g_task_new (NULL,
+                              platform->cancellable,
+                              callback,
+                              user_data);
+
+    /* @TODO: Add a show() method to the platform interface,
+     * and call it here.
+     */
+}
+
+gboolean
+cog_platform_view_show_finish (CogPlatform *platform,
+                               GAsyncResult *result,
+                               GError **error)
+{
+    g_return_val_if_fail (platform != NULL, FALSE);
+
+    /* @TODO: Add a show_finish() method to the platform interface,
+     * and call it here.
+     */
+}
+
+void
+cog_platform_view_hide (CogPlatform *platform,
+                        GAsyncReadyCallback callback,
+                        gpointer user_data)
+{
+    g_return_if_fail (platform != NULL);
+
+    /* @FIXME: Check that cancellable is null (e.g, another action
+     * is in progress.
+     */
+    GTask *task = g_task_new (NULL,
+                              platform->cancellable,
+                              callback,
+                              user_data);
+
+    /* @TODO: Add a hide() method to the platform interface,
+     * and call it here.
+     */
+}
+
+gboolean
+cog_platform_view_hide_finish (CogPlatform *platform,
+                               GAsyncResult *result,
+                               GError **error)
+{
+    g_return_val_if_fail (platform != NULL, FALSE);
+
+    /* @TODO: Add a hide_finish() method to the platform interface,
+     * and call it here.
+     */
 }
