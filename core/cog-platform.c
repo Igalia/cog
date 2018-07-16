@@ -9,6 +9,10 @@
 #include <dlfcn.h>
 #include "cog-platform.h"
 
+
+G_DEFINE_QUARK (COG_PLATFORM_EGL_ERROR, cog_platform_egl_error)
+
+
 /* @FIXME: Move this implementation to use a GIO extension point. */
 
 struct _CogPlatform {

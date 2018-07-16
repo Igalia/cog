@@ -1,13 +1,14 @@
 /*
  * cog-fdo-platform.c
  * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
+ * Copyright (C) 2018 Adrian Perez de Castro <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
  */
 
 #include <cog.h>
 
-#include <assert.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <wpe/webkit.h>
@@ -357,7 +358,7 @@ registry_global (void               *data,
                                               name,
                                               &zxdg_shell_v6_interface,
                                               version);
-        assert (wl_data.xdg_shell != NULL);
+        g_assert_nonnull (wl_data.xdg_shell);
         zxdg_shell_v6_add_listener (wl_data.xdg_shell, &xdg_shell_listener, NULL);
     } else if (strcmp (interface,
                        zwp_fullscreen_shell_v1_interface.name) == 0) {
@@ -563,7 +564,7 @@ keyboard_on_enter (void *data,
                    struct wl_surface *surface,
                    struct wl_array *keys)
 {
-    assert (surface == win_data.wl_surface);
+    g_assert (surface == win_data.wl_surface);
     wl_data.keyboard.serial = serial;
 }
 
@@ -925,7 +926,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     const bool has_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
     if (has_pointer && wl_data.pointer.obj == NULL) {
         wl_data.pointer.obj = wl_seat_get_pointer (wl_data.seat);
-        assert (wl_data.pointer.obj != NULL);
+        g_assert_nonnull (wl_data.pointer.obj);
         wl_pointer_add_listener (wl_data.pointer.obj, &pointer_listener, NULL);
         printf ("Pointer ");
     } else if (! has_pointer && wl_data.pointer.obj != NULL) {
@@ -937,7 +938,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     const bool has_keyboard = capabilities & WL_SEAT_CAPABILITY_KEYBOARD;
     if (has_keyboard && wl_data.keyboard.obj == NULL) {
         wl_data.keyboard.obj = wl_seat_get_keyboard (wl_data.seat);
-        assert (wl_data.keyboard.obj != NULL);
+        g_assert_nonnull (wl_data.keyboard.obj);
         wl_keyboard_add_listener (wl_data.keyboard.obj, &keyboard_listener, NULL);
         printf ("Keyboard ");
     } else if (! has_keyboard && wl_data.keyboard.obj != NULL) {
@@ -949,7 +950,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     const bool has_touch = capabilities & WL_SEAT_CAPABILITY_TOUCH;
     if (has_touch && wl_data.touch.obj == NULL) {
         wl_data.touch.obj = wl_seat_get_touch (wl_data.seat);
-        assert (wl_data.touch.obj != NULL);
+        g_assert_nonnull (wl_data.touch.obj);
         wl_touch_add_listener (wl_data.touch.obj, &touch_listener, NULL);
         printf ("Touch ");
     } else if (! has_touch && wl_data.touch.obj != NULL) {
@@ -985,7 +986,7 @@ static void
 on_surface_frame (void *data, struct wl_callback *callback, uint32_t time)
 {
     if (wpe_view_data.frame_callback != NULL) {
-        assert (wpe_view_data.frame_callback == callback);
+        g_assert (wpe_view_data.frame_callback == callback);
         wl_callback_destroy (wpe_view_data.frame_callback);
         wpe_view_data.frame_callback = NULL;
     }
@@ -1046,27 +1047,34 @@ on_export_egl_image(void *data, EGLImageKHR image)
     wl_surface_commit (win_data.wl_surface);
 }
 
-static void
-init_wayland (void)
+static gboolean
+init_wayland (GError **error)
 {
-    wl_data.display = wl_display_connect (NULL);
-    assert (wl_data.display != NULL);
+    if (!(wl_data.display = wl_display_connect (NULL))) {
+        g_set_error (error,
+                     G_FILE_ERROR,
+                     g_file_error_from_errno (errno),
+                     "Could not open Wayland display");
+        return FALSE;
+    }
 
     wl_data.registry = wl_display_get_registry (wl_data.display);
-    assert (wl_data.registry != NULL);
+    g_assert_nonnull (wl_data.registry);
     wl_registry_add_listener (wl_data.registry,
                               &registry_listener,
                               NULL);
     wl_display_roundtrip (wl_data.display);
 
-    assert (wl_data.compositor != NULL);
-    assert (wl_data.xdg_shell != NULL ||
-            wl_data.shell != NULL ||
-            wl_data.fshell != NULL);
+    g_assert_nonnull (wl_data.compositor);
+    g_assert (wl_data.xdg_shell != NULL ||
+              wl_data.shell != NULL ||
+              wl_data.fshell != NULL);
 
     wl_data.event_src =
         setup_wayland_event_source (g_main_context_get_thread_default (),
                                     wl_data.display);
+
+    return TRUE;
 }
 
 static void
@@ -1089,19 +1097,44 @@ clear_wayland (void)
     wl_display_disconnect (wl_data.display);
 }
 
-static void
-init_egl (void)
+
+#define ERR_EGL(_err, _msg)                              \
+    do {                                                 \
+        EGLint error_code_ ## __LINE__ = eglGetError (); \
+        g_set_error ((_err),                             \
+                     COG_PLATFORM_EGL_ERROR,             \
+                     error_code_ ## __LINE__,            \
+                     _msg " (%#06x)",                    \
+                     error_code_ ## __LINE__);           \
+    } while (0)
+
+
+static void clear_egl (void);
+static void destroy_window (void);
+
+
+static gboolean
+init_egl (GError **error)
 {
     egl_data.display = eglGetDisplay ((EGLNativeDisplayType) wl_data.display);
-    assert (egl_data.display != NULL);
+    if (egl_data.display == EGL_NO_DISPLAY) {
+        ERR_EGL (error, "Could not open EGL display");
+        return FALSE;
+    }
 
     EGLint major, minor;
-    if (! eglInitialize (egl_data.display, &major, &minor))
-        assert (!"Error initializing EGL display\n");
-    printf ("EGL initialized with version %d.%d\n", major, minor);
+    if (!eglInitialize (egl_data.display, &major, &minor)) {
+        ERR_EGL (error, "Could not initialize  EGL");
+        clear_egl ();
+        return FALSE;
+    }
+    g_info ("EGL version %d.%d initialized.", major, minor);
 
-    if (! eglBindAPI (EGL_OPENGL_ES_API))
-        assert (!"Error binding OpenGL-ES API\n");
+    if (!eglBindAPI (EGL_OPENGL_ES_API)) {
+        ERR_EGL (error, "Could not bind OpenGL ES API to EGL");
+        clear_egl ();
+        return FALSE;
+    }
 
     static const EGLint context_attribs[] = {
         EGL_CONTEXT_CLIENT_VERSION, 2,
@@ -1122,56 +1155,78 @@ init_egl (void)
     };
 
     EGLint num_configs;
-    if (! eglChooseConfig(egl_data.display,
+    if (!eglChooseConfig (egl_data.display,
                           config_attribs,
                           &egl_data.egl_config,
                           1,
                           &num_configs)) {
-        assert (!"Error choosing EGL config\n");
+        ERR_EGL (error, "Could not find a suitable EGL configuration");
+        clear_egl ();
+        return FALSE;
     }
-    assert (num_configs > 0);
+    g_assert_cmpint (num_configs, >, 0);
 
     egl_data.context = eglCreateContext (egl_data.display,
                                          egl_data.egl_config,
                                          EGL_NO_CONTEXT,
                                          context_attribs);
-    assert (egl_data.context != NULL);
+    if (egl_data.context == EGL_NO_CONTEXT) {
+        ERR_EGL (error, "Could not create EGL context");
+        clear_egl ();
+        return FALSE;
+    }
 
     egl_data.eglCreateImage = (PFNEGLCREATEIMAGEKHRPROC)
         eglGetProcAddress ("eglCreateImageKHR");
-    assert (egl_data.eglCreateImage != NULL);
+    if (!egl_data.eglCreateImage) {
+        ERR_EGL (error, "Cannot resolve eglCreateImageKHR extension function");
+        clear_egl ();
+        return FALSE;
+    }
 
     egl_data.eglDestroyImage = (PFNEGLDESTROYIMAGEKHRPROC)
         eglGetProcAddress ("eglDestroyImageKHR");
-    assert (egl_data.eglDestroyImage != NULL);
+    if (!egl_data.eglDestroyImage) {
+        ERR_EGL (error, "Cannot resolve eglDestroyImageKHR extension function");
+        clear_egl ();
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 static void
 clear_egl (void)
 {
-    eglDestroyContext (egl_data.display, egl_data.context);
-    eglTerminate (egl_data.display);
+    if (egl_data.display != EGL_NO_DISPLAY) {
+        if (egl_data.context != EGL_NO_CONTEXT) {
+            eglDestroyContext (egl_data.display, egl_data.context);
+        }
+        eglTerminate (egl_data.display);
+        egl_data.context = EGL_NO_CONTEXT;
+        egl_data.display = EGL_NO_DISPLAY;
+    }
     eglReleaseThread ();
 }
 
-static void
-create_window (CogLauncher *launcher)
+static gboolean
+create_window (CogLauncher *launcher, GError **error)
 {
     win_data.wl_surface = wl_compositor_create_surface (wl_data.compositor);
-    assert (win_data.wl_surface != NULL);
+    g_assert_nonnull (win_data.wl_surface);
 
     if (wl_data.xdg_shell != NULL) {
         win_data.xdg_surface =
             zxdg_shell_v6_get_xdg_surface (wl_data.xdg_shell,
                                            win_data.wl_surface);
-        assert (win_data.xdg_surface != NULL);
+        g_assert_nonnull (win_data.xdg_surface);
 
         zxdg_surface_v6_add_listener (win_data.xdg_surface,
                                       &xdg_surface_listener,
                                       NULL);
         win_data.xdg_toplevel =
             zxdg_surface_v6_get_toplevel (win_data.xdg_surface);
-        assert (win_data.xdg_toplevel != NULL);
+        g_assert_nonnull (win_data.xdg_toplevel);
 
         zxdg_toplevel_v6_add_listener (win_data.xdg_toplevel,
                                        &xdg_toplevel_listener,
@@ -1188,7 +1243,7 @@ create_window (CogLauncher *launcher)
     } else if (wl_data.shell != NULL) {
         win_data.shell_surface = wl_shell_get_shell_surface (wl_data.shell,
                                                              win_data.wl_surface);
-        assert (win_data.shell_surface != NULL);
+        g_assert_nonnull (win_data.shell_surface);
 
         wl_shell_surface_add_listener (win_data.shell_surface,
                                        &shell_surface_listener,
@@ -1202,24 +1257,30 @@ create_window (CogLauncher *launcher)
     win_data.egl_window = wl_egl_window_create (win_data.wl_surface,
                                                 DEFAULT_WIDTH,
                                                 DEFAULT_HEIGHT);
-    assert (win_data.egl_window != NULL);
+    g_assert_nonnull (win_data.egl_window);
 
     win_data.egl_surface =
         eglCreateWindowSurface (egl_data.display,
                                 egl_data.egl_config,
                                 (EGLNativeWindowType) win_data.egl_window,
                                 NULL);
-    assert (win_data.egl_surface != NULL);
+    if (win_data.egl_surface == EGL_NO_SURFACE) {
+        ERR_EGL (error, "Cannot create EGL window surface for Wayland-EGL window");
+        destroy_window ();
+        return FALSE;
+    }
 
     wl_surface_commit (win_data.wl_surface);
     wl_display_flush (wl_data.display);
 
     /* Activate window */
-    if (! eglMakeCurrent (egl_data.display,
-                          win_data.egl_surface,
-                          win_data.egl_surface,
-                          egl_data.context)) {
-        assert (!"Error make the EGL context current\n");
+    if (!eglMakeCurrent (egl_data.display,
+                         win_data.egl_surface,
+                         win_data.egl_surface,
+                         egl_data.context)) {
+        ERR_EGL (error, "Cannot activate EGL context");
+        destroy_window ();
+        return FALSE;
     }
 
     const char* env_var = g_getenv("COG_PLATFORM_FDO_VIEW_FULLSCREEN");
@@ -1234,39 +1295,40 @@ create_window (CogLauncher *launcher)
         }
         win_data.is_fullscreen = TRUE;
     }
+
+    return TRUE;
 }
 
 static void
 destroy_window (void)
 {
-    eglMakeCurrent (egl_data.display,
-                    EGL_NO_SURFACE,
-                    EGL_NO_SURFACE,
-                    EGL_NO_CONTEXT);
-    eglDestroySurface (egl_data.display, win_data.egl_surface);
+    if (egl_data.display != EGL_NO_DISPLAY) {
+        eglMakeCurrent (egl_data.display,
+                        EGL_NO_SURFACE,
+                        EGL_NO_SURFACE,
+                        EGL_NO_CONTEXT);
 
-    wl_egl_window_destroy (win_data.egl_window);
+        if (win_data.egl_surface) {
+            eglDestroySurface (egl_data.display, win_data.egl_surface);
+            win_data.egl_surface = EGL_NO_DISPLAY;
+        }
+    }
 
-    if (win_data.xdg_toplevel != NULL)
-        zxdg_toplevel_v6_destroy (win_data.xdg_toplevel);
-
-    if (win_data.xdg_surface != NULL)
-        zxdg_surface_v6_destroy (win_data.xdg_surface);
-
-    if (win_data.shell_surface != NULL)
-        wl_shell_surface_destroy (win_data.shell_surface);
-
-    wl_surface_destroy (win_data.wl_surface);
+    g_clear_pointer (&win_data.egl_window, wl_egl_window_destroy);
+    g_clear_pointer (&win_data.xdg_toplevel, zxdg_toplevel_v6_destroy);
+    g_clear_pointer (&win_data.xdg_surface, zxdg_surface_v6_destroy);
+    g_clear_pointer (&win_data.shell_surface, wl_shell_surface_destroy);
+    g_clear_pointer (&win_data.wl_surface, wl_surface_destroy);
 }
 
-static void
-init_input (void)
+static gboolean
+init_input (GError **error)
 {
     if (wl_data.seat != NULL) {
         wl_seat_add_listener (wl_data.seat, &seat_listener, NULL);
 
         xkb_data.context = xkb_context_new (XKB_CONTEXT_NO_FLAGS);
-        assert (xkb_data.context != NULL);
+        g_assert_nonnull (xkb_data.context);
         xkb_data.compose_table =
             xkb_compose_table_new_from_locale (xkb_data.context,
                                                setlocale (LC_CTYPE, NULL),
@@ -1277,28 +1339,22 @@ init_input (void)
                                        XKB_COMPOSE_STATE_NO_FLAGS);
         }
     }
+
+    return TRUE;
 }
 
 static void
 clear_input (void)
 {
-    if (wl_data.pointer.obj != NULL)
-        wl_pointer_destroy (wl_data.pointer.obj);
-    if (wl_data.keyboard.obj != NULL)
-        wl_keyboard_destroy (wl_data.keyboard.obj);
-    if (wl_data.seat != NULL)
-        wl_seat_destroy (wl_data.seat);
+    g_clear_pointer (&wl_data.pointer.obj, wl_pointer_destroy);
+    g_clear_pointer (&wl_data.keyboard.obj, wl_keyboard_destroy);
+    g_clear_pointer (&wl_data.seat, wl_seat_destroy);
 
-    if (xkb_data.state != NULL)
-        xkb_state_unref (xkb_data.state);
-    if (xkb_data.compose_state != NULL)
-        xkb_compose_state_unref (xkb_data.compose_state);
-    if (xkb_data.compose_table != NULL)
-        xkb_compose_table_unref (xkb_data.compose_table);
-    if (xkb_data.keymap != NULL)
-        xkb_keymap_unref (xkb_data.keymap);
-    if (xkb_data.context != NULL)
-        xkb_context_unref (xkb_data.context);
+    g_clear_pointer (&xkb_data.state, xkb_state_unref);
+    g_clear_pointer (&xkb_data.compose_state, xkb_compose_state_unref);
+    g_clear_pointer (&xkb_data.compose_table, xkb_compose_table_unref);
+    g_clear_pointer (&xkb_data.keymap, xkb_keymap_unref);
+    g_clear_pointer (&xkb_data.context, xkb_context_unref);
 }
 
 gboolean
@@ -1310,10 +1366,26 @@ cog_platform_setup (CogPlatform *platform,
     g_assert_nonnull (platform);
     g_return_val_if_fail (COG_IS_LAUNCHER (launcher), FALSE);
 
-    init_wayland ();
-    init_egl ();
-    create_window (launcher);
-    init_input ();
+    if (!init_wayland (error))
+        return FALSE;
+
+    if (!init_egl (error)) {
+        clear_wayland ();
+        return FALSE;
+    }
+
+    if (!create_window (launcher, error)) {
+        clear_egl ();
+        clear_wayland ();
+        return FALSE;
+    }
+
+    if (!init_input (error)) {
+        destroy_window ();
+        clear_egl ();
+        clear_wayland ();
+        return FALSE;
+    }
 
     /* init WPE host data */
     wpe_fdo_initialize_for_egl_display (egl_data.display);
@@ -1362,18 +1434,18 @@ cog_platform_get_view_backend (CogPlatform   *platform,
                                                     NULL,
                                                     DEFAULT_WIDTH,
                                                     DEFAULT_HEIGHT);
-    assert (wpe_host_data.exportable != NULL);
+    g_assert_nonnull (wpe_host_data.exportable);
 
     /* init WPE view backend */
     wpe_view_data.backend =
         wpe_view_backend_exportable_fdo_get_view_backend (wpe_host_data.exportable);
-    assert (wpe_view_data.backend != NULL);
+    g_assert_nonnull (wpe_view_data.backend);
 
     WebKitWebViewBackend *wk_view_backend =
         webkit_web_view_backend_new (wpe_view_data.backend,
                        (GDestroyNotify) wpe_view_backend_exportable_fdo_destroy,
                                      wpe_host_data.exportable);
-    assert (wk_view_backend != NULL);
+    g_assert_nonnull (wk_view_backend);
 
     return wk_view_backend;
 }
