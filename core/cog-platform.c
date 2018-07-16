@@ -19,7 +19,7 @@ struct _CogPlatform {
     void *so;
 
     gboolean              (*setup)            (CogPlatform *platform,
-                                               CogLauncher *launcher,
+                                               CogShell    *shell,
                                                const char  *params,
                                                GError     **error);
 
@@ -85,14 +85,14 @@ cog_platform_try_load (CogPlatform *platform,
 
 gboolean
 cog_platform_setup (CogPlatform *platform,
-                    CogLauncher *launcher,
+                    CogShell    *shell,
                     const char  *params,
                     GError     **error)
 {
     g_return_val_if_fail (platform != NULL, FALSE);
-    g_return_val_if_fail (launcher != NULL, FALSE);
+    g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
 
-    return platform->setup (platform, launcher, params, error);
+    return platform->setup (platform, shell, params, error);
 }
 
 WebKitWebViewBackend*
