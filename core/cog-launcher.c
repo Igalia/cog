@@ -6,6 +6,7 @@
  */
 
 #include "cog-launcher.h"
+#include "cog-shell.h"
 #include "cog-request-handler.h"
 #include "cog-webkit-utils.h"
 #include "cog-utils.h"
@@ -19,35 +20,11 @@
 
 
 struct _CogLauncher {
-    CogLauncherBase   parent;
-    WebKitSettings   *web_settings;
-    WebKitWebContext *web_context;
-    WebKitWebView    *web_view;
-    char             *home_uri;
-    GHashTable       *request_handlers;  /* (string, CogRequestHandler) */
+    CogLauncherBase parent;
+    CogShell       *shell;
 };
 
 G_DEFINE_TYPE (CogLauncher, cog_launcher, COG_LAUNCHER_BASE_TYPE)
-
-
-enum {
-    CREATE_WEB_VIEW,
-    LAST_SIGNAL,
-};
-
-static int s_signals[LAST_SIGNAL] = { 0, };
-
-
-enum {
-    PROP_0,
-    PROP_WEB_SETTINGS,
-    PROP_WEB_CONTEXT,
-    PROP_WEB_VIEW,
-    PROP_HOME_URI,
-    N_PROPERTIES
-};
-
-static GParamSpec *s_properties[N_PROPERTIES] = { NULL, };
 
 
 static void
@@ -63,7 +40,7 @@ on_action_prev (G_GNUC_UNUSED GAction  *action,
                 G_GNUC_UNUSED GVariant *param,
                 CogLauncher            *launcher)
 {
-    webkit_web_view_go_back (cog_launcher_get_web_view (launcher));
+    webkit_web_view_go_back (cog_shell_get_web_view (launcher->shell));
 }
 
 static void
@@ -71,7 +48,7 @@ on_action_next (G_GNUC_UNUSED GAction  *action,
                 G_GNUC_UNUSED GVariant *param,
                 CogLauncher            *launcher)
 {
-    webkit_web_view_go_forward (cog_launcher_get_web_view (launcher));
+    webkit_web_view_go_forward (cog_shell_get_web_view (launcher->shell));
 }
 
 static void
@@ -79,7 +56,7 @@ on_action_reload (G_GNUC_UNUSED GAction  *action,
                   G_GNUC_UNUSED GVariant *param,
                   CogLauncher            *launcher)
 {
-    webkit_web_view_reload (cog_launcher_get_web_view (launcher));
+    webkit_web_view_reload (cog_shell_get_web_view (launcher->shell));
 }
 
 static void
@@ -88,7 +65,8 @@ on_action_open (G_GNUC_UNUSED GAction *action,
                 CogLauncher           *launcher)
 {
     g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
-    cog_launcher_set_home_uri (launcher, g_variant_get_string (param, NULL));
+    webkit_web_view_load_uri (cog_shell_get_web_view (launcher->shell),
+                              g_variant_get_string (param, NULL));
 }
 
 static void
@@ -107,10 +85,6 @@ cog_launcher_add_action (CogLauncher *launcher,
 }
 
 
-typedef struct _RequestHandlerMapEntry RequestHandlerMapEntry;
-static void request_handler_map_entry_register (const char*, RequestHandlerMapEntry*, WebKitWebContext*);
-
-
 static void
 cog_launcher_open (GApplication *application,
                    GFile       **files,
@@ -122,53 +96,17 @@ cog_launcher_open (GApplication *application,
     if (n_files > 1)
         g_warning ("Requested opening %i files, opening only the first one", n_files);
 
-    g_autofree char *home_uri = g_file_get_uri (files[0]);
-    cog_launcher_set_home_uri (COG_LAUNCHER (application), home_uri);
+    g_autofree char *uri = g_file_get_uri (files[0]);
+    webkit_web_view_load_uri (cog_shell_get_web_view (COG_LAUNCHER (application)->shell), uri);
 }
+
 
 static void
 cog_launcher_startup (GApplication *application)
 {
     G_APPLICATION_CLASS (cog_launcher_parent_class)->startup (application);
 
-    CogLauncher *launcher = COG_LAUNCHER (application);
-
-    /*
-     * Request handlers can be registered with CogLauncher before the web
-     * context is created: register them now that it has been created.
-     */
-    if (launcher->request_handlers) {
-        g_hash_table_foreach (launcher->request_handlers,
-                              (GHFunc) request_handler_map_entry_register,
-                              launcher->web_context);
-    }
-
-    g_signal_emit (launcher,
-                   s_signals[CREATE_WEB_VIEW],
-                   0,
-                   &launcher->web_view);
-
-    /*
-     * Create the web view ourselves if the signal handler did not.
-     */
-    if (!launcher->web_view) {
-        launcher->web_view = WEBKIT_WEB_VIEW (g_object_new (WEBKIT_TYPE_WEB_VIEW,
-                                                            "settings", cog_launcher_get_web_settings (launcher),
-                                                            "web-context", cog_launcher_get_web_context (launcher),
-                                                            NULL));
-    }
-
-    /*
-     * The web context and settings being used by the web view must be
-     * the same that were pre-created by CogLauncher.
-     */
-    g_assert (webkit_web_view_get_settings (launcher->web_view) == cog_launcher_get_web_settings (launcher));
-    g_assert (webkit_web_view_get_context (launcher->web_view) == cog_launcher_get_web_context (launcher));
-
-    /*
-     * Make sure we keep the floating reference to the web view alive.
-     */
-    g_object_ref_sink (launcher->web_view);
+    cog_shell_startup (cog_launcher_get_shell (COG_LAUNCHER (application)));
 
     /*
      * When building with GTK+ support, the GtkApplicationWindow will
@@ -177,72 +115,31 @@ cog_launcher_startup (GApplication *application)
      * ourselves when building against the WPE port.
      */
 #if COG_USE_WEBKITGTK
-    GtkWidget *window = cog_gtk_create_window (launcher);
+    GtkWidget *window = cog_gtk_create_window (COG_LAUNCHER (application));
     g_object_ref_sink (window);  // Keep the window object alive.
 #else
     g_application_hold (application);
 #endif
+}
 
-    webkit_web_view_load_uri (launcher->web_view, launcher->home_uri);
+
+static void
+cog_launcher_shutdown (GApplication *application)
+{
+    cog_shell_shutdown (cog_launcher_get_shell (COG_LAUNCHER (application)));
+
+    G_APPLICATION_CLASS (cog_launcher_parent_class)->shutdown (application);
 }
 
 
 static void
 cog_launcher_activate (GApplication *application)
 {
-    /*
-     * Give user code the chance of creating a customized web view.
-     */
-    CogLauncher *launcher = COG_LAUNCHER (application);
-
 #if COG_USE_WEBKITGTK
-    cog_gtk_present_window (launcher);
+    cog_gtk_present_window (COG_LAUNCHER (application));
 #else
-    (void) launcher;
+    (void) application;
 #endif
-}
-
-
-static void
-cog_launcher_get_property (GObject    *object,
-                           unsigned    prop_id,
-                           GValue     *value,
-                           GParamSpec *pspec)
-{
-    CogLauncher *launcher = COG_LAUNCHER (object);
-    switch (prop_id) {
-        case PROP_WEB_SETTINGS:
-            g_value_set_object (value, cog_launcher_get_web_settings (launcher));
-            break;
-        case PROP_WEB_CONTEXT:
-            g_value_set_object (value, cog_launcher_get_web_context (launcher));
-            break;
-        case PROP_WEB_VIEW:
-            g_value_set_object (value, cog_launcher_get_web_view (launcher));
-            break;
-        case PROP_HOME_URI:
-            g_value_set_string (value, cog_launcher_get_home_uri (launcher));
-            break;
-        default:
-            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-    }
-}
-
-
-static void
-cog_launcher_set_property (GObject      *object,
-                           unsigned      prop_id,
-                           const GValue *value,
-                           GParamSpec   *pspec)
-{
-    CogLauncher *launcher = COG_LAUNCHER (object);
-    switch (prop_id) {
-        case PROP_HOME_URI:
-            cog_launcher_set_home_uri (launcher, g_value_get_string (value));
-            break;
-        default:
-            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-    }
 }
 
 
@@ -251,11 +148,7 @@ cog_launcher_dispose (GObject *object)
 {
     CogLauncher *launcher = COG_LAUNCHER (object);
 
-    g_clear_object (&launcher->web_view);
-    g_clear_object (&launcher->web_context);
-    g_clear_object (&launcher->web_settings);
-
-    g_clear_pointer (&launcher->request_handlers, g_hash_table_unref);
+    g_clear_object (&launcher->shell);
 
     G_OBJECT_CLASS (cog_launcher_parent_class)->dispose (object);
 }
@@ -316,22 +209,7 @@ cog_launcher_constructed (GObject *object)
 
     CogLauncher *launcher = COG_LAUNCHER (object);
 
-    launcher->web_settings = g_object_ref_sink (webkit_settings_new ());
-
-    g_autofree char *data_dir = g_build_filename (g_get_user_data_dir (),
-                                                  g_get_prgname (),
-                                                  NULL);
-    g_autofree char *cache_dir = g_build_filename (g_get_user_cache_dir (),
-                                                   g_get_prgname (),
-                                                   NULL);
-
-    g_autoptr(WebKitWebsiteDataManager) manager =
-        webkit_website_data_manager_new ("base-data-directory", data_dir,
-                                         "base-cache-directory", cache_dir,
-                                         NULL);
-
-    launcher->web_context =
-        webkit_web_context_new_with_website_data_manager (manager);
+    launcher->shell = g_object_ref_sink (cog_shell_new (g_get_prgname ()));
 
     cog_launcher_add_action (launcher, "quit", on_action_quit, NULL);
     cog_launcher_add_action (launcher, "previous", on_action_prev, NULL);
@@ -358,59 +236,12 @@ cog_launcher_class_init (CogLauncherClass *klass)
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
     object_class->dispose = cog_launcher_dispose;
     object_class->constructed = cog_launcher_constructed;
-    object_class->get_property = cog_launcher_get_property;
-    object_class->set_property = cog_launcher_set_property;
 
     GApplicationClass *application_class = G_APPLICATION_CLASS (klass);
     application_class->open = cog_launcher_open;
     application_class->startup = cog_launcher_startup;
     application_class->activate = cog_launcher_activate;
-
-    s_properties[PROP_WEB_SETTINGS] =
-        g_param_spec_object ("web-settings",
-                             "Web Settings",
-                             "The WebKitSettings for the launcher",
-                             WEBKIT_TYPE_SETTINGS,
-                             G_PARAM_READABLE |
-                             G_PARAM_STATIC_STRINGS);
-
-    s_properties[PROP_WEB_CONTEXT] =
-        g_param_spec_object ("web-context",
-                             "Web Context",
-                             "The WebKitWebContext for the launcher",
-                             WEBKIT_TYPE_WEB_CONTEXT,
-                             G_PARAM_READABLE |
-                             G_PARAM_STATIC_STRINGS);
-    s_properties[PROP_WEB_VIEW] =
-        g_param_spec_object ("web-view",
-                             "Web View",
-                             "The main WebKitWebView for the launcher",
-                             WEBKIT_TYPE_WEB_VIEW,
-                             G_PARAM_READABLE |
-                             G_PARAM_STATIC_STRINGS);
-
-    s_properties[PROP_HOME_URI] =
-        g_param_spec_string ("home-uri",
-                             "Home URI",
-                             "URI loaded by the main WebKitWebView for the launcher at launch",
-                             NULL,
-                             G_PARAM_READWRITE |
-                             G_PARAM_STATIC_STRINGS);
-
-    g_object_class_install_properties (object_class,
-                                       N_PROPERTIES,
-                                       s_properties);
-
-    s_signals[CREATE_WEB_VIEW] =
-        g_signal_new ("create-web-view",
-                      COG_TYPE_LAUNCHER,
-                      G_SIGNAL_RUN_LAST,
-                      0,
-                      NULL,
-                      NULL,
-                      NULL,
-                      WEBKIT_TYPE_WEB_VIEW,
-                      0);
+    application_class->shutdown = cog_launcher_shutdown;
 }
 
 
@@ -446,146 +277,11 @@ cog_launcher_get_default (void)
 }
 
 
-WebKitWebView*
-cog_launcher_get_web_view (CogLauncher *launcher)
+CogShell*
+cog_launcher_get_shell (CogLauncher *launcher)
 {
     g_return_val_if_fail (COG_IS_LAUNCHER (launcher), NULL);
-    return launcher->web_view;
-}
-
-
-WebKitWebContext*
-cog_launcher_get_web_context (CogLauncher *launcher)
-{
-    g_return_val_if_fail (COG_IS_LAUNCHER (launcher), NULL);
-    return launcher->web_context;
-}
-
-
-WebKitSettings*
-cog_launcher_get_web_settings (CogLauncher *launcher)
-{
-    g_return_val_if_fail (COG_IS_LAUNCHER (launcher), NULL);
-    return launcher->web_settings;
-}
-
-
-const char*
-cog_launcher_get_home_uri (CogLauncher *launcher)
-{
-    g_return_val_if_fail (COG_IS_LAUNCHER (launcher), NULL);
-    return launcher->home_uri;
-}
-
-
-void
-cog_launcher_set_home_uri (CogLauncher *launcher,
-                           const char *home_uri)
-{
-    g_return_if_fail (COG_IS_LAUNCHER (launcher));
-
-    if (g_strcmp0 (launcher->home_uri, home_uri) == 0)
-        return;
-
-    launcher->home_uri = home_uri ? g_strdup (home_uri) : NULL;
-    g_object_notify_by_pspec (G_OBJECT (launcher),
-                              s_properties[PROP_HOME_URI]);
-
-    if (launcher->web_view) {
-        if (launcher->home_uri) {
-            webkit_web_view_load_uri (launcher->web_view, launcher->home_uri);
-        } else {
-            // TODO: Load something nicer than an empty string which would
-            //       clearly show that no content is loaded at all.
-            webkit_web_view_load_plain_text (launcher->web_view, "");
-        }
-    }
-}
-
-
-struct _RequestHandlerMapEntry {
-    CogRequestHandler *handler;
-    gboolean           registered;
-};
-
-
-static inline RequestHandlerMapEntry*
-request_handler_map_entry_new (CogRequestHandler *handler)
-{
-    g_assert_nonnull (handler);
-
-    RequestHandlerMapEntry *entry = g_slice_new (RequestHandlerMapEntry);
-    entry->handler = g_object_ref_sink (handler);
-    entry->registered = FALSE;
-    return entry;
-}
-
-
-static inline void
-request_handler_map_entry_free (void *pointer)
-{
-    if (pointer) {
-        RequestHandlerMapEntry *entry = pointer;
-        g_clear_object (&entry->handler);
-        g_slice_free (RequestHandlerMapEntry, entry);
-    }
-}
-
-
-static void
-handle_uri_scheme_request (WebKitURISchemeRequest *request,
-                           void                   *user_data)
-{
-    RequestHandlerMapEntry *entry = user_data;
-    g_assert_nonnull (entry->handler);
-    cog_request_handler_run (entry->handler, request);
-}
-
-
-static void
-request_handler_map_entry_register (const char             *scheme,
-                                    RequestHandlerMapEntry *entry,
-                                    WebKitWebContext       *context)
-{
-    if (context && !entry->registered) {
-        webkit_web_context_register_uri_scheme (context,
-                                                scheme,
-                                                handle_uri_scheme_request,
-                                                entry,
-                                                NULL);
-    }
-}
-
-
-void
-cog_launcher_set_request_handler (CogLauncher       *launcher,
-                                  const char        *scheme,
-                                  CogRequestHandler *handler)
-{
-    g_return_if_fail (COG_IS_LAUNCHER (launcher));
-    g_return_if_fail (scheme != NULL);
-    g_return_if_fail (COG_IS_REQUEST_HANDLER (handler));
-
-    if (!launcher->request_handlers) {
-        launcher->request_handlers =
-            g_hash_table_new_full (g_str_hash,
-                                   g_str_equal,
-                                   g_free,
-                                   request_handler_map_entry_free);
-    }
-
-    RequestHandlerMapEntry *entry =
-        g_hash_table_lookup (launcher->request_handlers, scheme);
-
-    if (!entry) {
-        entry = request_handler_map_entry_new (handler);
-        g_hash_table_insert (launcher->request_handlers, g_strdup (scheme), entry);
-    } else if (entry->handler != handler) {
-        g_clear_object (&entry->handler);
-        entry->handler = g_object_ref_sink (handler);
-    }
-
-    request_handler_map_entry_register (scheme, entry, launcher->web_context);
+    return launcher->shell;
 }
 
 
@@ -595,7 +291,7 @@ cog_launcher_add_web_settings_option_entries (CogLauncher *launcher)
     g_return_if_fail (COG_IS_LAUNCHER (launcher));
 
     g_autofree GOptionEntry *option_entries =
-        cog_option_entries_from_class (G_OBJECT_GET_CLASS (launcher->web_settings));
+        cog_option_entries_from_class (G_OBJECT_GET_CLASS (cog_shell_get_web_settings (launcher->shell)));
     if (!option_entries) {
         g_critical ("Could not deduce option entries for WebKitSettings."
                     " This should not happen, continuing but YMMV.");
@@ -612,7 +308,7 @@ cog_launcher_add_web_settings_option_entries (CogLauncher *launcher)
                             "  FLOAT values may optionally use decimal separators and scientific notation.\n"
                             "  STRING values may need quoting when passed from the shell.\n",
                             "Show WebKitSettings options",
-                            launcher->web_settings,
+                            cog_shell_get_web_settings (launcher->shell),
                             NULL);
     g_option_group_add_entries (option_group, option_entries);
     g_application_add_option_group (G_APPLICATION (launcher),
@@ -884,7 +580,7 @@ option_entry_parse_cookie_jar (const char          *option G_GNUC_UNUSED,
     if (!cookie_jar_path) {
         g_autofree char *file_name = g_strconcat ("cookies.", format_name, NULL);
         WebKitWebContext *context =
-            cog_launcher_get_web_context (cog_launcher_get_default ());
+            cog_shell_get_web_context (cog_launcher_get_default ()->shell);
         WebKitWebsiteDataManager *data_manager =
             webkit_web_context_get_website_data_manager (context);
         cookie_jar_path =
@@ -936,7 +632,7 @@ cog_launcher_add_web_cookies_option_entries (CogLauncher *launcher)
         g_option_group_new ("cookies",
                             "Options which control storage and bahviour of cookies.\n",
                             "Show options for cookies",
-                            webkit_web_context_get_cookie_manager (launcher->web_context),
+                            webkit_web_context_get_cookie_manager (cog_shell_get_web_context (launcher->shell)),
                             NULL);
     g_option_group_add_entries (option_group, s_cookies_options);
     g_application_add_option_group (G_APPLICATION (launcher),

@@ -584,7 +584,8 @@ capture_app_key_bindings (uint32_t keysym,
                           uint8_t modifiers)
 {
     CogLauncher *launcher = cog_launcher_get_default ();
-    WebKitWebView *web_view = cog_launcher_get_web_view (launcher);
+    WebKitWebView *web_view =
+        cog_shell_get_web_view (cog_launcher_get_shell (launcher));
 
     if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         /* fullscreen */

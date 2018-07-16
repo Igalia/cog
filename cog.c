@@ -164,6 +164,7 @@ on_handle_local_options (GApplication *application,
      * whether the directory exists. Note that this creation of the
      * corresponding CogURIHandler objects is done at GApplication::startup.
      */
+    g_autoptr(CogShell) shell = cog_launcher_get_shell (COG_LAUNCHER (application));
     for (size_t i = 0; s_options.dir_handlers && s_options.dir_handlers[i]; i++) {
         char *colon = strchr (s_options.dir_handlers[i], ':');
         if (!colon) {
@@ -194,12 +195,10 @@ on_handle_local_options (GApplication *application,
 
         *colon = '\0';  /* NULL-terminate the URI scheme name. */
         g_autoptr(CogRequestHandler) handler = cog_directory_files_handler_new (file);
-        cog_launcher_set_request_handler (COG_LAUNCHER (application),
-                                          s_options.dir_handlers[i],
-                                          handler);
+        cog_shell_set_request_handler (shell, s_options.dir_handlers[i], handler);
     }
 
-    cog_launcher_set_home_uri (COG_LAUNCHER (application), utf8_uri);
+    cog_shell_set_home_uri (shell, utf8_uri);
 
     return -1;  /* Continue startup. */
 }
@@ -262,10 +261,9 @@ on_shutdown (CogLauncher *launcher G_GNUC_UNUSED, void *user_data G_GNUC_UNUSED)
 
 
 static WebKitWebView*
-on_create_web_view (CogLauncher *launcher,
-                    void        *user_data)
+on_create_view (CogShell *shell, CogLauncher *launcher)
 {
-    WebKitWebContext *web_context = cog_launcher_get_web_context (launcher);
+    WebKitWebContext *web_context = cog_shell_get_web_context (shell);
 
     if (s_options.doc_viewer) {
         webkit_web_context_set_cache_model (web_context,
@@ -299,7 +297,7 @@ on_create_web_view (CogLauncher *launcher,
 #endif
 
     g_autoptr(WebKitWebView) web_view = g_object_new (WEBKIT_TYPE_WEB_VIEW,
-                                                      "settings", cog_launcher_get_web_settings (launcher),
+                                                      "settings", cog_shell_get_web_settings (shell),
                                                       "web-context", web_context,
                                                       "zoom-level", s_options.scale_factor,
 #if !COG_USE_WEBKITGTK
@@ -361,8 +359,8 @@ main (int argc, char *argv[])
 
     g_signal_connect (app, "handle-local-options",
                       G_CALLBACK (on_handle_local_options), NULL);
-    g_signal_connect (app, "create-web-view",
-                      G_CALLBACK (on_create_web_view), NULL);
+    g_signal_connect (cog_launcher_get_shell (COG_LAUNCHER (app)), "create-view",
+                      G_CALLBACK (on_create_view), app);
 
     return g_application_run (app, argc, argv);
 }
