@@ -16,6 +16,7 @@
 #include "cog-request-handler.h"
 #include "cog-directory-files-handler.h"
 #include "cog-launcher.h"
+#include "cog-shell.h"
 #include "cog-utils.h"
 
 #if !COG_USE_WEBKITGTK
