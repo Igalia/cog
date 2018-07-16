@@ -1211,7 +1211,7 @@ clear_egl (void)
 }
 
 static gboolean
-create_window (CogLauncher *launcher, GError **error)
+create_window (GError **error)
 {
     win_data.wl_surface = wl_compositor_create_surface (wl_data.compositor);
     g_assert_nonnull (win_data.wl_surface);
@@ -1234,8 +1234,16 @@ create_window (CogLauncher *launcher, GError **error)
                                        NULL);
         zxdg_toplevel_v6_set_title (win_data.xdg_toplevel,
                                     COG_DEFAULT_APPNAME);
-        zxdg_toplevel_v6_set_app_id (win_data.xdg_toplevel,
-                                     g_application_get_application_id (G_APPLICATION (launcher)));
+
+        const char *app_id = NULL;
+        GApplication *app = g_application_get_default ();
+        if (app) {
+            app_id = g_application_get_application_id (app);
+        }
+        if (!app_id) {
+            app_id = COG_DEFAULT_APPID;
+        }
+        zxdg_toplevel_v6_set_app_id (win_data.xdg_toplevel, app_id);
     } else if (wl_data.fshell != NULL) {
         zwp_fullscreen_shell_v1_present_surface (wl_data.fshell,
                                                  win_data.wl_surface,
@@ -1360,12 +1368,12 @@ clear_input (void)
 
 gboolean
 cog_platform_setup (CogPlatform *platform,
-                    CogLauncher *launcher,
+                    CogShell    *shell G_GNUC_UNUSED,
                     const char  *params,
                     GError     **error)
 {
     g_assert_nonnull (platform);
-    g_return_val_if_fail (COG_IS_LAUNCHER (launcher), FALSE);
+    g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
 
     if (!init_wayland (error))
         return FALSE;
@@ -1375,7 +1383,7 @@ cog_platform_setup (CogPlatform *platform,
         return FALSE;
     }
 
-    if (!create_window (launcher, error)) {
+    if (!create_window (error)) {
         clear_egl ();
         clear_wayland ();
         return FALSE;

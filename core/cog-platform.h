@@ -14,7 +14,7 @@
 #endif
 
 #include <glib.h>
-#include "cog-launcher.h"
+#include "cog-shell.h"
 
 G_BEGIN_DECLS
 
@@ -32,7 +32,7 @@ gboolean              cog_platform_try_load         (CogPlatform   *platform,
                                                      const gchar   *soname);
 
 gboolean              cog_platform_setup            (CogPlatform   *platform,
-                                                     CogLauncher   *launcher,
+                                                     CogShell      *shell,
                                                      const char    *params,
                                                      GError       **error);
 

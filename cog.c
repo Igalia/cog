@@ -206,7 +206,7 @@ on_handle_local_options (GApplication *application,
 
 #if !COG_USE_WEBKITGTK
 static gboolean
-platform_setup (CogLauncher *launcher)
+platform_setup (CogShell *shell)
 {
     /*
      * Here we resolve the CogPlatform we are going to use. A Cog platform
@@ -234,7 +234,7 @@ platform_setup (CogLauncher *launcher)
     }
 
     g_autoptr(GError) error = NULL;
-    if (!cog_platform_setup (platform, launcher, "", &error)) {
+    if (!cog_platform_setup (platform, shell, "", &error)) {
         g_warning ("Platform setup failed: %s", error->message);
         return FALSE;
     }
@@ -261,7 +261,7 @@ on_shutdown (CogLauncher *launcher G_GNUC_UNUSED, void *user_data G_GNUC_UNUSED)
 
 
 static WebKitWebView*
-on_create_view (CogShell *shell, CogLauncher *launcher)
+on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
 {
     WebKitWebContext *web_context = cog_shell_get_web_context (shell);
 
@@ -274,7 +274,7 @@ on_create_view (CogShell *shell, CogLauncher *launcher)
     WebKitWebViewBackend *view_backend = NULL;
 
     // Try to load the platform plug-in specified in the command line.
-    if (platform_setup (launcher)) {
+    if (platform_setup (shell)) {
         g_autoptr(GError) error = NULL;
         view_backend = cog_platform_get_view_backend (s_options.platform, NULL, &error);
         if (!view_backend) {
@@ -360,7 +360,7 @@ main (int argc, char *argv[])
     g_signal_connect (app, "handle-local-options",
                       G_CALLBACK (on_handle_local_options), NULL);
     g_signal_connect (cog_launcher_get_shell (COG_LAUNCHER (app)), "create-view",
-                      G_CALLBACK (on_create_view), app);
+                      G_CALLBACK (on_create_view), NULL);
 
     return g_application_run (app, argc, argv);
 }
