@@ -19,6 +19,9 @@ This project provides the following components:
 - `cogctl` is a tool which can be used to control a `cog` instance
   using the D-Bus session bus.
 
+It is possible to disable building the `cog` and `cogctl` programs by passing
+`-DCOG_BUILD_PROGRAMS=OFF` to CMake.
+
 
 Dependencies
 ------------

@@ -9,6 +9,7 @@ set(COG_DBUS_OWN_USER "" CACHE STRING
 
 option(COG_USE_WEBKITGTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
 option(COG_PLATFORM_FDO "Build the FDO platform module" ON)
+option(COG_BUILD_PROGRAMS "Build and install programs as well" ON)
 set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
 
@@ -97,20 +98,24 @@ target_include_directories(cogcore PUBLIC core ${COGCORE_INCLUDE_DIRS})
 target_compile_options(cogcore PUBLIC ${COGCORE_CFLAGS})
 target_link_libraries(cogcore ${COGCORE_LDFLAGS})
 
-add_executable(cog cog.c)
-set_property(TARGET cog PROPERTY C_STANDARD 99)
-target_link_libraries(cog cogcore -ldl)
+if (COG_BUILD_PROGRAMS)
+    add_executable(cog cog.c)
+    set_property(TARGET cog PROPERTY C_STANDARD 99)
+    target_link_libraries(cog cogcore -ldl)
 
-add_executable(cogctl cogctl.c core/cog-utils.c)
-set_property(TARGET cogctl PROPERTY C_STANDARD 99)
-target_include_directories(cogctl PUBLIC ${GIO_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
-target_compile_options(cogctl PUBLIC ${GIO_CFLAGS_OTHER} ${SOUP_CFLAGS_OTHER})
-target_link_libraries(cogctl ${GIO_LDFLAGS} ${SOUP_LDFLAGS})
+    add_executable(cogctl cogctl.c core/cog-utils.c)
+    set_property(TARGET cogctl PROPERTY C_STANDARD 99)
+    target_include_directories(cogctl PUBLIC ${GIO_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
+    target_compile_options(cogctl PUBLIC ${GIO_CFLAGS_OTHER} ${SOUP_CFLAGS_OTHER})
+    target_link_libraries(cogctl ${GIO_LDFLAGS} ${SOUP_LDFLAGS})
 
-install(TARGETS cog cogctl
-    DESTINATION ${CMAKE_INSTALL_BINDIR}
-    COMPONENT "runtime"
-)
+    install(TARGETS cog cogctl
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+        COMPONENT "runtime"
+    )
+endif ()
+
+
 install(TARGETS cogcore
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
     COMPONENT ${COGCORE_COMPONENT}
