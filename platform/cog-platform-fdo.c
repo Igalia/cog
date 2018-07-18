@@ -133,6 +133,8 @@ static struct {
     EGLImageKHR image;
     struct wl_buffer *buffer;
     struct wl_callback *frame_callback;
+
+    bool paused;
 } wpe_view_data = {NULL, };
 
 
@@ -995,12 +997,6 @@ on_surface_frame (void *data, struct wl_callback *callback, uint32_t time)
     wpe_view_backend_exportable_fdo_dispatch_frame_complete
         (wpe_host_data.exportable);
 
-    if (wpe_view_data.image != NULL) {
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_image (wpe_host_data.exportable,
-                                                                    wpe_view_data.image);
-        wpe_view_data.image = NULL;
-    }
-
     g_clear_pointer (&wpe_view_data.buffer, wl_buffer_destroy);
 }
 
@@ -1020,11 +1016,9 @@ request_frame (void)
                               NULL);
 }
 
-
 static void
-on_export_egl_image(void *data, EGLImageKHR image)
-{
-    wpe_view_data.image = image;
+present_image (void) {
+    g_assert_nonnull (wpe_view_data.image);
 
     static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
         eglCreateWaylandBufferFromImageWL;
@@ -1046,6 +1040,22 @@ on_export_egl_image(void *data, EGLImageKHR image)
     request_frame ();
 
     wl_surface_commit (win_data.wl_surface);
+}
+
+static void
+on_export_egl_image(void *data, EGLImageKHR image)
+{
+    if (wpe_view_data.image != NULL) {
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_image (wpe_host_data.exportable,
+                                                                    wpe_view_data.image);
+    }
+
+    wpe_view_data.image = image;
+
+    if (wpe_view_data.paused)
+        return;
+
+    present_image ();
 }
 
 static gboolean
@@ -1410,8 +1420,10 @@ cog_platform_teardown (CogPlatform *platform)
     /* free WPE view data */
     if (wpe_view_data.frame_callback != NULL)
         wl_callback_destroy (wpe_view_data.frame_callback);
-    if (wpe_view_data.image != NULL)
-        egl_data.eglDestroyImage (egl_data.display, wpe_view_data.image);
+    if (wpe_view_data.image != NULL) {
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_image (wpe_host_data.exportable,
+                                                                    wpe_view_data.image);
+    }
     g_clear_pointer (&wpe_view_data.buffer, wl_buffer_destroy);
 
     /* @FIXME: check why this segfaults
@@ -1427,6 +1439,17 @@ cog_platform_teardown (CogPlatform *platform)
     destroy_window ();
     clear_egl ();
     clear_wayland ();
+}
+
+static gboolean
+play (gpointer user_data)
+{
+    wpe_view_data.paused = FALSE;
+
+    if (wpe_view_data.image)
+        present_image ();
+
+    return FALSE;
 }
 
 WebKitWebViewBackend*
@@ -1455,6 +1478,10 @@ cog_platform_get_view_backend (CogPlatform   *platform,
                        (GDestroyNotify) wpe_view_backend_exportable_fdo_destroy,
                                      wpe_host_data.exportable);
     g_assert_nonnull (wk_view_backend);
+
+    /* @DEBUG: only to test 'play/pause' */
+    wpe_view_data.paused = true;
+    g_timeout_add (2000, play, NULL);
 
     return wk_view_backend;
 }
