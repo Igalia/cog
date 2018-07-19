@@ -32,6 +32,7 @@
 #include <xkbcommon/xkbcommon-compose.h>
 #include <locale.h>
 
+#include "xdg-shell-client-protocol.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
 #include "fullscreen-shell-unstable-v1-client-protocol.h"
 
@@ -46,6 +47,7 @@ static struct {
     struct wl_registry *registry;
     struct wl_compositor *compositor;
 
+    struct xdg_shell *xdg_shell_stable;
     struct zxdg_shell_v6 *xdg_shell;
     struct zwp_fullscreen_shell_v1 *fshell;
     struct wl_shell *shell;
@@ -98,6 +100,7 @@ static struct {
     struct wl_egl_window *egl_window;
     EGLSurface egl_surface;
 
+    struct xdg_surface *xdg_surface_stable;
     struct zxdg_surface_v6 *xdg_surface;
     struct zxdg_toplevel_v6 *xdg_toplevel;
     struct wl_shell_surface *shell_surface;
@@ -277,7 +280,7 @@ shell_surface_configure (void *data,
 {
     configure_surface_geometry (width, height);
 
-    printf ("New wl_shell configuration: (%u, %u)\n", width, height);
+    g_printerr ("New wl_shell configuration: (%u, %u)", width, height);
 
     resize_window ();
 }
@@ -298,6 +301,17 @@ static const struct zxdg_shell_v6_listener xdg_shell_listener = {
 };
 
 static void
+xdg_shell_stable_ping (void *data, struct xdg_shell *shell, uint32_t serial)
+{
+    g_message ("Ping-Pong");
+    xdg_shell_pong(shell, serial);
+}
+
+static const struct xdg_shell_listener xdg_shell_listener_stable = {
+    .ping = xdg_shell_stable_ping,
+};
+
+static void
 xdg_surface_on_configure (void *data,
                           struct zxdg_surface_v6 *surface,
                           uint32_t serial)
@@ -310,6 +324,22 @@ static const struct zxdg_surface_v6_listener xdg_surface_listener = {
 };
 
 static void
+xdg_surface_stable_on_configure (void *data,
+                                 struct xdg_surface *surface,
+                                 int32_t width,
+                                 int32_t height,
+                                 struct wl_array *states,
+                                 uint32_t serial)
+{
+    g_printerr("%s: %dx%d\n", __func__, width, height);
+    xdg_surface_ack_configure (surface, serial);
+}
+
+static const struct xdg_surface_listener xdg_surface_listener_stable = {
+    .configure = xdg_surface_stable_on_configure,
+};
+
+static void
 xdg_toplevel_on_configure (void *data,
                            struct zxdg_toplevel_v6 *toplevel,
                            int32_t width, int32_t height,
@@ -317,7 +347,7 @@ xdg_toplevel_on_configure (void *data,
 {
     configure_surface_geometry (width, height);
 
-    printf ("New XDG toplevel configuration: (%u, %u)\n", width, height);
+    g_message ("New XDG toplevel configuration: (%u, %u)", width, height);
 
     resize_window ();
 }
@@ -341,19 +371,19 @@ registry_global (void               *data,
                  uint32_t            version)
 {
     if (strcmp (interface, wl_compositor_interface.name) == 0) {
-        printf ("Wayland: Got a wl_compositor interface\n");
+        g_message ("Wayland: Got a wl_compositor interface.");
         wl_data.compositor = wl_registry_bind (registry,
                                                name,
                                                &wl_compositor_interface,
                                                version);
     } else if (strcmp (interface, wl_shell_interface.name) == 0) {
-        printf ("Wayland: Got a wl_shell interface\n");
+        g_message ("Wayland: Got a wl_shell interface.");
         wl_data.shell = wl_registry_bind (registry,
                                           name,
                                           &wl_shell_interface,
                                           version);
     } else if (strcmp (interface, zxdg_shell_v6_interface.name) == 0) {
-        printf ("Wayland: Got an xdg_shell interface\n");
+        g_message ("Wayland: Got an xdg_shell interface.");
         wl_data.xdg_shell = wl_registry_bind (registry,
                                               name,
                                               &zxdg_shell_v6_interface,
@@ -362,17 +392,27 @@ registry_global (void               *data,
         zxdg_shell_v6_add_listener (wl_data.xdg_shell, &xdg_shell_listener, NULL);
     } else if (strcmp (interface,
                        zwp_fullscreen_shell_v1_interface.name) == 0) {
-        printf ("Wayland: Got a fullscreen_shell interface\n");
+        g_message ("Wayland: Got a fullscreen_shell interface.");
         wl_data.fshell = wl_registry_bind (registry,
                                            name,
                                            &zwp_fullscreen_shell_v1_interface,
                                            version);
     } else if (strcmp (interface, wl_seat_interface.name) == 0) {
-        printf ("Wayland: Got a wl_seat interface\n");
+        g_message ("Wayland: Got a wl_seat interface.");
         wl_data.seat = wl_registry_bind (registry,
                                          name,
                                          &wl_seat_interface,
                                          version);
+    } else if (strcmp (interface, xdg_shell_interface.name) == 0) {
+        g_message ("Wayland: Got a xdg_shell interface.");
+        wl_data.xdg_shell_stable = wl_registry_bind (registry,
+                                                     name,
+                                                     &xdg_shell_interface,
+                                                     version);
+        g_assert_nonnull (wl_data.xdg_shell_stable);
+        xdg_shell_add_listener (wl_data.xdg_shell_stable,
+                                &xdg_shell_listener_stable,
+                                NULL);
     }
 }
 
@@ -921,7 +961,7 @@ static const struct wl_touch_listener touch_listener = {
 static void
 seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
 {
-    printf ("Seat caps: ");
+    g_message ("Seat caps:");
 
     /* Pointer */
     const bool has_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
@@ -929,7 +969,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
         wl_data.pointer.obj = wl_seat_get_pointer (wl_data.seat);
         g_assert_nonnull (wl_data.pointer.obj);
         wl_pointer_add_listener (wl_data.pointer.obj, &pointer_listener, NULL);
-        printf ("Pointer ");
+        g_message ("  - Pointer");
     } else if (! has_pointer && wl_data.pointer.obj != NULL) {
         wl_pointer_release (wl_data.pointer.obj);
         wl_data.pointer.obj = NULL;
@@ -941,7 +981,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
         wl_data.keyboard.obj = wl_seat_get_keyboard (wl_data.seat);
         g_assert_nonnull (wl_data.keyboard.obj);
         wl_keyboard_add_listener (wl_data.keyboard.obj, &keyboard_listener, NULL);
-        printf ("Keyboard ");
+        g_message ("  - Keyboard");
     } else if (! has_keyboard && wl_data.keyboard.obj != NULL) {
         wl_keyboard_release (wl_data.keyboard.obj);
         wl_data.keyboard.obj = NULL;
@@ -953,19 +993,17 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
         wl_data.touch.obj = wl_seat_get_touch (wl_data.seat);
         g_assert_nonnull (wl_data.touch.obj);
         wl_touch_add_listener (wl_data.touch.obj, &touch_listener, NULL);
-        printf ("Touch ");
+        g_message ("  - Touch");
     } else if (! has_touch && wl_data.touch.obj != NULL) {
         wl_touch_release (wl_data.touch.obj);
         wl_data.touch.obj = NULL;
     }
-
-    printf ("\n");
 }
 
 static void
 seat_on_name (void *data, struct wl_seat *seat, const char *name)
 {
-    printf ("Seat name '%s'\n", name);
+    g_message ("Seat name: '%s'", name);
 }
 
 static const struct wl_seat_listener seat_listener = {
@@ -1083,6 +1121,7 @@ clear_wayland (void)
 {
     g_source_destroy (wl_data.event_src);
 
+    g_clear_pointer(&wl_data.xdg_shell_stable, xdg_shell_destroy);
     if (wl_data.xdg_shell != NULL)
         zxdg_shell_v6_destroy (wl_data.xdg_shell);
     if (wl_data.fshell != NULL)
@@ -1216,6 +1255,15 @@ create_window (GError **error)
     win_data.wl_surface = wl_compositor_create_surface (wl_data.compositor);
     g_assert_nonnull (win_data.wl_surface);
 
+    const char *app_id = NULL;
+    GApplication *app = g_application_get_default ();
+    if (app) {
+        app_id = g_application_get_application_id (app);
+    }
+    if (!app_id) {
+        app_id = COG_DEFAULT_APPID;
+    }
+
     if (wl_data.xdg_shell != NULL) {
         win_data.xdg_surface =
             zxdg_shell_v6_get_xdg_surface (wl_data.xdg_shell,
@@ -1235,15 +1283,25 @@ create_window (GError **error)
         zxdg_toplevel_v6_set_title (win_data.xdg_toplevel,
                                     COG_DEFAULT_APPNAME);
 
-        const char *app_id = NULL;
-        GApplication *app = g_application_get_default ();
-        if (app) {
-            app_id = g_application_get_application_id (app);
-        }
-        if (!app_id) {
-            app_id = COG_DEFAULT_APPID;
-        }
         zxdg_toplevel_v6_set_app_id (win_data.xdg_toplevel, app_id);
+    } else if (wl_data.xdg_shell_stable) {
+        win_data.xdg_surface_stable =
+            xdg_shell_get_xdg_surface (wl_data.xdg_shell_stable,
+                                       win_data.wl_surface);
+        g_assert_nonnull (win_data.xdg_surface_stable);
+
+        xdg_surface_add_listener(win_data.xdg_surface_stable,
+                                 &xdg_surface_listener_stable,
+                                 NULL);
+        xdg_surface_set_title (win_data.xdg_surface_stable,
+                               COG_DEFAULT_APPNAME);
+        xdg_surface_set_app_id (win_data.xdg_surface_stable,
+                                app_id);
+
+        configure_surface_geometry (0, 0);
+        xdg_surface_set_window_geometry (win_data.xdg_surface_stable,
+                                         0, 0, DEFAULT_WIDTH, DEFAULT_HEIGHT);
+
     } else if (wl_data.fshell != NULL) {
         zwp_fullscreen_shell_v1_present_surface (wl_data.fshell,
                                                  win_data.wl_surface,
@@ -1296,6 +1354,8 @@ create_window (GError **error)
     if (env_var != NULL && g_ascii_strtod(env_var, NULL) >= 1.0) {
         if (wl_data.xdg_shell != NULL) {
             zxdg_toplevel_v6_set_fullscreen(win_data.xdg_toplevel, NULL);
+        } else if (wl_data.xdg_shell_stable) {
+            xdg_surface_set_fullscreen (win_data.xdg_surface_stable, NULL);
         } else if (wl_data.shell != NULL) {
             wl_shell_surface_set_fullscreen (win_data.shell_surface,
                                              WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE,
