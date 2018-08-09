@@ -24,6 +24,8 @@
 #include <wayland-egl.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 
 /* for mmap */
 #include <sys/mman.h>
@@ -88,6 +90,7 @@ static struct {
 static struct {
     struct egl_display *display;
     EGLContext context;
+    PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEglImageTargetTexture2D;
     EGLConfig egl_config;
 } egl_data;
 
@@ -105,6 +108,12 @@ static struct {
 
     bool is_fullscreen;
 } win_data;
+
+static struct gl_data {
+    GLuint program;
+    GLuint tex;
+    GLuint tex_loc;
+} gl_data = {0, };
 
 static struct {
     struct xkb_context* context;
@@ -129,7 +138,6 @@ static struct {
 static struct {
     struct wpe_view_backend *backend;
     EGLImageKHR image;
-    struct wl_buffer *buffer;
     struct wl_callback *frame_callback;
 } wpe_view_data = {NULL, };
 
@@ -139,6 +147,8 @@ struct wl_event_source {
     GPollFD pfd;
     struct wl_display* display;
 };
+
+static bool init_gles (GError **error);
 
 static gboolean
 wl_src_prepare (GSource *base, gint *timeout)
@@ -992,14 +1002,6 @@ on_surface_frame (void *data, struct wl_callback *callback, uint32_t time)
 
     wpe_view_backend_exportable_fdo_dispatch_frame_complete
         (wpe_host_data.exportable);
-
-    if (wpe_view_data.image != NULL) {
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_image (wpe_host_data.exportable,
-                                                                    wpe_view_data.image);
-        wpe_view_data.image = NULL;
-    }
-
-    g_clear_pointer (&wpe_view_data.buffer, wl_buffer_destroy);
 }
 
 static const struct wl_callback_listener frame_listener = {
@@ -1018,32 +1020,63 @@ request_frame (void)
                               NULL);
 }
 
+static void
+draw (void)
+{
+    glViewport (0, 0, win_data.width, win_data.height);
+
+    egl_data.glEglImageTargetTexture2D (GL_TEXTURE_2D, wpe_view_data.image);
+
+    static const GLfloat s_vertices[4][2] = {
+        { -1.0,  1.0 },
+        {  1.0,  1.0 },
+        { -1.0, -1.0 },
+        {  1.0, -1.0 },
+    };
+
+    static const GLfloat s_texturePos[4][2] = {
+        { 0, 0 },
+        { 1, 0 },
+        { 0, 1 },
+        { 1, 1 },
+    };
+
+    glVertexAttribPointer (0, 2, GL_FLOAT, GL_FALSE, 0, s_vertices);
+    glVertexAttribPointer (1, 2, GL_FLOAT, GL_FALSE, 0, s_texturePos);
+
+    glEnableVertexAttribArray (0);
+    glEnableVertexAttribArray (1);
+
+    glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+
+    glDisableVertexAttribArray (0);
+    glDisableVertexAttribArray (1);
+
+    request_frame ();
+
+    eglSwapBuffers (egl_data.display, win_data.egl_surface);
+}
 
 static void
 on_export_egl_image(void *data, EGLImageKHR image)
 {
-    wpe_view_data.image = image;
-
-    static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
-        eglCreateWaylandBufferFromImageWL;
-    if (eglCreateWaylandBufferFromImageWL == NULL) {
-        eglCreateWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
-            eglGetProcAddress ("eglCreateWaylandBufferFromImageWL");
-        g_assert_nonnull (eglCreateWaylandBufferFromImageWL);
+    if (!gl_data.program) {
+        GError *error = NULL;
+        if (!init_gles (&error)) {
+            g_debug ("Error initializing GLES: %s\n", error->message);
+            g_error_free (error);
+            return;
+        }
     }
 
-    wpe_view_data.buffer = eglCreateWaylandBufferFromImageWL (egl_data.display,
-                                                              wpe_view_data.image);
-    g_assert_nonnull (wpe_view_data.buffer);
+    if (wpe_view_data.image) {
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_image (wpe_host_data.exportable,
+                                                                    wpe_view_data.image);
+    }
 
-    wl_surface_attach (win_data.wl_surface, wpe_view_data.buffer, 0, 0);
-    wl_surface_damage (win_data.wl_surface,
-                       0, 0,
-                       win_data.width, win_data.height);
+    wpe_view_data.image = image;
 
-    request_frame ();
-
-    wl_surface_commit (win_data.wl_surface);
+    draw ();
 }
 
 static gboolean
@@ -1175,6 +1208,10 @@ init_egl (GError **error)
         return FALSE;
     }
 
+    egl_data.glEglImageTargetTexture2D = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)
+        eglGetProcAddress ("glEGLImageTargetTexture2DOES");
+    g_assert_nonnull (egl_data.glEglImageTargetTexture2D);
+
     return TRUE;
 }
 
@@ -1264,16 +1301,6 @@ create_window (GError **error)
     wl_surface_commit (win_data.wl_surface);
     wl_display_flush (wl_data.display);
 
-    /* Activate window */
-    if (!eglMakeCurrent (egl_data.display,
-                         win_data.egl_surface,
-                         win_data.egl_surface,
-                         egl_data.context)) {
-        ERR_EGL (error, "Cannot activate EGL context");
-        destroy_window ();
-        return FALSE;
-    }
-
     const char* env_var = g_getenv("COG_PLATFORM_FDO_VIEW_FULLSCREEN");
     if (env_var != NULL && g_ascii_strtod(env_var, NULL) >= 1.0) {
         if (wl_data.xdg_shell != NULL) {
@@ -1348,6 +1375,131 @@ clear_input (void)
     g_clear_pointer (&xkb_data.context, xkb_context_unref);
 }
 
+static bool
+gl_utils_print_shader_log (GLuint shader)
+{
+    GLint length;
+    char buffer[4096] = {0};
+    GLint success;
+
+    glGetShaderiv (shader, GL_INFO_LOG_LENGTH, &length);
+    if (length == 0)
+        return true;
+
+    glGetShaderInfoLog (shader, 4096, NULL, buffer);
+    if (strlen (buffer) > 0)
+        printf ("Shader compilation log: %s\n", buffer);
+
+    glGetShaderiv (shader, GL_COMPILE_STATUS, &success);
+
+    return success == GL_TRUE;
+}
+
+static GLuint
+gl_utils_load_shader (const char *shader_source, GLenum type)
+{
+    GLuint shader = glCreateShader (type);
+
+    glShaderSource (shader, 1, &shader_source, NULL);
+    g_assert (glGetError () == GL_NO_ERROR);
+    glCompileShader (shader);
+    g_assert (glGetError () == GL_NO_ERROR);
+
+    if (!gl_utils_print_shader_log (shader)) {
+        glDeleteShader (shader);
+        return 0;
+    }
+
+    return shader;
+}
+
+static bool
+init_gles (GError **error)
+{
+    if (!eglMakeCurrent (egl_data.display,
+                         win_data.egl_surface,
+                         win_data.egl_surface,
+                         egl_data.context)) {
+        ERR_EGL (error, "Cannot activate EGL context");
+        return FALSE;
+    }
+
+    const char *VERTEX_SOURCE =
+        "attribute vec2 pos;\n"
+        "attribute vec2 texture;\n"
+        "varying vec2 v_texture;\n"
+        "void main() {\n"
+        "  v_texture = texture;\n"
+        "  gl_Position = vec4(pos, 0, 1);\n"
+        "}\n";
+
+    const char *FRAGMENT_SOURCE =
+        "precision mediump float;\n"
+        "uniform sampler2D u_tex;\n"
+        "varying vec2 v_texture;\n"
+        "void main() {\n"
+        "  gl_FragColor = texture2D(u_tex, v_texture);\n"
+        "}\n";
+
+    GLuint vertex_shader = gl_utils_load_shader (VERTEX_SOURCE,
+                                                 GL_VERTEX_SHADER);
+    g_assert (vertex_shader >= 0);
+    g_assert (glGetError () == GL_NO_ERROR);
+
+    GLuint fragment_shader = gl_utils_load_shader (FRAGMENT_SOURCE,
+                                                   GL_FRAGMENT_SHADER);
+    g_assert (fragment_shader >= 0);
+    g_assert (glGetError () == GL_NO_ERROR);
+
+    gl_data.program = glCreateProgram ();
+    g_assert (glGetError () == GL_NO_ERROR);
+    glAttachShader (gl_data.program, vertex_shader);
+    g_assert (glGetError () == GL_NO_ERROR);
+    glAttachShader (gl_data.program, fragment_shader);
+    g_assert (glGetError () == GL_NO_ERROR);
+
+    glBindAttribLocation (gl_data.program, 0, "pos");
+    glBindAttribLocation (gl_data.program, 1, "texture");
+
+    glLinkProgram (gl_data.program);
+    g_assert (glGetError () == GL_NO_ERROR);
+
+    glDeleteShader (vertex_shader);
+    glDeleteShader (fragment_shader);
+
+    glUseProgram (gl_data.program);
+    g_assert (glGetError () == GL_NO_ERROR);
+
+    glEnable (GL_BLEND);
+    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    gl_data.tex_loc = glGetUniformLocation (gl_data.program, "u_tex");
+    g_assert (gl_data.tex_loc != -1);
+
+    glGenTextures (1, &gl_data.tex);
+    g_assert (glGetError () == GL_NO_ERROR);
+    g_assert (gl_data.tex > 0);
+    glBindTexture (GL_TEXTURE_2D, gl_data.tex);
+    g_assert (glGetError () == GL_NO_ERROR);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glActiveTexture (GL_TEXTURE0);
+    glUniform1i (gl_data.tex_loc, 0);
+
+    return TRUE;
+}
+
+static void
+clear_gles (void)
+{
+    glUseProgram (0);
+    glDeleteProgram (gl_data.program);
+    glDeleteTextures (1, &gl_data.tex);
+}
+
 gboolean
 cog_platform_setup (CogPlatform *platform,
                     CogShell    *shell G_GNUC_UNUSED,
@@ -1360,28 +1512,27 @@ cog_platform_setup (CogPlatform *platform,
     if (!init_wayland (error))
         return FALSE;
 
-    if (!init_egl (error)) {
-        clear_wayland ();
-        return FALSE;
-    }
+    if (!init_input (error))
+        goto error_out;
 
-    if (!create_window (error)) {
-        clear_egl ();
-        clear_wayland ();
-        return FALSE;
-    }
+    if (!init_egl (error))
+        goto error_out;
 
-    if (!init_input (error)) {
-        destroy_window ();
-        clear_egl ();
-        clear_wayland ();
-        return FALSE;
-    }
+    if (!create_window (error))
+      goto error_out;
 
     /* init WPE host data */
     wpe_fdo_initialize_for_egl_display (egl_data.display);
 
     return TRUE;
+
+ error_out:
+    destroy_window ();
+    clear_egl ();
+    clear_input ();
+    clear_wayland ();
+
+    return FALSE;
 }
 
 void
@@ -1396,7 +1547,6 @@ cog_platform_teardown (CogPlatform *platform)
         wpe_view_backend_exportable_fdo_egl_dispatch_release_image (wpe_host_data.exportable,
                                                                     wpe_view_data.image);
     }
-    g_clear_pointer (&wpe_view_data.buffer, wl_buffer_destroy);
 
     /* @FIXME: check why this segfaults
     wpe_view_backend_destroy (wpe_view_data.backend);
@@ -1407,9 +1557,10 @@ cog_platform_teardown (CogPlatform *platform)
     wpe_view_backend_exportable_fdo_destroy (wpe_host_data.exportable);
     */
 
-    clear_input ();
+    clear_gles ();
     destroy_window ();
     clear_egl ();
+    clear_input ();
     clear_wayland ();
 }
 

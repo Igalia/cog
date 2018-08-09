@@ -21,6 +21,9 @@ G_BEGIN_DECLS
 #define COG_PLATFORM_EGL_ERROR  (cog_platform_egl_error_quark ())
 GQuark cog_platform_egl_error_quark (void);
 
+#define COG_PLATFORM_GLES_ERROR  (cog_platform_gles_error_quark ())
+GQuark cog_platform_gles_error_quark (void);
+
 
 /* @FIXME: Eventually move this interface to GObject. */
 typedef struct _CogPlatform CogPlatform;
