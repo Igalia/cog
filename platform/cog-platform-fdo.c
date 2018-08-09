@@ -88,8 +88,6 @@ static struct {
 static struct {
     struct egl_display *display;
     EGLContext context;
-    PFNEGLCREATEIMAGEKHRPROC eglCreateImage;
-    PFNEGLDESTROYIMAGEKHRPROC eglDestroyImage;
     EGLConfig egl_config;
 } egl_data;
 
@@ -1177,22 +1175,6 @@ init_egl (GError **error)
         return FALSE;
     }
 
-    egl_data.eglCreateImage = (PFNEGLCREATEIMAGEKHRPROC)
-        eglGetProcAddress ("eglCreateImageKHR");
-    if (!egl_data.eglCreateImage) {
-        ERR_EGL (error, "Cannot resolve eglCreateImageKHR extension function");
-        clear_egl ();
-        return FALSE;
-    }
-
-    egl_data.eglDestroyImage = (PFNEGLDESTROYIMAGEKHRPROC)
-        eglGetProcAddress ("eglDestroyImageKHR");
-    if (!egl_data.eglDestroyImage) {
-        ERR_EGL (error, "Cannot resolve eglDestroyImageKHR extension function");
-        clear_egl ();
-        return FALSE;
-    }
-
     return TRUE;
 }
 
@@ -1410,8 +1392,10 @@ cog_platform_teardown (CogPlatform *platform)
     /* free WPE view data */
     if (wpe_view_data.frame_callback != NULL)
         wl_callback_destroy (wpe_view_data.frame_callback);
-    if (wpe_view_data.image != NULL)
-        egl_data.eglDestroyImage (egl_data.display, wpe_view_data.image);
+    if (wpe_view_data.image != NULL) {
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_image (wpe_host_data.exportable,
+                                                                    wpe_view_data.image);
+    }
     g_clear_pointer (&wpe_view_data.buffer, wl_buffer_destroy);
 
     /* @FIXME: check why this segfaults
