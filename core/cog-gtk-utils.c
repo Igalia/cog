@@ -17,7 +17,7 @@ cog_gtk_create_window (CogLauncher *launcher)
 
     g_return_val_if_fail (launcher, NULL);
 
-    GtkWidget *web_view = GTK_WIDGET (cog_launcher_get_web_view (launcher));
+    GtkWidget *web_view = GTK_WIDGET (cog_shell_get_web_view (cog_launcher_get_shell (launcher)));
     g_return_val_if_fail (web_view, NULL);
 
     gtk_window_set_default_icon_name ("applications-internet");
@@ -71,7 +71,7 @@ cog_gtk_present_window (CogLauncher *launcher)
 {
     g_return_if_fail (COG_IS_LAUNCHER (launcher));
 
-    GtkWidget *web_view = GTK_WIDGET (cog_launcher_get_web_view (launcher));
+    GtkWidget *web_view = GTK_WIDGET (cog_shell_get_web_view (cog_launcher_get_shell (launcher)));
     g_assert_nonnull (web_view);
 
     GtkWidget *toplevel = gtk_widget_get_toplevel (web_view);
