@@ -6,9 +6,12 @@
  * Distributed under terms of the MIT license.
  */
 
+#define _GNU_SOURCE 1
+
 #include <cog.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <wpe/webkit.h>
@@ -40,11 +43,23 @@
 
 #define DEFAULT_ZOOM_STEP 0.1f
 
+#define SHM_BUF_WIDTH  128
+#define SHM_BUF_HEIGHT SHM_BUF_WIDTH
+#define SHM_BUF_FORMAT WL_SHM_FORMAT_ARGB8888
+#define SHM_BUF_BPP    32
+#define SHM_BUF_SIZE  (SHM_BUF_WIDTH * SHM_BUF_HEIGHT * SHM_BUF_BPP / 8)
+
 
 static struct {
     struct wl_display *display;
     struct wl_registry *registry;
     struct wl_compositor *compositor;
+
+    int shm_fd;
+    struct wl_shm *shm;
+    struct wl_shm_pool *shm_pool;
+    struct wl_buffer *transparent_buffer;
+    gboolean transparent;
 
     struct zxdg_shell_v6 *xdg_shell;
     struct zwp_fullscreen_shell_v1 *fshell;
@@ -83,7 +98,9 @@ static struct {
     } touch;
 
     GSource *event_src;
-} wl_data = {NULL, };
+} wl_data = {
+    .shm_fd = -1,
+};
 
 static struct {
     struct egl_display *display;
@@ -277,7 +294,7 @@ shell_surface_configure (void *data,
 {
     configure_surface_geometry (width, height);
 
-    printf ("New wl_shell configuration: (%u, %u)\n", width, height);
+    g_printerr ("New wl_shell configuration: (%u, %u)\n", width, height);
 
     resize_window ();
 }
@@ -317,7 +334,7 @@ xdg_toplevel_on_configure (void *data,
 {
     configure_surface_geometry (width, height);
 
-    printf ("New XDG toplevel configuration: (%u, %u)\n", width, height);
+    g_printerr ("New XDG toplevel configuration: (%u, %u)\n", width, height);
 
     resize_window ();
 }
@@ -341,19 +358,19 @@ registry_global (void               *data,
                  uint32_t            version)
 {
     if (strcmp (interface, wl_compositor_interface.name) == 0) {
-        printf ("Wayland: Got a wl_compositor interface\n");
+        g_printerr ("Wayland: Got a wl_compositor interface\n");
         wl_data.compositor = wl_registry_bind (registry,
                                                name,
                                                &wl_compositor_interface,
                                                version);
     } else if (strcmp (interface, wl_shell_interface.name) == 0) {
-        printf ("Wayland: Got a wl_shell interface\n");
+        g_printerr ("Wayland: Got a wl_shell interface\n");
         wl_data.shell = wl_registry_bind (registry,
                                           name,
                                           &wl_shell_interface,
                                           version);
     } else if (strcmp (interface, zxdg_shell_v6_interface.name) == 0) {
-        printf ("Wayland: Got an xdg_shell interface\n");
+        g_printerr ("Wayland: Got an xdg_shell interface\n");
         wl_data.xdg_shell = wl_registry_bind (registry,
                                               name,
                                               &zxdg_shell_v6_interface,
@@ -362,19 +379,78 @@ registry_global (void               *data,
         zxdg_shell_v6_add_listener (wl_data.xdg_shell, &xdg_shell_listener, NULL);
     } else if (strcmp (interface,
                        zwp_fullscreen_shell_v1_interface.name) == 0) {
-        printf ("Wayland: Got a fullscreen_shell interface\n");
+        g_printerr ("Wayland: Got a fullscreen_shell interface\n");
         wl_data.fshell = wl_registry_bind (registry,
                                            name,
                                            &zwp_fullscreen_shell_v1_interface,
                                            version);
     } else if (strcmp (interface, wl_seat_interface.name) == 0) {
-        printf ("Wayland: Got a wl_seat interface\n");
+        g_printerr ("Wayland: Got a wl_seat interface\n");
         wl_data.seat = wl_registry_bind (registry,
                                          name,
                                          &wl_seat_interface,
                                          version);
+    } else if (strcmp (interface, wl_shm_interface.name) == 0) {
+        g_printerr ("Wayland: Got a wl_shm interface\n");
+        wl_data.shm = wl_registry_bind (registry,
+                                        name,
+                                        &wl_shm_interface,
+                                        version);
+        g_autofree char *file_path = g_strdup_printf ("%s%ccog-fdo-XXXXXX",
+                                                      g_get_user_runtime_dir (),
+                                                      G_DIR_SEPARATOR);
+        if ((wl_data.shm_fd = mkostemp (file_path, O_CLOEXEC)) < 0) {
+            g_warning ("Failed to open SHM file (template '%s'): %s",
+                       file_path, strerror (errno));
+        } else {
+            unlink (file_path);
+            ftruncate (wl_data.shm_fd, 128 * 128 * 4);
+            wl_data.shm_pool = wl_shm_create_pool (wl_data.shm,
+                                                   wl_data.shm_fd,
+                                                   SHM_BUF_SIZE);
+            wl_data.transparent_buffer =
+                wl_shm_pool_create_buffer (wl_data.shm_pool,
+                                           0,
+                                           SHM_BUF_WIDTH,
+                                           SHM_BUF_HEIGHT,
+                                           SHM_BUF_WIDTH * SHM_BUF_BPP / 8,
+                                           SHM_BUF_FORMAT);
+            // Start as a transparent window.
+            wl_data.transparent = TRUE;
+            g_printerr ("Wayland: Created SHM wl_buffer @ %p\n",
+                        wl_data.transparent_buffer);
+        }
+    } else {
+        g_printerr ("Wayland: Ignored interface from registry: %s\n", interface);
     }
 }
+
+
+static void request_frame (void);
+
+
+G_MODULE_EXPORT void
+cog_platform_fdo_set_transparent (gboolean value)
+{
+    if (wl_data.transparent == value)
+        return;
+
+    g_printerr ("Wayland: Set surface transparent: %s\n", value ? "yes" : "no");
+    wl_data.transparent = value;
+
+    // Might be NULL if called *very* early during initialization.
+    if (!(win_data.wl_surface && wl_data.transparent_buffer))
+        return;
+
+    if (wl_data.transparent) {
+        wl_surface_attach (win_data.wl_surface, wl_data.transparent_buffer, 0, 0);
+    }
+
+    wl_surface_damage (win_data.wl_surface, 0, 0, win_data.width, win_data.height);
+    request_frame ();
+    wl_surface_commit (win_data.wl_surface);
+}
+
 
 static void
 pointer_on_enter (void* data,
@@ -921,7 +997,7 @@ static const struct wl_touch_listener touch_listener = {
 static void
 seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
 {
-    printf ("Seat caps: ");
+    g_printerr ("Seat caps: ");
 
     /* Pointer */
     const bool has_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
@@ -929,7 +1005,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
         wl_data.pointer.obj = wl_seat_get_pointer (wl_data.seat);
         g_assert_nonnull (wl_data.pointer.obj);
         wl_pointer_add_listener (wl_data.pointer.obj, &pointer_listener, NULL);
-        printf ("Pointer ");
+        g_printerr ("Pointer ");
     } else if (! has_pointer && wl_data.pointer.obj != NULL) {
         wl_pointer_release (wl_data.pointer.obj);
         wl_data.pointer.obj = NULL;
@@ -941,7 +1017,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
         wl_data.keyboard.obj = wl_seat_get_keyboard (wl_data.seat);
         g_assert_nonnull (wl_data.keyboard.obj);
         wl_keyboard_add_listener (wl_data.keyboard.obj, &keyboard_listener, NULL);
-        printf ("Keyboard ");
+        g_printerr ("Keyboard ");
     } else if (! has_keyboard && wl_data.keyboard.obj != NULL) {
         wl_keyboard_release (wl_data.keyboard.obj);
         wl_data.keyboard.obj = NULL;
@@ -953,19 +1029,19 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
         wl_data.touch.obj = wl_seat_get_touch (wl_data.seat);
         g_assert_nonnull (wl_data.touch.obj);
         wl_touch_add_listener (wl_data.touch.obj, &touch_listener, NULL);
-        printf ("Touch ");
+        g_printerr ("Touch ");
     } else if (! has_touch && wl_data.touch.obj != NULL) {
         wl_touch_release (wl_data.touch.obj);
         wl_data.touch.obj = NULL;
     }
 
-    printf ("\n");
+    g_printerr ("\n");
 }
 
 static void
 seat_on_name (void *data, struct wl_seat *seat, const char *name)
 {
-    printf ("Seat name '%s'\n", name);
+    g_printerr ("Seat name '%s'\n", name);
 }
 
 static const struct wl_seat_listener seat_listener = {
@@ -992,8 +1068,7 @@ on_surface_frame (void *data, struct wl_callback *callback, uint32_t time)
         wpe_view_data.frame_callback = NULL;
     }
 
-    wpe_view_backend_exportable_fdo_dispatch_frame_complete
-        (wpe_host_data.exportable);
+    wpe_view_backend_exportable_fdo_dispatch_frame_complete (wpe_host_data.exportable);
 
     if (wpe_view_data.image != NULL) {
         wpe_view_backend_exportable_fdo_egl_dispatch_release_image (wpe_host_data.exportable,
@@ -1038,7 +1113,11 @@ on_export_egl_image(void *data, EGLImageKHR image)
                                                               wpe_view_data.image);
     g_assert_nonnull (wpe_view_data.buffer);
 
-    wl_surface_attach (win_data.wl_surface, wpe_view_data.buffer, 0, 0);
+    if (wl_data.transparent) {
+        wl_surface_attach (win_data.wl_surface, wl_data.transparent_buffer, 0, 0);
+    } else {
+        wl_surface_attach (win_data.wl_surface, wpe_view_data.buffer, 0, 0);
+    }
     wl_surface_damage (win_data.wl_surface,
                        0, 0,
                        win_data.width, win_data.height);
