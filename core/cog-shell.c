@@ -7,6 +7,10 @@
 
 #include "cog-shell.h"
 
+#ifndef COG_SHELL_DEFAULT_HOME_URI
+#define COG_SHELL_DEFAULT_HOME_URI "about:blank"
+#endif // !COG_SHELL_DEFAULT_HOME_URI
+
 
 typedef struct {
     char             *name;
@@ -268,7 +272,7 @@ cog_shell_class_init (CogShellClass *klass)
         g_param_spec_string ("home-uri",
                              "Home URI",
                              "URI initially loaded by the Web view",
-                             NULL,
+                             COG_SHELL_DEFAULT_HOME_URI,
                              G_PARAM_READWRITE |
                              G_PARAM_STATIC_STRINGS);
 
@@ -363,10 +367,14 @@ cog_shell_set_home_uri (CogShell   *shell,
 
     CogShellPrivate *priv = PRIV (shell);
 
+    if (!uri)
+        uri = COG_SHELL_DEFAULT_HOME_URI;
+
     if (g_strcmp0 (priv->home_uri, uri) == 0)
         return;
 
-    priv->home_uri = uri ? g_strdup (uri) : NULL;
+    g_assert_nonnull (priv->home_uri);
+    priv->home_uri = g_strdup (uri);
     g_object_notify_by_pspec (G_OBJECT (shell),
                               s_properties[PROP_HOME_URI]);
 }
