@@ -26,6 +26,7 @@ enum webprocess_fail_action {
 
 
 static struct {
+    char    *home_uri;
     gboolean version;
     gboolean print_appid;
     gboolean doc_viewer;
@@ -198,7 +199,7 @@ on_handle_local_options (GApplication *application,
         cog_shell_set_request_handler (shell, s_options.dir_handlers[i], handler);
     }
 
-    cog_shell_set_home_uri (shell, utf8_uri);
+    s_options.home_uri = g_steal_pointer (&utf8_uri);
 
     return -1;  /* Continue startup. */
 }
@@ -331,6 +332,9 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
 
     cog_web_view_connect_default_progress_handlers (web_view);
     cog_web_view_connect_default_error_handlers (web_view);
+
+    webkit_web_view_load_uri (web_view, s_options.home_uri);
+    g_clear_pointer (&s_options.home_uri, g_free);
 
     return g_steal_pointer (&web_view);
 }

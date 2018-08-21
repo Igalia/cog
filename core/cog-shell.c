@@ -10,7 +10,6 @@
 
 typedef struct {
     char             *name;
-    char             *home_uri;
     WebKitSettings   *web_settings;
     WebKitWebContext *web_context;
     WebKitWebView    *web_view;
@@ -26,7 +25,6 @@ G_DEFINE_TYPE_WITH_PRIVATE (CogShell, cog_shell, G_TYPE_OBJECT)
 enum {
     PROP_0,
     PROP_NAME,
-    PROP_HOME_URI,
     PROP_WEB_SETTINGS,
     PROP_WEB_CONTEXT,
     PROP_WEB_VIEW,
@@ -130,8 +128,6 @@ cog_shell_startup_base (CogShell *shell)
      */
     g_assert (webkit_web_view_get_settings (priv->web_view) == priv->web_settings);
     g_assert (webkit_web_view_get_context (priv->web_view) == priv->web_context);
-
-    webkit_web_view_load_uri (priv->web_view, priv->home_uri);
 }
 
 
@@ -152,9 +148,6 @@ cog_shell_get_property (GObject    *object,
     switch (prop_id) {
         case PROP_NAME:
             g_value_set_string (value, cog_shell_get_name (shell));
-            break;
-        case PROP_HOME_URI:
-            g_value_set_string (value, cog_shell_get_home_uri (shell));
             break;
         case PROP_WEB_SETTINGS:
             g_value_set_object (value, cog_shell_get_web_settings (shell));
@@ -181,9 +174,6 @@ cog_shell_set_property (GObject      *object,
     switch (prop_id) {
         case PROP_NAME:
             PRIV (shell)->name = g_value_dup_string (value);
-            break;
-        case PROP_HOME_URI:
-            cog_shell_set_home_uri (shell, g_value_get_string (value));
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -225,7 +215,6 @@ cog_shell_dispose (GObject *object)
     g_clear_object (&priv->web_settings);
 
     g_clear_pointer (&priv->request_handlers, g_hash_table_unref);
-    g_clear_pointer (&priv->home_uri, g_free);
 
     G_OBJECT_CLASS (cog_shell_parent_class)->dispose (object);
 }
@@ -262,14 +251,6 @@ cog_shell_class_init (CogShellClass *klass)
                              NULL,
                              G_PARAM_READWRITE |
                              G_PARAM_CONSTRUCT_ONLY |
-                             G_PARAM_STATIC_STRINGS);
-
-    s_properties[PROP_HOME_URI] =
-        g_param_spec_string ("home-uri",
-                             "Home URI",
-                             "URI initially loaded by the Web view",
-                             NULL,
-                             G_PARAM_READWRITE |
                              G_PARAM_STATIC_STRINGS);
 
     s_properties[PROP_WEB_SETTINGS] =
@@ -344,31 +325,6 @@ cog_shell_get_name (CogShell *shell)
 {
     g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
     return PRIV (shell)->name;
-}
-
-
-const char*
-cog_shell_get_home_uri (CogShell *shell)
-{
-    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
-    return PRIV (shell)->home_uri;
-}
-
-
-void
-cog_shell_set_home_uri (CogShell   *shell,
-                        const char *uri)
-{
-    g_return_if_fail (COG_IS_SHELL (shell));
-
-    CogShellPrivate *priv = PRIV (shell);
-
-    if (g_strcmp0 (priv->home_uri, uri) == 0)
-        return;
-
-    priv->home_uri = uri ? g_strdup (uri) : NULL;
-    g_object_notify_by_pspec (G_OBJECT (shell),
-                              s_properties[PROP_HOME_URI]);
 }
 
 
