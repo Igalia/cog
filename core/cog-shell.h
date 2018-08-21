@@ -35,9 +35,6 @@ const char       *cog_shell_get_name            (CogShell          *shell);
 WebKitWebContext *cog_shell_get_web_context     (CogShell          *shell);
 WebKitSettings   *cog_shell_get_web_settings    (CogShell          *shell);
 WebKitWebView    *cog_shell_get_web_view        (CogShell          *shell);
-const char       *cog_shell_get_home_uri        (CogShell          *shell);
-void              cog_shell_set_home_uri        (CogShell          *shell,
-                                                 const char        *uri);
 void              cog_shell_set_request_handler (CogShell          *shell,
                                                  const char        *scheme,
                                                  CogRequestHandler *handler);
