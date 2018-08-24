@@ -38,7 +38,7 @@
 #include "fullscreen-shell-unstable-v1-client-protocol.h"
 
 #define DEFAULT_WIDTH  1024
-#define DEFAULT_HEIGHT  768
+#define DEFAULT_HEIGHT  600
 
 #define DEFAULT_ZOOM_STEP 0.1f
 
@@ -153,9 +153,9 @@ static struct {
     .frame_callback = NULL,
     .viewport = {
         .x = 0,
-        .y = 0,
+        .y = 60,
         .width = -1,
-        .height = -1,
+        .height = 600 - 60,
     },
 };
 
