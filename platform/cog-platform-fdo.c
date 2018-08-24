@@ -107,6 +107,7 @@ static struct {
     uint32_t height;
 
     bool is_fullscreen;
+    bool is_transparent;
 } win_data;
 
 static struct gl_data {
@@ -1025,6 +1026,17 @@ draw (void)
 {
     glViewport (0, 0, win_data.width, win_data.height);
 
+    if (win_data.is_transparent) {
+        glClearColor (0.0, 0.0, 0.0, 0.0);
+        glClear (GL_COLOR_BUFFER_BIT);
+
+        eglSwapBuffers (egl_data.display, win_data.egl_surface);
+        return;
+    }
+
+    if (!wpe_view_data.image)
+        return;
+
     egl_data.glEglImageTargetTexture2D (GL_TEXTURE_2D, wpe_view_data.image);
 
     static const GLfloat s_vertices[4][2] = {
@@ -1178,7 +1190,7 @@ init_egl (GError **error)
         EGL_RED_SIZE,     8,
         EGL_GREEN_SIZE,   8,
         EGL_BLUE_SIZE,    8,
-        EGL_ALPHA_SIZE,   0,
+        EGL_ALPHA_SIZE,   8,
         EGL_DEPTH_SIZE,   0,
         EGL_STENCIL_SIZE, 0,
         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
@@ -1313,6 +1325,8 @@ create_window (GError **error)
         }
         win_data.is_fullscreen = TRUE;
     }
+
+    win_data.is_transparent = FALSE;
 
     return TRUE;
 }
@@ -1592,4 +1606,14 @@ cog_platform_get_view_backend (CogPlatform   *platform,
     g_assert_nonnull (wk_view_backend);
 
     return wk_view_backend;
+}
+
+void
+cog_platform_view_set_transparent (CogPlatform *platform,
+                                   gboolean transparent)
+{
+    g_return_if_fail (platform != NULL);
+
+    win_data.is_transparent = transparent;
+    draw ();
 }
