@@ -139,7 +139,24 @@ static struct {
     struct wpe_view_backend *backend;
     EGLImageKHR image;
     struct wl_callback *frame_callback;
-} wpe_view_data = {NULL, };
+
+    struct {
+        int32_t x;
+        int32_t y;
+        int32_t width;
+        int32_t height;
+    } viewport;
+} wpe_view_data = {
+    .backend = NULL,
+    .image = NULL,
+    .frame_callback = NULL,
+    .viewport = {
+        .x = 0,
+        .y = 0,
+        .width = -1,
+        .height = -1,
+    },
+};
 
 
 struct wl_event_source {
@@ -149,6 +166,7 @@ struct wl_event_source {
 };
 
 static bool init_gles (GError **error);
+static void draw (void);
 
 static gboolean
 wl_src_prepare (GSource *base, gint *timeout)
@@ -264,9 +282,16 @@ resize_window (void)
                           win_data.height,
                           0, 0);
 
+    uint32_t width = wpe_view_data.viewport.width < 0 ?
+        win_data.width : (uint32_t) wpe_view_data.viewport.width;
+    uint32_t height = wpe_view_data.viewport.height < 0 ?
+        win_data.height : (uint32_t) wpe_view_data.viewport.height;
+
     wpe_view_backend_dispatch_set_size (wpe_view_data.backend,
-                                        win_data.width,
-                                        win_data.height);
+                                        width,
+                                        height);
+
+    draw ();
 }
 
 static void
@@ -1027,11 +1052,26 @@ draw (void)
 
     egl_data.glEglImageTargetTexture2D (GL_TEXTURE_2D, wpe_view_data.image);
 
-    static const GLfloat s_vertices[4][2] = {
-        { -1.0,  1.0 },
-        {  1.0,  1.0 },
-        { -1.0, -1.0 },
-        {  1.0, -1.0 },
+    /* Calculate the vertices based on the set viewport. */
+    float x = 2.0 / win_data.width * wpe_view_data.viewport.x;
+    float y =  2.0 / win_data.height * wpe_view_data.viewport.y;
+    float w = wpe_view_data.viewport.width < 0 ?
+        win_data.width : wpe_view_data.viewport.width;
+    w = 2.0 / win_data.width * w;
+    float h = wpe_view_data.viewport.height < 0 ?
+        win_data.height : wpe_view_data.viewport.height;
+    h = 2.0 / win_data.height * h;
+
+    float x1 = x - 1.0;
+    float x2 = (x + w) - 1.0;
+    float y1 = -y -h + 1.0;
+    float y2 = 1.0 - y;
+
+    const GLfloat s_vertices[4][2] = {
+        { x1, y2 },
+        { x2, y2 },
+        { x1, y1 },
+        { x2, y1 },
     };
 
     static const GLfloat s_texturePos[4][2] = {
@@ -1592,4 +1632,19 @@ cog_platform_get_view_backend (CogPlatform   *platform,
     g_assert_nonnull (wk_view_backend);
 
     return wk_view_backend;
+}
+
+void
+cog_platform_set_viewport (CogPlatform *platform,
+                           gint32 x,
+                           gint32 y,
+                           gint32 width,
+                           gint32 height)
+{
+    wpe_view_data.viewport.x = x;
+    wpe_view_data.viewport.y = y;
+    wpe_view_data.viewport.width = width;
+    wpe_view_data.viewport.height = height;
+
+    draw ();
 }
