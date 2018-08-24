@@ -1554,6 +1554,15 @@ clear_gles (void)
     glDeleteTextures (1, &gl_data.tex);
 }
 
+static gboolean
+toggle_transparency (gpointer user_data)
+{
+    win_data.is_transparent = !win_data.is_transparent;
+    draw ();
+
+    return TRUE;
+}
+
 gboolean
 cog_platform_setup (CogPlatform *platform,
                     CogShell    *shell G_GNUC_UNUSED,
@@ -1577,6 +1586,8 @@ cog_platform_setup (CogPlatform *platform,
 
     /* init WPE host data */
     wpe_fdo_initialize_for_egl_display (egl_data.display);
+
+    g_timeout_add (1000, toggle_transparency, NULL);
 
     return TRUE;
 
