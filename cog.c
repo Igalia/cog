@@ -204,6 +204,18 @@ on_handle_local_options (GApplication *application,
     return -1;  /* Continue startup. */
 }
 
+static gboolean
+toggle_transparency (gpointer user_data)
+{
+    CogPlatform *platform = user_data;
+    g_assert_nonnull (platform);
+
+    static bool is_transparent = false;
+    is_transparent = !is_transparent;
+    cog_platform_view_set_transparent (platform, is_transparent);
+
+    return TRUE;
+}
 
 #if !COG_USE_WEBKITGTK
 static gboolean
@@ -243,6 +255,9 @@ platform_setup (CogShell *shell)
     s_options.platform = g_steal_pointer (&platform);
 
     g_debug ("%s: Platform = %p", __func__, s_options.platform);
+
+    g_timeout_add (1000, toggle_transparency, s_options.platform);
+
     return TRUE;
 }
 
