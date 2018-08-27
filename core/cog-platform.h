@@ -28,22 +28,25 @@ GQuark cog_platform_gles_error_quark (void);
 /* @FIXME: Eventually move this interface to GObject. */
 typedef struct _CogPlatform CogPlatform;
 
-CogPlatform          *cog_platform_new              (void);
-void                  cog_platform_free             (CogPlatform   *platform);
+CogPlatform          *cog_platform_new                  (void);
+void                  cog_platform_free                 (CogPlatform   *platform);
 
-gboolean              cog_platform_try_load         (CogPlatform   *platform,
-                                                     const gchar   *soname);
+gboolean              cog_platform_try_load             (CogPlatform   *platform,
+                                                         const gchar   *soname);
 
-gboolean              cog_platform_setup            (CogPlatform   *platform,
-                                                     CogShell      *shell,
-                                                     const char    *params,
-                                                     GError       **error);
+gboolean              cog_platform_setup                (CogPlatform   *platform,
+                                                         CogShell      *shell,
+                                                         const char    *params,
+                                                         GError       **error);
 
-void                  cog_platform_teardown         (CogPlatform   *platform);
+void                  cog_platform_teardown             (CogPlatform   *platform);
 
-WebKitWebViewBackend *cog_platform_get_view_backend (CogPlatform   *platform,
-                                                     WebKitWebView *related_view,
-                                                     GError       **error);
+WebKitWebViewBackend *cog_platform_get_view_backend     (CogPlatform   *platform,
+                                                         WebKitWebView *related_view,
+                                                         GError       **error);
+
+void                  cog_platform_view_set_transparent (CogPlatform *platform,
+                                                         gboolean transparent);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (CogPlatform, cog_platform_free)
 

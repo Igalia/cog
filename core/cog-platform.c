@@ -19,16 +19,19 @@ G_DEFINE_QUARK (COG_PLATFORM_GLES_ERROR, cog_platform_gles_error)
 struct _CogPlatform {
     void *so;
 
-    gboolean              (*setup)            (CogPlatform *platform,
-                                               CogShell    *shell,
-                                               const char  *params,
-                                               GError     **error);
+    gboolean              (*setup)                (CogPlatform *platform,
+                                                   CogShell    *shell,
+                                                   const char  *params,
+                                                   GError     **error);
 
-    void                  (*teardown)         (CogPlatform *platform);
+    void                  (*teardown)             (CogPlatform *platform);
 
-    WebKitWebViewBackend* (*get_view_backend) (CogPlatform   *platform,
-                                               WebKitWebView *related_view,
-                                               GError       **error);
+    WebKitWebViewBackend* (*get_view_backend)     (CogPlatform   *platform,
+                                                   WebKitWebView *related_view,
+                                                   GError       **error);
+
+    void                  (*view_set_transparent) (CogPlatform *platform,
+                                                   gboolean transparent);
 };
 
 CogPlatform*
@@ -77,6 +80,9 @@ cog_platform_try_load (CogPlatform *platform,
     if (!platform->get_view_backend)
         goto err_out;
 
+    platform->view_set_transparent = dlsym (platform->so,
+                                            "cog_platform_view_set_transparent");
+
     return TRUE;
 
  err_out:
@@ -104,4 +110,14 @@ cog_platform_get_view_backend (CogPlatform   *platform,
     g_return_val_if_fail (platform != NULL, NULL);
 
     return platform->get_view_backend (platform, related_view, error);
+}
+
+void
+cog_platform_view_set_transparent (CogPlatform *platform,
+                                   gboolean transparent)
+{
+    g_return_if_fail (platform != NULL);
+
+    if (platform->view_set_transparent)
+        platform->view_set_transparent (platform, transparent);
 }
