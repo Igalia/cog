@@ -225,7 +225,7 @@ cmd_help (const char *name,
     if (argc == 1) {
         g_print ("Available commands:\n");
         const struct cmd *cmds = data;
-        for (unsigned i; cmds[i].name; i++) {
+        for (unsigned i = 0; cmds[i].name; i++) {
             if (cmds[i].desc) {
                 g_print ("  %-10s %s\n", cmds[i].name, cmds[i].desc);
             }
