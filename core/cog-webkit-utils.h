@@ -76,4 +76,9 @@ void cog_handle_web_view_load_changed (WebKitWebView  *web_view,
 void cog_web_view_connect_default_progress_handlers (WebKitWebView *web_view);
 
 
+gboolean cog_webkit_settings_apply_from_key_file (WebKitSettings *settings,
+                                                  GKeyFile       *key_file,
+                                                  const char     *group,
+                                                  GError        **error);
+
 G_END_DECLS
