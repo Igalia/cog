@@ -27,6 +27,7 @@ enum webprocess_fail_action {
 
 static struct {
     char    *home_uri;
+    char    *config_file;
     gboolean version;
     gboolean print_appid;
     gboolean doc_viewer;
@@ -71,6 +72,9 @@ static GOptionEntry s_cli_options[] =
         &s_options.on_failure.action_name,
         "Action on WebProcess failures: error-page (default), exit, exit-ok, restart.",
         "ACTION" },
+    { "config", 'C', 0, G_OPTION_ARG_FILENAME, &s_options.config_file,
+        "Path to a configuration file",
+        "PATH" },
 #if !COG_USE_WEBKITGTK
     { "platform", 'P', 0, G_OPTION_ARG_STRING, &s_options.platform_name,
         "Platform plug-in to use.",
@@ -80,6 +84,23 @@ static GOptionEntry s_cli_options[] =
         "", "[URL]" },
     { NULL }
 };
+
+
+static gboolean
+load_settings (CogShell *shell, GKeyFile *key_file, GError **error)
+{
+    if (g_key_file_has_group (key_file, "websettings")) {
+        WebKitSettings *settings = cog_shell_get_web_settings (shell);
+        if (!cog_webkit_settings_apply_from_key_file (settings,
+                                                      key_file,
+                                                      "websettings",
+                                                      error)) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
 
 
 static int
@@ -200,6 +221,31 @@ on_handle_local_options (GApplication *application,
     }
 
     s_options.home_uri = g_steal_pointer (&utf8_uri);
+
+    if (s_options.config_file) {
+        g_autoptr(GFile) file =
+            g_file_new_for_commandline_arg (s_options.config_file);
+        g_autofree char *config_file_path = g_file_get_path (file);
+
+        if (!g_file_query_exists (file, NULL)) {
+            g_printerr ("%s: File does not exist: %s\n",
+                        g_get_prgname (), config_file_path);
+            return EXIT_FAILURE;
+        }
+
+        g_autoptr(GError) error = NULL;
+        g_autoptr(GKeyFile) key_file = g_key_file_new ();
+        if (!g_key_file_load_from_file (key_file,
+                                        config_file_path,
+                                        G_KEY_FILE_NONE,
+                                        &error) ||
+            !load_settings (shell, key_file, &error))
+        {
+            g_printerr ("%s: Cannot load configuration file: %s\n",
+                        g_get_prgname (), error->message);
+            return EXIT_FAILURE;
+        }
+    }
 
     return -1;  /* Continue startup. */
 }

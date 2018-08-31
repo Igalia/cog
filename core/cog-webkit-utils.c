@@ -305,3 +305,87 @@ cog_web_view_connect_default_progress_handlers (WebKitWebView *web_view)
     for (unsigned i = 0; i < G_N_ELEMENTS (handlers); i++)
         g_signal_connect (web_view, handlers[i].sig, handlers[i].hnd, NULL);
 }
+
+
+gboolean
+cog_webkit_settings_apply_from_key_file (WebKitSettings *settings,
+                                         GKeyFile       *key_file,
+                                         const char     *group,
+                                         GError        **error)
+{
+    g_return_val_if_fail (WEBKIT_IS_SETTINGS (settings), FALSE);
+    g_return_val_if_fail (key_file != NULL, FALSE);
+
+    GObjectClass* object_class = G_OBJECT_GET_CLASS (settings);
+
+    unsigned n_properties = 0;
+    g_autofree GParamSpec* const* properties =
+        g_object_class_list_properties (object_class, &n_properties);
+
+    for (unsigned i = 0; i < n_properties; i++) {
+        g_autoptr(GError) lookup_error = NULL;
+        if (!g_key_file_has_key (key_file,
+                                 group,
+                                 properties[i]->name,
+                                 &lookup_error)) {
+            if (lookup_error) {
+                g_propagate_error (error, g_steal_pointer (&lookup_error));
+                return FALSE;
+            }
+            continue;  // Setting missing in GKeyFile, skip it.
+        }
+
+        const GType prop_type = G_PARAM_SPEC_VALUE_TYPE (properties[i]);
+        switch (prop_type) {
+            case G_TYPE_BOOLEAN: {
+                gboolean value = g_key_file_get_boolean (key_file,
+                                                         group,
+                                                         properties[i]->name,
+                                                         &lookup_error);
+                if (!value && lookup_error) {
+                    g_propagate_error (error, g_steal_pointer (&lookup_error));
+                    return FALSE;
+                }
+                g_object_set (settings, properties[i]->name, value, NULL);
+                break;
+            }
+
+            case G_TYPE_UINT: {
+                guint64 value = g_key_file_get_uint64 (key_file,
+                                                       group,
+                                                       properties[i]->name,
+                                                       &lookup_error);
+                if (value == 0 && lookup_error) {
+                    g_propagate_error (error, g_steal_pointer (&lookup_error));
+                    return FALSE;
+                } else if (value > G_MAXUINT) {
+                    g_set_error (error,
+                                 G_KEY_FILE_ERROR,
+                                 G_KEY_FILE_ERROR_INVALID_VALUE,
+                                 "Value for '%s' exceeds maximum integer size",
+                                 properties[i]->name);
+                    return FALSE;
+                }
+                g_object_set (settings, properties[i]->name, (guint) value, NULL);
+                break;
+            }
+
+            case G_TYPE_STRING: {
+                g_autofree char* value =
+                    g_key_file_get_string (key_file,
+                                           group,
+                                           properties[i]->name,
+                                           &lookup_error);
+                if (!value) {
+                    g_assert_nonnull (lookup_error);
+                    g_propagate_error (error, g_steal_pointer (&lookup_error));
+                    return FALSE;
+                }
+                g_object_set (settings, properties[i]->name, value, NULL);
+                break;
+            }
+        }
+    }
+
+    return TRUE;
+}
