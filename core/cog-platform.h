@@ -21,6 +21,14 @@ G_BEGIN_DECLS
 #define COG_PLATFORM_EGL_ERROR  (cog_platform_egl_error_quark ())
 GQuark cog_platform_egl_error_quark (void);
 
+#define COG_PLATFORM_WPE_ERROR  (cog_platform_wpe_error_quark ())
+GQuark cog_platform_wpe_error_quark (void);
+
+
+typedef enum {
+    COG_PLATFORM_WPE_ERROR_INIT,
+} CogPlatformWpeError;
+
 
 /* @FIXME: Eventually move this interface to GObject. */
 typedef struct _CogPlatform CogPlatform;

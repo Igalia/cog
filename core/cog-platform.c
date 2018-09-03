@@ -11,6 +11,7 @@
 
 
 G_DEFINE_QUARK (COG_PLATFORM_EGL_ERROR, cog_platform_egl_error)
+G_DEFINE_QUARK (COG_PLATFORM_WPE_ERROR, cog_platform_wpe_error)
 
 
 /* @FIXME: Move this implementation to use a GIO extension point. */
