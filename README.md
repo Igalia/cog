@@ -26,8 +26,21 @@ It is possible to disable building the `cog` and `cogctl` programs by passing
 Dependencies
 ------------
 
-- WebKit WPE, or WebKitGTK+ 2.18.x when building with `COG_USE_WEBKITGTK`.
-- [WPEBackend](https://github.com/WebPlatformForEmbedded/WPEBackend).
+For the [cog-0.1 branch](https://github.com/Igalia/cog/commits/cog-0.1):
+
+- WPE WebKit 2.20.x, or WebKitGTK+ 2.18.x when building with
+  `COG_USE_WEBKITGTK`.
+- [WPEBackend 0.2.0](https://wpewebkit.org/release/wpebackend-0.2.0.html).
+- [GLib](https://gitlab.gnome.org/GNOME/glib/) 2.40 or newer.
+
+For the `master` branch:
+
+- WPE WebKit 2.21.9x, or WebKitGTK+ 2.18.x when building with
+  `COG_USE_WEBKITGTK`.
+- [libwpe 1.0.0](https://wpewebkit.org/release/libwpe-1.0.0.html).
+- [WPEBackend-fdo
+  1.0.0](https://wpewebkit.org/release/wpebackend-fdo-1.0.0.html). *(Optional,
+  but recommended.)*
 - [GLib](https://gitlab.gnome.org/GNOME/glib/) 2.40 or newer.
 
 

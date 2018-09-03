@@ -42,5 +42,11 @@ make the code easier to navigate.
 
 ### Creating and sending a patch
 
-*(TODO)*
+*(TODO: Provide some notes on how to prepare a development environment which
+includes the needed dependencies.)*
 
+Pull requests should be also prepared to be merged onto the `master` branch,
+except when the changes specifically apply to a release branch (like
+`cog-0.1`) and do not apply to `master`. If the changes in a PR should be
+backported to a release branch, link the PR in [this wiki
+page](https://github.com/Igalia/cog/wiki/Release-Branches).
