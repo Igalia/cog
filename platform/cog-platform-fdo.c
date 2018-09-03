@@ -1357,6 +1357,14 @@ cog_platform_setup (CogPlatform *platform,
     g_assert_nonnull (platform);
     g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
 
+    if (!wpe_loader_init ("libWPEBackend-fdo-0.1.so")) {
+        g_set_error_literal (error,
+                             COG_PLATFORM_WPE_ERROR,
+                             COG_PLATFORM_WPE_ERROR_INIT,
+                             "Failed to set backend library name");
+        return FALSE;
+    }
+
     if (!init_wayland (error))
         return FALSE;
 
