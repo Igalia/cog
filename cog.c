@@ -398,6 +398,11 @@ main (int argc, char *argv[])
         g_set_application_name ("Cog");
     }
 
+#if COG_USE_WEBKITGTK
+    // Workaround for https://bugs.webkit.org/show_bug.cgi?id=150303
+    gtk_init(NULL, NULL);
+#endif // COG_USE_WEBKITGTK
+
     g_autoptr(GApplication) app = G_APPLICATION (cog_launcher_get_default ());
     g_application_add_main_option_entries (app, s_cli_options);
     cog_launcher_add_web_settings_option_entries (COG_LAUNCHER (app));
