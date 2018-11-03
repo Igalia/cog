@@ -35,7 +35,7 @@ For the [cog-0.1 branch](https://github.com/Igalia/cog/commits/cog-0.1):
 
 For the `master` branch:
 
-- WPE WebKit 2.21.9x, or WebKitGTK+ 2.18.x when building with
+- WPE WebKit 2.22.x, or WebKitGTK+ 2.18.x when building with
   `COG_USE_WEBKITGTK`.
 - [libwpe 1.0.0](https://wpewebkit.org/release/libwpe-1.0.0.html).
 - [WPEBackend-fdo
