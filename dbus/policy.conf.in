@@ -4,22 +4,22 @@
 <busconfig>
 
     <policy user="root">
-        <allow own="@DY_DEFAULT_APPID@"/>
+        <allow own="@COG_DEFAULT_APPID@"/>
     </policy>
 
-    <policy user="@DY_DBUS_OWN_USER@">
-        <allow own="@DY_DEFAULT_APPID@"/>
+    <policy user="@COG_DBUS_OWN_USER@">
+        <allow own="@COG_DEFAULT_APPID@"/>
     </policy>
 
     <policy context="default">
-        <allow send_destination="@DY_DEFAULT_APPID@"/>
-        <allow send_destination="@DY_DEFAULT_APPID@"
-               send_interface="com.igalia.Dinghy1"/>
-        <allow send_destination="@DY_DEFAULT_APPID@"
+        <allow send_destination="@COG_DEFAULT_APPID@"/>
+        <allow send_destination="@COG_DEFAULT_APPID@"
+               send_interface="com.igalia.Cog1"/>
+        <allow send_destination="@COG_DEFAULT_APPID@"
                send_interface="org.freedesktop.DBus.Properties"/>
-        <allow send_destination="@DY_DEFAULT_APPID@"
+        <allow send_destination="@COG_DEFAULT_APPID@"
                send_interface="org.freedesktop.DBus.Introspectable"/>
-        <allow send_destination="@DY_DEFAULT_APPID@"
+        <allow send_destination="@COG_DEFAULT_APPID@"
                send_interface="org.gtk.Actions"/>
     </policy>
 </busconfig>
