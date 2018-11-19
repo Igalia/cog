@@ -35,7 +35,6 @@ else()
 endif()
 
 add_definitions(-DCOG_INSIDE_COG__=1)
-add_definitions(-DG_LOG_DOMAIN=\"Cog\")
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -106,8 +105,11 @@ add_library(cogcore SHARED ${COGCORE_SOURCES})
 set_property(TARGET cogcore PROPERTY C_STANDARD 99)
 set_property(TARGET cogcore PROPERTY VERSION ${PROJECT_VERSION})
 target_include_directories(cogcore PUBLIC core ${COGCORE_INCLUDE_DIRS})
-target_compile_options(cogcore PUBLIC ${COGCORE_CFLAGS})
 target_link_libraries(cogcore ${COGCORE_LDFLAGS})
+target_compile_options(cogcore
+    PUBLIC ${COGCORE_CFLAGS}
+    PRIVATE -DG_LOG_DOMAIN=\"Cog\"
+)
 
 if (COG_BUILD_PROGRAMS)
     add_executable(cog cog.c)
@@ -173,8 +175,11 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
     add_library(cogplatform-fdo MODULE platform/cog-platform-fdo.c)
     set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
     target_include_directories(cogplatform-fdo PUBLIC wayland ${COGPLATFORM_FDO_INCLUDE_DIRS})
-    target_compile_options(cogplatform-fdo PUBLIC ${COGPLATFORM_FDO_CFLAGS})
     target_link_libraries(cogplatform-fdo cogcore ${COGPLATFORM_FDO_LDFLAGS})
+    target_compile_options(cogplatform-fdo
+        PUBLIC ${COGPLATFORM_FDO_CFLAGS}
+        PRIVATE -DG_LOG_DOMAIN=\"Cog-FDO\"
+    )
 
     find_package(WaylandProtocols REQUIRED)
     add_wayland_protocol(cogplatform-fdo CLIENT xdg-shell-unstable-v6)
