@@ -318,7 +318,7 @@ shell_surface_configure (void *data,
 {
     configure_surface_geometry (width, height);
 
-    printf ("New wl_shell configuration: (%u, %u)\n", width, height);
+    g_debug ("New wl_shell configuration: (%" PRIu32 ", %" PRIu32 ")", width, height);
 
     resize_window ();
 }
@@ -358,7 +358,7 @@ xdg_toplevel_on_configure (void *data,
 {
     configure_surface_geometry (width, height);
 
-    printf ("New XDG toplevel configuration: (%u, %u)\n", width, height);
+    g_debug ("New XDG toplevel configuration: (%" PRIu32 ", %" PRIu32 ")", width, height);
 
     resize_window ();
 }
@@ -444,20 +444,19 @@ registry_global (void               *data,
                  const char         *interface,
                  uint32_t            version)
 {
+    gboolean interface_used = TRUE;
+
     if (strcmp (interface, wl_compositor_interface.name) == 0) {
-        printf ("Wayland: Got a wl_compositor interface\n");
         wl_data.compositor = wl_registry_bind (registry,
                                                name,
                                                &wl_compositor_interface,
                                                version);
     } else if (strcmp (interface, wl_shell_interface.name) == 0) {
-        printf ("Wayland: Got a wl_shell interface\n");
         wl_data.shell = wl_registry_bind (registry,
                                           name,
                                           &wl_shell_interface,
                                           version);
     } else if (strcmp (interface, zxdg_shell_v6_interface.name) == 0) {
-        printf ("Wayland: Got an xdg_shell interface\n");
         wl_data.xdg_shell = wl_registry_bind (registry,
                                               name,
                                               &zxdg_shell_v6_interface,
@@ -466,18 +465,15 @@ registry_global (void               *data,
         zxdg_shell_v6_add_listener (wl_data.xdg_shell, &xdg_shell_listener, NULL);
     } else if (strcmp (interface,
                        zwp_fullscreen_shell_v1_interface.name) == 0) {
-        printf ("Wayland: Got a fullscreen_shell interface\n");
         wl_data.fshell = wl_registry_bind (registry,
                                            name,
                                            &zwp_fullscreen_shell_v1_interface,
                                            version);
     } else if (strcmp (interface, wl_seat_interface.name) == 0) {
-        printf ("Wayland: Got a wl_seat interface\n");
         wl_data.seat = wl_registry_bind (registry,
                                          name,
                                          &wl_seat_interface,
                                          version);
-    }
 #if HAVE_DEVICE_SCALING
     else if (strcmp (interface, wl_output_interface.name) == 0) {
         struct wl_output* output = wl_registry_bind (registry,
@@ -502,6 +498,11 @@ registry_global (void               *data,
         }
     }
 #endif /* HAVE_DEVICE_SCALING */
+    } else {
+        interface_used = FALSE;
+    }
+    g_debug ("%s '%s' interface obtained from the Wayland registry.",
+             interface_used ? "Using" : "Ignoring", interface);
 }
 
 static void
@@ -1049,7 +1050,7 @@ static const struct wl_touch_listener touch_listener = {
 static void
 seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
 {
-    printf ("Seat caps: ");
+    g_debug ("Enumerating seat capabilities:");
 
     /* Pointer */
     const bool has_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
@@ -1057,7 +1058,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
         wl_data.pointer.obj = wl_seat_get_pointer (wl_data.seat);
         g_assert (wl_data.pointer.obj);
         wl_pointer_add_listener (wl_data.pointer.obj, &pointer_listener, NULL);
-        printf ("Pointer ");
+        g_debug ("  - Pointer");
     } else if (! has_pointer && wl_data.pointer.obj != NULL) {
         wl_pointer_release (wl_data.pointer.obj);
         wl_data.pointer.obj = NULL;
@@ -1069,7 +1070,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
         wl_data.keyboard.obj = wl_seat_get_keyboard (wl_data.seat);
         g_assert (wl_data.keyboard.obj);
         wl_keyboard_add_listener (wl_data.keyboard.obj, &keyboard_listener, NULL);
-        printf ("Keyboard ");
+        g_debug ("  - Keyboard");
     } else if (! has_keyboard && wl_data.keyboard.obj != NULL) {
         wl_keyboard_release (wl_data.keyboard.obj);
         wl_data.keyboard.obj = NULL;
@@ -1081,19 +1082,19 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
         wl_data.touch.obj = wl_seat_get_touch (wl_data.seat);
         g_assert (wl_data.touch.obj);
         wl_touch_add_listener (wl_data.touch.obj, &touch_listener, NULL);
-        printf ("Touch ");
+        g_debug ("  - Touch");
     } else if (! has_touch && wl_data.touch.obj != NULL) {
         wl_touch_release (wl_data.touch.obj);
         wl_data.touch.obj = NULL;
     }
 
-    printf ("\n");
+    g_debug ("Done enumerating seat capabilities.");
 }
 
 static void
 seat_on_name (void *data, struct wl_seat *seat, const char *name)
 {
-    printf ("Seat name '%s'\n", name);
+    g_debug ("Seat name: '%s'", name);
 }
 
 static const struct wl_seat_listener seat_listener = {
@@ -1207,6 +1208,8 @@ on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 static gboolean
 init_wayland (GError **error)
 {
+    g_debug ("Initializing Wayland...");
+
     if (!(wl_data.display = wl_display_connect (NULL))) {
         g_set_error (error,
                      G_FILE_ERROR,
@@ -1269,6 +1272,8 @@ static void destroy_window (void);
 static gboolean
 init_egl (GError **error)
 {
+    g_debug ("Initializing EGL...");
+
     egl_data.display = eglGetDisplay ((EGLNativeDisplayType) wl_data.display);
     if (egl_data.display == EGL_NO_DISPLAY) {
         ERR_EGL (error, "Could not open EGL display");
@@ -1349,6 +1354,8 @@ clear_egl (void)
 static gboolean
 create_window (GError **error)
 {
+    g_debug ("Creating Wayland surface...");
+
     win_data.wl_surface = wl_compositor_create_surface (wl_data.compositor);
     g_assert (win_data.wl_surface);
 
