@@ -9,6 +9,7 @@ set(COG_DBUS_OWN_USER "" CACHE STRING
 
 option(COG_USE_WEBKITGTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
 option(COG_PLATFORM_FDO "Build the FDO platform module" ON)
+option(COG_PLATFORM_SDL2 "Build the SDL2 platform module" ON)
 option(COG_BUILD_PROGRAMS "Build and install programs as well" ON)
 set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
@@ -34,7 +35,6 @@ else()
 endif()
 
 add_definitions(-DCOG_INSIDE_COG__=1)
-add_definitions(-DG_LOG_DOMAIN=\"Cog\")
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -116,7 +116,9 @@ if (COG_BUILD_PROGRAMS)
     add_executable(cogctl cogctl.c core/cog-utils.c)
     set_property(TARGET cogctl PROPERTY C_STANDARD 99)
     target_include_directories(cogctl PUBLIC ${GIO_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
-    target_compile_options(cogctl PUBLIC ${GIO_CFLAGS_OTHER} ${SOUP_CFLAGS_OTHER})
+    target_compile_options(cogctl
+        PUBLIC ${GIO_CFLAGS_OTHER} ${SOUP_CFLAGS_OTHER}
+        PRIVATE -DG_LOG_DOMAIN=\"Cog\")
     target_link_libraries(cogctl ${GIO_LDFLAGS} ${SOUP_LDFLAGS})
 
     install(TARGETS cog cogctl
@@ -180,7 +182,9 @@ add_library(cogplatform-fdo MODULE ${COGPLATFORM_FDO_SOURCES})
 
 set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
 target_include_directories(cogplatform-fdo PUBLIC wayland ${COGPLATFORM_FDO_INCLUDE_DIRS})
-target_compile_options(cogplatform-fdo PUBLIC ${COGPLATFORM_FDO_CFLAGS})
+target_compile_options(cogplatform-fdo
+    PUBLIC ${COGPLATFORM_FDO_CFLAGS}
+    PRIVATE -DG_LOG_DOMAIN=\"Cog-FDO\")
 target_link_libraries(cogplatform-fdo cogcore ${COGPLATFORM_FDO_LDFLAGS})
 
 install(TARGETS cogplatform-fdo
@@ -189,5 +193,22 @@ install(TARGETS cogplatform-fdo
 )
 
 endif ()  # !COG_USE_WEBKITGTK
+
+if (COG_PLATFORM_SDL2 AND NOT COG_USE_WEBKITGTK)
+    pkg_check_modules(COGPLATFORM_SDL2_DEPS REQUIRED
+        sdl2 wpe-webkit-1.0 wpe-1.0 wpebackend-fdo-1.0
+    )
+    add_library(cogplatform-sdl2 MODULE platform/cog-platform-sdl2.c)
+    target_include_directories(cogplatform-sdl2 PUBLIC
+        ${COGPLATFORM_SDL2_DEPS_INCLUDE_DIRS})
+    target_link_libraries(cogplatform-sdl2 cogcore
+        ${COGPLATFORM_SDL2_DEPS_LDFLAGS})
+    target_compile_options(cogplatform-sdl2
+        PUBLIC ${COGPLATFORM_SDL2_DEPS_CFLAGS}
+        PRIVATE -DG_LOG_DOMAIN=\"Cog-SDL2\")
+    install(TARGETS cogplatform-sdl2
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        COMPONENT "runtime")
+endif ()
 
 configure_file(core/cog-config.h.in cog-config.h @ONLY)
