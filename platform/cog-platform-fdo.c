@@ -1000,14 +1000,6 @@ on_surface_frame (void *data, struct wl_callback *callback, uint32_t time)
 
     wpe_view_backend_exportable_fdo_dispatch_frame_complete
         (wpe_host_data.exportable);
-
-    if (wpe_view_data.image != NULL) {
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_image (wpe_host_data.exportable,
-                                                                    wpe_view_data.image);
-        wpe_view_data.image = NULL;
-    }
-
-    g_clear_pointer (&wpe_view_data.buffer, wl_buffer_destroy);
 }
 
 static const struct wl_callback_listener frame_listener = {
@@ -1026,6 +1018,18 @@ request_frame (void)
                               NULL);
 }
 
+static void
+on_buffer_release (void* data, struct wl_buffer* buffer)
+{
+    EGLImageKHR image = data;
+    wpe_view_backend_exportable_fdo_egl_dispatch_release_image (wpe_host_data.exportable,
+                                                                image);
+    g_clear_pointer (&buffer, wl_buffer_destroy);
+}
+
+static const struct wl_buffer_listener buffer_listener = {
+    .release = on_buffer_release,
+};
 
 static void
 on_export_egl_image(void *data, EGLImageKHR image)
@@ -1043,6 +1047,7 @@ on_export_egl_image(void *data, EGLImageKHR image)
     wpe_view_data.buffer = eglCreateWaylandBufferFromImageWL (egl_data.display,
                                                               wpe_view_data.image);
     g_assert_nonnull (wpe_view_data.buffer);
+    wl_buffer_add_listener(wpe_view_data.buffer, &buffer_listener, image);
 
     wl_surface_attach (win_data.wl_surface, wpe_view_data.buffer, 0, 0);
     wl_surface_damage (win_data.wl_surface,
