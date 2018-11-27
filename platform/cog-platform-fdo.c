@@ -104,7 +104,15 @@ static struct {
     uint32_t height;
 
     bool is_fullscreen;
-} win_data;
+    bool is_maximized;
+} win_data = {
+    .egl_surface = EGL_NO_SURFACE,
+    .width = DEFAULT_WIDTH,
+    .height = DEFAULT_HEIGHT,
+    .is_fullscreen = false,
+    .is_maximized = false,
+};
+
 
 static struct {
     struct xkb_context* context;
@@ -1245,46 +1253,39 @@ create_window (GError **error)
         configure_surface_geometry (0, 0);
     }
 
-    win_data.egl_window = wl_egl_window_create (win_data.wl_surface,
-                                                DEFAULT_WIDTH,
-                                                DEFAULT_HEIGHT);
-    g_assert_nonnull (win_data.egl_window);
+    const char* env_var;
+    if ((env_var = g_getenv ("COG_PLATFORM_FDO_VIEW_FULLSCREEN")) &&
+        g_ascii_strtoll (env_var, NULL, 10) > 0)
+    {
+        win_data.is_maximized = false;
+        win_data.is_fullscreen = true;
 
-    win_data.egl_surface =
-        eglCreateWindowSurface (egl_data.display,
-                                egl_data.egl_config,
-                                (EGLNativeWindowType) win_data.egl_window,
-                                NULL);
-    if (win_data.egl_surface == EGL_NO_SURFACE) {
-        ERR_EGL (error, "Cannot create EGL window surface for Wayland-EGL window");
-        destroy_window ();
-        return FALSE;
-    }
-
-    wl_surface_commit (win_data.wl_surface);
-    wl_display_flush (wl_data.display);
-
-    /* Activate window */
-    if (!eglMakeCurrent (egl_data.display,
-                         win_data.egl_surface,
-                         win_data.egl_surface,
-                         egl_data.context)) {
-        ERR_EGL (error, "Cannot activate EGL context");
-        destroy_window ();
-        return FALSE;
-    }
-
-    const char* env_var = g_getenv("COG_PLATFORM_FDO_VIEW_FULLSCREEN");
-    if (env_var != NULL && g_ascii_strtod(env_var, NULL) >= 1.0) {
         if (wl_data.xdg_shell != NULL) {
-            zxdg_toplevel_v6_set_fullscreen(win_data.xdg_toplevel, NULL);
+            zxdg_toplevel_v6_set_fullscreen (win_data.xdg_toplevel, NULL);
         } else if (wl_data.shell != NULL) {
             wl_shell_surface_set_fullscreen (win_data.shell_surface,
                                              WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE,
                                              0,
                                              NULL);
+        } else {
+            g_warning ("No available shell capable of fullscreening.");
+            win_data.is_fullscreen = false;
         }
-        win_data.is_fullscreen = TRUE;
+    }
+    else if ((env_var = g_getenv ("COG_PLATFORM_FDO_VIEW_MAXIMIZE")) &&
+             g_ascii_strtoll (env_var, NULL, 10) > 0)
+    {
+        win_data.is_maximized = true;
+        win_data.is_fullscreen = false;
+
+        if (wl_data.xdg_shell != NULL) {
+            zxdg_toplevel_v6_set_maximized (win_data.xdg_toplevel);
+        } else if (wl_data.shell != NULL) {
+            wl_shell_surface_set_maximized (win_data.shell_surface, NULL);
+        } else {
+            g_warning ("No available shell capable of maximizing.");
+            win_data.is_maximized = false;
+        }
     }
 
     return TRUE;
