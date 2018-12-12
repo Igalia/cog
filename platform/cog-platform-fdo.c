@@ -257,10 +257,11 @@ configure_surface_geometry (int32_t width, int32_t height)
 static void
 resize_window (void)
 {
-    wl_egl_window_resize (win_data.egl_window,
-                          win_data.width,
-                          win_data.height,
-                          0, 0);
+    if (win_data.egl_window)
+        wl_egl_window_resize (win_data.egl_window,
+			      win_data.width,
+			      win_data.height,
+			      0, 0);
 
     wpe_view_backend_dispatch_set_size (wpe_view_data.backend,
                                         win_data.width,
