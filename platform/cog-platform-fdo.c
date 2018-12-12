@@ -1234,6 +1234,7 @@ create_window (GError **error)
             app_id = COG_DEFAULT_APPID;
         }
         zxdg_toplevel_v6_set_app_id (win_data.xdg_toplevel, app_id);
+        wl_surface_commit(win_data.wl_surface);
     } else if (wl_data.fshell != NULL) {
         zwp_fullscreen_shell_v1_present_surface (wl_data.fshell,
                                                  win_data.wl_surface,
