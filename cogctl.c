@@ -308,6 +308,11 @@ cmd_find_by_name (const char *name)
             .handler = cmd_generic_no_args,
         },
         {
+            .name = "reset",
+            .desc = "Reset the web view",
+            .handler = cmd_generic_no_args,
+        },
+        {
             .name = NULL,
         },
     };

@@ -10,6 +10,24 @@
 #include <gtk/gtk.h>
 
 
+static void
+on_shell_web_view_notify (CogShell    *shell,
+                          GParamSpec  *pspec G_GNUC_UNUSED,
+                          GtkWindow   *window)
+{
+    GtkWidget *new_web_view = GTK_WIDGET (cog_shell_get_web_view (shell));
+    GtkWidget *old_web_view = gtk_bin_get_child (GTK_BIN (window));
+
+    if (old_web_view == new_web_view)
+        return;
+
+    gtk_widget_hide (old_web_view);
+    gtk_container_remove (GTK_CONTAINER (window), old_web_view);
+    gtk_container_add (GTK_CONTAINER (window), new_web_view);
+    gtk_widget_show (new_web_view);
+}
+
+
 GtkWidget*
 cog_gtk_create_window (CogLauncher *launcher)
 {
@@ -60,6 +78,15 @@ cog_gtk_create_window (CogLauncher *launcher)
     gtk_window_set_default_size (GTK_WINDOW (window), 800, 700);
     gtk_widget_set_size_request (window, 300, 200);
     gtk_container_add (GTK_CONTAINER (window), web_view);
+
+    /*
+     * Get notified when the Web view changes, in order to replace
+     * the widget being shown inside the GTK+ top level window.
+     */
+    g_signal_connect (cog_launcher_get_shell (launcher),
+                      "notify::web-view",
+                      G_CALLBACK (on_shell_web_view_notify),
+                      window);
 
     gtk_widget_show_all (window);
     return window;

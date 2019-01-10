@@ -119,15 +119,8 @@ cog_shell_startup_base (CogShell *shell)
                               priv->web_context);
     }
 
-    g_signal_emit (shell, s_signals[CREATE_VIEW], 0, &priv->web_view);
-    g_object_ref_sink (priv->web_view);
-
-    /*
-     * The web context and settings being used by the web view must be
-     * the same that were pre-created by shell.
-     */
-    g_assert (webkit_web_view_get_settings (priv->web_view) == priv->web_settings);
-    g_assert (webkit_web_view_get_context (priv->web_view) == priv->web_context);
+    g_assert_null (priv->web_view);
+    cog_shell_recreate_web_view (shell);
 }
 
 
@@ -296,6 +289,31 @@ cog_shell_new (const char *name)
 }
 
 
+void
+cog_shell_recreate_web_view (CogShell *shell)
+{
+    g_return_if_fail (COG_IS_SHELL (shell));
+
+    /* If any, destroy the current web view. */
+    CogShellPrivate *priv = PRIV (shell);
+    g_clear_object (&priv->web_view);
+
+    /* ...and create a new one to replace it. */
+    g_signal_emit (shell, s_signals[CREATE_VIEW], 0, &priv->web_view);
+
+    g_object_ref_sink (priv->web_view);
+
+    /*
+     * The web context and settings being used by the web view must be
+     * the same that were pre-created by shell.
+     */
+    g_assert (webkit_web_view_get_settings (priv->web_view) == priv->web_settings);
+    g_assert (webkit_web_view_get_context (priv->web_view) == priv->web_context);
+
+    g_object_notify_by_pspec (G_OBJECT (shell), s_properties[PROP_WEB_VIEW]);
+}
+
+
 WebKitWebContext*
 cog_shell_get_web_context (CogShell *shell)
 {
@@ -367,7 +385,10 @@ cog_shell_startup  (CogShell *shell)
 {
     g_return_if_fail (COG_IS_SHELL (shell));
     CogShellClass *klass = COG_SHELL_GET_CLASS (shell);
+
+    g_object_freeze_notify (G_OBJECT (shell));
     (*klass->startup) (shell);
+    g_object_thaw_notify (G_OBJECT (shell));
 }
 
 void
@@ -375,5 +396,8 @@ cog_shell_shutdown (CogShell *shell)
 {
     g_return_if_fail (COG_IS_SHELL (shell));
     CogShellClass *klass = COG_SHELL_GET_CLASS (shell);
+
+    g_object_freeze_notify (G_OBJECT (shell));
     (*klass->shutdown) (shell);
+    g_object_thaw_notify (G_OBJECT (shell));
 }

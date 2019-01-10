@@ -60,6 +60,14 @@ on_action_reload (G_GNUC_UNUSED GAction  *action,
 }
 
 static void
+on_action_reset (G_GNUC_UNUSED GAction  *action,
+                 G_GNUC_UNUSED GVariant *param,
+                 CogLauncher            *launcher)
+{
+    cog_shell_recreate_web_view (launcher->shell);
+}
+
+static void
 on_action_open (G_GNUC_UNUSED GAction *action,
                 GVariant              *param,
                 CogLauncher           *launcher)
@@ -215,6 +223,7 @@ cog_launcher_constructed (GObject *object)
     cog_launcher_add_action (launcher, "previous", on_action_prev, NULL);
     cog_launcher_add_action (launcher, "next", on_action_next, NULL);
     cog_launcher_add_action (launcher, "reload", on_action_reload, NULL);
+    cog_launcher_add_action (launcher, "reset", on_action_reset, NULL);
     cog_launcher_add_action (launcher, "open", on_action_open, G_VARIANT_TYPE_STRING);
 
 #if COG_DBUS_SYSTEM_BUS

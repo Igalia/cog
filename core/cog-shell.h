@@ -31,6 +31,7 @@ struct _CogShellClass {
 
 
 CogShell         *cog_shell_new                 (const char        *name);
+void              cog_shell_recreate_web_view   (CogShell          *shell);
 const char       *cog_shell_get_name            (CogShell          *shell);
 WebKitWebContext *cog_shell_get_web_context     (CogShell          *shell);
 WebKitSettings   *cog_shell_get_web_settings    (CogShell          *shell);

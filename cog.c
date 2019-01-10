@@ -291,11 +291,13 @@ platform_setup (CogShell *shell)
     g_debug ("%s: Platform = %p", __func__, s_options.platform);
     return TRUE;
 }
+#endif // !COG_USE_WEBKITGTK
 
 
 static void
 on_shutdown (CogLauncher *launcher G_GNUC_UNUSED, void *user_data G_GNUC_UNUSED)
 {
+#if !COG_USE_WEBKITGTK
     g_debug ("%s: Platform = %p", __func__, s_options.platform);
 
     if (s_options.platform) {
@@ -303,8 +305,10 @@ on_shutdown (CogLauncher *launcher G_GNUC_UNUSED, void *user_data G_GNUC_UNUSED)
         g_clear_pointer (&s_options.platform, cog_platform_free);
         g_debug ("%s: Platform teardown completed.", __func__);
     }
-}
 #endif // !COG_USE_WEBKITGTK
+
+    g_clear_pointer (&s_options.home_uri, g_free);
+}
 
 
 static WebKitWebView*
@@ -380,7 +384,6 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
     cog_web_view_connect_default_error_handlers (web_view);
 
     webkit_web_view_load_uri (web_view, s_options.home_uri);
-    g_clear_pointer (&s_options.home_uri, g_free);
 
     return g_steal_pointer (&web_view);
 }
