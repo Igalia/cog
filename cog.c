@@ -268,27 +268,31 @@ platform_setup (CogShell *shell)
         return FALSE;
 
     g_autofree char *platform_soname =
-        g_strdup_printf ("libcogplatform-%s.so", s_options.platform_name);
+        g_strdup_printf ("libcogplatform-%s", s_options.platform_name);
     g_clear_pointer (&s_options.platform_name, g_free);
 
     g_debug ("%s: Platform plugin: %s", __func__, platform_soname);
 
-    g_autoptr(CogPlatform) platform = cog_platform_new ();
-    if (!cog_platform_try_load (platform, platform_soname)) {
-        g_warning ("Could not load: %s (possible cause: %s).\n",
-                   platform_soname, strerror (errno));
+    g_autoptr(GError) error = NULL;
+    g_autoptr(CogPlatform) platform = cog_platform_load (platform_soname,
+                                                         &error);
+    if (!platform) {
+        g_warning ("Could not load '%s': %s.\n",
+                   platform_soname, error->message);
         return FALSE;
     }
 
-    g_autoptr(GError) error = NULL;
     if (!cog_platform_setup (platform, shell, "", &error)) {
-        g_warning ("Platform setup failed: %s", error->message);
+        g_warning ("Platform '%s' setup failed: %s",
+                   platform_soname, error->message);
         return FALSE;
     }
 
     s_options.platform = g_steal_pointer (&platform);
 
-    g_debug ("%s: Platform = %p", __func__, s_options.platform);
+    g_debug ("%s: Platform %s @ %p", __func__,
+             G_OBJECT_CLASS_NAME (G_OBJECT_GET_CLASS (s_options.platform)),
+             s_options.platform);
     return TRUE;
 }
 
@@ -300,7 +304,7 @@ on_shutdown (CogLauncher *launcher G_GNUC_UNUSED, void *user_data G_GNUC_UNUSED)
 
     if (s_options.platform) {
         cog_platform_teardown (s_options.platform);
-        g_clear_pointer (&s_options.platform, cog_platform_free);
+        g_clear_object (&s_options.platform);
         g_debug ("%s: Platform teardown completed.", __func__);
     }
 }
@@ -323,10 +327,13 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
     // Try to load the platform plug-in specified in the command line.
     if (platform_setup (shell)) {
         g_autoptr(GError) error = NULL;
-        view_backend = cog_platform_get_view_backend (s_options.platform, NULL, &error);
-        if (!view_backend) {
+        g_autoptr(CogPlatformView) platform_view =
+            cog_platform_create_view (s_options.platform, NULL, &error);
+        if (platform_view) {
+            view_backend = cog_platform_view_get_backend (platform_view);
+        } else {
             g_assert_nonnull (error);
-            g_warning ("Failed to get platform's view backend: %s", error->message);
+            g_warning ("Failed to create a platform view: %s", error->message);
         }
     }
 

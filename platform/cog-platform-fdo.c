@@ -1356,19 +1356,68 @@ clear_input (void)
     g_clear_pointer (&xkb_data.context, xkb_context_unref);
 }
 
+
+#define COG_TYPE_FDO_PLATFORM  (cog_fdo_platform_get_type ())
+
+G_DECLARE_FINAL_TYPE (CogFdoPlatform,
+                      cog_fdo_platform,
+                      COG, FDO_PLATFORM,
+                      GObject)
+
+struct _CogFdoPlatformClass {
+    GObjectClass parent_class;
+};
+
+struct _CogFdoPlatform
+{
+    GObject parent;
+};
+
+static gboolean         cog_fdo_platform_setup       (CogPlatform    *platform,
+                                                      CogShell       *shell,
+                                                      const char     *params,
+                                                      GError        **error);
+static void             cog_fdo_platform_teardown    (CogPlatform    *platform);
+static CogPlatformView* cog_fdo_platform_create_view (CogPlatform    *platform,
+                                                      WebKitWebView  *related_view G_GNUC_UNUSED,
+                                                      GError        **error G_GNUC_UNUSED);
+
+static void
+cog_fdo_platform_iface_init (CogPlatformInterface *iface)
+{
+    iface->setup = cog_fdo_platform_setup;
+    iface->create_view = cog_fdo_platform_create_view;
+}
+
+G_DEFINE_TYPE_WITH_CODE (CogFdoPlatform,
+                         cog_fdo_platform,
+                         G_TYPE_OBJECT,
+                         G_IMPLEMENT_INTERFACE (COG_TYPE_PLATFORM,
+                                                cog_fdo_platform_iface_init))
+
+static void
+cog_fdo_platform_init (CogFdoPlatform *platform)
+{
+}
+
+static void
+cog_fdo_platform_class_init (CogFdoPlatformClass *klass)
+{
+}
+
 gboolean
-cog_platform_setup (CogPlatform *platform,
-                    CogShell    *shell G_GNUC_UNUSED,
-                    const char  *params,
-                    GError     **error)
+cog_fdo_platform_setup (CogPlatform *platform,
+                        CogShell    *shell,
+                        const char  *params,
+                        GError     **error)
 {
     g_assert_nonnull (platform);
     g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
 
     if (!wpe_loader_init ("libWPEBackend-fdo-0.1.so")) {
         g_set_error_literal (error,
-                             COG_PLATFORM_WPE_ERROR,
-                             COG_PLATFORM_WPE_ERROR_INIT,
+                             COG_PLATFORM_ERROR,
+                             COG_PLATFORM_ERROR_SETUP,
                              "Failed to set backend library name");
         return FALSE;
     }
@@ -1401,7 +1450,7 @@ cog_platform_setup (CogPlatform *platform,
 }
 
 void
-cog_platform_teardown (CogPlatform *platform)
+cog_fdo_platform_teardown (CogPlatform *platform)
 {
     g_assert_nonnull (platform);
 
@@ -1429,10 +1478,10 @@ cog_platform_teardown (CogPlatform *platform)
     clear_wayland ();
 }
 
-WebKitWebViewBackend*
-cog_platform_get_view_backend (CogPlatform   *platform,
-                               WebKitWebView *related_view,
-                               GError       **error)
+CogPlatformView*
+cog_fdo_platform_create_view (CogPlatform   *platform,
+                              WebKitWebView *related_view,
+                              GError       **error)
 {
     static struct wpe_view_backend_exportable_fdo_egl_client exportable_egl_client = {
         .export_egl_image = on_export_egl_image,
@@ -1456,5 +1505,11 @@ cog_platform_get_view_backend (CogPlatform   *platform,
                                      wpe_host_data.exportable);
     g_assert_nonnull (wk_view_backend);
 
-    return wk_view_backend;
+    return cog_simple_platform_view_new (wk_view_backend);
+}
+
+G_MODULE_EXPORT CogPlatform*
+cog_platform_create_instance (GError **error G_GNUC_UNUSED)
+{
+    return g_object_new (COG_TYPE_FDO_PLATFORM, NULL);
 }
