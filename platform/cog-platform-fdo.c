@@ -1083,10 +1083,6 @@ init_wayland (GError **error)
               wl_data.shell != NULL ||
               wl_data.fshell != NULL);
 
-    wl_data.event_src =
-        setup_wayland_event_source (g_main_context_get_thread_default (),
-                                    wl_data.display);
-
     return TRUE;
 }
 
@@ -1447,6 +1443,13 @@ cog_platform_get_view_backend (CogPlatform   *platform,
                        (GDestroyNotify) wpe_view_backend_exportable_fdo_destroy,
                                      wpe_host_data.exportable);
     g_assert_nonnull (wk_view_backend);
+
+    if (!wl_data.event_src) {
+        wl_data.event_src =
+            setup_wayland_event_source (g_main_context_get_thread_default (),
+                                        wl_data.display);
+        g_unix_signal_add (SIGUSR1, handle_sigusr1, NULL);
+    }
 
     return wk_view_backend;
 }
