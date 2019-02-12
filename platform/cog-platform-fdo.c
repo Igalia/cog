@@ -1448,7 +1448,6 @@ cog_platform_get_view_backend (CogPlatform   *platform,
         wl_data.event_src =
             setup_wayland_event_source (g_main_context_get_thread_default (),
                                         wl_data.display);
-        g_unix_signal_add (SIGUSR1, handle_sigusr1, NULL);
     }
 
     return wk_view_backend;
