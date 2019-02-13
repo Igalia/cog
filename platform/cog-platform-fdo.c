@@ -1037,6 +1037,16 @@ on_export_egl_image(void *data, EGLImageKHR image)
 {
     wpe_view_data.image = image;
 
+    if (win_data.is_fullscreen) {
+      struct wl_region *region;
+      region = wl_compositor_create_region (wl_data.compositor);
+      wl_region_add (region, 0, 0, win_data.width, win_data.height);
+      wl_surface_set_opaque_region (win_data.wl_surface, region);
+      wl_region_destroy (region);
+    } else {
+      wl_surface_set_opaque_region (win_data.wl_surface, NULL);
+    }
+
     static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
         eglCreateWaylandBufferFromImageWL;
     if (eglCreateWaylandBufferFromImageWL == NULL) {
