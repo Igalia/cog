@@ -34,6 +34,7 @@ static struct {
     gdouble  scale_factor;
     GStrv    dir_handlers;
     GStrv    arguments;
+    char    *background_color;
 #if !COG_USE_WEBKITGTK
     union {
         char *platform_name;
@@ -75,6 +76,9 @@ static GOptionEntry s_cli_options[] =
     { "config", 'C', 0, G_OPTION_ARG_FILENAME, &s_options.config_file,
         "Path to a configuration file",
         "PATH" },
+    { "bg-color", 'b', 0, G_OPTION_ARG_STRING, &s_options.background_color,
+        "Background color, as a CSS name or in #RRGGBBAA hex syntax (default: white)",
+        "BG_COLOR" },
 #if !COG_USE_WEBKITGTK
     { "platform", 'P', 0, G_OPTION_ARG_STRING, &s_options.platform_name,
         "Platform plug-in to use.",
@@ -352,6 +356,25 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
 #endif
                                                       NULL);
 
+    if (s_options.background_color != NULL) {
+#if COG_BG_COLOR_API_SUPPORTED
+        gboolean has_valid_color = FALSE;
+#if !COG_USE_WEBKITGTK
+        WebKitColor color;
+        has_valid_color = webkit_color_parse (&color, s_options.background_color);
+#else
+        GdkRGBA color;
+        has_valid_color = gdk_rgba_parse (&color, s_options.background_color);
+#endif
+
+        if (has_valid_color)
+            webkit_web_view_set_background_color (web_view, &color);
+        else
+            g_error ("'%s' doesn't represent a valid #RRGGBBAA or CSS color format.", s_options.background_color);
+#else
+        g_error ("Could not configure the background color. Please rebuild with WebKitGTK support or upgrade to WPE 2.24 and rebuild Cog.");
+#endif
+    }
 
     switch (s_options.on_failure.action_id) {
         case WEBPROCESS_FAIL_ERROR_PAGE:
