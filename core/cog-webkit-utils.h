@@ -21,6 +21,8 @@
 
 G_BEGIN_DECLS
 
+#if !WEBKIT_CHECK_VERSION(2, 23, 0)
+
 /* Define cleanup functions to enable using g_auto* with WebKit types. */
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (WebKitWebContext, g_object_unref)
@@ -28,6 +30,8 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC (WebKitWebView, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (WebKitSettings, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (WebKitURISchemeRequest, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (WebKitWebsiteDataManager, g_object_unref)
+
+#endif /* WEBKIT_CHECK_VERSION */
 
 #endif /* COG_USE_WEBKITGTK */
 
