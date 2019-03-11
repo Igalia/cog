@@ -250,6 +250,13 @@ option_entry_parse_to_property (const char *option,
     return TRUE;
 }
 
+int
+entry_comparator (const void *p1, const void *p2)
+{
+    GOptionEntry *e1 = (GOptionEntry *) p1;
+    GOptionEntry *e2 = (GOptionEntry *) p2;
+    return g_strcmp0 (e1->long_name, e2->long_name);
+}
 
 GOptionEntry*
 cog_option_entries_from_class (GObjectClass *klass)
@@ -265,7 +272,8 @@ cog_option_entries_from_class (GObjectClass *klass)
 
     g_autofree GOptionEntry *entries = g_new0 (GOptionEntry, n_properties + 1);
 
-    for (unsigned i = 0, e = 0; i < n_properties; i++) {
+    unsigned e = 0;
+    for (unsigned i = 0; i < n_properties; i++) {
         GParamSpec *prop = properties[i];
 
         // Pick only writable properties.
@@ -300,6 +308,9 @@ cog_option_entries_from_class (GObjectClass *klass)
         if (prop_type == G_TYPE_BOOLEAN && g_str_has_prefix (entry->long_name, "enable-"))
             entry->flags |= G_OPTION_FLAG_OPTIONAL_ARG;
     }
+
+    // Sort entries by long name.
+    qsort (entries, e, sizeof (GOptionEntry), entry_comparator);
 
     return g_steal_pointer (&entries);
 }
