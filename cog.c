@@ -430,6 +430,7 @@ main (int argc, char *argv[])
     g_application_add_main_option_entries (app, s_cli_options);
     cog_launcher_add_web_settings_option_entries (COG_LAUNCHER (app));
     cog_launcher_add_web_cookies_option_entries (COG_LAUNCHER (app));
+    cog_launcher_add_web_permissions_option_entries (COG_LAUNCHER (app));
 
 #if !COG_USE_WEBKITGTK
     g_signal_connect (app, "shutdown", G_CALLBACK (on_shutdown), NULL);

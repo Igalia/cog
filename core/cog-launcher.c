@@ -22,6 +22,7 @@
 struct _CogLauncher {
     CogLauncherBase parent;
     CogShell       *shell;
+    gboolean       allow_all_requests;
 };
 
 G_DEFINE_TYPE (CogLauncher, cog_launcher, COG_LAUNCHER_BASE_TYPE)
@@ -67,6 +68,27 @@ on_action_open (G_GNUC_UNUSED GAction *action,
     g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
     webkit_web_view_load_uri (cog_shell_get_web_view (launcher->shell),
                               g_variant_get_string (param, NULL));
+}
+
+static gboolean
+on_permission_request (G_GNUC_UNUSED WebKitWebView *web_view,
+                       WebKitPermissionRequest *request,
+                       CogLauncher *launcher)
+{
+    if (launcher->allow_all_requests)
+        webkit_permission_request_allow (request);
+    else
+        webkit_permission_request_deny (request);
+
+    return TRUE;
+}
+
+static void
+on_notify_web_view (CogShell *shell, GParamSpec * arg G_GNUC_UNUSED, CogLauncher *launcher)
+{
+    WebKitWebView* web_view = cog_shell_get_web_view (shell);
+
+    g_signal_connect (web_view, "permission-request", G_CALLBACK (on_permission_request), launcher);
 }
 
 static void
@@ -148,7 +170,10 @@ cog_launcher_dispose (GObject *object)
 {
     CogLauncher *launcher = COG_LAUNCHER (object);
 
-    g_clear_object (&launcher->shell);
+    if (launcher->shell) {
+        g_signal_handlers_disconnect_by_func (launcher->shell, G_CALLBACK (on_notify_web_view), NULL);
+        g_clear_object (&launcher->shell);
+    }
 
     G_OBJECT_CLASS (cog_launcher_parent_class)->dispose (object);
 }
@@ -210,6 +235,7 @@ cog_launcher_constructed (GObject *object)
     CogLauncher *launcher = COG_LAUNCHER (object);
 
     launcher->shell = g_object_ref_sink (cog_shell_new (g_get_prgname ()));
+    g_signal_connect (launcher->shell, "notify::web-view", G_CALLBACK (on_notify_web_view), launcher);
 
     cog_launcher_add_action (launcher, "quit", on_action_quit, NULL);
     cog_launcher_add_action (launcher, "previous", on_action_prev, NULL);
@@ -635,6 +661,54 @@ cog_launcher_add_web_cookies_option_entries (CogLauncher *launcher)
                             webkit_web_context_get_cookie_manager (cog_shell_get_web_context (launcher->shell)),
                             NULL);
     g_option_group_add_entries (option_group, s_cookies_options);
+    g_application_add_option_group (G_APPLICATION (launcher),
+                                    g_steal_pointer (&option_group));
+}
+
+static gboolean
+option_entry_parse_permissions (const char          *option G_GNUC_UNUSED,
+                                const char          *value,
+                                CogLauncher         *launcher,
+                                GError             **error)
+{
+
+    if (g_strcmp0 (value, "all") && g_strcmp0 (value, "none")) {
+        g_set_error (error,
+                     G_OPTION_ERROR,
+                     G_OPTION_ERROR_BAD_VALUE,
+                     "Invalid permission value '%s' (allowed values: ['none', 'all'])",
+                     value);
+        return FALSE;
+    }
+
+    launcher->allow_all_requests = !g_strcmp0 (value, "all");
+    return TRUE;
+}
+
+static GOptionEntry s_permissions_options[] =
+{
+    {
+        .long_name = "set-permissions",
+        .arg = G_OPTION_ARG_CALLBACK,
+        .arg_data = option_entry_parse_permissions,
+        .description = "Set permissions to access certain ressources (default: 'none')",
+        .arg_description = "[all | none]",
+    },
+    { NULL }
+};
+
+void
+cog_launcher_add_web_permissions_option_entries (CogLauncher *launcher)
+{
+    g_return_if_fail (COG_IS_LAUNCHER (launcher));
+
+    g_autoptr(GOptionGroup) option_group =
+        g_option_group_new ("permissions",
+                            "Options which control permissions.\n",
+                            "Show options for permission request",
+                            launcher,
+                            NULL);
+    g_option_group_add_entries (option_group, s_permissions_options);
     g_application_add_option_group (G_APPLICATION (launcher),
                                     g_steal_pointer (&option_group));
 }
