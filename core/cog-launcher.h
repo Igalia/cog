@@ -42,11 +42,12 @@ struct _CogLauncherClass
     CogLauncherBaseClass parent_class;
 };
 
-CogLauncher *cog_launcher_get_default              (void);
-CogShell    *cog_launcher_get_shell                (CogLauncher *launcher);
+CogLauncher *cog_launcher_get_default                  (void);
+CogShell    *cog_launcher_get_shell                    (CogLauncher *launcher);
 
-void  cog_launcher_add_web_settings_option_entries (CogLauncher *launcher);
-void  cog_launcher_add_web_cookies_option_entries  (CogLauncher *launcher);
+void  cog_launcher_add_web_settings_option_entries     (CogLauncher *launcher);
+void  cog_launcher_add_web_cookies_option_entries      (CogLauncher *launcher);
+void  cog_launcher_add_web_permissions_option_entries  (CogLauncher *launcher);
 
 G_END_DECLS
 
