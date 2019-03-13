@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <libsoup/soup.h>
 #include <gio/gio.h>
+#include <stdlib.h>
 #include <string.h>
 
 
