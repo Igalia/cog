@@ -1371,7 +1371,7 @@ cog_platform_setup (CogPlatform *platform,
     g_assert_nonnull (platform);
     g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
 
-    if (!wpe_loader_init ("libWPEBackend-fdo-0.1.so")) {
+    if (!wpe_loader_init ("libWPEBackend-fdo-1.0.so")) {
         g_set_error_literal (error,
                              COG_PLATFORM_WPE_ERROR,
                              COG_PLATFORM_WPE_ERROR_INIT,
