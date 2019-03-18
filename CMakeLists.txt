@@ -72,9 +72,9 @@ if (COG_USE_WEBKITGTK)
 else ()
     list(APPEND COGCORE_API_HEADERS core/cog-platform.h)
     list(APPEND COGCORE_SOURCES core/cog-platform.c)
-    # There is no need to explicitly check wpe-0.2 here because it's a
+    # There is no need to explicitly check wpe-1.0 here because it's a
     # dependency already specified in the wpe-webkit.pc file.
-    pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit-0.1>=2.21.90)
+    pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit-1.0>=2.23.91)
     if ("${WEB_ENGINE_VERSION}" VERSION_GREATER "2.23")
         add_definitions(-DCOG_BG_COLOR_API_SUPPORTED=1)
     else ()
@@ -157,7 +157,7 @@ if (NOT (WAYLAND_VERSION VERSION_LESS 1.10))
     set(WAYLAND_1_10_OR_GREATER ON)
 endif ()
 
-pkg_check_modules(COGPLATFORM_FDO_DEPS REQUIRED wpe-webkit-0.1>=2.21.90 wpe-0.2 wpebackend-fdo-0.1 egl xkbcommon)
+pkg_check_modules(COGPLATFORM_FDO_DEPS REQUIRED wpe-webkit-1.0>=2.23.91 wpebackend-fdo-1.0 egl xkbcommon)
 pkg_check_modules(WAYLAND_EGL wayland-egl)
 
 set(COGPLATFORM_FDO_INCLUDE_DIRS
