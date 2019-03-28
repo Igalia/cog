@@ -26,8 +26,17 @@ It is possible to disable building the `cog` and `cogctl` programs by passing
 Dependencies
 ------------
 
-For the `master` and [cog-0.2](https://github.com/Igalia/cog/commits/cog-0.1)
+For the `master` and [cog-0.3](https://github.com/Igalia/cog/commits/cog-0.3)
 branches:
+
+- WPE WebKit 2.24.x, or WebKitGTK 2.18.x when building with
+  `COG_USE_WEBKITGTK`.
+- [libwpe 1.2.0](https://wpewebkit.org/release/libwpe-1.2.0.html).
+- [WPEBackend-fdo 1.2.0](https://wpewebkit.org/release/wpebackend-fdo-1.2.0.html).
+  *(Optional, but recommended.)*
+- [GLib](https://gitlab.gnome.org/GNOME/glib/) 2.40 or newer.
+
+For the [cog-0.2 branch](https://github.com/Igalia/cog/commits/cog-0.2):
 
 - WPE WebKit 2.22.x, or WebKitGTK+ 2.18.x when building with
   `COG_USE_WEBKITGTK`.
