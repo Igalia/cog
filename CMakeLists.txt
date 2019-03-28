@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.3)
-project(cog VERSION 0.1.0 LANGUAGES C)
+project(cog VERSION 0.3.0 LANGUAGES C)
 
 include(GNUInstallDirs)
 
