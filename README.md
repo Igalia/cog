@@ -29,7 +29,7 @@ Dependencies
 For the `master` and [cog-0.3](https://github.com/Igalia/cog/commits/cog-0.3)
 branches:
 
-- WPE WebKit 2.24.x, or WebKitGTK 2.18.x when building with
+- WPE WebKit 2.24.x, or WebKitGTK 2.20.x when building with
   `COG_USE_WEBKITGTK`.
 - [libwpe 1.2.0](https://wpewebkit.org/release/libwpe-1.2.0.html).
 - [WPEBackend-fdo 1.2.0](https://wpewebkit.org/release/wpebackend-fdo-1.2.0.html).
