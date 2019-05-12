@@ -40,6 +40,11 @@
 
 #define DEFAULT_ZOOM_STEP 0.1f
 
+typedef struct output_metrics {
+  struct wl_output *output;
+  int32_t name;
+  int32_t scale;
+} output_metrics;
 
 static struct {
     struct wl_display *display;
@@ -51,6 +56,11 @@ static struct {
     struct wl_shell *shell;
 
     struct wl_seat *seat;
+    struct output_metrics metrics[16];
+    struct {
+        int32_t scale;
+    } current_output;
+
     struct {
         struct wl_pointer *obj;
         int32_t x;
@@ -257,15 +267,20 @@ configure_surface_geometry (int32_t width, int32_t height)
 static void
 resize_window (void)
 {
+    int32_t pixel_width = win_data.width * wl_data.current_output.scale;
+    int32_t pixel_height = win_data.height * wl_data.current_output.scale;
+
     if (win_data.egl_window)
         wl_egl_window_resize (win_data.egl_window,
-			      win_data.width,
-			      win_data.height,
-			      0, 0);
+			                  pixel_width,
+			                  pixel_height,
+			                  0, 0);
 
     wpe_view_backend_dispatch_set_size (wpe_view_data.backend,
                                         win_data.width,
                                         win_data.height);
+    g_debug ("Resized EGL buffer to: (%u, %u) @%ix\n",
+            pixel_width, pixel_height, wl_data.current_output.scale);
 }
 
 static void
@@ -340,6 +355,67 @@ static const struct zxdg_toplevel_v6_listener xdg_toplevel_listener = {
     .close = xdg_toplevel_on_close,
 };
 
+
+static void
+noop()
+{
+}
+
+static void
+output_handle_scale (void *data,
+                     struct wl_output *output,
+                     int32_t factor)
+{
+    bool found = false;
+    for (int i = 0; i < G_N_ELEMENTS (wl_data.metrics); i++)
+    {
+        if (wl_data.metrics[i].output == output) {
+            found = true;
+            wl_data.metrics[i].scale = factor;
+            break;
+        }
+    }
+    if (!found)
+    {
+        g_warning ("Unknown output %p\n", output);
+        return;
+    }
+    g_info ("Got scale factor %i for output %p\n", factor, output);
+}
+
+static const struct wl_output_listener output_listener = {
+        .geometry = noop,
+        .mode = noop,
+        .done = noop,
+        .scale = output_handle_scale,
+};
+
+static void
+surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *output)
+{
+    int32_t scale_factor = -1;
+
+    for (int i=0; i < G_N_ELEMENTS (wl_data.metrics); i++)
+    {
+        if (wl_data.metrics[i].output == output) {
+            scale_factor = wl_data.metrics[i].scale;
+        }
+    }
+    if (scale_factor == -1) {
+        g_warning ("No scale factor available for output %p\n", output);
+        return;
+    }
+    g_message ("Surface entered output %p with scale factor %i\n", output);
+    wl_surface_set_buffer_scale (surface, scale_factor);
+    wpe_view_backend_dispatch_set_device_scale_factor (wpe_view_data.backend, scale_factor);
+    wl_data.current_output.scale = scale_factor;
+}
+
+static const struct wl_surface_listener surface_listener = {
+    .enter = surface_handle_enter,
+    .leave = noop,
+};
+
 static void
 registry_global (void               *data,
                  struct wl_registry *registry,
@@ -380,6 +456,27 @@ registry_global (void               *data,
                                          name,
                                          &wl_seat_interface,
                                          version);
+    } else if (strcmp (interface, wl_output_interface.name) == 0) {
+        struct wl_output* output = wl_registry_bind (registry,
+                                                     name,
+                                                     &wl_output_interface,
+                                                     version);
+        wl_output_add_listener (output, &output_listener, NULL);
+        bool inserted = false;
+        for (int i = 0; i < G_N_ELEMENTS (wl_data.metrics); i++)
+        {
+            if (wl_data.metrics[i].output == NULL) {
+                wl_data.metrics[i].output = output;
+                wl_data.metrics[i].name = name;
+                inserted = true;
+                break;
+            }
+        }
+        if (!inserted) {
+            g_warning ("Exceeded %i connected outputs(!)", G_N_ELEMENTS (wl_data.metrics));
+        } else {
+            g_message ("Wayland: Got a wl_output interface\n");
+        }
     }
 }
 
@@ -414,8 +511,8 @@ pointer_on_motion (void* data,
     struct wpe_input_pointer_event event = {
         wpe_input_pointer_event_type_motion,
         time,
-        wl_data.pointer.x,
-        wl_data.pointer.y,
+        wl_data.pointer.x * wl_data.current_output.scale,
+        wl_data.pointer.y * wl_data.current_output.scale,
         wl_data.pointer.button,
         wl_data.pointer.state
     };
@@ -444,8 +541,8 @@ pointer_on_button (void* data,
     struct wpe_input_pointer_event event = {
         wpe_input_pointer_event_type_button,
         time,
-        wl_data.pointer.x,
-        wl_data.pointer.y,
+        wl_data.pointer.x * wl_data.current_output.scale,
+        wl_data.pointer.y * wl_data.current_output.scale,
         wl_data.pointer.button,
         wl_data.pointer.state,
     };
@@ -463,8 +560,8 @@ pointer_on_axis (void* data,
     struct wpe_input_axis_event event = {
         wpe_input_axis_event_type_motion,
         time,
-        wl_data.pointer.x,
-        wl_data.pointer.y,
+        wl_data.pointer.x * wl_data.current_output.scale,
+        wl_data.pointer.y * wl_data.current_output.scale,
         axis,
         - wl_fixed_to_int (value),
     };
@@ -816,8 +913,8 @@ touch_on_down (void *data,
         wpe_input_touch_event_type_down,
         time,
         id,
-        wl_fixed_to_int (x),
-        wl_fixed_to_int (y),
+        wl_fixed_to_int (x) * wl_data.current_output.scale,
+        wl_fixed_to_int (y) * wl_data.current_output.scale,
     };
 
     memcpy (&wl_data.touch.points[id],
@@ -887,8 +984,8 @@ touch_on_motion (void *data,
         wpe_input_touch_event_type_motion,
         time,
         id,
-        wl_fixed_to_int (x),
-        wl_fixed_to_int (y),
+        wl_fixed_to_int (x) * wl_data.current_output.scale,
+        wl_fixed_to_int (y) * wl_data.current_output.scale,
     };
 
     memcpy (&wl_data.touch.points[id],
@@ -981,8 +1078,17 @@ static const struct wl_seat_listener seat_listener = {
 };
 
 static void
-registry_global_remove (void *a, struct wl_registry *b, uint32_t c)
+registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
 {
+    for (int i = 0; i < G_N_ELEMENTS (wl_data.metrics); i++)
+    {
+        if (wl_data.metrics[i].name == name) {
+            wl_data.metrics[i].output = NULL;
+            wl_data.metrics[i].name = 0;
+            g_message ("Removed output %i\n", name);
+            break;
+        }
+    }
 }
 
 static const struct wl_registry_listener registry_listener = {
@@ -1063,7 +1169,8 @@ on_export_egl_image(void *data, EGLImageKHR image)
     wl_surface_attach (win_data.wl_surface, wpe_view_data.buffer, 0, 0);
     wl_surface_damage (win_data.wl_surface,
                        0, 0,
-                       win_data.width, win_data.height);
+                       win_data.width * wl_data.current_output.scale,
+                       win_data.height * wl_data.current_output.scale);
 
     request_frame ();
 
@@ -1080,6 +1187,10 @@ init_wayland (GError **error)
                      "Could not open Wayland display");
         return FALSE;
     }
+
+    memset (&wl_data.metrics,
+            0x00,
+            sizeof (output_metrics) * G_N_ELEMENTS (wl_data.metrics));
 
     wl_data.registry = wl_display_get_registry (wl_data.display);
     g_assert_nonnull (wl_data.registry);
@@ -1217,6 +1328,7 @@ create_window (GError **error)
 {
     win_data.wl_surface = wl_compositor_create_surface (wl_data.compositor);
     g_assert_nonnull (win_data.wl_surface);
+    wl_surface_add_listener (win_data.wl_surface, &surface_listener, NULL);
 
     if (wl_data.xdg_shell != NULL) {
         win_data.xdg_surface =
