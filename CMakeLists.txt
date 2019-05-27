@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 3.3)
 project(cog VERSION 0.3.0 LANGUAGES C)
 
+list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/cmake")
 include(GNUInstallDirs)
 
 option(COG_DBUS_SYSTEM_BUS "Expose remote control interface on system bus" OFF)
@@ -144,12 +145,14 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cogcore.pc
 # libcogplaform-fdo
 
 if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
+find_package(WaylandScanner REQUIRED)
 
-set(COGPLATFORM_FDO_SOURCES
-    platform/cog-platform-fdo.c
-    wayland/xdg-shell-unstable-v6-protocol.c
-    wayland/fullscreen-shell-unstable-v1-protocol.c
-)
+pkg_check_modules(WAYLAND_PROTOCOLS REQUIRED wayland-protocols)
+if (NOT WAYLAND_PROTOCOLS_FOUND)
+    message(FATAL_ERROR "Required module wayland-protocols not found")
+endif ()
+pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
+message(STATUS "WAYLAND_PROTOCOLS: ${WAYLAND_PROTOCOLS}")
 
 set(WAYLAND_1_10_OR_GREATER OFF)
 pkg_check_modules(WAYLAND REQUIRED wayland-client)
@@ -160,6 +163,45 @@ endif ()
 pkg_check_modules(COGPLATFORM_FDO_DEPS REQUIRED wpe-webkit-1.0>=2.23.91 wpebackend-fdo-1.0 egl xkbcommon)
 pkg_check_modules(WAYLAND_EGL wayland-egl)
 
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6.c
+    MAIN_DEPENDENCY ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
+    COMMAND ${WAYLAND_SCANNER} ${WAYLAND_SCANNER_CODE_ARG}
+            ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
+            ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6.c
+    VERBATIM
+)
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6-client.h
+    MAIN_DEPENDENCY ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
+    COMMAND ${WAYLAND_SCANNER} client-header
+            ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
+            ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6-client.h
+    VERBATIM
+)
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1.c
+    MAIN_DEPENDENCY ${WAYLAND_PROTOCOLS}/unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml
+    COMMAND ${WAYLAND_SCANNER} ${WAYLAND_SCANNER_CODE_ARG}
+            ${WAYLAND_PROTOCOLS}/unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml
+            ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1.c
+    VERBATIM
+)
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1-client.h
+    MAIN_DEPENDENCY ${WAYLAND_PROTOCOLS}/unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml
+    COMMAND ${WAYLAND_SCANNER} client-header
+            ${WAYLAND_PROTOCOLS}/unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml
+            ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1-client.h
+    VERBATIM
+)
+set(COGPLATFORM_FDO_SOURCES
+    platform/cog-platform-fdo.c
+    ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6.c
+    ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6-client.h
+    ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1.c
+    ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1-client.h
+)
 set(COGPLATFORM_FDO_INCLUDE_DIRS
     ${COGPLATFORM_FDO_DEPS_INCLUDE_DIRS}
     ${WAYLAND_INCLUDE_DIRS}
