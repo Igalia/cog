@@ -145,91 +145,89 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cogcore.pc
 # libcogplaform-fdo
 
 if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
-find_package(WaylandScanner REQUIRED)
+    find_package(WaylandScanner REQUIRED)
 
-pkg_check_modules(WAYLAND_PROTOCOLS REQUIRED wayland-protocols)
-if (NOT WAYLAND_PROTOCOLS_FOUND)
-    message(FATAL_ERROR "Required module wayland-protocols not found")
-endif ()
-pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
-message(STATUS "WAYLAND_PROTOCOLS: ${WAYLAND_PROTOCOLS}")
+    pkg_check_modules(WAYLAND_PROTOCOLS REQUIRED wayland-protocols)
+    if (NOT WAYLAND_PROTOCOLS_FOUND)
+        message(FATAL_ERROR "Required module wayland-protocols not found")
+    endif ()
+    pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
+    message(STATUS "WAYLAND_PROTOCOLS: ${WAYLAND_PROTOCOLS}")
 
-set(WAYLAND_1_10_OR_GREATER OFF)
-pkg_check_modules(WAYLAND REQUIRED wayland-client)
-if (NOT (WAYLAND_VERSION VERSION_LESS 1.10))
-    set(WAYLAND_1_10_OR_GREATER ON)
-endif ()
+    set(WAYLAND_1_10_OR_GREATER OFF)
+    pkg_check_modules(WAYLAND REQUIRED wayland-client)
+    if (NOT (WAYLAND_VERSION VERSION_LESS 1.10))
+        set(WAYLAND_1_10_OR_GREATER ON)
+    endif ()
 
-pkg_check_modules(COGPLATFORM_FDO_DEPS REQUIRED wpe-webkit-1.0>=2.23.91 wpebackend-fdo-1.0 egl xkbcommon)
-pkg_check_modules(WAYLAND_EGL wayland-egl)
+    pkg_check_modules(COGPLATFORM_FDO_DEPS REQUIRED wpe-webkit-1.0>=2.23.91 wpebackend-fdo-1.0 egl xkbcommon)
+    pkg_check_modules(WAYLAND_EGL wayland-egl)
 
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6.c
-    MAIN_DEPENDENCY ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
-    COMMAND ${WAYLAND_SCANNER} ${WAYLAND_SCANNER_CODE_ARG}
-            ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
-            ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6.c
-    VERBATIM
-)
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6-client.h
-    MAIN_DEPENDENCY ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
-    COMMAND ${WAYLAND_SCANNER} client-header
-            ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
-            ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6-client.h
-    VERBATIM
-)
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1.c
-    MAIN_DEPENDENCY ${WAYLAND_PROTOCOLS}/unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml
-    COMMAND ${WAYLAND_SCANNER} ${WAYLAND_SCANNER_CODE_ARG}
-            ${WAYLAND_PROTOCOLS}/unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml
-            ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1.c
-    VERBATIM
-)
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1-client.h
-    MAIN_DEPENDENCY ${WAYLAND_PROTOCOLS}/unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml
-    COMMAND ${WAYLAND_SCANNER} client-header
-            ${WAYLAND_PROTOCOLS}/unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml
-            ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1-client.h
-    VERBATIM
-)
-set(COGPLATFORM_FDO_SOURCES
-    platform/cog-platform-fdo.c
-    ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6.c
-    ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6-client.h
-    ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1.c
-    ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1-client.h
-)
-set(COGPLATFORM_FDO_INCLUDE_DIRS
-    ${COGPLATFORM_FDO_DEPS_INCLUDE_DIRS}
-    ${WAYLAND_INCLUDE_DIRS}
-    ${WAYLAND_EGL_INCLUDE_DIRS}
-)
-set(COGPLATFORM_FDO_CFLAGS
-    ${COGPLATFORM_FDO_DEPS_CFLAGS_OTHER}
-    ${WAYLAND_CFLAGS_OTHER}
-    ${WAYLAND_EGL_CFLAGS_OTHER}
-)
-set(COGPLATFORM_FDO_LDFLAGS
-    ${COGPLATFORM_FDO_DEPS_LDFLAGS}
-    ${WAYLAND_LDFLAGS}
-    ${WAYLAND_EGL_LDFLAGS}
-)
+    add_custom_command(
+        OUTPUT ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6.c
+        MAIN_DEPENDENCY ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
+        COMMAND ${WAYLAND_SCANNER} ${WAYLAND_SCANNER_CODE_ARG}
+                ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
+                ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6.c
+        VERBATIM
+    )
+    add_custom_command(
+        OUTPUT ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6-client.h
+        MAIN_DEPENDENCY ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
+        COMMAND ${WAYLAND_SCANNER} client-header
+                ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
+                ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6-client.h
+        VERBATIM
+    )
+    add_custom_command(
+        OUTPUT ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1.c
+        MAIN_DEPENDENCY ${WAYLAND_PROTOCOLS}/unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml
+        COMMAND ${WAYLAND_SCANNER} ${WAYLAND_SCANNER_CODE_ARG}
+                ${WAYLAND_PROTOCOLS}/unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml
+                ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1.c
+        VERBATIM
+    )
+    add_custom_command(
+        OUTPUT ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1-client.h
+        MAIN_DEPENDENCY ${WAYLAND_PROTOCOLS}/unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml
+        COMMAND ${WAYLAND_SCANNER} client-header
+                ${WAYLAND_PROTOCOLS}/unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml
+                ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1-client.h
+        VERBATIM
+    )
+    set(COGPLATFORM_FDO_SOURCES
+        platform/cog-platform-fdo.c
+        ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6.c
+        ${CMAKE_BINARY_DIR}/xdg-shell-unstable-v6-client.h
+        ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1.c
+        ${CMAKE_BINARY_DIR}/fullscreen-shell-unstable-v1-client.h
+    )
+    set(COGPLATFORM_FDO_INCLUDE_DIRS
+        ${COGPLATFORM_FDO_DEPS_INCLUDE_DIRS}
+        ${WAYLAND_INCLUDE_DIRS}
+        ${WAYLAND_EGL_INCLUDE_DIRS}
+    )
+    set(COGPLATFORM_FDO_CFLAGS
+        ${COGPLATFORM_FDO_DEPS_CFLAGS_OTHER}
+        ${WAYLAND_CFLAGS_OTHER}
+        ${WAYLAND_EGL_CFLAGS_OTHER}
+    )
+    set(COGPLATFORM_FDO_LDFLAGS
+        ${COGPLATFORM_FDO_DEPS_LDFLAGS}
+        ${WAYLAND_LDFLAGS}
+        ${WAYLAND_EGL_LDFLAGS}
+    )
 
-add_library(cogplatform-fdo MODULE ${COGPLATFORM_FDO_SOURCES})
+    add_library(cogplatform-fdo MODULE ${COGPLATFORM_FDO_SOURCES})
+    set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
+    target_include_directories(cogplatform-fdo PUBLIC wayland ${COGPLATFORM_FDO_INCLUDE_DIRS})
+    target_compile_options(cogplatform-fdo PUBLIC ${COGPLATFORM_FDO_CFLAGS})
+    target_link_libraries(cogplatform-fdo cogcore ${COGPLATFORM_FDO_LDFLAGS})
 
-set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
-target_include_directories(cogplatform-fdo PUBLIC wayland ${COGPLATFORM_FDO_INCLUDE_DIRS})
-target_compile_options(cogplatform-fdo PUBLIC ${COGPLATFORM_FDO_CFLAGS})
-target_link_libraries(cogplatform-fdo cogcore ${COGPLATFORM_FDO_LDFLAGS})
-
-install(TARGETS cogplatform-fdo
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    COMPONENT "runtime"
-)
-
+    install(TARGETS cogplatform-fdo
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        COMPONENT "runtime"
+    )
 endif ()  # !COG_USE_WEBKITGTK
 
 configure_file(core/cog-config.h.in cog-config.h @ONLY)
