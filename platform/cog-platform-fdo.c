@@ -32,8 +32,8 @@
 #include <xkbcommon/xkbcommon-compose.h>
 #include <locale.h>
 
-#include "xdg-shell-unstable-v6-client-protocol.h"
-#include "fullscreen-shell-unstable-v1-client-protocol.h"
+#include "xdg-shell-unstable-v6-client.h"
+#include "fullscreen-shell-unstable-v1-client.h"
 
 #define DEFAULT_WIDTH  1024
 #define DEFAULT_HEIGHT  768
