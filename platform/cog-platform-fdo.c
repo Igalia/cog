@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include <wayland-client.h>
+#include <wayland-server.h>
 #include <wayland-egl.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -161,10 +162,51 @@ static struct {
 
 static struct {
     struct wpe_view_backend *backend;
-    struct wpe_fdo_egl_exported_image *image;
-    struct wl_buffer *buffer;
     struct wl_callback *frame_callback;
+
+    GList* committed_buffers;
 } wpe_view_data = {NULL, };
+
+
+struct cog_committed_buffer {
+    struct wpe_fdo_egl_exported_image* image;
+    struct wl_listener destroy_listener;
+
+    struct wl_buffer* buffer;
+    bool locked;
+};
+
+static gint
+find_committed_buffer (gconstpointer a, gconstpointer b)
+{
+    const struct cog_committed_buffer* committed_buffer = a;
+    const struct wpe_fdo_egl_exported_image* image = b;
+
+    if (image == committed_buffer->image)
+        return 0;
+    return 1;
+}
+
+static void
+free_committed_buffer (gpointer data)
+{
+    struct cog_committed_buffer* committed_buffer = data;
+    g_clear_pointer (&committed_buffer->buffer, wl_buffer_destroy);
+
+    if (committed_buffer->image && committed_buffer->locked)
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (wpe_host_data.exportable,
+                                                                             committed_buffer->image);
+
+    g_free (committed_buffer);
+}
+
+static void
+committed_buffer_destroy_handler (struct wl_listener* listener, void* data)
+{
+    struct cog_committed_buffer* committed_buffer;
+    committed_buffer = wl_container_of (listener, committed_buffer, destroy_listener);
+    free_committed_buffer (committed_buffer);
+}
 
 
 struct wl_event_source {
@@ -1151,10 +1193,11 @@ request_frame (void)
 static void
 on_buffer_release (void* data, struct wl_buffer* buffer)
 {
-    struct wpe_fdo_egl_exported_image * image = data;
+    struct cog_committed_buffer* committed_buffer = data;
+
     wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (wpe_host_data.exportable,
-                                                                         image);
-    g_clear_pointer (&buffer, wl_buffer_destroy);
+                                                                         committed_buffer->image);
+    committed_buffer->locked = false;
 }
 
 static const struct wl_buffer_listener buffer_listener = {
@@ -1162,10 +1205,23 @@ static const struct wl_buffer_listener buffer_listener = {
 };
 
 static void
+on_exported_image_destroy (void* data, struct wpe_fdo_egl_exported_image* image)
+{
+    GList* entry = g_list_find_custom (wpe_view_data.committed_buffers,
+                                       image,
+                                       find_committed_buffer);
+    if (!entry)
+        return;
+
+    wpe_view_data.committed_buffers = g_list_remove_link (wpe_view_data.committed_buffers,
+                                                          entry);
+    free_committed_buffer (entry->data);
+    g_list_free (entry);
+}
+
+static void
 on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 {
-    wpe_view_data.image = image;
-
     if (win_data.is_fullscreen) {
       struct wl_region *region;
       region = wl_compositor_create_region (wl_data.compositor);
@@ -1184,11 +1240,38 @@ on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
         g_assert_nonnull (eglCreateWaylandBufferFromImageWL);
     }
 
-    wpe_view_data.buffer = eglCreateWaylandBufferFromImageWL (egl_data.display, wpe_fdo_egl_exported_image_get_egl_image (wpe_view_data.image));
-    g_assert_nonnull (wpe_view_data.buffer);
-    wl_buffer_add_listener(wpe_view_data.buffer, &buffer_listener, image);
+    GList* entry = g_list_find_custom (wpe_view_data.committed_buffers,
+                                       image,
+                                       find_committed_buffer);
 
-    wl_surface_attach (win_data.wl_surface, wpe_view_data.buffer, 0, 0);
+    struct wl_buffer* buffer = NULL;
+    if (entry == NULL) {
+        struct cog_committed_buffer* committed_buffer = g_new0 (struct cog_committed_buffer, 1);
+        committed_buffer->image = image;
+        committed_buffer->destroy_listener.notify = committed_buffer_destroy_handler;
+
+        committed_buffer->buffer = eglCreateWaylandBufferFromImageWL (egl_data.display,
+                                                                      wpe_fdo_egl_exported_image_get_egl_image (image));
+
+        wl_buffer_add_listener (committed_buffer->buffer,
+                                &buffer_listener, committed_buffer);
+
+        wpe_fdo_egl_exported_image_set_destroy_notify (image,
+                                                       on_exported_image_destroy, NULL);
+
+        wpe_view_data.committed_buffers = g_list_append (wpe_view_data.committed_buffers,
+                                                         committed_buffer);
+        committed_buffer->locked = true;
+        buffer = committed_buffer->buffer;
+    } else {
+        struct cog_committed_buffer* committed_buffer = entry->data;
+        committed_buffer->locked = true;
+        buffer = committed_buffer->buffer;
+    }
+
+    g_assert_nonnull (buffer);
+
+    wl_surface_attach (win_data.wl_surface, buffer, 0, 0);
     wl_surface_damage (win_data.wl_surface,
                        0, 0,
                        win_data.width * wl_data.current_output.scale,
@@ -1547,11 +1630,6 @@ cog_platform_teardown (CogPlatform *platform)
     /* free WPE view data */
     if (wpe_view_data.frame_callback != NULL)
         wl_callback_destroy (wpe_view_data.frame_callback);
-    if (wpe_view_data.image != NULL) {
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (wpe_host_data.exportable,
-                                                                             wpe_view_data.image);
-    }
-    g_clear_pointer (&wpe_view_data.buffer, wl_buffer_destroy);
 
     /* @FIXME: check why this segfaults
     wpe_view_backend_destroy (wpe_view_data.backend);
