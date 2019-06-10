@@ -404,7 +404,7 @@ surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *
         g_warning ("No scale factor available for output %p\n", output);
         return;
     }
-    g_message ("Surface entered output %p with scale factor %i\n", output);
+    g_message ("Surface entered output %p with scale factor %i\n", output, scale_factor);
     wl_surface_set_buffer_scale (surface, scale_factor);
     wpe_view_backend_dispatch_set_device_scale_factor (wpe_view_data.backend, scale_factor);
     wl_data.current_output.scale = scale_factor;
