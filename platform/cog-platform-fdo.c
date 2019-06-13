@@ -40,11 +40,20 @@
 
 #define DEFAULT_ZOOM_STEP 0.1f
 
+#if defined(WPE_CHECK_VERSION) && WPE_CHECK_VERSION(1, 3, 0)
+# define HAVE_DEVICE_SCALING 1
+#else
+# define HAVE_DEVICE_SCALING 0
+#endif /* WPE_CHECK_VERSION */
+
+
+#if HAVE_DEVICE_SCALING
 typedef struct output_metrics {
   struct wl_output *output;
   int32_t name;
   int32_t scale;
 } output_metrics;
+#endif /* HAVE_DEVICE_SCALING */
 
 static struct {
     struct wl_display *display;
@@ -56,7 +65,11 @@ static struct {
     struct wl_shell *shell;
 
     struct wl_seat *seat;
+
+#if HAVE_DEVICE_SCALING
     struct output_metrics metrics[16];
+#endif /* HAVE_DEVICE_SCALING */
+
     struct {
         int32_t scale;
     } current_output;
@@ -93,7 +106,9 @@ static struct {
     } touch;
 
     GSource *event_src;
-} wl_data = {NULL, };
+} wl_data = {
+    .current_output.scale = 1,
+};
 
 static struct {
     struct egl_display *display;
@@ -355,6 +370,7 @@ static const struct zxdg_toplevel_v6_listener xdg_toplevel_listener = {
 };
 
 
+#if HAVE_DEVICE_SCALING
 static void
 noop()
 {
@@ -414,6 +430,7 @@ static const struct wl_surface_listener surface_listener = {
     .enter = surface_handle_enter,
     .leave = noop,
 };
+#endif /* HAVE_DEVICE_SCALING */
 
 static void
 registry_global (void               *data,
@@ -455,7 +472,9 @@ registry_global (void               *data,
                                          name,
                                          &wl_seat_interface,
                                          version);
-    } else if (strcmp (interface, wl_output_interface.name) == 0) {
+    }
+#if HAVE_DEVICE_SCALING
+    else if (strcmp (interface, wl_output_interface.name) == 0) {
         struct wl_output* output = wl_registry_bind (registry,
                                                      name,
                                                      &wl_output_interface,
@@ -477,6 +496,7 @@ registry_global (void               *data,
             g_message ("Wayland: Got a wl_output interface\n");
         }
     }
+#endif /* HAVE_DEVICE_SCALING */
 }
 
 static void
@@ -1076,6 +1096,7 @@ static const struct wl_seat_listener seat_listener = {
     .name = seat_on_name,
 };
 
+#if HAVE_DEVICE_SCALING
 static void
 registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
 {
@@ -1089,10 +1110,13 @@ registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
         }
     }
 }
+#endif /* HAVE_DEVICE_SCALING */
 
 static const struct wl_registry_listener registry_listener = {
     .global = registry_global,
+#if HAVE_DEVICE_SCALING
     .global_remove = registry_global_remove
+#endif /* HAVE_DEVICE_SCALING */
 };
 
 static void
@@ -1186,10 +1210,6 @@ init_wayland (GError **error)
                      "Could not open Wayland display");
         return FALSE;
     }
-
-    memset (&wl_data.metrics,
-            0x00,
-            sizeof (output_metrics) * G_N_ELEMENTS (wl_data.metrics));
 
     wl_data.registry = wl_display_get_registry (wl_data.display);
     g_assert_nonnull (wl_data.registry);
@@ -1327,7 +1347,10 @@ create_window (GError **error)
 {
     win_data.wl_surface = wl_compositor_create_surface (wl_data.compositor);
     g_assert_nonnull (win_data.wl_surface);
+
+#if HAVE_DEVICE_SCALING
     wl_surface_add_listener (win_data.wl_surface, &surface_listener, NULL);
+#endif /* HAVE_DEVICE_SCALING */
 
     if (wl_data.xdg_shell != NULL) {
         win_data.xdg_surface =
