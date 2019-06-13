@@ -117,6 +117,7 @@ function(add_wayland_protocol _target _kind _protocol)
         add_custom_command(
             OUTPUT "${proto_code}"
             MAIN_DEPENDENCY "${proto_file}"
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_BINARY_DIR}/WaylandProtocols.dir"
             COMMAND "${WAYLAND_SCANNER}" "${WAYLAND_SCANNER_CODE_ARG}" "${proto_file}" "${proto_code}"
             VERBATIM
         )
@@ -131,6 +132,7 @@ function(add_wayland_protocol _target _kind _protocol)
             add_custom_command(
                 OUTPUT "${proto_client}"
                 MAIN_DEPENDENCY "${proto_file}"
+                COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_BINARY_DIR}/WaylandProtocols.dir"
                 COMMAND "${WAYLAND_SCANNER}" client-header "${proto_file}" "${proto_client}"
                 VERBATIM
             )
@@ -144,6 +146,7 @@ function(add_wayland_protocol _target _kind _protocol)
             add_custom_command(
                 OUTPUT "${proto_server}"
                 MAIN_DEPENDENCY "${proto_file}"
+                COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_BINARY_DIR}/WaylandProtocols.dir"
                 COMMAND "${WAYLAND_SCANNER}" server-header "${proto_file}" "${proto_server}"
                 VERBATIM
             )
