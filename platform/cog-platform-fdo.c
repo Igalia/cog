@@ -161,7 +161,7 @@ static struct {
 
 static struct {
     struct wpe_view_backend *backend;
-    EGLImageKHR image;
+    struct wpe_fdo_egl_exported_image *image;
     struct wl_buffer *buffer;
     struct wl_callback *frame_callback;
 } wpe_view_data = {NULL, };
@@ -1151,9 +1151,9 @@ request_frame (void)
 static void
 on_buffer_release (void* data, struct wl_buffer* buffer)
 {
-    EGLImageKHR image = data;
-    wpe_view_backend_exportable_fdo_egl_dispatch_release_image (wpe_host_data.exportable,
-                                                                image);
+    struct wpe_fdo_egl_exported_image * image = data;
+    wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (wpe_host_data.exportable,
+                                                                         image);
     g_clear_pointer (&buffer, wl_buffer_destroy);
 }
 
@@ -1162,7 +1162,7 @@ static const struct wl_buffer_listener buffer_listener = {
 };
 
 static void
-on_export_egl_image(void *data, EGLImageKHR image)
+on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 {
     wpe_view_data.image = image;
 
@@ -1184,8 +1184,7 @@ on_export_egl_image(void *data, EGLImageKHR image)
         g_assert_nonnull (eglCreateWaylandBufferFromImageWL);
     }
 
-    wpe_view_data.buffer = eglCreateWaylandBufferFromImageWL (egl_data.display,
-                                                              wpe_view_data.image);
+    wpe_view_data.buffer = eglCreateWaylandBufferFromImageWL (egl_data.display, wpe_fdo_egl_exported_image_get_egl_image (wpe_view_data.image));
     g_assert_nonnull (wpe_view_data.buffer);
     wl_buffer_add_listener(wpe_view_data.buffer, &buffer_listener, image);
 
@@ -1549,8 +1548,8 @@ cog_platform_teardown (CogPlatform *platform)
     if (wpe_view_data.frame_callback != NULL)
         wl_callback_destroy (wpe_view_data.frame_callback);
     if (wpe_view_data.image != NULL) {
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_image (wpe_host_data.exportable,
-                                                                    wpe_view_data.image);
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (wpe_host_data.exportable,
+                                                                             wpe_view_data.image);
     }
     g_clear_pointer (&wpe_view_data.buffer, wl_buffer_destroy);
 
@@ -1575,7 +1574,7 @@ cog_platform_get_view_backend (CogPlatform   *platform,
                                GError       **error)
 {
     static struct wpe_view_backend_exportable_fdo_egl_client exportable_egl_client = {
-        .export_egl_image = on_export_egl_image,
+        .export_fdo_egl_image = on_export_fdo_egl_image,
     };
 
     wpe_host_data.exportable =
