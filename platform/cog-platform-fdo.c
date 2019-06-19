@@ -47,6 +47,11 @@
 #endif /* WPE_CHECK_VERSION */
 
 
+#ifndef EGL_WL_create_wayland_buffer_from_image
+typedef struct wl_buffer * (EGLAPIENTRYP PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL) (EGLDisplay dpy, EGLImageKHR image);
+#endif
+
+
 #if HAVE_DEVICE_SCALING
 typedef struct output_metrics {
   struct wl_output *output;
