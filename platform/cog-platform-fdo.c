@@ -1182,14 +1182,14 @@ on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
     }
 
     static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
-        eglCreateWaylandBufferFromImageWL;
-    if (eglCreateWaylandBufferFromImageWL == NULL) {
-        eglCreateWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
+        s_eglCreateWaylandBufferFromImageWL;
+    if (s_eglCreateWaylandBufferFromImageWL == NULL) {
+        s_eglCreateWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
             eglGetProcAddress ("eglCreateWaylandBufferFromImageWL");
-        g_assert_nonnull (eglCreateWaylandBufferFromImageWL);
+        g_assert_nonnull (s_eglCreateWaylandBufferFromImageWL);
     }
 
-    wpe_view_data.buffer = eglCreateWaylandBufferFromImageWL (egl_data.display, wpe_fdo_egl_exported_image_get_egl_image (wpe_view_data.image));
+    wpe_view_data.buffer = s_eglCreateWaylandBufferFromImageWL (egl_data.display, wpe_fdo_egl_exported_image_get_egl_image (wpe_view_data.image));
     g_assert_nonnull (wpe_view_data.buffer);
     wl_buffer_add_listener(wpe_view_data.buffer, &buffer_listener, image);
 
