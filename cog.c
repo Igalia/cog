@@ -329,7 +329,7 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
         g_autoptr(GError) error = NULL;
         view_backend = cog_platform_get_view_backend (s_options.platform, NULL, &error);
         if (!view_backend) {
-            g_assert_nonnull (error);
+            g_assert (!error);
             g_warning ("Failed to get platform's view backend: %s", error->message);
         }
     }

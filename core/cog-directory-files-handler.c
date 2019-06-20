@@ -53,7 +53,7 @@ on_file_read_async_completed (GObject      *source_object,
         /*
          * TODO: Generate a nicer error page.
          */
-        g_assert_nonnull (error);
+        g_assert (!error);
         webkit_uri_scheme_request_finish_error (request, error);
     }
 }
@@ -71,7 +71,7 @@ on_file_query_info_async_completed (GObject      *source_object,
     g_autoptr(GFileInfo) info = g_file_query_info_finish (file, result, &error);
 
     if (!info) {
-        g_assert_nonnull (error);
+        g_assert (!error);
         webkit_uri_scheme_request_finish_error (request, error);
         return;
     }
