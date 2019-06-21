@@ -457,7 +457,7 @@ registry_global (void               *data,
                                               name,
                                               &zxdg_shell_v6_interface,
                                               version);
-        g_assert (!wl_data.xdg_shell);
+        g_assert (wl_data.xdg_shell);
         zxdg_shell_v6_add_listener (wl_data.xdg_shell, &xdg_shell_listener, NULL);
     } else if (strcmp (interface,
                        zwp_fullscreen_shell_v1_interface.name) == 0) {
@@ -1050,7 +1050,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     const bool has_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
     if (has_pointer && wl_data.pointer.obj == NULL) {
         wl_data.pointer.obj = wl_seat_get_pointer (wl_data.seat);
-        g_assert (!wl_data.pointer.obj);
+        g_assert (wl_data.pointer.obj);
         wl_pointer_add_listener (wl_data.pointer.obj, &pointer_listener, NULL);
         printf ("Pointer ");
     } else if (! has_pointer && wl_data.pointer.obj != NULL) {
@@ -1062,7 +1062,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     const bool has_keyboard = capabilities & WL_SEAT_CAPABILITY_KEYBOARD;
     if (has_keyboard && wl_data.keyboard.obj == NULL) {
         wl_data.keyboard.obj = wl_seat_get_keyboard (wl_data.seat);
-        g_assert (!wl_data.keyboard.obj);
+        g_assert (wl_data.keyboard.obj);
         wl_keyboard_add_listener (wl_data.keyboard.obj, &keyboard_listener, NULL);
         printf ("Keyboard ");
     } else if (! has_keyboard && wl_data.keyboard.obj != NULL) {
@@ -1074,7 +1074,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     const bool has_touch = capabilities & WL_SEAT_CAPABILITY_TOUCH;
     if (has_touch && wl_data.touch.obj == NULL) {
         wl_data.touch.obj = wl_seat_get_touch (wl_data.seat);
-        g_assert (!wl_data.touch.obj);
+        g_assert (wl_data.touch.obj);
         wl_touch_add_listener (wl_data.touch.obj, &touch_listener, NULL);
         printf ("Touch ");
     } else if (! has_touch && wl_data.touch.obj != NULL) {
@@ -1181,11 +1181,11 @@ on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
     if (eglCreateWaylandBufferFromImageWL == NULL) {
         eglCreateWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
             eglGetProcAddress ("eglCreateWaylandBufferFromImageWL");
-        g_assert (!eglCreateWaylandBufferFromImageWL);
+        g_assert (eglCreateWaylandBufferFromImageWL);
     }
 
     wpe_view_data.buffer = eglCreateWaylandBufferFromImageWL (egl_data.display, wpe_fdo_egl_exported_image_get_egl_image (wpe_view_data.image));
-    g_assert (!wpe_view_data.buffer);
+    g_assert (wpe_view_data.buffer);
     wl_buffer_add_listener(wpe_view_data.buffer, &buffer_listener, image);
 
     wl_surface_attach (win_data.wl_surface, wpe_view_data.buffer, 0, 0);
@@ -1211,13 +1211,13 @@ init_wayland (GError **error)
     }
 
     wl_data.registry = wl_display_get_registry (wl_data.display);
-    g_assert (!wl_data.registry);
+    g_assert (wl_data.registry);
     wl_registry_add_listener (wl_data.registry,
                               &registry_listener,
                               NULL);
     wl_display_roundtrip (wl_data.display);
 
-    g_assert (!wl_data.compositor);
+    g_assert (wl_data.compositor);
     g_assert (wl_data.xdg_shell != NULL ||
               wl_data.shell != NULL ||
               wl_data.fshell != NULL);
@@ -1345,7 +1345,7 @@ static gboolean
 create_window (GError **error)
 {
     win_data.wl_surface = wl_compositor_create_surface (wl_data.compositor);
-    g_assert (!win_data.wl_surface);
+    g_assert (win_data.wl_surface);
 
 #if HAVE_DEVICE_SCALING
     wl_surface_add_listener (win_data.wl_surface, &surface_listener, NULL);
@@ -1355,14 +1355,14 @@ create_window (GError **error)
         win_data.xdg_surface =
             zxdg_shell_v6_get_xdg_surface (wl_data.xdg_shell,
                                            win_data.wl_surface);
-        g_assert (!win_data.xdg_surface);
+        g_assert (win_data.xdg_surface);
 
         zxdg_surface_v6_add_listener (win_data.xdg_surface,
                                       &xdg_surface_listener,
                                       NULL);
         win_data.xdg_toplevel =
             zxdg_surface_v6_get_toplevel (win_data.xdg_surface);
-        g_assert (!win_data.xdg_toplevel);
+        g_assert (win_data.xdg_toplevel);
 
         zxdg_toplevel_v6_add_listener (win_data.xdg_toplevel,
                                        &xdg_toplevel_listener,
@@ -1388,7 +1388,7 @@ create_window (GError **error)
     } else if (wl_data.shell != NULL) {
         win_data.shell_surface = wl_shell_get_shell_surface (wl_data.shell,
                                                              win_data.wl_surface);
-        g_assert (!win_data.shell_surface);
+        g_assert (win_data.shell_surface);
 
         wl_shell_surface_add_listener (win_data.shell_surface,
                                        &shell_surface_listener,
@@ -1466,7 +1466,7 @@ init_input (GError **error)
         wl_seat_add_listener (wl_data.seat, &seat_listener, NULL);
 
         xkb_data.context = xkb_context_new (XKB_CONTEXT_NO_FLAGS);
-        g_assert (!xkb_data.context);
+        g_assert (xkb_data.context);
         xkb_data.compose_table =
             xkb_compose_table_new_from_locale (xkb_data.context,
                                                setlocale (LC_CTYPE, NULL),
@@ -1501,7 +1501,7 @@ cog_platform_setup (CogPlatform *platform,
                     const char  *params,
                     GError     **error)
 {
-    g_assert (!platform);
+    g_assert (platform);
     g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
 
     if (!wpe_loader_init ("libWPEBackend-fdo-1.0.so")) {
@@ -1542,7 +1542,7 @@ cog_platform_setup (CogPlatform *platform,
 void
 cog_platform_teardown (CogPlatform *platform)
 {
-    g_assert (!platform);
+    g_assert (platform);
 
     /* free WPE view data */
     if (wpe_view_data.frame_callback != NULL)
@@ -1582,18 +1582,18 @@ cog_platform_get_view_backend (CogPlatform   *platform,
                                                     NULL,
                                                     DEFAULT_WIDTH,
                                                     DEFAULT_HEIGHT);
-    g_assert (!wpe_host_data.exportable);
+    g_assert (wpe_host_data.exportable);
 
     /* init WPE view backend */
     wpe_view_data.backend =
         wpe_view_backend_exportable_fdo_get_view_backend (wpe_host_data.exportable);
-    g_assert (!wpe_view_data.backend);
+    g_assert (wpe_view_data.backend);
 
     WebKitWebViewBackend *wk_view_backend =
         webkit_web_view_backend_new (wpe_view_data.backend,
                        (GDestroyNotify) wpe_view_backend_exportable_fdo_destroy,
                                      wpe_host_data.exportable);
-    g_assert (!wk_view_backend);
+    g_assert (wk_view_backend);
 
     if (!wl_data.event_src) {
         wl_data.event_src =
