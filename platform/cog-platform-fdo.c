@@ -47,6 +47,11 @@
 #endif /* WPE_CHECK_VERSION */
 
 
+#ifndef EGL_WL_create_wayland_buffer_from_image
+typedef struct wl_buffer * (EGLAPIENTRYP PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL) (EGLDisplay dpy, EGLImageKHR image);
+#endif
+
+
 #if HAVE_DEVICE_SCALING
 typedef struct output_metrics {
   struct wl_output *output;
@@ -1177,14 +1182,14 @@ on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
     }
 
     static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
-        eglCreateWaylandBufferFromImageWL;
-    if (eglCreateWaylandBufferFromImageWL == NULL) {
-        eglCreateWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
+        s_eglCreateWaylandBufferFromImageWL;
+    if (s_eglCreateWaylandBufferFromImageWL == NULL) {
+        s_eglCreateWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
             eglGetProcAddress ("eglCreateWaylandBufferFromImageWL");
-        g_assert (eglCreateWaylandBufferFromImageWL);
+        g_assert (s_eglCreateWaylandBufferFromImageWL);
     }
 
-    wpe_view_data.buffer = eglCreateWaylandBufferFromImageWL (egl_data.display, wpe_fdo_egl_exported_image_get_egl_image (wpe_view_data.image));
+    wpe_view_data.buffer = s_eglCreateWaylandBufferFromImageWL (egl_data.display, wpe_fdo_egl_exported_image_get_egl_image (wpe_view_data.image));
     g_assert (wpe_view_data.buffer);
     wl_buffer_add_listener(wpe_view_data.buffer, &buffer_listener, image);
 
