@@ -59,7 +59,7 @@ cog_platform_try_load (CogPlatform *platform,
     g_return_val_if_fail (platform != NULL, FALSE);
     g_return_val_if_fail (soname != NULL, FALSE);
 
-    g_assert_null (platform->so);
+    g_assert (!platform->so);
     platform->so = dlopen (soname, RTLD_LAZY);
     if (!platform->so)
         return FALSE;

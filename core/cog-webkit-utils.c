@@ -377,7 +377,7 @@ cog_webkit_settings_apply_from_key_file (WebKitSettings *settings,
                                            properties[i]->name,
                                            &lookup_error);
                 if (!value) {
-                    g_assert_nonnull (lookup_error);
+                    g_assert (lookup_error);
                     g_propagate_error (error, g_steal_pointer (&lookup_error));
                     return FALSE;
                 }
