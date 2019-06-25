@@ -41,10 +41,10 @@ set(WAYLAND_PROTOCOLS "" CACHE FILEPATH "Path to the wayland-protocols data dire
 #
 if (WAYLAND_PROTOCOLS)
     get_filename_component(WAYLAND_PROTOCOLS "${WAYLAND_PROTOCOLS}" REALPATH)
-    if (NOT IS_DIRECTORY "${WAYLAND_PROTOCOLS_BASE}/stable")
+    if (NOT IS_DIRECTORY "${WAYLAND_PROTOCOLS}/stable")
         set(WAYLAND_PROTOCOLS "")
     endif ()
-    if (NOT IS_DIRECTORY "${WAYLAND_PROTOCOLS_BASE}/unstable")
+    if (NOT IS_DIRECTORY "${WAYLAND_PROTOCOLS}/unstable")
         set(WAYLAND_PROTOCOLS "")
     endif ()
 endif ()
