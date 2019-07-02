@@ -496,7 +496,6 @@ registry_global (void               *data,
         } else {
             g_message ("Wayland: Got a wl_output interface\n");
         }
-    }
 #endif /* HAVE_DEVICE_SCALING */
     } else {
         interface_used = FALSE;
