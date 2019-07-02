@@ -475,7 +475,7 @@ registry_global (void               *data,
                                          &wl_seat_interface,
                                          version);
 #if HAVE_DEVICE_SCALING
-    else if (strcmp (interface, wl_output_interface.name) == 0) {
+    } else if (strcmp (interface, wl_output_interface.name) == 0) {
         struct wl_output* output = wl_registry_bind (registry,
                                                      name,
                                                      &wl_output_interface,
