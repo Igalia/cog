@@ -587,7 +587,7 @@ pointer_on_axis (void* data,
         wl_data.pointer.x * wl_data.current_output.scale,
         wl_data.pointer.y * wl_data.current_output.scale,
         axis,
-        - wl_fixed_to_int (value),
+        wl_fixed_to_int(value) > 0 ? -1 : 1,
     };
 
     wpe_view_backend_dispatch_axis_event (wpe_view_data.backend, &event);
