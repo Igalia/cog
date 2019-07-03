@@ -15,6 +15,12 @@
 # include "cog-platform.h"
 #endif
 
+#if defined(WPE_CHECK_VERSION) && WPE_CHECK_VERSION(1, 3, 0)
+# define HAVE_DEVICE_SCALING 1
+#else
+# define HAVE_DEVICE_SCALING 0
+#endif /* WPE_CHECK_VERSION */
+
 
 enum webprocess_fail_action {
     WEBPROCESS_FAIL_UNKNOWN = 0,
@@ -32,6 +38,9 @@ static struct {
     gboolean print_appid;
     gboolean doc_viewer;
     gdouble  scale_factor;
+#if HAVE_DEVICE_SCALING
+    gdouble  device_scale_factor;
+#endif // HAVE_DEVICE_SCALING
     GStrv    dir_handlers;
     GStrv    arguments;
     char    *background_color;
@@ -47,6 +56,9 @@ static struct {
     } on_failure;
 } s_options = {
     .scale_factor = 1.0,
+#if HAVE_DEVICE_SCALING
+    .device_scale_factor = 1.0,
+#endif // HAVE_DEVICE_SCALING
 };
 
 
@@ -59,8 +71,13 @@ static GOptionEntry s_cli_options[] =
         "Print application ID and exit",
         NULL },
     { "scale", '\0', 0, G_OPTION_ARG_DOUBLE, &s_options.scale_factor,
-        "Zoom/Scaling factor (default: 1.0, no scaling)",
+        "Zoom/Scaling factor applied to Web content (default: 1.0, no scaling)",
         "FACTOR" },
+#if HAVE_DEVICE_SCALING
+    { "device-scale", '\0', 0, G_OPTION_ARG_DOUBLE, &s_options.device_scale_factor,
+        "Output device scaling factor (default: 1.0, no scaling, 96 DPI)",
+        "FACTOR" },
+#endif // HAVE_DEVICE_SCALING
     { "doc-viewer", '\0', 0, G_OPTION_ARG_NONE, &s_options.doc_viewer,
         "Document viewer mode: optimizes for local loading of Web content. "
         "This reduces memory usage at the cost of reducing caching of "
@@ -345,7 +362,14 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
     // must have succeeded in providing a WebKitWebViewBackend* instance.
     if (!view_backend)
         g_error ("Could not instantiate any WPE backend.");
-#endif
+
+#if HAVE_DEVICE_SCALING
+    struct wpe_view_backend* wpe_backend =
+        webkit_web_view_backend_get_wpe_backend (view_backend);
+    wpe_view_backend_dispatch_set_device_scale_factor (wpe_backend,
+                                                       s_options.device_scale_factor);
+#endif // HAVE_DEVICE_SCALING
+#endif // !COG_USE_WEBKITGTK
 
     g_autoptr(WebKitWebView) web_view = g_object_new (WEBKIT_TYPE_WEB_VIEW,
                                                       "settings", cog_shell_get_web_settings (shell),
