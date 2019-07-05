@@ -1,0 +1,21 @@
+before_script:
+  - ulimit -n 4096
+  - rm -rf ~/ci-cog
+  - mkdir -p ~/ci-cog
+  - cd ~/ci-cog
+  - git clone $CI_REPOSITORY_URL
+  - cd cog
+  - git checkout $CI_COMMIT_REF_NAME
+
+cog-meta-perf-browser-warrior-wandboard-mesa-wpe-weston:
+  tags:
+    - docker
+  script:
+    - wget -O ~/toolchain.sh https://wk-contrib.igalia.com/yocto/meta-perf-browser/browsers/nightly/sdk/wandboard-mesa/browsers-glibc-x86_64-core-image-weston-wpe-armv7at2hf-neon-wandboard-mesa-toolchain-1.0.sh
+    - chmod +x ~/toolchain.sh
+    - ~/toolchain.sh -d ~/toolchain_env_wandboard-mesa-wpe-trunk -y
+    - . ~/toolchain_env_wandboard-mesa-wpe-trunk/environment-setup-armv7at2hf-neon-poky-linux-gnueabi
+    - mkdir install && mkdir build && cd build
+    - cmake -GNinja -DCOG_USE_WEBKITGTK=OFF -DCOG_DBUS_SYSTEM_BUS=ON -DCOG_PLATFORM_FDO=ON -DCMAKE_INSTALL_PREFIX=../install  ..
+    - ninja
+    - ninja install
