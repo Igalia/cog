@@ -1204,6 +1204,18 @@ on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
     wl_surface_commit (win_data.wl_surface);
 }
 
+static void
+on_input_method_enable(void *data)
+{
+    fprintf(stderr, "on_input_method_enable()\n");
+}
+
+static void
+on_input_method_disable(void *data)
+{
+    fprintf(stderr, "on_input_method_disable()\n");
+}
+
 static gboolean
 init_wayland (GError **error)
 {
@@ -1599,6 +1611,14 @@ cog_platform_get_view_backend (CogPlatform   *platform,
     wpe_view_data.backend =
         wpe_view_backend_exportable_fdo_get_view_backend (wpe_host_data.exportable);
     g_assert (wpe_view_data.backend);
+
+    static struct wpe_input_method_controller input_method_controller = {
+        .enable = on_input_method_enable,
+        .disable = on_input_method_disable,
+    };
+    struct wpe_view_ui* view_ui = wpe_view_backend_get_view_ui(wpe_view_data.backend);
+    struct wpe_input_method* input_method = wpe_view_ui_get_input_method(view_ui);
+    wpe_input_method_set_controller(input_method, &input_method_controller, NULL);
 
     WebKitWebViewBackend *wk_view_backend =
         webkit_web_view_backend_new (wpe_view_data.backend,
