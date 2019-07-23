@@ -82,8 +82,13 @@ else ()
     endif ()
 endif ()
 
+include(CheckCCompilerFlag)
+check_c_compiler_flag(-Wall HAS_WALL)
 set(COGCORE_INCLUDE_DIRS ${WEB_ENGINE_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
 set(COGCORE_CFLAGS ${WEB_ENGINE_CFLAGS_OTHER} ${SOUP_CFLAGS_OTHER})
+if (HAS_WALL)
+  set(COGCORE_CFLAGS ${WEB_ENGINE_CFLAGS_OTHER} ${SOUP_CFLAGS_OTHER} "-Wall")
+endif ()
 set(COGCORE_LDFLAGS ${WEB_ENGINE_LDFLAGS} ${SOUP_LDFLAGS})
 
 
@@ -114,12 +119,18 @@ target_compile_options(cogcore
 if (COG_BUILD_PROGRAMS)
     add_executable(cog cog.c)
     set_property(TARGET cog PROPERTY C_STANDARD 99)
+    if (HAS_WALL)
+      target_compile_options(cog PUBLIC "-Wall")
+    endif ()
     target_link_libraries(cog cogcore -ldl)
 
     add_executable(cogctl cogctl.c core/cog-utils.c)
     set_property(TARGET cogctl PROPERTY C_STANDARD 99)
     target_include_directories(cogctl PUBLIC ${GIO_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
     target_compile_options(cogctl PUBLIC ${GIO_CFLAGS_OTHER} ${SOUP_CFLAGS_OTHER})
+    if (HAS_WALL)
+      target_compile_options(cogctl PUBLIC "-Wall")
+    endif ()
     target_link_libraries(cogctl ${GIO_LDFLAGS} ${SOUP_LDFLAGS})
 
     install(TARGETS cog cogctl

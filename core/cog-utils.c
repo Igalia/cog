@@ -212,8 +212,8 @@ option_entry_parse_to_property (const char *option,
             char *end = NULL;
             guint64 prop_value = g_ascii_strtoull (value, &end, 0);
             if (errno == ERANGE ||
-                (prop_type == G_TYPE_UINT && prop_value > UINT_MAX ||
-                (prop_type == G_TYPE_ULONG && prop_value > ULONG_MAX)))
+                ((prop_type == G_TYPE_UINT && prop_value > UINT_MAX) ||
+                 (prop_type == G_TYPE_ULONG && prop_value > ULONG_MAX)))
             {
                 g_set_error (error,
                              G_OPTION_ERROR,
