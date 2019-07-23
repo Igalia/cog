@@ -133,9 +133,8 @@ cog_shell_startup_base (CogShell *shell)
 
 
 static void
-cog_shell_shutdown_base (CogShell *shell)
+cog_shell_shutdown_base (CogShell *shell G_GNUC_UNUSED)
 {
-    CogShellPrivate *priv = PRIV (shell);
 }
 
 

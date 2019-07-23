@@ -460,6 +460,7 @@ option_entry_parse_cookie_add (const char          *option G_GNUC_UNUSED,
                                WebKitCookieManager *cookie_manager,
                                GError             **error G_GNUC_UNUSED)
 {
+    g_autoptr(GMainLoop) loop = NULL;
     g_autofree char *domain = g_strdup (value);
 
     char *flagstr = strchr (domain, ':');
@@ -523,7 +524,7 @@ option_entry_parse_cookie_add (const char          *option G_GNUC_UNUSED,
 
     // Adding a cookie is an asynchronous operation, so spin up an
     // event loop until to block until the operation completes.
-    g_autoptr(GMainLoop) loop = g_main_loop_new (NULL, FALSE);
+    loop = g_main_loop_new (NULL, FALSE);
     webkit_cookie_manager_add_cookie (cookie_manager,
                                       cookie,
                                       NULL,  // GCancellable
