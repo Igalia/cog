@@ -154,7 +154,7 @@ on_handle_local_options (GApplication *application,
                          void         *user_data)
 {
     if (s_options.version) {
-        g_print ("%s\n", COG_VERSION_STRING);
+        g_print ("%s\n", COG_VERSION_STRING COG_VERSION_EXTRA);
         return EXIT_SUCCESS;
     }
     if (s_options.print_appid) {

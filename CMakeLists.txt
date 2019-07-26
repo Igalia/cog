@@ -1,6 +1,38 @@
 cmake_minimum_required (VERSION 3.3)
 project(cog VERSION 0.1.0 LANGUAGES C)
 
+set(COG_VERSION_EXTRA "")
+if (IS_DIRECTORY "${CMAKE_SOURCE_DIR}/.git")
+    set(COG_VERSION_EXTRA "+git")
+    find_package(Git)
+    if (GIT_FOUND)
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" rev-list --max-count=1 --abbrev-commit HEAD
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            RESULT_VARIABLE GIT_STATUS
+            OUTPUT_VARIABLE GIT_OUTPUT
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET)
+        if (${GIT_STATUS} EQUAL 0 AND GIT_OUTPUT)
+            set(COG_VERSION_EXTRA "${COG_VERSION_EXTRA}-${GIT_OUTPUT}")
+        endif ()
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" status --porcelain
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            RESULT_VARIABLE GIT_STATUS
+            OUTPUT_VARIABLE GIT_OUTPUT
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET)
+        if (${GIT_STATUS} EQUAL 0 AND GIT_OUTPUT)
+            set(COG_VERSION_EXTRA "${COG_VERSION_EXTRA}-dirty")
+        endif ()
+        unset(GIT_STATUS)
+        unset(GIT_OUTPUT)
+    endif ()
+    message(STATUS "Source tree revision: ${PROJECT_VERSION}${COG_VERSION_EXTRA}")
+endif ()
+
+
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/cmake")
 include(GNUInstallDirs)
 
