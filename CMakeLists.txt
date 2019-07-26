@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.3)
-project(cog VERSION 0.1.0 LANGUAGES C)
+project(cog VERSION 0.3.2 LANGUAGES C)
 
 set(COG_VERSION_EXTRA "")
 if (IS_DIRECTORY "${CMAKE_SOURCE_DIR}/.git")
