@@ -425,7 +425,7 @@ surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *
         g_warning ("No scale factor available for output %p\n", output);
         return;
     }
-    g_message ("Surface entered output %p with scale factor %i\n", output, scale_factor);
+    g_debug ("Surface entered output %p with scale factor %i\n", output, scale_factor);
     wl_surface_set_buffer_scale (surface, scale_factor);
     wpe_view_backend_dispatch_set_device_scale_factor (wpe_view_data.backend, scale_factor);
     wl_data.current_output.scale = scale_factor;
@@ -493,8 +493,6 @@ registry_global (void               *data,
         }
         if (!inserted) {
             g_warning ("Exceeded %" G_GSIZE_FORMAT " connected outputs(!)", G_N_ELEMENTS (wl_data.metrics));
-        } else {
-            g_message ("Wayland: Got a wl_output interface\n");
         }
 #endif /* HAVE_DEVICE_SCALING */
     } else {
@@ -1110,7 +1108,7 @@ registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
         if (wl_data.metrics[i].name == name) {
             wl_data.metrics[i].output = NULL;
             wl_data.metrics[i].name = 0;
-            g_message ("Removed output %i\n", name);
+            g_debug ("Removed output %i\n", name);
             break;
         }
     }
