@@ -492,7 +492,7 @@ registry_global (void               *data,
             }
         }
         if (!inserted) {
-            g_warning ("Exceeded %i connected outputs(!)", G_N_ELEMENTS (wl_data.metrics));
+            g_warning ("Exceeded %" G_GSIZE_FORMAT " connected outputs(!)", G_N_ELEMENTS (wl_data.metrics));
         } else {
             g_message ("Wayland: Got a wl_output interface\n");
         }
