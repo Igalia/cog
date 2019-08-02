@@ -1,0 +1,26 @@
+language: minimal
+dist: xenial
+sudo: false
+
+env:
+  global:
+    - TOOLCHAINS_URL=https://wk-contrib.igalia.com/yocto/meta-perf-browser/browsers/nightly/sdk
+    - TOOLCHAIN_NAME=wandboard-mesa/browsers-glibc-x86_64-core-image-weston-wpe-armv7at2hf-neon-wandboard-mesa-toolchain-1.0.sh
+  matrix:
+    - BUILD_TYPE=Debug
+    - BUILD_TYPE=Release
+
+addons:
+  apt:
+    packages:
+      - cmake
+      - ninja-build
+
+install:
+  - 'wget -O ~/toolchain.sh "${TOOLCHAINS_URL}/${TOOLCHAIN_NAME}"'
+  - chmod +x ~/toolchain.sh && ~/toolchain.sh -d ~/toolchain -y
+
+script:
+  - source ~/toolchain/environment-setup-armv7at2hf-neon-poky-linux-gnueabi
+  - cmake -S . -B _build -GNinja -D -DCOG_USE_WEBKITGTK=OFF -DCOG_DBUS_SYSTEM_BUS=ON -DCOG_PLATFORM_FDO=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+  - TERM=dumb ninja -C _build
