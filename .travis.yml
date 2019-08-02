@@ -16,9 +16,22 @@ addons:
       - cmake
       - ninja-build
 
+cache:
+  directories:
+    - $HOME/toolchain
+
 install:
-  - 'wget -O ~/toolchain.sh "${TOOLCHAINS_URL}/${TOOLCHAIN_NAME}"'
-  - chmod +x ~/toolchain.sh && ~/toolchain.sh -d ~/toolchain -y
+  - |-
+    : 'Downloading toolchain'
+    curl --progress-bar --retry 3 --time-cond ~/toolchain/.installed -L -o ~/toolchain.sh "${TOOLCHAINS_URL}/${TOOLCHAIN_NAME}"
+  - |-
+    : 'Installing toolchain'
+    if [[ -r ~/toolchain.sh ]] ; then
+        rm -rf ~/toolchain/
+        chmod +x ~/toolchain.sh && ~/toolchain.sh -d ~/toolchain/ -y && touch ~/toolchain/.installed
+    else
+        echo 'Cached toolchain already up to date'
+    fi
 
 script:
   - source ~/toolchain/environment-setup-armv7at2hf-neon-poky-linux-gnueabi
