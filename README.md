@@ -3,6 +3,8 @@ Cog
 
 ![Cog (boat)](data/cog.png)
 
+[![Build Status](https://travis-ci.com/Igalia/cog.svg?branch=master)](https://travis-ci.com/Igalia/cog)
+
 Cog is a small single “window” launcher for the [WebKit WPE
 port](https://trac.webkit.org/wiki/WPE). It is small, provides no user
 interface, and is suitable to be used as a Web application container. The
