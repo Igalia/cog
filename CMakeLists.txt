@@ -42,6 +42,7 @@ set(COG_DBUS_OWN_USER "" CACHE STRING
 
 option(COG_USE_WEBKITGTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
 option(COG_PLATFORM_FDO "Build the FDO platform module" ON)
+option(COG_PLATFORM_DRM "Build the DRM platform module" OFF)
 option(COG_BUILD_PROGRAMS "Build and install programs as well" ON)
 set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
@@ -233,5 +234,32 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
         COMPONENT "runtime"
     )
 endif ()  # !COG_USE_WEBKITGTK
+
+# libcogplaform-drm-experimental
+
+if (COG_PLATFORM_DRM AND NOT COG_USE_WEBKITGTK)
+    pkg_check_modules(COGPLATFORM_DRM_DEPS REQUIRED wpe-webkit-1.0>=2.24.0 wpebackend-fdo-1.0>=1.3.1 libdrm>=2.4.71 gbm>=13.0 egl)
+
+    set(COGPLATFORM_DRM_INCLUDE_DIRS
+        ${COGPLATFORM_DRM_DEPS_INCLUDE_DIRS}
+    )
+    set(COGPLATFORM_DRM_CFLAGS
+        ${COGPLATFORM_DRM_DEPS_CFLAGS_OTHER}
+    )
+    set(COGPLATFORM_DRM_LDFLAGS
+        ${COGPLATFORM_DRM_DEPS_LDFLAGS}
+    )
+
+    add_library(cogplatform-drm-experimental MODULE platform/cog-platform-drm.c)
+    set_property(TARGET cogplatform-drm-experimental PROPERTY C_STANDARD 99)
+    target_include_directories(cogplatform-drm-experimental PUBLIC ${COGPLATFORM_DRM_INCLUDE_DIRS})
+    target_compile_options(cogplatform-drm-experimental PUBLIC ${COGPLATFORM_DRM_CFLAGS})
+    target_link_libraries(cogplatform-drm-experimental cogcore ${COGPLATFORM_DRM_LDFLAGS})
+
+    install(TARGETS cogplatform-drm-experimental
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        COMPONENT "runtime"
+    )
+endif () # COG_PLATFORM_DRM AND NOT COG_USE_WEBKITGTK
 
 configure_file(core/cog-config.h.in cog-config.h @ONLY)
