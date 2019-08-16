@@ -186,13 +186,8 @@ cog_launcher_dispose (GObject *object)
         g_clear_object (&launcher->shell);
     }
 
-    if (launcher->sigint_source > 0)
-        g_source_remove (launcher->sigint_source);
-    launcher->sigint_source = 0;
-
-    if (launcher->sigterm_source > 0)
-        g_source_remove (launcher->sigterm_source);
-    launcher->sigterm_source = 0;
+    g_clear_handle_id (&launcher->sigint_source, g_source_remove);
+    g_clear_handle_id (&launcher->sigterm_source, g_source_remove);
 
     G_OBJECT_CLASS (cog_launcher_parent_class)->dispose (object);
 }
