@@ -32,7 +32,7 @@
 #include <xkbcommon/xkbcommon-compose.h>
 #include <locale.h>
 
-#include "xdg-shell-unstable-v6-client.h"
+#include "xdg-shell-client.h"
 #include "fullscreen-shell-unstable-v1-client.h"
 
 #define DEFAULT_WIDTH  1024
@@ -65,7 +65,7 @@ static struct {
     struct wl_registry *registry;
     struct wl_compositor *compositor;
 
-    struct zxdg_shell_v6 *xdg_shell;
+    struct xdg_wm_base *xdg_shell;
     struct zwp_fullscreen_shell_v1 *fshell;
     struct wl_shell *shell;
 
@@ -126,8 +126,8 @@ static struct {
     struct wl_egl_window *egl_window;
     EGLSurface egl_surface;
 
-    struct zxdg_surface_v6 *xdg_surface;
-    struct zxdg_toplevel_v6 *xdg_toplevel;
+    struct xdg_surface *xdg_surface;
+    struct xdg_toplevel *xdg_toplevel;
     struct wl_shell_surface *shell_surface;
 
     uint32_t width;
@@ -329,30 +329,30 @@ static const struct wl_shell_surface_listener shell_surface_listener = {
 };
 
 static void
-xdg_shell_ping (void *data, struct zxdg_shell_v6 *shell, uint32_t serial)
+xdg_shell_ping (void *data, struct xdg_wm_base *shell, uint32_t serial)
 {
-    zxdg_shell_v6_pong(shell, serial);
+    xdg_wm_base_pong(shell, serial);
 }
 
-static const struct zxdg_shell_v6_listener xdg_shell_listener = {
+static const struct xdg_wm_base_listener xdg_shell_listener = {
     .ping = xdg_shell_ping,
 };
 
 static void
 xdg_surface_on_configure (void *data,
-                          struct zxdg_surface_v6 *surface,
+                          struct xdg_surface *surface,
                           uint32_t serial)
 {
-    zxdg_surface_v6_ack_configure (surface, serial);
+    xdg_surface_ack_configure (surface, serial);
 }
 
-static const struct zxdg_surface_v6_listener xdg_surface_listener = {
+static const struct xdg_surface_listener xdg_surface_listener = {
     .configure = xdg_surface_on_configure
 };
 
 static void
 xdg_toplevel_on_configure (void *data,
-                           struct zxdg_toplevel_v6 *toplevel,
+                           struct xdg_toplevel *toplevel,
                            int32_t width, int32_t height,
                            struct wl_array *states)
 {
@@ -364,12 +364,12 @@ xdg_toplevel_on_configure (void *data,
 }
 
 static void
-xdg_toplevel_on_close (void *data, struct zxdg_toplevel_v6 *xdg_toplevel)
+xdg_toplevel_on_close (void *data, struct xdg_toplevel *xdg_toplevel)
 {
     g_application_quit (g_application_get_default ());
 }
 
-static const struct zxdg_toplevel_v6_listener xdg_toplevel_listener = {
+static const struct xdg_toplevel_listener xdg_toplevel_listener = {
     .configure = xdg_toplevel_on_configure,
     .close = xdg_toplevel_on_close,
 };
@@ -456,13 +456,13 @@ registry_global (void               *data,
                                           name,
                                           &wl_shell_interface,
                                           version);
-    } else if (strcmp (interface, zxdg_shell_v6_interface.name) == 0) {
+    } else if (strcmp (interface, xdg_wm_base_interface.name) == 0) {
         wl_data.xdg_shell = wl_registry_bind (registry,
                                               name,
-                                              &zxdg_shell_v6_interface,
+                                              &xdg_wm_base_interface,
                                               version);
         g_assert (wl_data.xdg_shell);
-        zxdg_shell_v6_add_listener (wl_data.xdg_shell, &xdg_shell_listener, NULL);
+        xdg_wm_base_add_listener (wl_data.xdg_shell, &xdg_shell_listener, NULL);
     } else if (strcmp (interface,
                        zwp_fullscreen_shell_v1_interface.name) == 0) {
         wl_data.fshell = wl_registry_bind (registry,
@@ -717,9 +717,9 @@ capture_app_key_bindings (uint32_t keysym,
         /* fullscreen */
         if (modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F11) {
             if (! win_data.is_fullscreen)
-                zxdg_toplevel_v6_set_fullscreen (win_data.xdg_toplevel, NULL);
+                xdg_toplevel_set_fullscreen (win_data.xdg_toplevel, NULL);
             else
-                zxdg_toplevel_v6_unset_fullscreen (win_data.xdg_toplevel);
+                xdg_toplevel_unset_fullscreen (win_data.xdg_toplevel);
             win_data.is_fullscreen = ! win_data.is_fullscreen;
             return true;
         }
@@ -1236,7 +1236,7 @@ clear_wayland (void)
     g_source_destroy (wl_data.event_src);
 
     if (wl_data.xdg_shell != NULL)
-        zxdg_shell_v6_destroy (wl_data.xdg_shell);
+        xdg_wm_base_destroy (wl_data.xdg_shell);
     if (wl_data.fshell != NULL)
         zwp_fullscreen_shell_v1_destroy (wl_data.fshell);
     if (wl_data.shell != NULL)
@@ -1362,22 +1362,19 @@ create_window (GError **error)
 
     if (wl_data.xdg_shell != NULL) {
         win_data.xdg_surface =
-            zxdg_shell_v6_get_xdg_surface (wl_data.xdg_shell,
-                                           win_data.wl_surface);
+            xdg_wm_base_get_xdg_surface (wl_data.xdg_shell,
+                                         win_data.wl_surface);
         g_assert (win_data.xdg_surface);
 
-        zxdg_surface_v6_add_listener (win_data.xdg_surface,
-                                      &xdg_surface_listener,
-                                      NULL);
+        xdg_surface_add_listener (win_data.xdg_surface, &xdg_surface_listener,
+                                  NULL);
         win_data.xdg_toplevel =
-            zxdg_surface_v6_get_toplevel (win_data.xdg_surface);
+            xdg_surface_get_toplevel (win_data.xdg_surface);
         g_assert (win_data.xdg_toplevel);
 
-        zxdg_toplevel_v6_add_listener (win_data.xdg_toplevel,
-                                       &xdg_toplevel_listener,
-                                       NULL);
-        zxdg_toplevel_v6_set_title (win_data.xdg_toplevel,
-                                    COG_DEFAULT_APPNAME);
+        xdg_toplevel_add_listener (win_data.xdg_toplevel,
+                                   &xdg_toplevel_listener, NULL);
+        xdg_toplevel_set_title (win_data.xdg_toplevel, COG_DEFAULT_APPNAME);
 
         const char *app_id = NULL;
         GApplication *app = g_application_get_default ();
@@ -1387,7 +1384,7 @@ create_window (GError **error)
         if (!app_id) {
             app_id = COG_DEFAULT_APPID;
         }
-        zxdg_toplevel_v6_set_app_id (win_data.xdg_toplevel, app_id);
+        xdg_toplevel_set_app_id (win_data.xdg_toplevel, app_id);
         wl_surface_commit(win_data.wl_surface);
     } else if (wl_data.fshell != NULL) {
         zwp_fullscreen_shell_v1_present_surface (wl_data.fshell,
@@ -1416,7 +1413,7 @@ create_window (GError **error)
         win_data.is_fullscreen = true;
 
         if (wl_data.xdg_shell != NULL) {
-            zxdg_toplevel_v6_set_fullscreen (win_data.xdg_toplevel, NULL);
+            xdg_toplevel_set_fullscreen (win_data.xdg_toplevel, NULL);
         } else if (wl_data.shell != NULL) {
             wl_shell_surface_set_fullscreen (win_data.shell_surface,
                                              WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE,
@@ -1434,7 +1431,7 @@ create_window (GError **error)
         win_data.is_fullscreen = false;
 
         if (wl_data.xdg_shell != NULL) {
-            zxdg_toplevel_v6_set_maximized (win_data.xdg_toplevel);
+            xdg_toplevel_set_maximized (win_data.xdg_toplevel);
         } else if (wl_data.shell != NULL) {
             wl_shell_surface_set_maximized (win_data.shell_surface, NULL);
         } else {
@@ -1462,8 +1459,8 @@ destroy_window (void)
     }
 
     g_clear_pointer (&win_data.egl_window, wl_egl_window_destroy);
-    g_clear_pointer (&win_data.xdg_toplevel, zxdg_toplevel_v6_destroy);
-    g_clear_pointer (&win_data.xdg_surface, zxdg_surface_v6_destroy);
+    g_clear_pointer (&win_data.xdg_toplevel, xdg_toplevel_destroy);
+    g_clear_pointer (&win_data.xdg_surface, xdg_surface_destroy);
     g_clear_pointer (&win_data.shell_surface, wl_shell_surface_destroy);
     g_clear_pointer (&win_data.wl_surface, wl_surface_destroy);
 }
