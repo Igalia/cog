@@ -13,14 +13,12 @@
 
 #if !COG_USE_WEBKITGTK
 # include "cog-platform.h"
-#endif
-
 #if defined(WPE_CHECK_VERSION) && WPE_CHECK_VERSION(1, 3, 0)
 # define HAVE_DEVICE_SCALING 1
 #else
 # define HAVE_DEVICE_SCALING 0
 #endif /* WPE_CHECK_VERSION */
-
+#endif /* COG_USE_WEBKITGTK */
 
 enum webprocess_fail_action {
     WEBPROCESS_FAIL_UNKNOWN = 0,
