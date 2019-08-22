@@ -19,6 +19,29 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if !GLIB_CHECK_VERSION(2, 56, 0)
+typedef void (* GClearHandleFunc) (guint handle_id);
+
+#undef g_clear_handle_id
+void
+g_clear_handle_id (guint            *tag_ptr,
+                   GClearHandleFunc  clear_func)
+{
+  guint _handle_id;
+
+  _handle_id = *tag_ptr;
+  if (_handle_id > 0)
+    {
+      *tag_ptr = 0;
+      if (clear_func != NULL)
+        clear_func (_handle_id);
+    }
+}
+#endif
+
+#if !GLIB_CHECK_VERSION(2, 58, 0)
+#define G_SOURCE_FUNC(f) ((GSourceFunc) (void (*)(void)) (f))
+#endif
 
 struct _CogLauncher {
     CogLauncherBase  parent;
