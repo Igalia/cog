@@ -15,14 +15,18 @@
 # include "cog-gtk-utils.h"
 #endif
 
+#include <glib-unix.h>
 #include <stdlib.h>
 #include <string.h>
 
 
 struct _CogLauncher {
-    CogLauncherBase parent;
-    CogShell       *shell;
-    gboolean       allow_all_requests;
+    CogLauncherBase  parent;
+    CogShell        *shell;
+    gboolean         allow_all_requests;
+
+    guint            sigint_source;
+    guint            sigterm_source;
 };
 
 G_DEFINE_TYPE (CogLauncher, cog_launcher, COG_LAUNCHER_BASE_TYPE)
@@ -68,6 +72,13 @@ on_action_open (G_GNUC_UNUSED GAction *action,
     g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
     webkit_web_view_load_uri (cog_shell_get_web_view (launcher->shell),
                               g_variant_get_string (param, NULL));
+}
+
+static gboolean
+on_signal_quit (CogLauncher *launcher)
+{
+    g_application_quit (G_APPLICATION (launcher));
+    return G_SOURCE_CONTINUE;
 }
 
 static gboolean
@@ -175,6 +186,9 @@ cog_launcher_dispose (GObject *object)
         g_clear_object (&launcher->shell);
     }
 
+    g_clear_handle_id (&launcher->sigint_source, g_source_remove);
+    g_clear_handle_id (&launcher->sigterm_source, g_source_remove);
+
     G_OBJECT_CLASS (cog_launcher_parent_class)->dispose (object);
 }
 
@@ -242,6 +256,13 @@ cog_launcher_constructed (GObject *object)
     cog_launcher_add_action (launcher, "next", on_action_next, NULL);
     cog_launcher_add_action (launcher, "reload", on_action_reload, NULL);
     cog_launcher_add_action (launcher, "open", on_action_open, G_VARIANT_TYPE_STRING);
+
+    launcher->sigint_source = g_unix_signal_add (SIGINT,
+                                                 G_SOURCE_FUNC (on_signal_quit),
+                                                 launcher);
+    launcher->sigterm_source = g_unix_signal_add (SIGTERM,
+                                                  G_SOURCE_FUNC (on_signal_quit),
+                                                  launcher);
 
 #if COG_DBUS_SYSTEM_BUS
     g_bus_own_name (G_BUS_TYPE_SYSTEM,
