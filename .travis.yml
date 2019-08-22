@@ -1,4 +1,5 @@
-language: minimal
+---
+language: cpp
 dist: xenial
 sudo: false
 
@@ -6,15 +7,23 @@ env:
   global:
     - TOOLCHAINS_URL=https://wk-contrib.igalia.com/yocto/meta-perf-browser/browsers/nightly/sdk
     - TOOLCHAIN_NAME=wandboard-mesa/browsers-glibc-x86_64-core-image-weston-wpe-armv7at2hf-neon-wandboard-mesa-toolchain-1.0.sh
-  matrix:
-    - BUILD_TYPE=Debug
-    - BUILD_TYPE=Release
 
 addons:
   apt:
-    packages:
-      - cmake
+    packages: &base-deps
       - ninja-build
+
+matrix:
+  include:
+    - env:
+        - BUILD_TYPE=Debug WEBKITGTK=false
+      addons: {apt: {packages: [*base-deps]}}
+    - env:
+        - BUILD_TYPE=Release WEBKITGTK=false
+      addons: {apt: {packages: [*base-deps]}}
+    - env:
+        - BUILD_TYPE=Release WEBKITGTK=true
+      addons: {apt: {packages: [*base-deps, cmake, libwebkit2gtk-4.0-dev]}}
 
 cache:
   directories:
@@ -23,17 +32,44 @@ cache:
 install:
   - |-
     : 'Downloading toolchain'
-    curl --progress-bar --retry 3 --time-cond ~/toolchain/.installed -L -o ~/toolchain.sh "${TOOLCHAINS_URL}/${TOOLCHAIN_NAME}"
+    set -e
+    if ${WEBKITGTK} ; then
+        echo 'Toolchain download not needed for WebKitGTK build'
+    else
+        curl --progress-bar --retry 3 \
+            --time-cond ~/toolchain/.installed -L -o ~/toolchain.sh \
+            "${TOOLCHAINS_URL}/${TOOLCHAIN_NAME}"
+    fi
   - |-
     : 'Installing toolchain'
-    if [[ -r ~/toolchain.sh ]] ; then
+    set -e
+    if ${WEBKITGTK} ; then
+        echo 'Toolchain installation not needed for WebKitGTK build'
+    elif [[ -r ~/toolchain.sh ]] ; then
         rm -rf ~/toolchain/
-        chmod +x ~/toolchain.sh && ~/toolchain.sh -d ~/toolchain/ -y && touch ~/toolchain/.installed
+        chmod +x ~/toolchain.sh
+        ~/toolchain.sh -d ~/toolchain/ -y
+        touch ~/toolchain/.installed
     else
         echo 'Cached toolchain already up to date'
     fi
 
 script:
-  - source ~/toolchain/environment-setup-armv7at2hf-neon-poky-linux-gnueabi
-  - cmake -S . -B _build -GNinja -D -DCOG_USE_WEBKITGTK=OFF -DCOG_DBUS_SYSTEM_BUS=ON -DCOG_PLATFORM_FDO=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
-  - TERM=dumb ninja -C _build
+  - |-
+    : 'Configuring'
+    set -e
+    CMAKEOPTS=(-DCMAKE_BUILD_TYPE=${BUILD_TYPE})
+    if ${WEBKITGTK} ; then \
+        CMAKEOPTS+=(-DCOG_USE_WEBKITGTK=ON)
+    else
+        CMAKEOPTS+=(-DCOG_USE_WEBKITGTK=OFF
+                    -DCOG_DBUS_SYSTEM_BUS=ON
+                    -DCOG_PLATFORM_FDO=ON)
+        source ~/toolchain/environment-setup-armv7at2hf-neon-poky-linux-gnueabi
+    fi
+    echo "CMake options: ${CMAKEOPTS[*]}"
+    mkdir _build && cd _build
+    cmake -GNinja "${CMAKEOPTS[@]}" ..
+  - |-
+    : 'Building'
+    TERM=dumb ninja
