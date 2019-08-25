@@ -25,8 +25,8 @@ typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platf
 
 struct buffer_object {
     uint32_t fb_id;
-    struct gbm_bo* bo;
-    struct wl_resource* buffer_resource;
+    struct gbm_bo *bo;
+    struct wl_resource *buffer_resource;
 };
 
 static struct {
@@ -44,7 +44,7 @@ static struct {
     uint32_t height;
 
     bool mode_set;
-    struct buffer_object* committed_buffer;
+    struct buffer_object *committed_buffer;
 } drm_data = {
     .fd = -1,
     .connector = NULL,
@@ -103,7 +103,7 @@ static struct {
 } wpe_host_data;
 
 static struct {
-    struct wpe_view_backend* backend;
+    struct wpe_view_backend *backend;
 } wpe_view_data;
 
 
@@ -131,7 +131,7 @@ static gboolean
 init_drm ()
 {
     drmDevicePtr devices[64];
-    memset(devices, 0, sizeof(drmDevicePtr) * 64);
+    memset (devices, 0, sizeof (drmDevicePtr) * 64);
 
     int num_devices = drmGetDevices2 (0, devices, 64);
     if (num_devices < 0)
@@ -219,7 +219,7 @@ init_drm ()
 }
 
 static void
-drm_page_flip_handler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data)
+drm_page_flip_handler (int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data)
 {
     g_clear_pointer (&drm_data.committed_buffer, destroy_buffer);
 
@@ -575,13 +575,13 @@ init_glib ()
 
 
 static void
-on_export_buffer_resource (void* data, struct wl_resource* buffer_resource)
+on_export_buffer_resource (void *data, struct wl_resource *buffer_resource)
 {
     assert (!"should not be reached");
 }
 
 static void
-on_export_dmabuf_resource (void* data, struct wpe_view_backend_exportable_fdo_dmabuf_resource* dmabuf_resource)
+on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dmabuf_resource *dmabuf_resource)
 {
     struct gbm_import_fd_modifier_data modifier_data;
     modifier_data.width = dmabuf_resource->width;
@@ -595,7 +595,7 @@ on_export_dmabuf_resource (void* data, struct wpe_view_backend_exportable_fdo_dm
     }
     modifier_data.modifier = dmabuf_resource->modifiers[0];
 
-    struct gbm_bo* bo = gbm_bo_import (gbm_data.device, GBM_BO_IMPORT_FD_MODIFIER,
+    struct gbm_bo *bo = gbm_bo_import (gbm_data.device, GBM_BO_IMPORT_FD_MODIFIER,
                                        (void *)(&modifier_data), GBM_BO_USE_SCANOUT);
     if (!bo)
         return;
@@ -633,7 +633,7 @@ on_export_dmabuf_resource (void* data, struct wpe_view_backend_exportable_fdo_dm
         drm_data.mode_set = true;
     }
 
-    struct buffer_object* buffer = g_new0 (struct buffer_object, 1);
+    struct buffer_object *buffer = g_new0 (struct buffer_object, 1);
     buffer->fb_id = fb_id;
     buffer->bo = bo;
     buffer->buffer_resource = dmabuf_resource->buffer_resource;
@@ -717,7 +717,7 @@ cog_platform_teardown (CogPlatform *platform)
     clear_drm ();
 }
 
-WebKitWebViewBackend*
+WebKitWebViewBackend *
 cog_platform_get_view_backend (CogPlatform   *platform,
                                WebKitWebView *related_view,
                                GError       **error)
