@@ -414,7 +414,7 @@ cog_platform_setup (CogPlatform *platform,
         g_set_error_literal (error,
                              COG_PLATFORM_WPE_ERROR,
                              COG_PLATFORM_WPE_ERROR_INIT,
-                             "Failed to initialize GBM");
+                             "Failed to initialize GLib");
         return FALSE;
     }
 
