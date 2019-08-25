@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <gbm.h>
+#include <libinput.h>
+#include <libudev.h>
 #include <wpe/fdo.h>
 #include <wpe/fdo-egl.h>
 #include <xf86drm.h>
@@ -70,9 +72,30 @@ static struct {
 };
 
 static struct {
+    struct udev *udev;
+    struct libinput *libinput;
+
+    uint32_t input_width;
+    uint32_t input_height;
+
+    struct wpe_input_touch_event_raw touch_points[10];
+    enum wpe_input_touch_event_type last_touch_type;
+    int last_touch_id;
+} input_data = {
+    .udev = NULL,
+    .libinput = NULL,
+    .input_width = 0,
+    .input_height = 0,
+    .last_touch_type = wpe_input_touch_event_type_null,
+    .last_touch_id = 0,
+};
+
+static struct {
     GSource *drm_source;
+    GSource *input_source;
 } glib_data = {
     .drm_source = NULL,
+    .input_source = NULL,
 };
 
 static struct {
@@ -256,6 +279,180 @@ init_egl ()
 }
 
 
+static void
+input_handle_key_event (struct libinput_event_keyboard *key_event)
+{
+    struct wpe_input_xkb_context *default_context = wpe_input_xkb_context_get_default ();
+    struct xkb_state *state = wpe_input_xkb_context_get_state (default_context);
+
+    uint32_t key = libinput_event_keyboard_get_key (key_event) + 8;
+    uint32_t keysym = xkb_state_key_get_one_sym (state, key);
+    uint32_t unicode = xkb_state_key_get_utf32 (state, key);
+
+    struct wpe_input_keyboard_event event;
+    event.time = libinput_event_keyboard_get_time (key_event);
+    event.key_code = keysym;
+    event.hardware_key_code = unicode;
+
+    enum libinput_key_state key_state = libinput_event_keyboard_get_key_state (key_event);
+    event.pressed = (key_state == LIBINPUT_KEY_STATE_PRESSED);
+
+    event.modifiers = 0;
+
+    wpe_view_backend_dispatch_keyboard_event (wpe_view_data.backend, &event);
+}
+
+static void
+input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_event_touch *touch_event)
+{
+    uint32_t time = libinput_event_touch_get_time (touch_event);
+
+    enum wpe_input_touch_event_type event_type = wpe_input_touch_event_type_null;
+    switch (touch_type) {
+    case LIBINPUT_EVENT_TOUCH_DOWN:
+        event_type = wpe_input_touch_event_type_down;
+        break;
+    case LIBINPUT_EVENT_TOUCH_UP:
+        event_type = wpe_input_touch_event_type_up;
+        break;
+    case LIBINPUT_EVENT_TOUCH_MOTION:
+        event_type = wpe_input_touch_event_type_motion;
+        break;
+    case LIBINPUT_EVENT_TOUCH_FRAME:
+    {
+        struct wpe_input_touch_event event;
+        event.touchpoints = input_data.touch_points;
+        event.touchpoints_length = 10;
+        event.type = input_data.last_touch_type;
+        event.id = input_data.last_touch_id;
+        event.time = time;
+        event.modifiers = 0;
+
+        wpe_view_backend_dispatch_touch_event (wpe_view_data.backend, &event);
+
+        for (int i = 0; i < 10; ++i) {
+            struct wpe_input_touch_event_raw *touch_point = &input_data.touch_points[i];
+            if (touch_point->type != wpe_input_touch_event_type_up)
+                continue;
+
+            memset (touch_point, 0, sizeof (struct wpe_input_touch_event_raw));
+            touch_point->type = wpe_input_touch_event_type_null;
+        }
+
+        return;
+    }
+    default:
+        g_assert_not_reached ();
+        return;
+    }
+
+    int id = libinput_event_touch_get_seat_slot (touch_event);
+    if (id < 0 || id >= 10)
+        return;
+
+    input_data.last_touch_type = event_type;
+    input_data.last_touch_id = id;
+
+    struct wpe_input_touch_event_raw *touch_point = &input_data.touch_points[id];
+    touch_point->type = event_type;
+    touch_point->time = time;
+    touch_point->id = id;
+
+    if (touch_type == LIBINPUT_EVENT_TOUCH_DOWN
+        || touch_type == LIBINPUT_EVENT_TOUCH_MOTION) {
+        touch_point->x = libinput_event_touch_get_x_transformed (touch_event,
+                                                                 input_data.input_width);
+        touch_point->y = libinput_event_touch_get_y_transformed (touch_event,
+                                                                 input_data.input_height);
+    }
+}
+
+static void
+input_process_events ()
+{
+    g_assert (input_data.libinput);
+    libinput_dispatch (input_data.libinput);
+
+    while (true) {
+        struct libinput_event *event = libinput_get_event (input_data.libinput);
+        if (!event)
+            break;
+
+        enum libinput_event_type event_type = libinput_event_get_type (event);
+        switch (event_type) {
+        case LIBINPUT_EVENT_KEYBOARD_KEY:
+            input_handle_key_event (libinput_event_get_keyboard_event (event));
+            break;
+        case LIBINPUT_EVENT_TOUCH_DOWN:
+        case LIBINPUT_EVENT_TOUCH_UP:
+        case LIBINPUT_EVENT_TOUCH_MOTION:
+        case LIBINPUT_EVENT_TOUCH_FRAME:
+            input_handle_touch_event (event_type,
+                                      libinput_event_get_touch_event (event));
+            break;
+        default:
+            break;
+        }
+
+        libinput_event_destroy (event);
+    }
+}
+
+static int
+input_interface_open_restricted (const char *path, int flags, void *user_data)
+{
+    return open (path, flags);
+}
+
+static void
+input_interface_close_restricted (int fd, void *user_data)
+{
+    close (fd);
+}
+
+static void
+clear_input ()
+{
+    g_clear_pointer (&input_data.libinput, libinput_unref);
+    g_clear_pointer (&input_data.udev, udev_unref);
+}
+
+static gboolean
+init_input ()
+{
+    static struct libinput_interface interface = {
+            input_interface_open_restricted,
+            input_interface_close_restricted,
+        };
+
+    input_data.udev = udev_new ();
+    if (!input_data.udev)
+        return FALSE;
+
+    input_data.libinput = libinput_udev_create_context (&interface,
+                                                        NULL,
+                                                        input_data.udev);
+    if (!input_data.libinput)
+        return FALSE;
+
+    int ret = libinput_udev_assign_seat (input_data.libinput, "seat0");
+    if (ret)
+        return FALSE;
+
+    input_data.input_width = drm_data.mode->hdisplay;
+    input_data.input_height = drm_data.mode->vdisplay;
+
+    for (int i = 0; i < 10; ++i) {
+        struct wpe_input_touch_event_raw *touch_point = &input_data.touch_points[i];
+
+        memset (touch_point, 0, sizeof (struct wpe_input_touch_event_raw));
+        touch_point->type = wpe_input_touch_event_type_null;
+    }
+
+    return TRUE;
+}
+
+
 struct drm_source {
     GSource source;
     GPollFD pfd;
@@ -283,12 +480,41 @@ drm_source_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
 }
 
 
+struct input_source {
+    GSource source;
+    GPollFD pfd;
+};
+
+static gboolean
+input_source_check (GSource *base)
+{
+    struct input_source *source = (struct input_source *) base;
+    return !!source->pfd.revents;
+}
+
+static gboolean
+input_source_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
+{
+    struct input_source *source = (struct input_source *) base;
+    if (source->pfd.revents & (G_IO_ERR | G_IO_HUP))
+        return FALSE;
+
+    input_process_events ();
+    source->pfd.revents = 0;
+    return TRUE;
+}
+
+
 static void
 clear_glib ()
 {
     if (glib_data.drm_source)
         g_source_destroy (glib_data.drm_source);
     g_clear_pointer (&glib_data.drm_source, g_source_unref);
+
+    if (glib_data.input_source)
+        g_source_destroy (glib_data.input_source);
+    g_clear_pointer (&glib_data.input_source, g_source_unref);
 }
 
 static gboolean
@@ -298,6 +524,15 @@ init_glib ()
             NULL,
             drm_source_check,
             drm_source_dispatch,
+            NULL,
+            NULL,
+            NULL,
+        };
+
+    static GSourceFuncs input_source_funcs = {
+            NULL,
+            input_source_check,
+            input_source_dispatch,
             NULL,
             NULL,
             NULL,
@@ -319,6 +554,20 @@ init_glib ()
         g_source_set_name (glib_data.drm_source, "cog: drm");
         g_source_set_can_recurse (glib_data.drm_source, TRUE);
         g_source_attach (glib_data.drm_source, g_main_context_get_thread_default ());
+    }
+
+    glib_data.input_source = g_source_new (&input_source_funcs,
+                                           sizeof (struct input_source));
+    {
+        struct input_source *source = (struct input_source *) glib_data.input_source;
+        source->pfd.fd = libinput_get_fd (input_data.libinput);
+        source->pfd.events = G_IO_IN | G_IO_ERR | G_IO_HUP;
+        source->pfd.revents = 0;
+        g_source_add_poll (glib_data.input_source, &source->pfd);
+
+        g_source_set_name (glib_data.input_source, "cog: input");
+        g_source_set_can_recurse (glib_data.input_source, TRUE);
+        g_source_attach (glib_data.input_source, g_main_context_get_thread_default ());
     }
 
     return TRUE;
@@ -433,6 +682,14 @@ cog_platform_setup (CogPlatform *platform,
         return FALSE;
     }
 
+    if (!init_input ()) {
+        g_set_error_literal (error,
+                             COG_PLATFORM_WPE_ERROR,
+                             COG_PLATFORM_WPE_ERROR_INIT,
+                             "Failed to initialize input");
+        return FALSE;
+    }
+
     if (!init_glib ()) {
         g_set_error_literal (error,
                              COG_PLATFORM_WPE_ERROR,
@@ -454,6 +711,7 @@ cog_platform_teardown (CogPlatform *platform)
     g_clear_pointer (&drm_data.committed_buffer, destroy_buffer);
 
     clear_glib ();
+    clear_input ();
     clear_egl ();
     clear_gbm ();
     clear_drm ();
