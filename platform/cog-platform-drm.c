@@ -107,11 +107,31 @@ clear_drm ()
 static gboolean
 init_drm ()
 {
-    drm_data.fd = open ("/dev/dri/card0", O_RDWR);
-    if (drm_data.fd < 0)
+    drmDevicePtr devices[64];
+    memset(devices, 0, sizeof(drmDevicePtr) * 64);
+
+    int num_devices = drmGetDevices2 (0, devices, 64);
+    if (num_devices < 0)
         return FALSE;
 
-    drmModeRes *resources = drmModeGetResources (drm_data.fd);
+    drmModeRes *resources = NULL;
+    for (int i = 0; i < num_devices; ++i) {
+        drmDevicePtr device = devices[i];
+        if (!(device->available_nodes & (1 << DRM_NODE_PRIMARY)))
+            continue;
+
+        drm_data.fd = open (device->nodes[DRM_NODE_PRIMARY], O_RDWR);
+        if (drm_data.fd < 0)
+            continue;
+
+        resources = drmModeGetResources (drm_data.fd);
+        if (resources)
+            break;
+
+        close (drm_data.fd);
+        drm_data.fd = -1;
+    }
+
     if (!resources)
         return FALSE;
 
