@@ -70,9 +70,9 @@ static struct {
 };
 
 static struct {
-    GSource* source;
+    GSource *drm_source;
 } glib_data = {
-    .source = NULL,
+    .drm_source = NULL,
 };
 
 static struct {
@@ -270,7 +270,7 @@ drm_source_check (GSource *base)
 }
 
 static gboolean
-drm_source_dispatch (GSource* base, GSourceFunc callback, gpointer user_data)
+drm_source_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
 {
     struct drm_source *source = (struct drm_source *) base;
     if (source->pfd.revents & (G_IO_ERR | G_IO_HUP))
@@ -286,37 +286,40 @@ drm_source_dispatch (GSource* base, GSourceFunc callback, gpointer user_data)
 static void
 clear_glib ()
 {
-    if (glib_data.source)
-        g_source_destroy (glib_data.source);
-    g_clear_pointer (&glib_data.source, g_source_unref);
+    if (glib_data.drm_source)
+        g_source_destroy (glib_data.drm_source);
+    g_clear_pointer (&glib_data.drm_source, g_source_unref);
 }
 
 static gboolean
 init_glib ()
 {
-    static GSourceFuncs source_funcs = {
-        NULL,
-        drm_source_check,
-        drm_source_dispatch,
-        NULL,
-        NULL,
-        NULL,
-    };
+    static GSourceFuncs drm_source_funcs = {
+            NULL,
+            drm_source_check,
+            drm_source_dispatch,
+            NULL,
+            NULL,
+            NULL,
+        };
 
-    glib_data.source = g_source_new (&source_funcs, sizeof (struct drm_source));
-    struct drm_source* source = (struct drm_source *) glib_data.source;
-    memset (&source->event_context, 0, sizeof (drmEventContext));
-    source->event_context.version = DRM_EVENT_CONTEXT_VERSION;
-    source->event_context.page_flip_handler = drm_page_flip_handler;
+    glib_data.drm_source = g_source_new (&drm_source_funcs,
+                                         sizeof (struct drm_source));
+    {
+        struct drm_source *source = (struct drm_source *) glib_data.drm_source;
+        memset (&source->event_context, 0, sizeof (drmEventContext));
+        source->event_context.version = DRM_EVENT_CONTEXT_VERSION;
+        source->event_context.page_flip_handler = drm_page_flip_handler;
 
-    source->pfd.fd = drm_data.fd;
-    source->pfd.events = G_IO_IN | G_IO_ERR | G_IO_HUP;
-    source->pfd.revents = 0;
-    g_source_add_poll (glib_data.source, &source->pfd);
+        source->pfd.fd = drm_data.fd;
+        source->pfd.events = G_IO_IN | G_IO_ERR | G_IO_HUP;
+        source->pfd.revents = 0;
+        g_source_add_poll (glib_data.drm_source, &source->pfd);
 
-    g_source_set_name (glib_data.source, "cog: drm");
-    g_source_set_can_recurse (glib_data.source, TRUE);
-    g_source_attach (glib_data.source, g_main_context_get_thread_default ());
+        g_source_set_name (glib_data.drm_source, "cog: drm");
+        g_source_set_can_recurse (glib_data.drm_source, TRUE);
+        g_source_attach (glib_data.drm_source, g_main_context_get_thread_default ());
+    }
 
     return TRUE;
 }
