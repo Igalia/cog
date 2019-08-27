@@ -53,11 +53,13 @@ static struct {
         enum webprocess_fail_action action_id;
     } on_failure;
     char *web_extensions_dir;
+    gboolean ignore_tls_errors;
 } s_options = {
     .scale_factor = 1.0,
 #if HAVE_DEVICE_SCALING
     .device_scale_factor = 1.0,
 #endif // HAVE_DEVICE_SCALING
+    .ignore_tls_errors = FALSE,
 };
 
 
@@ -103,6 +105,9 @@ static GOptionEntry s_cli_options[] =
     { "web-extensions-dir", '\0', 0, G_OPTION_ARG_STRING, &s_options.web_extensions_dir,
       "Load Web Extensions from given directory.",
       "PATH"},
+    { "ignore-tls-errors", '\0', 0, G_OPTION_ARG_NONE, &s_options.ignore_tls_errors,
+      "Ignore TLS erros (default: disabled)", NULL
+    },
     { G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments,
         "", "[URL]" },
     { NULL }
@@ -283,6 +288,8 @@ on_handle_local_options (GApplication *application,
         webkit_web_context_set_web_extensions_directory (cog_shell_get_web_context (shell),
                                                          s_options.web_extensions_dir);
     }
+
+    g_object_set (shell, "ignore-tls-errors", s_options.ignore_tls_errors, NULL);
 
     return -1;  /* Continue startup. */
 }

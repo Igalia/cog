@@ -38,6 +38,7 @@ WebKitWebView    *cog_shell_get_web_view        (CogShell          *shell);
 void              cog_shell_set_request_handler (CogShell          *shell,
                                                  const char        *scheme,
                                                  CogRequestHandler *handler);
+gboolean          cog_shell_get_ignore_tls_errors(CogShell *shell);
 
 void              cog_shell_startup             (CogShell          *shell);
 void              cog_shell_shutdown            (CogShell          *shell);

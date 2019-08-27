@@ -14,6 +14,7 @@ typedef struct {
     WebKitWebContext *web_context;
     WebKitWebView    *web_view;
     GHashTable       *request_handlers;  /* (string, RequestHandlerMapEntry) */
+    gboolean          ignore_tls_errors;
 } CogShellPrivate;
 
 
@@ -28,6 +29,7 @@ enum {
     PROP_WEB_SETTINGS,
     PROP_WEB_CONTEXT,
     PROP_WEB_VIEW,
+    PROP_IGNORE_TLS_ERRORS,
     N_PROPERTIES,
 };
 
@@ -158,6 +160,9 @@ cog_shell_get_property (GObject    *object,
         case PROP_WEB_VIEW:
             g_value_set_object (value, cog_shell_get_web_view (shell));
             break;
+        case PROP_IGNORE_TLS_ERRORS:
+            g_value_set_boolean (value, cog_shell_get_ignore_tls_errors (shell));
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
@@ -174,6 +179,9 @@ cog_shell_set_property (GObject      *object,
     switch (prop_id) {
         case PROP_NAME:
             PRIV (shell)->name = g_value_dup_string (value);
+            break;
+        case PROP_IGNORE_TLS_ERRORS:
+            PRIV (shell)->ignore_tls_errors = g_value_get_boolean (value);
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -277,13 +285,21 @@ cog_shell_class_init (CogShellClass *klass)
                              G_PARAM_READABLE |
                              G_PARAM_STATIC_STRINGS);
 
+    s_properties[PROP_IGNORE_TLS_ERRORS] =
+        g_param_spec_boolean ("ignore-tls-errors",
+                              "Ignore TLS errors",
+                              "Wether to ignore TLS errors or not",
+                              FALSE,
+                              G_PARAM_READWRITE);
+
     g_object_class_install_properties (object_class, N_PROPERTIES, s_properties);
 }
 
 
 static void
-cog_shell_init (CogShell *shell G_GNUC_UNUSED)
+cog_shell_init (CogShell *shell)
 {
+    PRIV (shell)->ignore_tls_errors = FALSE;
 }
 
 
@@ -361,6 +377,12 @@ cog_shell_set_request_handler (CogShell          *shell,
     request_handler_map_entry_register (scheme, entry, priv->web_context);
 }
 
+gboolean
+cog_shell_get_ignore_tls_errors (CogShell *shell)
+{
+    g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
+    return PRIV (shell)->ignore_tls_errors;
+}
 
 void
 cog_shell_startup  (CogShell *shell)

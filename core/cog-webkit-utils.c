@@ -98,21 +98,18 @@ format_tls_error (GTlsCertificateFlags errors)
     return g_string_free (str, FALSE);
 }
 
-
 gboolean
-cog_handle_web_view_load_failed_with_tls_errors (WebKitWebView       *web_view,
-                                                 char                *failing_uri,
-                                                 GTlsCertificate     *certificate,
-                                                 GTlsCertificateFlags errors,
-                                                 void                *user_data)
+cog_web_view_load_error_page (WebKitWebView *web_view,
+                              char *failing_uri,
+                              GTlsCertificateFlags errors)
 {
+
     g_autofree char *error_string = format_tls_error (errors);
     return load_error_page (web_view,
                             failing_uri,
                             "TLS Error",
                             error_string);
 }
-
 
 gboolean
 cog_handle_web_view_web_process_terminated (WebKitWebView                     *web_view,
@@ -256,8 +253,6 @@ cog_web_view_connect_default_error_handlers (WebKitWebView *web_view)
     } handlers[] = {
         { "load-failed",
             cog_handle_web_view_load_failed },
-        { "load-failed-with-tls-errors",
-            cog_handle_web_view_load_failed_with_tls_errors },
         { "web-process-terminated",
             cog_handle_web_view_web_process_terminated },
     };

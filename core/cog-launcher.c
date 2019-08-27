@@ -117,12 +117,38 @@ on_permission_request (G_GNUC_UNUSED WebKitWebView *web_view,
     return TRUE;
 }
 
+static gboolean
+on_load_failed_with_tls_errors (WebKitWebView       *web_view,
+                                char                *failing_uri,
+                                GTlsCertificate     *certificate,
+                                GTlsCertificateFlags errors,
+                                void                *user_data)
+{
+    CogShell *shell = COG_SHELL (user_data);
+    WebKitWebContext *context = webkit_web_view_get_context (web_view);
+    gboolean ignore_tls_errors = FALSE;
+    g_object_get (shell, "ignore-tls-errors", &ignore_tls_errors, NULL);
+
+    if (ignore_tls_errors) {
+        SoupURI *soup_uri = soup_uri_new (failing_uri);
+
+        g_message ("<%s> Ignoring TLS errors", failing_uri);
+        webkit_web_context_allow_tls_certificate_for_host (context, certificate, soup_uri_get_host (soup_uri));
+        webkit_web_view_load_uri (web_view, failing_uri);
+        soup_uri_free (soup_uri);
+        return TRUE;
+    } else {
+        return cog_web_view_load_error_page (web_view, failing_uri, errors);
+    }
+}
+
 static void
 on_notify_web_view (CogShell *shell, GParamSpec * arg G_GNUC_UNUSED, CogLauncher *launcher)
 {
     WebKitWebView* web_view = cog_shell_get_web_view (shell);
 
     g_signal_connect (web_view, "permission-request", G_CALLBACK (on_permission_request), launcher);
+    g_signal_connect (web_view, "load-failed-with-tls-errors", G_CALLBACK (on_load_failed_with_tls_errors), shell);
 }
 
 static void

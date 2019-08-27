@@ -42,12 +42,6 @@ gboolean cog_handle_web_view_load_failed (WebKitWebView  *web_view,
                                           GError         *error,
                                           void           *userdata);
 
-gboolean cog_handle_web_view_load_failed_with_tls_errors (WebKitWebView       *web_view,
-                                                          char                *failing_uri,
-                                                          GTlsCertificate     *certificate,
-                                                          GTlsCertificateFlags errors,
-                                                          void                *user_data);
-
 gboolean cog_handle_web_view_web_process_terminated (WebKitWebView                     *web_view,
                                                      WebKitWebProcessTerminationReason  reason,
                                                      void                              *userdata);
@@ -79,6 +73,9 @@ void cog_handle_web_view_load_changed (WebKitWebView  *web_view,
 
 void cog_web_view_connect_default_progress_handlers (WebKitWebView *web_view);
 
+gboolean cog_web_view_load_error_page (WebKitWebView *web_view,
+                                       char *failing_uri,
+                                       GTlsCertificateFlags errors);
 
 gboolean cog_webkit_settings_apply_from_key_file (WebKitSettings *settings,
                                                   GKeyFile       *key_file,
