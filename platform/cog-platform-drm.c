@@ -291,11 +291,11 @@ input_handle_key_event (struct libinput_event_keyboard *key_event)
 
     enum libinput_key_state key_state = libinput_event_keyboard_get_key_state (key_event);
     struct wpe_input_keyboard_event event = {
-            .time = libinput_event_keyboard_get_time (key_event),
-            .key_code = keysym,
-            .hardware_key_code = unicode,
-            .pressed = (key_state == LIBINPUT_KEY_STATE_PRESSED),
-        };
+        .time = libinput_event_keyboard_get_time (key_event),
+        .key_code = keysym,
+        .hardware_key_code = unicode,
+        .pressed = (key_state == LIBINPUT_KEY_STATE_PRESSED),
+    };
 
     wpe_view_backend_dispatch_keyboard_event (wpe_view_data.backend, &event);
 }
@@ -318,12 +318,12 @@ input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_e
             break;
         case LIBINPUT_EVENT_TOUCH_FRAME: {
             struct wpe_input_touch_event event = {
-                    .touchpoints = input_data.touch_points,
-                    .touchpoints_length = 10,
-                    .type = input_data.last_touch_type,
-                    .id = input_data.last_touch_id,
-                    .time = time,
-                };
+                .touchpoints = input_data.touch_points,
+                .touchpoints_length = 10,
+                .type = input_data.last_touch_type,
+                .id = input_data.last_touch_id,
+                .time = time,
+            };
 
             wpe_view_backend_dispatch_touch_event (wpe_view_data.backend, &event);
 
@@ -418,9 +418,9 @@ static gboolean
 init_input (void)
 {
     static struct libinput_interface interface = {
-            input_interface_open_restricted,
-            input_interface_close_restricted,
-        };
+        .open_restricted = input_interface_open_restricted,
+        .close_restricted = input_interface_close_restricted,
+    };
 
     input_data.udev = udev_new ();
     if (!input_data.udev)
@@ -518,22 +518,14 @@ static gboolean
 init_glib (void)
 {
     static GSourceFuncs drm_source_funcs = {
-            NULL,
-            drm_source_check,
-            drm_source_dispatch,
-            NULL,
-            NULL,
-            NULL,
-        };
+        .check = drm_source_check,
+        .dispatch = drm_source_dispatch,
+    };
 
     static GSourceFuncs input_source_funcs = {
-            NULL,
-            input_source_check,
-            input_source_dispatch,
-            NULL,
-            NULL,
-            NULL,
-        };
+        .check = input_source_check,
+        .dispatch = input_source_dispatch,
+    };
 
     glib_data.drm_source = g_source_new (&drm_source_funcs,
                                          sizeof (struct drm_source));
@@ -580,17 +572,18 @@ on_export_buffer_resource (void *data, struct wl_resource *buffer_resource)
 static void
 on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dmabuf_resource *dmabuf_resource)
 {
-    struct gbm_import_fd_modifier_data modifier_data;
-    modifier_data.width = dmabuf_resource->width;
-    modifier_data.height = dmabuf_resource->height;
-    modifier_data.format = dmabuf_resource->format;
-    modifier_data.num_fds = dmabuf_resource->n_planes;
+    struct gbm_import_fd_modifier_data modifier_data = {
+        .width = dmabuf_resource->width,
+        .height = dmabuf_resource->height,
+        .format = dmabuf_resource->format,
+        .num_fds = dmabuf_resource->n_planes,
+        .modifier = dmabuf_resource->modifiers[0],
+    };
     for (uint32_t i = 0; i < modifier_data.num_fds; ++i) {
         modifier_data.fds[i] = dmabuf_resource->fds[i];
         modifier_data.strides[i] = dmabuf_resource->strides[i];
         modifier_data.offsets[i] = dmabuf_resource->offsets[i];
     }
-    modifier_data.modifier = dmabuf_resource->modifiers[0];
 
     struct gbm_bo *bo = gbm_bo_import (gbm_data.device, GBM_BO_IMPORT_FD_MODIFIER,
                                        (void *)(&modifier_data), GBM_BO_USE_SCANOUT);
