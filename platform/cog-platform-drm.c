@@ -117,7 +117,7 @@ static void destroy_buffer (struct buffer_object *buffer)
 }
 
 static void
-clear_drm ()
+clear_drm (void)
 {
     g_clear_pointer (&drm_data.encoder, drmModeFreeEncoder);
     g_clear_pointer (&drm_data.connector, drmModeFreeConnector);
@@ -128,7 +128,7 @@ clear_drm ()
 }
 
 static gboolean
-init_drm ()
+init_drm (void)
 {
     drmDevicePtr devices[64];
     memset (devices, 0, sizeof (drmDevicePtr) * 64);
@@ -229,13 +229,13 @@ drm_page_flip_handler (int fd, unsigned int frame, unsigned int sec, unsigned in
 
 
 static void
-clear_gbm ()
+clear_gbm (void)
 {
     g_clear_pointer (&gbm_data.device, gbm_device_destroy);
 }
 
 static gboolean
-init_gbm ()
+init_gbm (void)
 {
     gbm_data.device = gbm_create_device (drm_data.fd);
     if (!gbm_data.device)
@@ -246,7 +246,7 @@ init_gbm ()
 
 
 static void
-clear_egl ()
+clear_egl (void)
 {
     if (egl_data.display != EGL_NO_DISPLAY)
         eglTerminate (egl_data.display);
@@ -254,7 +254,7 @@ clear_egl ()
 }
 
 static gboolean
-init_egl ()
+init_egl (void)
 {
     static PFNEGLGETPLATFORMDISPLAYEXTPROC s_eglGetPlatformDisplay = NULL;
     if (!s_eglGetPlatformDisplay)
@@ -365,7 +365,7 @@ input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_e
 }
 
 static void
-input_process_events ()
+input_process_events (void)
 {
     g_assert (input_data.libinput);
     libinput_dispatch (input_data.libinput);
@@ -408,14 +408,14 @@ input_interface_close_restricted (int fd, void *user_data)
 }
 
 static void
-clear_input ()
+clear_input (void)
 {
     g_clear_pointer (&input_data.libinput, libinput_unref);
     g_clear_pointer (&input_data.udev, udev_unref);
 }
 
 static gboolean
-init_input ()
+init_input (void)
 {
     static struct libinput_interface interface = {
             input_interface_open_restricted,
@@ -503,7 +503,7 @@ input_source_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
 
 
 static void
-clear_glib ()
+clear_glib (void)
 {
     if (glib_data.drm_source)
         g_source_destroy (glib_data.drm_source);
@@ -515,7 +515,7 @@ clear_glib ()
 }
 
 static gboolean
-init_glib ()
+init_glib (void)
 {
     static GSourceFuncs drm_source_funcs = {
             NULL,
