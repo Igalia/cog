@@ -285,7 +285,10 @@ input_handle_key_event (struct libinput_event_keyboard *key_event)
     struct wpe_input_xkb_context *default_context = wpe_input_xkb_context_get_default ();
     struct xkb_state *state = wpe_input_xkb_context_get_state (default_context);
 
+    // Explanation for the offset-by-8, copied from Weston:
+    //   evdev XKB rules reflect X's  broken keycode system, which starts at 8
     uint32_t key = libinput_event_keyboard_get_key (key_event) + 8;
+
     uint32_t keysym = xkb_state_key_get_one_sym (state, key);
     uint32_t unicode = xkb_state_key_get_utf32 (state, key);
 
