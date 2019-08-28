@@ -319,7 +319,7 @@ input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_e
         case LIBINPUT_EVENT_TOUCH_FRAME: {
             struct wpe_input_touch_event event = {
                 .touchpoints = input_data.touch_points,
-                .touchpoints_length = 10,
+                .touchpoints_length = G_N_ELEMENTS (input_data.touch_points),
                 .type = input_data.last_touch_type,
                 .id = input_data.last_touch_id,
                 .time = time,
@@ -327,7 +327,7 @@ input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_e
 
             wpe_view_backend_dispatch_touch_event (wpe_view_data.backend, &event);
 
-            for (int i = 0; i < 10; ++i) {
+            for (int i = 0; i < G_N_ELEMENTS (input_data.touch_points); ++i) {
                 struct wpe_input_touch_event_raw *touch_point = &input_data.touch_points[i];
                 if (touch_point->type != wpe_input_touch_event_type_up)
                     continue;
@@ -344,7 +344,7 @@ input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_e
     }
 
     int id = libinput_event_touch_get_seat_slot (touch_event);
-    if (id < 0 || id >= 10)
+    if (id < 0 || id >= G_N_ELEMENTS (input_data.touch_points))
         return;
 
     input_data.last_touch_type = event_type;
@@ -439,7 +439,7 @@ init_input (void)
     input_data.input_width = drm_data.mode->hdisplay;
     input_data.input_height = drm_data.mode->vdisplay;
 
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < G_N_ELEMENTS (input_data.touch_points); ++i) {
         struct wpe_input_touch_event_raw *touch_point = &input_data.touch_points[i];
 
         memset (touch_point, 0, sizeof (struct wpe_input_touch_event_raw));
