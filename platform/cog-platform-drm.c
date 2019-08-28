@@ -289,15 +289,13 @@ input_handle_key_event (struct libinput_event_keyboard *key_event)
     uint32_t keysym = xkb_state_key_get_one_sym (state, key);
     uint32_t unicode = xkb_state_key_get_utf32 (state, key);
 
-    struct wpe_input_keyboard_event event;
-    event.time = libinput_event_keyboard_get_time (key_event);
-    event.key_code = keysym;
-    event.hardware_key_code = unicode;
-
     enum libinput_key_state key_state = libinput_event_keyboard_get_key_state (key_event);
-    event.pressed = (key_state == LIBINPUT_KEY_STATE_PRESSED);
-
-    event.modifiers = 0;
+    struct wpe_input_keyboard_event event = {
+            .time = libinput_event_keyboard_get_time (key_event),
+            .key_code = keysym,
+            .hardware_key_code = unicode,
+            .pressed = (key_state == LIBINPUT_KEY_STATE_PRESSED),
+        };
 
     wpe_view_backend_dispatch_keyboard_event (wpe_view_data.backend, &event);
 }
@@ -319,13 +317,13 @@ input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_e
             event_type = wpe_input_touch_event_type_motion;
             break;
         case LIBINPUT_EVENT_TOUCH_FRAME: {
-            struct wpe_input_touch_event event;
-            event.touchpoints = input_data.touch_points;
-            event.touchpoints_length = 10;
-            event.type = input_data.last_touch_type;
-            event.id = input_data.last_touch_id;
-            event.time = time;
-            event.modifiers = 0;
+            struct wpe_input_touch_event event = {
+                    .touchpoints = input_data.touch_points,
+                    .touchpoints_length = 10,
+                    .type = input_data.last_touch_type,
+                    .id = input_data.last_touch_id,
+                    .time = time,
+                };
 
             wpe_view_backend_dispatch_touch_event (wpe_view_data.backend, &event);
 
