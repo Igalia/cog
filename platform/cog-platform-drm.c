@@ -309,41 +309,40 @@ input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_e
 
     enum wpe_input_touch_event_type event_type = wpe_input_touch_event_type_null;
     switch (touch_type) {
-    case LIBINPUT_EVENT_TOUCH_DOWN:
-        event_type = wpe_input_touch_event_type_down;
-        break;
-    case LIBINPUT_EVENT_TOUCH_UP:
-        event_type = wpe_input_touch_event_type_up;
-        break;
-    case LIBINPUT_EVENT_TOUCH_MOTION:
-        event_type = wpe_input_touch_event_type_motion;
-        break;
-    case LIBINPUT_EVENT_TOUCH_FRAME:
-    {
-        struct wpe_input_touch_event event;
-        event.touchpoints = input_data.touch_points;
-        event.touchpoints_length = 10;
-        event.type = input_data.last_touch_type;
-        event.id = input_data.last_touch_id;
-        event.time = time;
-        event.modifiers = 0;
+        case LIBINPUT_EVENT_TOUCH_DOWN:
+            event_type = wpe_input_touch_event_type_down;
+            break;
+        case LIBINPUT_EVENT_TOUCH_UP:
+            event_type = wpe_input_touch_event_type_up;
+            break;
+        case LIBINPUT_EVENT_TOUCH_MOTION:
+            event_type = wpe_input_touch_event_type_motion;
+            break;
+        case LIBINPUT_EVENT_TOUCH_FRAME: {
+            struct wpe_input_touch_event event;
+            event.touchpoints = input_data.touch_points;
+            event.touchpoints_length = 10;
+            event.type = input_data.last_touch_type;
+            event.id = input_data.last_touch_id;
+            event.time = time;
+            event.modifiers = 0;
 
-        wpe_view_backend_dispatch_touch_event (wpe_view_data.backend, &event);
+            wpe_view_backend_dispatch_touch_event (wpe_view_data.backend, &event);
 
-        for (int i = 0; i < 10; ++i) {
-            struct wpe_input_touch_event_raw *touch_point = &input_data.touch_points[i];
-            if (touch_point->type != wpe_input_touch_event_type_up)
-                continue;
+            for (int i = 0; i < 10; ++i) {
+                struct wpe_input_touch_event_raw *touch_point = &input_data.touch_points[i];
+                if (touch_point->type != wpe_input_touch_event_type_up)
+                    continue;
 
-            memset (touch_point, 0, sizeof (struct wpe_input_touch_event_raw));
-            touch_point->type = wpe_input_touch_event_type_null;
+                memset (touch_point, 0, sizeof (struct wpe_input_touch_event_raw));
+                touch_point->type = wpe_input_touch_event_type_null;
+            }
+
+            return;
         }
-
-        return;
-    }
-    default:
-        g_assert_not_reached ();
-        return;
+        default:
+            g_assert_not_reached ();
+            return;
     }
 
     int id = libinput_event_touch_get_seat_slot (touch_event);
@@ -380,18 +379,18 @@ input_process_events ()
 
         enum libinput_event_type event_type = libinput_event_get_type (event);
         switch (event_type) {
-        case LIBINPUT_EVENT_KEYBOARD_KEY:
-            input_handle_key_event (libinput_event_get_keyboard_event (event));
-            break;
-        case LIBINPUT_EVENT_TOUCH_DOWN:
-        case LIBINPUT_EVENT_TOUCH_UP:
-        case LIBINPUT_EVENT_TOUCH_MOTION:
-        case LIBINPUT_EVENT_TOUCH_FRAME:
-            input_handle_touch_event (event_type,
-                                      libinput_event_get_touch_event (event));
-            break;
-        default:
-            break;
+            case LIBINPUT_EVENT_KEYBOARD_KEY:
+                input_handle_key_event (libinput_event_get_keyboard_event (event));
+                break;
+            case LIBINPUT_EVENT_TOUCH_DOWN:
+            case LIBINPUT_EVENT_TOUCH_UP:
+            case LIBINPUT_EVENT_TOUCH_MOTION:
+            case LIBINPUT_EVENT_TOUCH_FRAME:
+                input_handle_touch_event (event_type,
+                                          libinput_event_get_touch_event (event));
+                break;
+            default:
+                break;
         }
 
         libinput_event_destroy (event);
