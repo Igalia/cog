@@ -121,7 +121,7 @@ cog_shell_startup_base (CogShell *shell)
 
     g_signal_emit (shell, s_signals[CREATE_VIEW], 0, &priv->web_view);
     g_object_ref_sink (priv->web_view);
-    g_object_notify (G_OBJECT (shell), "web-view");
+    g_object_notify_by_pspec (G_OBJECT (shell), s_properties[PROP_WEB_VIEW]);
 
     /*
      * The web context and settings being used by the web view must be
