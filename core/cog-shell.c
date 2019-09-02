@@ -285,6 +285,9 @@ cog_shell_class_init (CogShellClass *klass)
 static void
 cog_shell_init (CogShell *shell G_GNUC_UNUSED)
 {
+    CogShellPrivate *priv = PRIV (shell);
+    if (!priv->name)
+        priv->name = g_strdup (g_get_prgname ());
 }
 
 
@@ -292,7 +295,7 @@ CogShell*
 cog_shell_new (const char *name)
 {
     return g_object_new (COG_TYPE_SHELL,
-                         "name", name ? name : g_get_prgname (),
+                         "name", name,
                          NULL);
 }
 
