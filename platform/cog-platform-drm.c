@@ -5,6 +5,7 @@
 #include <gbm.h>
 #include <libinput.h>
 #include <libudev.h>
+#include <math.h>
 #include <wpe/fdo.h>
 #include <wpe/fdo-egl.h>
 #include <xf86drm.h>
@@ -13,6 +14,11 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
+#if defined(WPE_CHECK_VERSION) && WPE_CHECK_VERSION(1, 3, 0)
+# define HAVE_DEVICE_SCALING 1
+#else
+# define HAVE_DEVICE_SCALING 0
+#endif /* WPE_CHECK_VERSION */
 
 #if !defined(EGL_EXT_platform_base)
 typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platform, void *native_display, const EGLint *attrib_list);
@@ -103,8 +109,11 @@ static struct {
 } wpe_host_data;
 
 static struct {
+    double device_scale;
     struct wpe_view_backend *backend;
-} wpe_view_data;
+} wpe_view_data = {
+    .device_scale = 1.0,
+};
 
 
 static void destroy_buffer (struct buffer_object *buffer)
@@ -691,6 +700,9 @@ cog_platform_setup (CogPlatform *platform,
         return FALSE;
     }
 
+    wpe_view_data.device_scale = cog_shell_get_device_scale (shell);
+    g_debug ("%s: device scale = %0.2f", __func__, wpe_view_data.device_scale);
+
     wpe_fdo_initialize_for_egl_display (egl_data.display);
 
     return TRUE;
@@ -720,14 +732,18 @@ cog_platform_get_view_backend (CogPlatform   *platform,
         .export_dmabuf_resource = on_export_dmabuf_resource,
     };
 
+    const uint32_t w = drm_data.width / wpe_view_data.device_scale;
+    const uint32_t h = drm_data.height / wpe_view_data.device_scale;
+
     wpe_host_data.exportable = wpe_view_backend_exportable_fdo_create (&exportable_client,
-                                                                       NULL,
-                                                                       drm_data.width,
-                                                                       drm_data.height);
+                                                                       NULL, w, h);
     g_assert (wpe_host_data.exportable);
 
     wpe_view_data.backend = wpe_view_backend_exportable_fdo_get_view_backend (wpe_host_data.exportable);
     g_assert (wpe_view_data.backend);
+
+    wpe_view_backend_dispatch_set_device_scale_factor (wpe_view_data.backend,
+                                                       wpe_view_data.device_scale);
 
     WebKitWebViewBackend *wk_view_backend =
         webkit_web_view_backend_new (wpe_view_data.backend,

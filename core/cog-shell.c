@@ -7,9 +7,22 @@
 
 #include "cog-shell.h"
 
+#if COG_USE_WEBKITGTK
+# define HAVE_DEVICE_SCALING 0
+#else /* !COG_USE_WEBKITGTK */
+# if defined(WPE_CHECK_VERSION) && WPE_CHECK_VERSION(1, 3, 0)
+#  define HAVE_DEVICE_SCALING 1
+# else
+#  define HAVE_DEVICE_SCALING 0
+# endif /* WPE_CHECK_VERSION */
+#endif /* COG_USE_WEBKITGTK */
+
 
 typedef struct {
     char             *name;
+#if HAVE_DEVICE_SCALING
+    double            device_scale;
+#endif /* HAVE_DEVICE_SCALING */
     WebKitSettings   *web_settings;
     WebKitWebContext *web_context;
     WebKitWebView    *web_view;
@@ -25,6 +38,7 @@ G_DEFINE_TYPE_WITH_PRIVATE (CogShell, cog_shell, G_TYPE_OBJECT)
 enum {
     PROP_0,
     PROP_NAME,
+    PROP_DEVICE_SCALE,
     PROP_WEB_SETTINGS,
     PROP_WEB_CONTEXT,
     PROP_WEB_VIEW,
@@ -149,6 +163,9 @@ cog_shell_get_property (GObject    *object,
         case PROP_NAME:
             g_value_set_string (value, cog_shell_get_name (shell));
             break;
+        case PROP_DEVICE_SCALE:
+            g_value_set_double (value, cog_shell_get_device_scale (shell));
+            break;
         case PROP_WEB_SETTINGS:
             g_value_set_object (value, cog_shell_get_web_settings (shell));
             break;
@@ -174,6 +191,9 @@ cog_shell_set_property (GObject      *object,
     switch (prop_id) {
         case PROP_NAME:
             PRIV (shell)->name = g_value_dup_string (value);
+            break;
+        case PROP_DEVICE_SCALE:
+            cog_shell_set_device_scale (shell, g_value_get_double (value));
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -253,6 +273,14 @@ cog_shell_class_init (CogShellClass *klass)
                              G_PARAM_CONSTRUCT_ONLY |
                              G_PARAM_STATIC_STRINGS);
 
+    s_properties[PROP_DEVICE_SCALE] =
+        g_param_spec_double ("device-scale",
+                             "Device scale",
+                             "Device scaling factor",
+                             0.1, 10.0, 1.0,
+                             G_PARAM_READWRITE |
+                             G_PARAM_STATIC_STRINGS);
+
     s_properties[PROP_WEB_SETTINGS] =
         g_param_spec_object ("web-settings",
                              "Web Settings",
@@ -325,6 +353,33 @@ cog_shell_get_name (CogShell *shell)
 {
     g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
     return PRIV (shell)->name;
+}
+
+
+double
+cog_shell_get_device_scale (CogShell *shell)
+{
+    g_return_val_if_fail (COG_IS_SHELL (shell), 1.0);
+#if HAVE_DEVICE_SCALING
+    return PRIV (shell)->device_scale;
+#else
+    g_warning ("%s: Returning 1.0, device scaling unsupported.", __func__);
+    return 1.0;
+#endif
+}
+
+
+void
+cog_shell_set_device_scale (CogShell *shell,
+                            double    scale)
+{
+    g_return_if_fail (COG_IS_SHELL (shell));
+#if HAVE_DEVICE_SCALING
+    PRIV (shell)->device_scale = scale;
+    g_object_notify_by_pspec (G_OBJECT (shell), s_properties[PROP_DEVICE_SCALE]);
+#else
+    g_warning ("%s: No-op, device scaling unsupported.", __func__);
+#endif
 }
 
 
