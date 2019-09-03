@@ -93,7 +93,7 @@ set(COGCORE_SOURCES
     core/cog-webkit-utils.c
 )
 
-pkg_check_modules(GIO REQUIRED gio-2.0)
+pkg_check_modules(GIO REQUIRED gio-2.0>=2.44)
 pkg_check_modules(SOUP REQUIRED libsoup-2.4)
 if (COG_USE_WEBKITGTK)
     list(APPEND COGCORE_SOURCES core/cog-gtk-utils.c)
