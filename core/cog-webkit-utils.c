@@ -58,6 +58,12 @@ cog_handle_web_view_load_failed (WebKitWebView  *web_view,
     if (g_error_matches (error,
                          WEBKIT_PLUGIN_ERROR,
                          WEBKIT_PLUGIN_ERROR_WILL_HANDLE_LOAD))
+      return FALSE;
+
+    // Ignore cancellation errors as the active URI may be changing
+    if (g_error_matches (error,
+			 WEBKIT_NETWORK_ERROR,
+			 WEBKIT_NETWORK_ERROR_CANCELLED))
         return FALSE;
 
     return load_error_page (web_view,
