@@ -1,10 +1,12 @@
 #include <cog.h>
 
 #include <assert.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <gbm.h>
 #include <libinput.h>
 #include <libudev.h>
+#include <string.h>
 #include <wpe/fdo.h>
 #include <wpe/fdo-egl.h>
 #include <xf86drm.h>
@@ -265,14 +267,18 @@ drm_update_from_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource, uint
                              &fb_id, 0);
     }
 
-    if (ret)
+    if (ret) {
+        g_warning ("failed to create framebuffer: %s", strerror (errno));
         return;
+    }
 
     if (!drm_data.mode_set) {
         ret = drmModeSetCrtc (drm_data.fd, drm_data.crtc_id, fb_id, 0, 0,
                               &drm_data.connector_id, 1, drm_data.mode);
-        if (ret)
+        if (ret) {
+            g_warning ("failed to set mode: %s", strerror (errno));
             return;
+        }
 
         drm_data.mode_set = 0;
     }
@@ -284,6 +290,8 @@ drm_update_from_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource, uint
 
     ret = drmModePageFlip (drm_data.fd, drm_data.crtc_id, fb_id,
                            DRM_MODE_PAGE_FLIP_EVENT, buffer);
+    if (ret)
+        g_warning ("failed to schedule a page flip: %s", strerror (errno));
 }
 
 
@@ -630,8 +638,10 @@ on_export_buffer_resource (void *data, struct wl_resource *buffer_resource)
 {
     struct gbm_bo* bo = gbm_bo_import (gbm_data.device, GBM_BO_IMPORT_WL_BUFFER,
                                        (void *) buffer_resource, GBM_BO_USE_SCANOUT);
-    if (!bo)
+    if (!bo) {
+        g_warning ("failed to import a wl_buffer resource into gbm_bo");
         return;
+    }
 
     uint32_t width = gbm_bo_get_width (bo);
     uint32_t height = gbm_bo_get_height (bo);
@@ -658,8 +668,10 @@ on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dm
 
     struct gbm_bo *bo = gbm_bo_import (gbm_data.device, GBM_BO_IMPORT_FD_MODIFIER,
                                        (void *)(&modifier_data), GBM_BO_USE_SCANOUT);
-    if (!bo)
+    if (!bo) {
+        g_warning ("failed to import a dma-buf resource into gbm_bo");
         return;
+    }
 
     drm_update_from_bo (bo, dmabuf_resource->buffer_resource, dmabuf_resource->width,
                         dmabuf_resource->height, dmabuf_resource->format);
