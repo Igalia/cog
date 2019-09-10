@@ -237,7 +237,7 @@ drm_update_from_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource, uint
 
     in_modifiers[0] = gbm_bo_get_modifier (bo);
 
-    int plane_count = gbm_bo_get_plane_count (bo);
+    int plane_count = MIN (gbm_bo_get_plane_count (bo), 4);
     for (int i = 0; i < plane_count; ++i) {
         in_handles[i] = gbm_bo_get_handle_for_plane (bo, i).u32;
         in_strides[i] = gbm_bo_get_stride_for_plane (bo, i);
