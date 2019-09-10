@@ -1,10 +1,12 @@
 #include <cog.h>
 
 #include <assert.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <gbm.h>
 #include <libinput.h>
 #include <libudev.h>
+#include <string.h>
 #include <wpe/fdo.h>
 #include <wpe/fdo-egl.h>
 #include <xf86drm.h>
@@ -225,6 +227,71 @@ drm_page_flip_handler (int fd, unsigned int frame, unsigned int sec, unsigned in
 
     wpe_view_backend_exportable_fdo_dispatch_frame_complete (wpe_host_data.exportable);
     drm_data.committed_buffer = (struct buffer_object *) data;
+}
+
+static void
+drm_update_from_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource, uint32_t width, uint32_t height, uint32_t format)
+{
+    uint32_t in_handles[4] = { 0, };
+    uint32_t in_strides[4] = { 0, };
+    uint32_t in_offsets[4] = { 0, };
+    uint64_t in_modifiers[4] = { 0, };
+
+    in_modifiers[0] = gbm_bo_get_modifier (bo);
+
+    int plane_count = MIN (gbm_bo_get_plane_count (bo), 4);
+    for (int i = 0; i < plane_count; ++i) {
+        in_handles[i] = gbm_bo_get_handle_for_plane (bo, i).u32;
+        in_strides[i] = gbm_bo_get_stride_for_plane (bo, i);
+        in_offsets[i] = gbm_bo_get_offset (bo, i);
+        in_modifiers[i] = in_modifiers[0];
+    }
+
+    int flags = 0;
+    if (in_modifiers[0])
+        flags = DRM_MODE_FB_MODIFIERS;
+
+    uint32_t fb_id = 0;
+    int ret = drmModeAddFB2WithModifiers (drm_data.fd, width, height, format,
+                                          in_handles, in_strides, in_offsets, in_modifiers,
+                                          &fb_id, flags);
+    if (ret) {
+        in_handles[0] = gbm_bo_get_handle (bo).u32;
+        in_handles[1] = in_handles[2] = in_handles[3] = 0;
+        in_strides[0] = gbm_bo_get_stride (bo);
+        in_strides[1] = in_strides[2] = in_strides[3] = 0;
+        in_offsets[0] = in_offsets[1] = in_offsets[2] = in_offsets[3] = 0;
+
+        ret = drmModeAddFB2 (drm_data.fd, width, height, format,
+                             in_handles, in_strides, in_offsets,
+                             &fb_id, 0);
+    }
+
+    if (ret) {
+        g_warning ("failed to create framebuffer: %s", strerror (errno));
+        return;
+    }
+
+    if (!drm_data.mode_set) {
+        ret = drmModeSetCrtc (drm_data.fd, drm_data.crtc_id, fb_id, 0, 0,
+                              &drm_data.connector_id, 1, drm_data.mode);
+        if (ret) {
+            g_warning ("failed to set mode: %s", strerror (errno));
+            return;
+        }
+
+        drm_data.mode_set = 0;
+    }
+
+    struct buffer_object *buffer = g_new0 (struct buffer_object, 1);
+    buffer->fb_id = fb_id;
+    buffer->bo = bo;
+    buffer->buffer_resource = buffer_resource;
+
+    ret = drmModePageFlip (drm_data.fd, drm_data.crtc_id, fb_id,
+                           DRM_MODE_PAGE_FLIP_EVENT, buffer);
+    if (ret)
+        g_warning ("failed to schedule a page flip: %s", strerror (errno));
 }
 
 
@@ -569,7 +636,18 @@ init_glib (void)
 static void
 on_export_buffer_resource (void *data, struct wl_resource *buffer_resource)
 {
-    assert (!"should not be reached");
+    struct gbm_bo* bo = gbm_bo_import (gbm_data.device, GBM_BO_IMPORT_WL_BUFFER,
+                                       (void *) buffer_resource, GBM_BO_USE_SCANOUT);
+    if (!bo) {
+        g_warning ("failed to import a wl_buffer resource into gbm_bo");
+        return;
+    }
+
+    uint32_t width = gbm_bo_get_width (bo);
+    uint32_t height = gbm_bo_get_height (bo);
+    uint32_t format = gbm_bo_get_format (bo);
+
+    drm_update_from_bo (bo, buffer_resource, width, height, format);
 }
 
 static void
@@ -590,48 +668,13 @@ on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dm
 
     struct gbm_bo *bo = gbm_bo_import (gbm_data.device, GBM_BO_IMPORT_FD_MODIFIER,
                                        (void *)(&modifier_data), GBM_BO_USE_SCANOUT);
-    if (!bo)
+    if (!bo) {
+        g_warning ("failed to import a dma-buf resource into gbm_bo");
         return;
-
-    uint32_t in_handles[4] = { 0, };
-    uint32_t in_strides[4] = { 0, };
-    uint32_t in_offsets[4] = { 0, };
-    uint64_t in_modifiers[4] = { 0, };
-    in_modifiers[0] = gbm_bo_get_modifier (bo);
-
-    int plane_count = gbm_bo_get_plane_count (bo);
-    for (int i = 0; i < plane_count; ++i) {
-        in_handles[i] = gbm_bo_get_handle_for_plane (bo, i).u32;
-        in_strides[i] = gbm_bo_get_stride_for_plane (bo, i);
-        in_offsets[i] = gbm_bo_get_offset (bo, i);
-        in_modifiers[i] = in_modifiers[0];
     }
 
-    int flags = 0;
-    if (in_modifiers[0])
-        flags = DRM_MODE_FB_MODIFIERS;
-
-    uint32_t fb_id = 0;
-    int ret = drmModeAddFB2WithModifiers (drm_data.fd, dmabuf_resource->width, dmabuf_resource->height, dmabuf_resource->format,
-                                          in_handles, in_strides, in_offsets,
-                                          in_modifiers, &fb_id, flags);
-    if (ret)
-        return;
-
-    if (!drm_data.mode_set) {
-        ret = drmModeSetCrtc (drm_data.fd, drm_data.crtc_id, fb_id, 0, 0,
-                              &drm_data.connector_id, 1, drm_data.mode);
-        if (ret)
-            return;
-        drm_data.mode_set = true;
-    }
-
-    struct buffer_object *buffer = g_new0 (struct buffer_object, 1);
-    buffer->fb_id = fb_id;
-    buffer->bo = bo;
-    buffer->buffer_resource = dmabuf_resource->buffer_resource;
-    ret = drmModePageFlip (drm_data.fd, drm_data.crtc_id, fb_id,
-                           DRM_MODE_PAGE_FLIP_EVENT, buffer);
+    drm_update_from_bo (bo, dmabuf_resource->buffer_resource, dmabuf_resource->width,
+                        dmabuf_resource->height, dmabuf_resource->format);
 }
 
 gboolean
