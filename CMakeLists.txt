@@ -1,5 +1,21 @@
 cmake_minimum_required (VERSION 3.3)
-project(cog VERSION 0.3.2 LANGUAGES C)
+
+list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/cmake")
+include(VersioningUtils)
+include(GNUInstallDirs)
+
+set_project_version(0 3 91)
+
+# Before making a release, the LT_VERSION string should be modified.
+# The string is of the form C:R:A.
+# - If interfaces have been changed or added, but binary compatibility has
+#   been preserved, change to C+1:0:A+1
+# - If binary compatibility has been broken (eg removed or changed interfaces)
+#   change to C+1:0:0
+# - If the interface is the same as the previous version, change to C:R+1:A
+calculate_library_versions_from_libtool_triple(COGCORE 1 0 0)
+
+project(cog VERSION "${PROJECT_VERSION}" LANGUAGES C)
 
 set(COG_VERSION_EXTRA "")
 if (IS_DIRECTORY "${CMAKE_SOURCE_DIR}/.git")
@@ -32,9 +48,6 @@ if (IS_DIRECTORY "${CMAKE_SOURCE_DIR}/.git")
     message(STATUS "Source tree revision: ${PROJECT_VERSION}${COG_VERSION_EXTRA}")
 endif ()
 
-
-list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/cmake")
-include(GNUInstallDirs)
 
 option(COG_DBUS_SYSTEM_BUS "Expose remote control interface on system bus" OFF)
 set(COG_DBUS_OWN_USER "" CACHE STRING
@@ -140,8 +153,11 @@ if (COG_DBUS_SYSTEM_BUS)
 endif ()
 
 add_library(cogcore SHARED ${COGCORE_SOURCES})
-set_property(TARGET cogcore PROPERTY C_STANDARD 99)
-set_property(TARGET cogcore PROPERTY VERSION ${PROJECT_VERSION})
+set_target_properties(cogcore PROPERTIES
+    C_STANDARD 99
+    VERSION ${COGCORE_VERSION}
+    SOVERSION ${COGCORE_VERSION_MAJOR}
+)
 target_include_directories(cogcore PUBLIC core ${COGCORE_INCLUDE_DIRS})
 target_link_libraries(cogcore ${COGCORE_LDFLAGS})
 target_compile_options(cogcore
