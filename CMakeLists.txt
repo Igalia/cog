@@ -16,6 +16,7 @@ set_project_version(0 3 91)
 calculate_library_versions_from_libtool_triple(COGCORE 1 0 0)
 
 project(cog VERSION "${PROJECT_VERSION}" LANGUAGES C)
+include(DistTargets)
 
 set(COG_VERSION_EXTRA "")
 if (IS_DIRECTORY "${CMAKE_SOURCE_DIR}/.git")
