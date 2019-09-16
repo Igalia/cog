@@ -1,0 +1,57 @@
+=====================
+0.3.1 - June 28, 2018
+=====================
+
+- Fix installed cogcore.pc file to use the correct wpe-webkit-1.0 module as
+  dependency.
+- fdo: Use wayland-scanner and wayland-protocols to generate Wayland protocol
+  code, instead of shipping pregenerated copies.
+- fdo: Improved debug logging.
+
+======================
+0.3.0 - March 28, 2018
+======================
+
+- Support configuring the background color of the Web view.
+- Add an option to control permission requests.
+- The output of "cog --help-websettings" now is sorted alphabetically by
+  option name.
+- Properly handle URIs in the command line in some corner cases, for example
+  when they include passwords or fragment identifiers.
+- fdo: Avoid dereferencing a NULL view backend by creating the Wayland event
+  source always after a valid backend is instantiated
+- fdo: Set the opaque region of Wayland surfaces when fullscreened, which
+  allows the compositor to optimize redraws.
+
+=========================
+0.2.0 - December 13, 2018
+=========================
+
+- fdo: Fix potential screen tearing by releasing each EGLImage on the
+  release callback for its wl_buffer.
+- fdo: Explicitly set the backend library name.
+- Fix remotely controlling Cog over D-Bus.
+
+=========================
+0.1.2 - December 13, 2018
+=========================
+
+- Avoid error "xdg_surface not configured".
+- Fix possible usage of a NULL Wayland EGL window object.
+
+========================
+0.1.1 - December 4, 2018
+========================
+
+- fdo: Support maximizing the Wayland surface by setting the
+  COG_PLATFORM_FDO_VIEW_MAXIMIZE environment variable.
+- Make it possible to build against GLib 2.58 and newer.
+- Workaround WebKitGTK+ bug #150303.
+- Properly set the application identifier in the generated D-Bus
+  policy configuration file.
+
+========================
+0.1.1 - December 4, 2018
+========================
+
+- Initial release.
