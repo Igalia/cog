@@ -20,7 +20,7 @@ typedef struct {
 G_DEFINE_TYPE_WITH_PRIVATE (CogShell, cog_shell, G_TYPE_OBJECT)
 
 #define PRIV(obj) \
-        G_TYPE_INSTANCE_GET_PRIVATE ((obj), COG_TYPE_SHELL, CogShellPrivate)
+        ((CogShellPrivate*) cog_shell_get_instance_private (COG_SHELL (obj)))
 
 enum {
     PROP_0,
