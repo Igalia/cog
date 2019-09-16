@@ -1,5 +1,19 @@
+===========================
+0.3.91 - September 16, 2019
+===========================
+
+- HiDPI support. The "cog --device-scale" option can be used to set the
+  initial scale factor.
+- Using "cog --version" now also prints the WebKit version and (if available
+  at build time), Git repository information.
+- The libcogcore library now has proper libtool versioning.
+- fdo: Fix axis scrolling.
+- New "experimental-drm" platform plug-in which uses KMS+DRM (Kernel Mode
+  Setting, Direct Rendering Manager) for direct display on framebuffers,
+  and libinput for input event processing.
+
 =====================
-0.3.1 - June 28, 2018
+0.3.1 - June 28, 2019
 =====================
 
 - Fix installed cogcore.pc file to use the correct wpe-webkit-1.0 module as
