@@ -280,7 +280,7 @@ drm_update_from_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource, uint
             return;
         }
 
-        drm_data.mode_set = 0;
+        drm_data.mode_set = true;
     }
 
     struct buffer_object *buffer = g_new0 (struct buffer_object, 1);
