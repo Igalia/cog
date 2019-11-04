@@ -1,4 +1,4 @@
-/*
+e*
  * cog.c
  * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  * Copyright (C) 2017-2018 Adrian Perez <aperez@igalia.com>
@@ -35,6 +35,7 @@ static struct {
     gboolean version;
     gboolean print_appid;
     gboolean doc_viewer;
+    gboolean ignore_tls_errors;
     gdouble  scale_factor;
 #if HAVE_DEVICE_SCALING
     gdouble  device_scale_factor;
@@ -95,6 +96,9 @@ static GOptionEntry s_cli_options[] =
     { "bg-color", 'b', 0, G_OPTION_ARG_STRING, &s_options.background_color,
         "Background color, as a CSS name or in #RRGGBBAA hex syntax (default: white)",
         "BG_COLOR" },
+	{ "ignore-tls-errors", '\0', 0, G_OPTION_ARG_NONE, &s_options.ignore_tls_errors,
+        "Ignore TLS errors",
+        "IGNORE_TLS_ERRORS" },
 #if !COG_USE_WEBKITGTK
     { "platform", 'P', 0, G_OPTION_ARG_STRING, &s_options.platform_name,
         "Platform plug-in to use.",
@@ -282,6 +286,11 @@ on_handle_local_options (GApplication *application,
     if (s_options.web_extensions_dir != NULL) {
         webkit_web_context_set_web_extensions_directory (cog_shell_get_web_context (shell),
                                                          s_options.web_extensions_dir);
+    }
+
+    if (s_options.ignore_tls_errors) {
+        webkit_web_context_set_tls_errors_policy (cog_shell_get_web_context (shell),
+                                                  WEBKIT_TLS_ERRORS_POLICY_IGNORE);
     }
 
     return -1;  /* Continue startup. */
