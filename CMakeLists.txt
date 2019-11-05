@@ -255,7 +255,7 @@ endif ()  # !COG_USE_WEBKITGTK
 # libcogplaform-drm-experimental
 
 if (COG_PLATFORM_DRM AND NOT COG_USE_WEBKITGTK)
-    pkg_check_modules(COGPLATFORM_DRM_DEPS REQUIRED wpe-webkit-1.0>=2.24.0 wpebackend-fdo-1.0>=1.3.1 libdrm>=2.4.71 gbm>=13.0 egl libinput libudev)
+    pkg_check_modules(COGPLATFORM_DRM_DEPS REQUIRED wpe-webkit-1.0>=2.24.0 wpebackend-fdo-1.0>=1.3.1 libdrm>=2.4.71 gbm>=13.0 egl libinput libudev wayland-server)
 
     set(COGPLATFORM_DRM_INCLUDE_DIRS
         ${COGPLATFORM_DRM_DEPS_INCLUDE_DIRS}
