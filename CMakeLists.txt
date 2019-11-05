@@ -279,7 +279,7 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
     )
 endif ()  # !COG_USE_WEBKITGTK
 
-# libcogplaform-drm-experimental
+# libcogplaform-drm
 
 if (COG_PLATFORM_DRM AND NOT COG_USE_WEBKITGTK)
     pkg_check_modules(COGPLATFORM_DRM_DEPS REQUIRED wpe-webkit-1.0>=2.24.0 wpebackend-fdo-1.0>=1.3.1 libdrm>=2.4.71 gbm>=13.0 egl libinput libudev wayland-server)
@@ -294,13 +294,13 @@ if (COG_PLATFORM_DRM AND NOT COG_USE_WEBKITGTK)
         ${COGPLATFORM_DRM_DEPS_LDFLAGS}
     )
 
-    add_library(cogplatform-drm-experimental MODULE platform/cog-platform-drm.c)
-    set_property(TARGET cogplatform-drm-experimental PROPERTY C_STANDARD 99)
-    target_include_directories(cogplatform-drm-experimental PUBLIC ${COGPLATFORM_DRM_INCLUDE_DIRS})
-    target_compile_options(cogplatform-drm-experimental PUBLIC ${COGPLATFORM_DRM_CFLAGS})
-    target_link_libraries(cogplatform-drm-experimental cogcore ${COGPLATFORM_DRM_LDFLAGS})
+    add_library(cogplatform-drm MODULE platform/cog-platform-drm.c)
+    set_property(TARGET cogplatform-drm PROPERTY C_STANDARD 99)
+    target_include_directories(cogplatform-drm PUBLIC ${COGPLATFORM_DRM_INCLUDE_DIRS})
+    target_compile_options(cogplatform-drm PUBLIC ${COGPLATFORM_DRM_CFLAGS})
+    target_link_libraries(cogplatform-drm cogcore ${COGPLATFORM_DRM_LDFLAGS})
 
-    install(TARGETS cogplatform-drm-experimental
+    install(TARGETS cogplatform-drm
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
         COMPONENT "runtime"
     )
