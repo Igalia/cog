@@ -7,6 +7,7 @@
 #include <libinput.h>
 #include <libudev.h>
 #include <string.h>
+#include <wayland-server.h>
 #include <wpe/fdo.h>
 #include <wpe/fdo-egl.h>
 #include <xf86drm.h>
@@ -26,6 +27,9 @@ typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platf
 
 
 struct buffer_object {
+    struct wl_list link;
+    struct wl_listener destroy_listener;
+
     uint32_t fb_id;
     struct gbm_bo *bo;
     struct wl_resource *buffer_resource;
@@ -46,6 +50,7 @@ static struct {
     uint32_t height;
 
     bool mode_set;
+    struct wl_list buffer_list;
     struct buffer_object *committed_buffer;
 } drm_data = {
     .fd = -1,
@@ -109,7 +114,8 @@ static struct {
 } wpe_view_data;
 
 
-static void destroy_buffer (struct buffer_object *buffer)
+static void
+destroy_buffer (struct buffer_object *buffer)
 {
     drmModeRmFB (drm_data.fd, buffer->fb_id);
     gbm_bo_destroy (buffer->bo);
@@ -119,8 +125,31 @@ static void destroy_buffer (struct buffer_object *buffer)
 }
 
 static void
+destroy_buffer_notify (struct wl_listener *listener, void *data)
+{
+    struct buffer_object *buffer = wl_container_of (listener, buffer, destroy_listener);
+
+    if (drm_data.committed_buffer == buffer)
+        drm_data.committed_buffer = NULL;
+
+    wl_list_remove (&buffer->link);
+    destroy_buffer (buffer);
+}
+
+static void
 clear_drm (void)
 {
+    drm_data.committed_buffer = NULL;
+
+    struct buffer_object *buffer, *tmp;
+    wl_list_for_each_safe (buffer, tmp, &drm_data.buffer_list, link) {
+        wl_list_remove (&buffer->link);
+        wl_list_remove (&buffer->destroy_listener.link);
+
+        destroy_buffer (buffer);
+    }
+    wl_list_init (&drm_data.buffer_list);
+
     g_clear_pointer (&drm_data.encoder, drmModeFreeEncoder);
     g_clear_pointer (&drm_data.connector, drmModeFreeConnector);
     if (drm_data.fd != -1) {
@@ -215,6 +244,7 @@ init_drm (void)
 
     drm_data.width = drm_data.mode->hdisplay;
     drm_data.height = drm_data.mode->vdisplay;
+    wl_list_init (&drm_data.buffer_list);
 
     g_clear_pointer (&resources, drmModeFreeResources);
     return TRUE;
@@ -223,14 +253,27 @@ init_drm (void)
 static void
 drm_page_flip_handler (int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data)
 {
-    g_clear_pointer (&drm_data.committed_buffer, destroy_buffer);
+    if (drm_data.committed_buffer)
+        wpe_view_backend_exportable_fdo_dispatch_release_buffer (wpe_host_data.exportable, drm_data.committed_buffer->buffer_resource);
+    drm_data.committed_buffer = (struct buffer_object *) data;
 
     wpe_view_backend_exportable_fdo_dispatch_frame_complete (wpe_host_data.exportable);
-    drm_data.committed_buffer = (struct buffer_object *) data;
 }
 
-static void
-drm_update_from_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource, uint32_t width, uint32_t height, uint32_t format)
+static struct buffer_object *
+drm_buffer_for_resource (struct wl_resource *buffer_resource)
+{
+    struct buffer_object *buffer;
+    wl_list_for_each (buffer, &drm_data.buffer_list, link) {
+        if (buffer->buffer_resource == buffer_resource)
+            return buffer;
+    }
+
+    return NULL;
+}
+
+static struct buffer_object *
+drm_create_buffer_for_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource, uint32_t width, uint32_t height, uint32_t format)
 {
     uint32_t in_handles[4] = { 0, };
     uint32_t in_strides[4] = { 0, };
@@ -269,11 +312,27 @@ drm_update_from_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource, uint
 
     if (ret) {
         g_warning ("failed to create framebuffer: %s", strerror (errno));
-        return;
+        return NULL;
     }
 
+    struct buffer_object *buffer = g_new0 (struct buffer_object, 1);
+    wl_list_insert (&drm_data.buffer_list, &buffer->link);
+    buffer->destroy_listener.notify = destroy_buffer_notify;
+    wl_resource_add_destroy_listener (buffer_resource, &buffer->destroy_listener);
+
+    buffer->fb_id = fb_id;
+    buffer->bo = bo;
+    buffer->buffer_resource = buffer_resource;
+
+    return buffer;
+}
+
+static void
+drm_commit_buffer (struct buffer_object *buffer)
+{
+    int ret;
     if (!drm_data.mode_set) {
-        ret = drmModeSetCrtc (drm_data.fd, drm_data.crtc_id, fb_id, 0, 0,
+        ret = drmModeSetCrtc (drm_data.fd, drm_data.crtc_id, buffer->fb_id, 0, 0,
                               &drm_data.connector_id, 1, drm_data.mode);
         if (ret) {
             g_warning ("failed to set mode: %s", strerror (errno));
@@ -283,13 +342,8 @@ drm_update_from_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource, uint
         drm_data.mode_set = true;
     }
 
-    struct buffer_object *buffer = g_new0 (struct buffer_object, 1);
-    buffer->fb_id = fb_id;
-    buffer->bo = bo;
-    buffer->buffer_resource = buffer_resource;
-
-    ret = drmModePageFlip (drm_data.fd, drm_data.crtc_id, fb_id,
-                           DRM_MODE_PAGE_FLIP_EVENT, buffer);
+    ret = drmModePageFlip (drm_data.fd, drm_data.crtc_id, buffer->fb_id,
+                               DRM_MODE_PAGE_FLIP_EVENT, buffer);
     if (ret)
         g_warning ("failed to schedule a page flip: %s", strerror (errno));
 }
@@ -636,6 +690,12 @@ init_glib (void)
 static void
 on_export_buffer_resource (void *data, struct wl_resource *buffer_resource)
 {
+    struct buffer_object *buffer = drm_buffer_for_resource (buffer_resource);
+    if (buffer) {
+        drm_commit_buffer (buffer);
+        return;
+    }
+
     struct gbm_bo* bo = gbm_bo_import (gbm_data.device, GBM_BO_IMPORT_WL_BUFFER,
                                        (void *) buffer_resource, GBM_BO_USE_SCANOUT);
     if (!bo) {
@@ -647,12 +707,20 @@ on_export_buffer_resource (void *data, struct wl_resource *buffer_resource)
     uint32_t height = gbm_bo_get_height (bo);
     uint32_t format = gbm_bo_get_format (bo);
 
-    drm_update_from_bo (bo, buffer_resource, width, height, format);
+    buffer = drm_create_buffer_for_bo (bo, buffer_resource, width, height, format);
+    if (buffer)
+        drm_commit_buffer (buffer);
 }
 
 static void
 on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dmabuf_resource *dmabuf_resource)
 {
+    struct buffer_object *buffer = drm_buffer_for_resource (dmabuf_resource->buffer_resource);
+    if (buffer) {
+        drm_commit_buffer (buffer);
+        return;
+    }
+
     struct gbm_import_fd_modifier_data modifier_data = {
         .width = dmabuf_resource->width,
         .height = dmabuf_resource->height,
@@ -673,8 +741,11 @@ on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dm
         return;
     }
 
-    drm_update_from_bo (bo, dmabuf_resource->buffer_resource, dmabuf_resource->width,
-                        dmabuf_resource->height, dmabuf_resource->format);
+    buffer = drm_create_buffer_for_bo (bo, dmabuf_resource->buffer_resource,
+                                       dmabuf_resource->width, dmabuf_resource->height,
+                                       dmabuf_resource->format);
+    if (buffer)
+        drm_commit_buffer (buffer);
 }
 
 gboolean
