@@ -68,7 +68,7 @@ on_action_prev (G_GNUC_UNUSED GAction  *action,
                 G_GNUC_UNUSED GVariant *param,
                 CogLauncher            *launcher)
 {
-    webkit_web_view_go_back (cog_shell_get_web_view (launcher->shell));
+    // webkit_web_view_go_back (cog_shell_get_web_view (launcher->shell));
 }
 
 static void
@@ -76,7 +76,7 @@ on_action_next (G_GNUC_UNUSED GAction  *action,
                 G_GNUC_UNUSED GVariant *param,
                 CogLauncher            *launcher)
 {
-    webkit_web_view_go_forward (cog_shell_get_web_view (launcher->shell));
+    // webkit_web_view_go_forward (cog_shell_get_web_view (launcher->shell));
 }
 
 static void
@@ -84,7 +84,7 @@ on_action_reload (G_GNUC_UNUSED GAction  *action,
                   G_GNUC_UNUSED GVariant *param,
                   CogLauncher            *launcher)
 {
-    webkit_web_view_reload (cog_shell_get_web_view (launcher->shell));
+    // webkit_web_view_reload (cog_shell_get_web_view (launcher->shell));
 }
 
 static void
@@ -93,8 +93,8 @@ on_action_open (G_GNUC_UNUSED GAction *action,
                 CogLauncher           *launcher)
 {
     g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
-    webkit_web_view_load_uri (cog_shell_get_web_view (launcher->shell),
-                              g_variant_get_string (param, NULL));
+    // webkit_web_view_load_uri (cog_shell_get_web_view (launcher->shell),
+    //                           g_variant_get_string (param, NULL));
 }
 
 static gboolean
@@ -120,9 +120,9 @@ on_permission_request (G_GNUC_UNUSED WebKitWebView *web_view,
 static void
 on_notify_web_view (CogShell *shell, GParamSpec * arg G_GNUC_UNUSED, CogLauncher *launcher)
 {
-    WebKitWebView* web_view = cog_shell_get_web_view (shell);
+    // WebKitWebView* web_view = cog_shell_get_web_view (shell);
 
-    g_signal_connect (web_view, "permission-request", G_CALLBACK (on_permission_request), launcher);
+    // g_signal_connect (web_view, "permission-request", G_CALLBACK (on_permission_request), launcher);
 }
 
 static void
@@ -153,7 +153,7 @@ cog_launcher_open (GApplication *application,
         g_warning ("Requested opening %i files, opening only the first one", n_files);
 
     g_autofree char *uri = g_file_get_uri (files[0]);
-    webkit_web_view_load_uri (cog_shell_get_web_view (COG_LAUNCHER (application)->shell), uri);
+    // webkit_web_view_load_uri (cog_shell_get_web_view (COG_LAUNCHER (application)->shell), uri);
 }
 
 
@@ -162,7 +162,7 @@ cog_launcher_startup (GApplication *application)
 {
     G_APPLICATION_CLASS (cog_launcher_parent_class)->startup (application);
 
-    cog_shell_startup (cog_launcher_get_shell (COG_LAUNCHER (application)));
+    // cog_shell_startup (cog_launcher_get_shell (COG_LAUNCHER (application)));
 
     /*
      * When building with GTK+ support, the GtkApplicationWindow will
@@ -182,7 +182,7 @@ cog_launcher_startup (GApplication *application)
 static void
 cog_launcher_shutdown (GApplication *application)
 {
-    cog_shell_shutdown (cog_launcher_get_shell (COG_LAUNCHER (application)));
+    // cog_shell_shutdown (cog_launcher_get_shell (COG_LAUNCHER (application)));
 
     G_APPLICATION_CLASS (cog_launcher_parent_class)->shutdown (application);
 }
@@ -360,6 +360,7 @@ cog_launcher_add_web_settings_option_entries (CogLauncher *launcher)
 {
     g_return_if_fail (COG_IS_LAUNCHER (launcher));
 
+#if 0
     g_autofree GOptionEntry *option_entries =
         cog_option_entries_from_class (G_OBJECT_GET_CLASS (cog_shell_get_web_settings (launcher->shell)));
     if (!option_entries) {
@@ -383,6 +384,7 @@ cog_launcher_add_web_settings_option_entries (CogLauncher *launcher)
     g_option_group_add_entries (option_group, option_entries);
     g_application_add_option_group (G_APPLICATION (launcher),
                                     g_steal_pointer (&option_group));
+#endif
 }
 
 
@@ -648,6 +650,7 @@ option_entry_parse_cookie_jar (const char          *option G_GNUC_UNUSED,
         return FALSE;
     }
 
+#if 0
     if (!cookie_jar_path) {
         g_autofree char *file_name = g_strconcat ("cookies.", format_name, NULL);
         WebKitWebContext *context =
@@ -663,6 +666,7 @@ option_entry_parse_cookie_jar (const char          *option G_GNUC_UNUSED,
     webkit_cookie_manager_set_persistent_storage (cookie_manager,
                                                   cookie_jar_path,
                                                   enum_value->value);
+#endif
     return TRUE;
 }
 
@@ -703,7 +707,8 @@ cog_launcher_add_web_cookies_option_entries (CogLauncher *launcher)
         g_option_group_new ("cookies",
                             "Options which control storage and bahviour of cookies.\n",
                             "Show options for cookies",
-                            webkit_web_context_get_cookie_manager (cog_shell_get_web_context (launcher->shell)),
+                            // webkit_web_context_get_cookie_manager (cog_shell_get_web_context (launcher->shell)),
+                            NULL,
                             NULL);
     g_option_group_add_entries (option_group, s_cookies_options);
     g_application_add_option_group (G_APPLICATION (launcher),

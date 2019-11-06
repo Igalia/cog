@@ -113,13 +113,13 @@ static gboolean
 load_settings (CogShell *shell, GKeyFile *key_file, GError **error)
 {
     if (g_key_file_has_group (key_file, "websettings")) {
-        WebKitSettings *settings = cog_shell_get_web_settings (shell);
-        if (!cog_webkit_settings_apply_from_key_file (settings,
-                                                      key_file,
-                                                      "websettings",
-                                                      error)) {
-            return FALSE;
-        }
+        // WebKitSettings *settings = cog_shell_get_web_settings (shell);
+        // if (!cog_webkit_settings_apply_from_key_file (settings,
+        //                                               key_file,
+        //                                               "websettings",
+        //                                               error)) {
+        //     return FALSE;
+        // }
     }
 
     return TRUE;
@@ -249,7 +249,7 @@ on_handle_local_options (GApplication *application,
 
         *colon = '\0';  /* NULL-terminate the URI scheme name. */
         g_autoptr(CogRequestHandler) handler = cog_directory_files_handler_new (file);
-        cog_shell_set_request_handler (shell, s_options.dir_handlers[i], handler);
+        // cog_shell_set_request_handler (shell, s_options.dir_handlers[i], handler);
     }
 
     s_options.home_uri = g_steal_pointer (&utf8_uri);
@@ -280,8 +280,8 @@ on_handle_local_options (GApplication *application,
     }
 
     if (s_options.web_extensions_dir != NULL) {
-        webkit_web_context_set_web_extensions_directory (cog_shell_get_web_context (shell),
-                                                         s_options.web_extensions_dir);
+        // webkit_web_context_set_web_extensions_directory (cog_shell_get_web_context (shell),
+        //                                                  s_options.web_extensions_dir);
     }
 
     return -1;  /* Continue startup. */
@@ -347,12 +347,12 @@ on_shutdown (CogLauncher *launcher G_GNUC_UNUSED, void *user_data G_GNUC_UNUSED)
 static WebKitWebView*
 on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
 {
-    WebKitWebContext *web_context = cog_shell_get_web_context (shell);
+    // WebKitWebContext *web_context = cog_shell_get_web_context (shell);
 
-    if (s_options.doc_viewer) {
-        webkit_web_context_set_cache_model (web_context,
-                                            WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
-    }
+    // if (s_options.doc_viewer) {
+    //     webkit_web_context_set_cache_model (web_context,
+    //                                         WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
+    // }
 
 #if !COG_USE_WEBKITGTK
     WebKitWebViewBackend *view_backend = NULL;
@@ -388,8 +388,8 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
 #endif // !COG_USE_WEBKITGTK
 
     g_autoptr(WebKitWebView) web_view = g_object_new (WEBKIT_TYPE_WEB_VIEW,
-                                                      "settings", cog_shell_get_web_settings (shell),
-                                                      "web-context", web_context,
+                                                      // "settings", cog_shell_get_web_settings (shell),
+                                                      // "web-context", web_context,
                                                       "zoom-level", s_options.scale_factor,
 #if !COG_USE_WEBKITGTK
                                                       "backend", view_backend,
