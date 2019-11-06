@@ -1,6 +1,6 @@
 /*
  * cog-shell.h
- * Copyright (C) 2018 Adrian Perez <aperez@igalia.com>
+ * Copyright (C) 2018-2019 Adrian Perez de Castro <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
  */
@@ -11,8 +11,7 @@
 # error "Do not include this header directly, use <cog.h> instead"
 #endif
 
-#include "cog-request-handler.h"
-#include "cog-webkit-utils.h"
+#include "cog-view.h"
 
 G_BEGIN_DECLS
 
@@ -20,26 +19,31 @@ G_BEGIN_DECLS
 
 G_DECLARE_DERIVABLE_TYPE (CogShell, cog_shell, COG, SHELL, GObject)
 
-
 struct _CogShellClass {
     GObjectClass parent_class;
 
-    WebKitWebView* (*create_view) (CogShell*);
-    void           (*startup)     (CogShell*);
-    void           (*shutdown)    (CogShell*);
+    gboolean (*is_supported)   (void);
+    GType    (*get_view_class) (void);
 };
 
+CogShell*   cog_shell_new             (const char *name);
 
-CogShell         *cog_shell_new                 (const char        *name);
-const char       *cog_shell_get_name            (CogShell          *shell);
-WebKitWebContext *cog_shell_get_web_context     (CogShell          *shell);
-WebKitSettings   *cog_shell_get_web_settings    (CogShell          *shell);
-WebKitWebView    *cog_shell_get_web_view        (CogShell          *shell);
-void              cog_shell_set_request_handler (CogShell          *shell,
-                                                 const char        *scheme,
-                                                 CogRequestHandler *handler);
+CogShell*   cog_shell_new_from_module (const char *name,
+                                       const char *module_name);
 
-void              cog_shell_startup             (CogShell          *shell);
-void              cog_shell_shutdown            (CogShell          *shell);
+const char* cog_shell_get_name        (CogShell   *shell);
+
+CogView*    cog_shell_create_view     (CogShell   *shell,
+                                       const char *name,
+                                       const char *prop_1,
+                                       ...);
+
+void        cog_shell_add_view        (CogShell   *shell,
+                                       CogView    *view);
+
+CogView*    cog_shell_get_view        (CogShell   *shell,
+                                       const char *name);
+
+GList*      cog_shell_get_views       (CogShell   *shell);
 
 G_END_DECLS
