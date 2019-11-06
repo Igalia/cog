@@ -54,6 +54,7 @@ option(COG_DBUS_SYSTEM_BUS "Expose remote control interface on system bus" OFF)
 set(COG_DBUS_OWN_USER "" CACHE STRING
     "Additional user allowed to own the well-known name on the system bus")
 
+option(COG_MODULE_FDO_SHELL "Build the FDO shell module" ON)
 option(COG_BUILD_PROGRAMS "Build and install programs as well" ON)
 set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
@@ -179,5 +180,48 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cogcore.pc
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
     COMPONENT "development"
 )
+
+# Platform support libraries: Wayland.
+if (COG_MODULE_FDO_SHELL)
+    add_library (platform-wl STATIC EXCLUDE_FROM_ALL
+        platform/pwl.h
+        platform/pwl.c
+    )
+    set_property (TARGET platform-wl PROPERTY C_STANDARD 99)
+    target_compile_options (platform-wl PRIVATE
+        -DG_LOG_DOMAIN=\"Cog-PWL\" ${EXTRA_CFLAGS})
+
+    pkg_check_modules (PlatformWl IMPORTED_TARGET REQUIRED wayland-client egl)
+    pkg_check_modules (PlatformWlOptional IMPORTED_TARGET wayland-egl)
+    target_link_libraries (platform-wl PUBLIC
+        PkgConfig::Gio
+        PkgConfig::PlatformWl
+        PkgConfig::PlatformWlOptional
+    )
+
+    find_package (WaylandProtocols REQUIRED)
+    add_wayland_protocol (platform-wl CLIENT xdg-shell)
+endif ()
+
+# FDO shell module
+if (COG_MODULE_FDO_SHELL)
+    pkg_check_modules (ModuleFdoShell IMPORTED_TARGET REQUIRED
+        wpe-webkit-1.0>=2.24.0
+        wpebackend-fdo-1.0>=1.3.1
+        egl
+        xkbcommon
+    )
+    add_library (fdo-shell MODULE modules/cog-fdo-shell.c)
+    set_property (TARGET fdo-shell PROPERTY C_STANDARD 99)
+    target_link_libraries (fdo-shell PRIVATE
+        cogcore platform-wl PkgConfig::ModuleFdoShell)
+    target_compile_options (fdo-shell PRIVATE
+        -DG_LOG_DOMAIN=\"Cog-FDO\" ${EXTRA_CFLAGS})
+
+    install (TARGETS fdo-shell
+        DESTINATION ${COG_MODULEDIR}
+        COMPONENT "runtime"
+    )
+endif ()
 
 configure_file(core/cog-config.h.in cog-config.h @ONLY)
