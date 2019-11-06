@@ -1,142 +1,32 @@
 /*
  * cog-shell.c
- * Copyright (C) 2018 Adrian Perez <aperez@igalia.com>
+ * Copyright (C) 2019 Adrian Perez de Castro <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
  */
 
+#define COG_INTERNAL_COG__ 1
+
 #include "cog-shell.h"
 
+#include "cog-modules.h"
+#include "cog-request-handler.h"
+#include <stdarg.h>
 
 typedef struct {
-    char             *name;
-    WebKitSettings   *web_settings;
-    WebKitWebContext *web_context;
-    WebKitWebView    *web_view;
-    GHashTable       *request_handlers;  /* (string, RequestHandlerMapEntry) */
+    char  *name;
+    GList *views;
 } CogShellPrivate;
 
-
 G_DEFINE_TYPE_WITH_PRIVATE (CogShell, cog_shell, G_TYPE_OBJECT)
-
-#define PRIV(obj) \
-        ((CogShellPrivate*) cog_shell_get_instance_private (COG_SHELL (obj)))
 
 enum {
     PROP_0,
     PROP_NAME,
-    PROP_WEB_SETTINGS,
-    PROP_WEB_CONTEXT,
-    PROP_WEB_VIEW,
     N_PROPERTIES,
 };
 
 static GParamSpec *s_properties[N_PROPERTIES] = { NULL, };
-
-
-enum {
-    CREATE_VIEW,
-    STARTUP,
-    SHUTDOWN,
-    N_SIGNALS,
-};
-
-static int s_signals[N_SIGNALS] = { 0, };
-
-
-static WebKitWebView*
-cog_shell_create_view_base (CogShell *shell)
-{
-    return g_object_new (WEBKIT_TYPE_WEB_VIEW,
-                         "settings", cog_shell_get_web_settings (shell),
-                         "web-context", cog_shell_get_web_context (shell),
-                         NULL);
-}
-
-
-typedef struct {
-    CogRequestHandler *handler;
-    gboolean           registered;
-} RequestHandlerMapEntry;
-
-
-static inline RequestHandlerMapEntry*
-request_handler_map_entry_new (CogRequestHandler *handler)
-{
-    g_assert (COG_IS_REQUEST_HANDLER (handler));
-    RequestHandlerMapEntry *entry = g_slice_new (RequestHandlerMapEntry);
-    entry->handler = g_object_ref_sink (handler);
-    entry->registered = FALSE;
-    return entry;
-}
-
-
-static inline void
-request_handler_map_entry_free (void *pointer)
-{
-    if (pointer) {
-        RequestHandlerMapEntry *entry = pointer;
-        g_clear_object (&entry->handler);
-        g_slice_free (RequestHandlerMapEntry, entry);
-    }
-}
-
-
-static void
-handle_uri_scheme_request (WebKitURISchemeRequest *request,
-                           void                   *userdata)
-{
-    RequestHandlerMapEntry *entry = userdata;
-    g_assert (COG_IS_REQUEST_HANDLER (entry->handler));
-    cog_request_handler_run (entry->handler, request);
-}
-
-
-static void
-request_handler_map_entry_register (const char             *scheme,
-                                    RequestHandlerMapEntry *entry,
-                                    WebKitWebContext       *context)
-{
-    if (context && !entry->registered) {
-        webkit_web_context_register_uri_scheme (context,
-                                                scheme,
-                                                handle_uri_scheme_request,
-                                                entry,
-                                                NULL);
-    }
-}
-
-
-
-static void
-cog_shell_startup_base (CogShell *shell)
-{
-    CogShellPrivate *priv = PRIV (shell);
-
-    if (priv->request_handlers) {
-        g_hash_table_foreach (priv->request_handlers,
-                              (GHFunc) request_handler_map_entry_register,
-                              priv->web_context);
-    }
-
-    g_signal_emit (shell, s_signals[CREATE_VIEW], 0, &priv->web_view);
-    g_object_ref_sink (priv->web_view);
-    g_object_notify_by_pspec (G_OBJECT (shell), s_properties[PROP_WEB_VIEW]);
-
-    /*
-     * The web context and settings being used by the web view must be
-     * the same that were pre-created by shell.
-     */
-    g_assert (webkit_web_view_get_settings (priv->web_view) == priv->web_settings);
-    g_assert (webkit_web_view_get_context (priv->web_view) == priv->web_context);
-}
-
-
-static void
-cog_shell_shutdown_base (CogShell *shell G_GNUC_UNUSED)
-{
-}
-
 
 static void
 cog_shell_get_property (GObject    *object,
@@ -149,20 +39,10 @@ cog_shell_get_property (GObject    *object,
         case PROP_NAME:
             g_value_set_string (value, cog_shell_get_name (shell));
             break;
-        case PROP_WEB_SETTINGS:
-            g_value_set_object (value, cog_shell_get_web_settings (shell));
-            break;
-        case PROP_WEB_CONTEXT:
-            g_value_set_object (value, cog_shell_get_web_context (shell));
-            break;
-        case PROP_WEB_VIEW:
-            g_value_set_object (value, cog_shell_get_web_view (shell));
-            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
 }
-
 
 static void
 cog_shell_set_property (GObject      *object,
@@ -170,214 +50,301 @@ cog_shell_set_property (GObject      *object,
                         const GValue *value,
                         GParamSpec   *pspec)
 {
-    CogShell *shell = COG_SHELL (object);
+    CogShellPrivate *priv = cog_shell_get_instance_private (COG_SHELL (object));
     switch (prop_id) {
         case PROP_NAME:
-            PRIV (shell)->name = g_value_dup_string (value);
+            priv->name = g_value_dup_string (value);
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
 }
 
-
-static void
-cog_shell_constructed (GObject *object)
-{
-    G_OBJECT_CLASS (cog_shell_parent_class)->constructed (object);
-
-    CogShellPrivate *priv = PRIV (object);
-
-    priv->web_settings = g_object_ref_sink (webkit_settings_new ());
-
-    g_autofree char *data_dir =
-        g_build_filename (g_get_user_data_dir (), priv->name, NULL);
-    g_autofree char *cache_dir =
-        g_build_filename (g_get_user_cache_dir (), priv->name, NULL);
-
-    g_autoptr(WebKitWebsiteDataManager) manager =
-        webkit_website_data_manager_new ("base-data-directory", data_dir,
-                                         "base-cache-directory", cache_dir,
-                                         NULL);
-
-    priv->web_context =
-        webkit_web_context_new_with_website_data_manager (manager);
-}
-
-
 static void
 cog_shell_dispose (GObject *object)
 {
-    CogShellPrivate *priv = PRIV (object);
+    CogShellPrivate *priv = cog_shell_get_instance_private (COG_SHELL (object));
 
-    g_clear_object (&priv->web_view);
-    g_clear_object (&priv->web_context);
-    g_clear_object (&priv->web_settings);
-
-    g_clear_pointer (&priv->request_handlers, g_hash_table_unref);
+    if (priv->views) {
+        g_list_free_full (priv->views, g_object_unref);
+        priv->views = NULL;
+    }
     g_clear_pointer (&priv->name, g_free);
 
     G_OBJECT_CLASS (cog_shell_parent_class)->dispose (object);
 }
 
+static gboolean
+cog_shell_is_supported_default (void)
+{
+    return FALSE;
+}
+
+static GType
+cog_shell_get_view_class_default (void)
+{
+    return COG_TYPE_VIEW;
+}
 
 static void
 cog_shell_class_init (CogShellClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
-    object_class->dispose = cog_shell_dispose;
-    object_class->constructed = cog_shell_constructed;
     object_class->get_property = cog_shell_get_property;
     object_class->set_property = cog_shell_set_property;
+    object_class->dispose = cog_shell_dispose;
 
-    klass->create_view = cog_shell_create_view_base;
-    klass->startup = cog_shell_startup_base;
-    klass->shutdown = cog_shell_shutdown_base;
-
-    s_signals[CREATE_VIEW] =
-        g_signal_new ("create-view",
-                      COG_TYPE_SHELL,
-                      G_SIGNAL_RUN_LAST,
-                      G_STRUCT_OFFSET (CogShellClass, create_view),
-                      g_signal_accumulator_first_wins,
-                      NULL,
-                      NULL,
-                      WEBKIT_TYPE_WEB_VIEW,
-                      0);
+    klass->is_supported = cog_shell_is_supported_default;
+    klass->get_view_class = cog_shell_get_view_class_default;
 
     s_properties[PROP_NAME] =
         g_param_spec_string ("name",
                              "Name",
-                             "Name of the CogShell instance",
+                             "Name of the CogView instance",
                              NULL,
                              G_PARAM_READWRITE |
                              G_PARAM_CONSTRUCT_ONLY |
                              G_PARAM_STATIC_STRINGS);
 
-    s_properties[PROP_WEB_SETTINGS] =
-        g_param_spec_object ("web-settings",
-                             "Web Settings",
-                             "The WebKitSettings used by the shell",
-                             WEBKIT_TYPE_SETTINGS,
-                             G_PARAM_READABLE |
-                             G_PARAM_STATIC_STRINGS);
-
-    s_properties[PROP_WEB_CONTEXT] =
-        g_param_spec_object ("web-context",
-                             "Web Contxt",
-                             "The WebKitWebContext used by the shell",
-                             WEBKIT_TYPE_WEB_CONTEXT,
-                             G_PARAM_READABLE |
-                             G_PARAM_STATIC_STRINGS);
-
-    s_properties[PROP_WEB_VIEW] =
-        g_param_spec_object ("web-view",
-                             "Web View",
-                             "The WebKitWebView used by the shell",
-                             WEBKIT_TYPE_WEB_VIEW,
-                             G_PARAM_READABLE |
-                             G_PARAM_STATIC_STRINGS);
-
-    g_object_class_install_properties (object_class, N_PROPERTIES, s_properties);
+    g_object_class_install_properties (object_class,
+                                       N_PROPERTIES,
+                                       s_properties);
 }
-
 
 static void
-cog_shell_init (CogShell *shell G_GNUC_UNUSED)
+cog_shell_init (CogShell *shell)
 {
-    CogShellPrivate *priv = PRIV (shell);
-    if (!priv->name)
-        priv->name = g_strdup (g_get_prgname ());
 }
 
+static GType
+cog_shell_get_view_class (CogShell *shell)
+{
+    g_assert (COG_IS_SHELL (shell));
+    CogShellClass *shell_class = COG_SHELL_GET_CLASS (shell);
+    return (*shell_class->get_view_class) ();
+}
 
+static gboolean
+is_construct_property (const char  *func,
+                       GType        object_type,
+                       const char  *propname,
+                       GParamSpec  *pspec,
+                       unsigned     n_properties,
+                       GParamSpec **property_pspecs)
+{
+    if (G_UNLIKELY (pspec == NULL)) {
+        g_critical ("%s: object class '%s' has no property named '%s'",
+                    func, g_type_name (object_type), propname);
+        return FALSE;
+    }
+
+    if (G_UNLIKELY (~pspec->flags & G_PARAM_READWRITE)) {
+        g_critical ("%s: property '%s' of object class '%s' is not writable",
+                    func, pspec->name, g_type_name (object_type));
+        return FALSE;
+    }
+
+    if (G_UNLIKELY (pspec->flags & (G_PARAM_CONSTRUCT | G_PARAM_CONSTRUCT_ONLY))) {
+        for (unsigned i = 0; i < n_properties; i++) {
+            if (G_UNLIKELY (property_pspecs[i] == pspec)) {
+                g_critical ("%s: property '%s' of object class '%s' cannot be set twice",
+                            func, pspec->name, g_type_name (object_type));
+                return FALSE;
+            }
+        }
+    }
+
+    return TRUE;
+}
+
+/**
+ * cog_shell_new:
+ * @name:
+ *
+ * Returns: (transfer full): A new #CogShell.
+ */
 CogShell*
 cog_shell_new (const char *name)
 {
-    return g_object_new (COG_TYPE_SHELL,
-                         "name", name,
-                         NULL);
+    return cog_shell_new_from_module (name, NULL);
 }
 
-
-WebKitWebContext*
-cog_shell_get_web_context (CogShell *shell)
+CogShell*
+cog_shell_new_from_module (const char *name,
+                           const char *module_name)
 {
-    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
-    return PRIV (shell)->web_context;
+    g_return_val_if_fail (name != NULL, NULL);
+
+    GType shell_type =
+        _cog_modules_get_preferred_internal (G_STRFUNC,
+                                             _cog_modules_get_shell_extension_point (),
+                                             module_name,
+                                             G_STRUCT_OFFSET (CogShellClass, is_supported));
+    if (shell_type == G_TYPE_INVALID) {
+        g_critical ("%s: cannot find any '%s' implementation",
+                    G_STRFUNC, COG_MODULES_SHELL_EXTENSION_POINT);
+        return NULL;
+    }
+
+    return g_object_new (shell_type, "name", name, NULL);
 }
 
-
-WebKitSettings*
-cog_shell_get_web_settings (CogShell *shell)
-{
-    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
-    return PRIV (shell)->web_settings;
-}
-
-
-WebKitWebView*
-cog_shell_get_web_view (CogShell *shell)
-{
-    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
-    return PRIV (shell)->web_view;
-}
-
-
+/**
+ * cog_shell_get_name:
+ * @shell: A #CogShell
+ *
+ * Returns: (transfer none): The name which identifies the shell.
+ */
 const char*
 cog_shell_get_name (CogShell *shell)
 {
     g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
-    return PRIV (shell)->name;
+    CogShellPrivate *priv = cog_shell_get_instance_private (COG_SHELL (shell));
+    return priv->name;
 }
 
-
-void
-cog_shell_set_request_handler (CogShell          *shell,
-                               const char        *scheme,
-                               CogRequestHandler *handler)
+/**
+ * cog_shell_create_view:
+ * @shell: A #CogShell
+ * @name: Name for the created #CogView instance
+ * @...: Properties to pass to the constructor.
+ *
+ * Returns: (transfer floating): A new #CogView of the type needed by the shell.
+ */
+CogView*
+cog_shell_create_view (CogShell *shell, const char *name, const char *propname, ...)
 {
-    g_return_if_fail (COG_IS_SHELL (shell));
-    g_return_if_fail (scheme != NULL);
-    g_return_if_fail (COG_IS_REQUEST_HANDLER (handler));
+    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
+    g_return_val_if_fail (name != NULL, NULL);
 
-    CogShellPrivate *priv = PRIV (shell);
+    GType view_type = cog_shell_get_view_class (shell);
+    va_list varargs;
+    va_start (varargs, propname);
 
-    if (!priv->request_handlers) {
-        priv->request_handlers =
-            g_hash_table_new_full (g_str_hash,
-                                   g_str_equal,
-                                   g_free,
-                                   request_handler_map_entry_free);
+    g_autoptr(CogView) view = NULL;
+    if (propname) {
+        /*
+         * Gather parameters, and add our own (shell, name) to be used with
+         * g_object_new_with_properties()
+         */
+        GObjectClass *unref_class = NULL;
+        GObjectClass *view_class = g_type_class_peek_static (view_type);
+        if (!view_class)
+            view_class = unref_class = g_type_class_ref (view_type);
+
+        unsigned n_properties = 2;
+        g_autofree const char **property_names = g_new (const char*, n_properties);
+        g_autofree GValue *property_values = g_new (GValue, n_properties);
+        g_autofree GParamSpec **property_pspecs = g_new (GParamSpec*, n_properties);
+
+        property_names[0] = "shell";
+        property_values[0] = (GValue) G_VALUE_INIT;
+        g_value_set_object (&property_values[0], shell);
+
+        property_names[1] = "name";
+        property_values[1] = (GValue) G_VALUE_INIT;
+        g_value_set_string (&property_values[1], name);
+
+        do {
+            GParamSpec *pspec = g_object_class_find_property (view_class, propname);
+            if (!is_construct_property (G_STRFUNC,
+                                        view_type,
+                                        propname,
+                                        pspec,
+                                        n_properties,
+                                        property_pspecs))
+                break;
+
+            property_names = g_renew(const char*, property_names, n_properties + 1);
+            property_values = g_renew(GValue, property_values, n_properties + 1);
+            property_pspecs = g_renew(GParamSpec*, property_pspecs, n_properties + 1);
+
+            property_names[n_properties] = propname;
+            property_pspecs[n_properties] = pspec;
+
+            g_autofree char *error = NULL;
+            G_VALUE_COLLECT_INIT (&property_values[n_properties],
+                                  pspec->value_type, varargs, 0, &error);
+            if (error) {
+                g_critical ("%s: %s", G_STRFUNC, error);
+                g_value_unset (&property_values[n_properties]);
+                break;
+            }
+
+            n_properties++;
+        } while ((propname = va_arg (varargs, const char*)));
+
+        g_clear_pointer (&unref_class, g_type_class_unref);
+
+        view = (CogView*) g_object_new_with_properties (view_type,
+                                                        n_properties,
+                                                        property_names,
+                                                        property_values);
+    } else {
+        /* Fast case: No additional properties specified. */
+        view = g_object_new (view_type,
+                             "shell", shell,
+                             "name", name,
+                             NULL);
     }
 
-    RequestHandlerMapEntry *entry =
-        g_hash_table_lookup (priv->request_handlers, scheme);
+    va_end (varargs);
+    return g_steal_pointer (&view);
+}
 
-    if (!entry) {
-        entry = request_handler_map_entry_new (handler);
-        g_hash_table_insert (priv->request_handlers, g_strdup (scheme), entry);
-    } else if (entry->handler != handler) {
-        g_clear_object (&entry->handler);
-        entry->handler = g_object_ref_sink (handler);
+/**
+ * cog_shell_add_view:
+ * @shell: A #CogShell
+ * @view: A #CogView
+ */
+void
+cog_shell_add_view (CogShell *shell,
+                    CogView  *view)
+{
+    g_return_if_fail (COG_IS_SHELL (shell));
+    g_return_if_fail (COG_IS_VIEW (view));
+    g_return_if_fail (G_TYPE_CHECK_INSTANCE_TYPE (view, cog_shell_get_view_class (shell)));
+    g_return_if_fail (cog_shell_get_view (shell, cog_view_get_name (view)) == NULL);
+
+    CogShellPrivate *priv = cog_shell_get_instance_private (shell);
+    priv->views = g_list_prepend (priv->views, g_object_ref_sink (view));
+}
+
+/**
+ * cog_shell_get_view:
+ * @shell: A #CogShell
+ * @name: Name of the view to obtain.
+ *
+ * Returns: (transfer none): The corresponding #CogView
+ */
+CogView*
+cog_shell_get_view (CogShell   *shell,
+                    const char *name)
+{
+    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
+    g_return_val_if_fail (name != NULL, NULL);
+
+    CogShellPrivate *priv = cog_shell_get_instance_private (shell);
+    for (GList *item = g_list_first (priv->views); item; item = g_list_next (item)) {
+        CogView *view = item->data;
+        if (strcmp (name, cog_view_get_name (view)) == 0)
+            return view;
     }
 
-    request_handler_map_entry_register (scheme, entry, priv->web_context);
+    return NULL;
 }
 
-
-void
-cog_shell_startup  (CogShell *shell)
+/**
+ * cog_shell_get_views:
+ * @shell: A #CogShell.
+ *
+ * Returns: (transfer none, element-type=CogView): A list of views.
+ */
+GList*
+cog_shell_get_views (CogShell *shell)
 {
-    g_return_if_fail (COG_IS_SHELL (shell));
-    CogShellClass *klass = COG_SHELL_GET_CLASS (shell);
-    (*klass->startup) (shell);
-}
+    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
 
-void
-cog_shell_shutdown (CogShell *shell)
-{
-    g_return_if_fail (COG_IS_SHELL (shell));
-    CogShellClass *klass = COG_SHELL_GET_CLASS (shell);
-    (*klass->shutdown) (shell);
+    CogShellPrivate *priv = cog_shell_get_instance_private (shell);
+    return priv->views;
 }
