@@ -9,8 +9,10 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "core/cog.h"
 
+#if 0
 #if !COG_USE_WEBKITGTK
 # include "cog-platform.h"
 #if defined(WPE_CHECK_VERSION) && WPE_CHECK_VERSION(1, 3, 0)
@@ -447,6 +449,18 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
 
     return g_steal_pointer (&web_view);
 }
+#endif
+
+
+static void
+print_module_info (GIOExtension *extension,
+                   void         *userdata G_GNUC_UNUSED)
+{
+    g_printerr ("  %s - %d/%s\n",
+                g_io_extension_get_name (extension),
+                g_io_extension_get_priority (extension),
+                g_type_name (g_io_extension_get_type (extension)));
+}
 
 
 int
@@ -461,6 +475,7 @@ main (int argc, char *argv[])
         g_set_application_name ("Cog");
     }
 
+#if 0
 #if COG_USE_WEBKITGTK
     // Workaround for https://bugs.webkit.org/show_bug.cgi?id=150303
     gtk_init(NULL, NULL);
@@ -482,4 +497,17 @@ main (int argc, char *argv[])
                       G_CALLBACK (on_create_view), NULL);
 
     return g_application_run (app, argc, argv);
+#endif
+
+    cog_modules_add_directory (COG_MODULEDIR);
+
+    g_printerr ("%s\n", COG_MODULES_SHELL_EXTENSION_POINT);
+    cog_modules_foreach (COG_MODULES_SHELL_EXTENSION_POINT,
+                         print_module_info, NULL);
+
+    g_autoptr(CogShell) shell = cog_shell_new (g_get_prgname ());
+    g_debug ("%s @ %p", g_type_name (G_OBJECT_TYPE (shell)), shell);
+
+    g_debug ("Exiting...");
+    return EXIT_SUCCESS;
 }
