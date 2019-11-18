@@ -686,7 +686,8 @@ keyboard_on_keymap (void *data,
         return;
     }
 
-    void* mapping = mmap (NULL, size, PROT_READ, MAP_SHARED, fd, 0);
+    int map_mode = wl_seat_interface.version > 6 ? MAP_PRIVATE : MAP_SHARED;
+    void* mapping = mmap (NULL, size, PROT_READ, map_mode, fd, 0);
     if (mapping == MAP_FAILED) {
         close (fd);
         return;
