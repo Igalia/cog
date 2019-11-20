@@ -204,6 +204,7 @@ if (COG_MODULE_FDO_SHELL)
         platform/pwl.c
     )
     set_property (TARGET platform-wl PROPERTY C_STANDARD 99)
+    set_property (TARGET platform-wl PROPERTY POSITION_INDEPENDENT_CODE ON)
     target_compile_options (platform-wl PRIVATE
         -DG_LOG_DOMAIN=\"Cog-PWL\" ${EXTRA_CFLAGS})
 
@@ -217,6 +218,7 @@ if (COG_MODULE_FDO_SHELL)
 
     find_package (WaylandProtocols REQUIRED)
     add_wayland_protocol (platform-wl CLIENT xdg-shell)
+    add_wayland_protocol (platform-wl CLIENT fullscreen-shell-unstable-v1)
 endif ()
 
 # FDO shell module
@@ -233,6 +235,9 @@ if (COG_MODULE_FDO_SHELL)
         cogcore platform-wl PkgConfig::ModuleFdoShell)
     target_compile_options (fdo-shell PRIVATE
         -DG_LOG_DOMAIN=\"Cog-FDO\" ${EXTRA_CFLAGS})
+    find_package (WaylandProtocols REQUIRED)
+    add_wayland_protocol (fdo-shell CLIENT xdg-shell)
+    add_wayland_protocol (fdo-shell CLIENT fullscreen-shell-unstable-v1)
 
     install (TARGETS fdo-shell
         DESTINATION ${COG_MODULEDIR}
