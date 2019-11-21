@@ -30,9 +30,12 @@ typedef struct {
     CogShell parent;
 } CogFdoShell;
 
+static void cog_fdo_shell_initable_iface_init (GInitableIface *iface);
+
 G_DEFINE_DYNAMIC_TYPE_EXTENDED (CogFdoShell, cog_fdo_shell, COG_TYPE_SHELL, 0,
     g_io_extension_point_implement (COG_MODULES_SHELL_EXTENSION_POINT,
-                                    g_define_type_id, "fdo", 100))
+                                    g_define_type_id, "fdo", 100);
+    G_IMPLEMENT_INTERFACE_DYNAMIC (G_TYPE_INITABLE, cog_fdo_shell_initable_iface_init))
 
 G_MODULE_EXPORT
 void
@@ -92,8 +95,31 @@ cog_fdo_shell_class_finalize (CogFdoShellClass *klass)
 static void
 cog_fdo_shell_init (CogFdoShell *shell)
 {
+    TRACE ("");
+}
+
+gboolean
+cog_fdo_shell_initable_init (GInitable *initable,
+                             GCancellable *cancellable,
+                             GError **error)
+{
+    if (cancellable != NULL) {
+        g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+                             "Cancellable initialization not supported");
+        return FALSE;
+    }
+
     if (!wpe_loader_init ("libWPEBackend-fdo-1.0.so")) {
         g_debug ("%s: Could not initialize libwpe.", G_STRFUNC);
+        g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_INITIALIZED,
+                             "Couldn't initialize the FDO backend.");
+        return FALSE;
     }
-    TRACE ("");
+
+    return TRUE;
+}
+
+static void cog_fdo_shell_initable_iface_init (GInitableIface *iface)
+{
+    iface->init = cog_fdo_shell_initable_init;
 }
