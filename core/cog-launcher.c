@@ -272,6 +272,11 @@ cog_launcher_constructed (GObject *object)
     CogLauncher *launcher = COG_LAUNCHER (object);
 
     launcher->shell = g_object_ref_sink (cog_shell_new (g_get_prgname ()));
+
+    // Created the default view
+    CogView* view = cog_shell_create_view (launcher->shell, "default", NULL);
+    cog_shell_add_view (launcher->shell, view);
+
     g_signal_connect (launcher->shell, "notify::web-view", G_CALLBACK (on_notify_web_view), launcher);
 
     cog_launcher_add_action (launcher, "quit", on_action_quit, NULL);
