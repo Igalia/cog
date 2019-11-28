@@ -213,6 +213,13 @@ if (COG_MODULE_FDO_SHELL)
         egl
         xkbcommon
     )
+
+    set(WAYLAND_1_10_OR_GREATER OFF)
+    pkg_check_modules(WAYLAND REQUIRED wayland-client)
+    if (NOT (WAYLAND_VERSION VERSION_LESS 1.10))
+        set(WAYLAND_1_10_OR_GREATER ON)
+    endif ()
+
     add_library (fdo-shell MODULE modules/cog-fdo-shell.c)
     set_property (TARGET fdo-shell PROPERTY C_STANDARD 99)
     target_link_libraries (fdo-shell PRIVATE

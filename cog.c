@@ -505,9 +505,9 @@ main (int argc, char *argv[])
     cog_modules_foreach (COG_MODULES_SHELL_EXTENSION_POINT,
                          print_module_info, NULL);
 
-    g_autoptr(CogShell) shell = cog_shell_new (g_get_prgname ());
-    g_debug ("%s @ %p", g_type_name (G_OBJECT_TYPE (shell)), shell);
+    g_autoptr(GApplication) app = G_APPLICATION (cog_launcher_get_default ());
 
+    auto f = g_application_run (app, argc, argv);
     g_debug ("Exiting...");
-    return EXIT_SUCCESS;
+    return f;
 }

@@ -186,7 +186,7 @@ cog_shell_new_from_module (const char *name,
         return NULL;
     }
 
-    return g_object_new (shell_type, "name", name, NULL);
+    return g_initable_new (shell_type, NULL, NULL, "name", name, NULL);
 }
 
 /**
@@ -222,6 +222,12 @@ cog_shell_create_view (CogShell *shell, const char *name, const char *propname, 
     va_start (varargs, propname);
 
     g_autoptr(CogView) view = NULL;
+
+    WebKitWebViewBackend *view_backend = NULL;
+    view_backend = cog_shell_new_view_backend (shell);
+    if (!view_backend) {
+        g_warning ("Failed to get platform's view backend");
+    }
     if (propname) {
         /*
          * Gather parameters, and add our own (shell, name) to be used with
@@ -232,18 +238,23 @@ cog_shell_create_view (CogShell *shell, const char *name, const char *propname, 
         if (!view_class)
             view_class = unref_class = g_type_class_ref (view_type);
 
-        unsigned n_properties = 2;
+        unsigned n_properties = 3;
         g_autofree const char **property_names = g_new (const char*, n_properties);
         g_autofree GValue *property_values = g_new (GValue, n_properties);
         g_autofree GParamSpec **property_pspecs = g_new (GParamSpec*, n_properties);
 
         property_names[0] = "shell";
         property_values[0] = (GValue) G_VALUE_INIT;
+        g_value_init (&property_values[0], G_TYPE_OBJECT);
         g_value_set_object (&property_values[0], shell);
-
         property_names[1] = "name";
         property_values[1] = (GValue) G_VALUE_INIT;
+        g_value_init (&property_values[1], G_TYPE_STRING);
         g_value_set_string (&property_values[1], name);
+        property_names[2] = "backend";
+        property_values[2] = (GValue) G_VALUE_INIT;
+        g_value_init (&property_values[2], WEBKIT_TYPE_WEB_VIEW_BACKEND);
+        g_value_set_boxed (&property_values[2], view_backend);
 
         do {
             GParamSpec *pspec = g_object_class_find_property (view_class, propname);
@@ -282,10 +293,11 @@ cog_shell_create_view (CogShell *shell, const char *name, const char *propname, 
                                                         property_values);
     } else {
         /* Fast case: No additional properties specified. */
-        view = g_object_new (view_type,
-                             "shell", shell,
-                             "name", name,
-                             NULL);
+        view = (CogView*) g_object_new (view_type,
+                                        "name", name,
+                                        "shell", shell,
+                                        "backend", view_backend,
+                                        NULL);
     }
 
     va_end (varargs);
@@ -327,10 +339,13 @@ cog_shell_get_view (CogShell   *shell,
     CogShellPrivate *priv = cog_shell_get_instance_private (shell);
     for (GList *item = g_list_first (priv->views); item; item = g_list_next (item)) {
         CogView *view = item->data;
-        if (strcmp (name, cog_view_get_name (view)) == 0)
+        if (strcmp (name, cog_view_get_name (view)) == 0) {
+            g_debug("cog_shell_get_view - view_name: %s - found", cog_view_get_name (view));
             return view;
+        }
     }
 
+    g_debug("cog_shell_get_view - not found");
     return NULL;
 }
 
@@ -347,4 +362,18 @@ cog_shell_get_views (CogShell *shell)
 
     CogShellPrivate *priv = cog_shell_get_instance_private (shell);
     return priv->views;
+}
+
+WebKitWebViewBackend*
+cog_shell_new_view_backend (CogShell *shell)
+{
+    CogShellClass *klass;
+
+    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
+
+    klass = COG_SHELL_GET_CLASS (shell);
+
+    g_return_val_if_fail (klass->cog_shell_new_view_backend != NULL, NULL);
+
+    return klass->cog_shell_new_view_backend (shell);
 }
