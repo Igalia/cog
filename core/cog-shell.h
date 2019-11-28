@@ -24,6 +24,7 @@ struct _CogShellClass {
 
     gboolean (*is_supported)   (void);
     GType    (*get_view_class) (void);
+    WebKitWebViewBackend* (*cog_shell_new_view_backend) (CogShell *shell);
 };
 
 CogShell*   cog_shell_new             (const char *name);
@@ -46,4 +47,5 @@ CogView*    cog_shell_get_view        (CogShell   *shell,
 
 GList*      cog_shell_get_views       (CogShell   *shell);
 
+WebKitWebViewBackend* cog_shell_new_view_backend(CogShell *shell);
 G_END_DECLS

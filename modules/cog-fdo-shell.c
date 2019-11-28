@@ -407,12 +407,15 @@ cog_fdo_shell_is_supported (void)
     return result;
 }
 
+WebKitWebViewBackend* cog_shell_new_fdo_view_backend (CogShell *shell);
+
 static void
 cog_fdo_shell_class_init (CogFdoShellClass *klass)
 {
     TRACE ("");
     CogShellClass *shell_class = COG_SHELL_CLASS (klass);
     shell_class->is_supported = cog_fdo_shell_is_supported;
+    shell_class->cog_shell_new_view_backend = cog_shell_new_fdo_view_backend;
 
     wl_data.resize_window = resize_window;
     wl_data.handle_key_event = handle_key_event;
@@ -476,8 +479,7 @@ capture_app_key_bindings (uint32_t keysym,
                           uint8_t modifiers)
 {
     CogLauncher *launcher = cog_launcher_get_default ();
-    WebKitWebView *web_view = (WebKitWebView *)
-        cog_shell_get_view (cog_launcher_get_shell (launcher), NULL);
+    WebKitWebView *web_view = WEBKIT_WEB_VIEW(cog_shell_get_active_view (cog_launcher_get_shell (launcher)));
 
     if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         /* fullscreen */
@@ -650,11 +652,8 @@ on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
     wl_surface_commit (win_data.wl_surface);
 }
 
-
 WebKitWebViewBackend*
-cog_platform_get_view_backend (CogPlatform   *platform,
-                               WebKitWebView *related_view,
-                               GError       **error)
+cog_shell_new_fdo_view_backend (CogShell *shell)
 {
     static struct wpe_view_backend_exportable_fdo_egl_client exportable_egl_client = {
         .export_fdo_egl_image = on_export_fdo_egl_image,
@@ -674,7 +673,7 @@ cog_platform_get_view_backend (CogPlatform   *platform,
 
     WebKitWebViewBackend *wk_view_backend =
         webkit_web_view_backend_new (wpe_view_data.backend,
-                       (GDestroyNotify) wpe_view_backend_exportable_fdo_destroy,
+                                     (GDestroyNotify) wpe_view_backend_exportable_fdo_destroy,
                                      wpe_host_data.exportable);
     g_assert (wk_view_backend);
 
@@ -686,7 +685,6 @@ cog_platform_get_view_backend (CogPlatform   *platform,
 
     return wk_view_backend;
 }
-
 
 static void
 cog_fdo_shell_init (CogFdoShell *shell)
@@ -714,8 +712,6 @@ cog_fdo_shell_initable_init (GInitable *initable,
 
     TRACE ("");
 
-    g_autoptr(GError) error = NULL;
-
 #if HAVE_DEVICE_SCALING
     const struct wl_output_listener output_listener = {
         .geometry = noop,
@@ -732,18 +728,18 @@ cog_fdo_shell_initable_init (GInitable *initable,
     win_data.surface_listener = surface_listener;
 #endif /* HAVE_DEVICE_SCALING */
 
-    if (!init_wayland (&error))
-        return;
+    if (!init_wayland (error))
+        return FALSE;
 
-    if (!init_egl (&error)) {
+    if (!init_egl (error)) {
         clear_wayland ();
-        return;
+        return FALSE;
     }
 
-    if (!create_window (&error)) {
+    if (!create_window (error)) {
         clear_egl ();
         clear_wayland ();
-        return;
+        return FALSE;
     }
 
     const struct wl_pointer_listener pointer_listener = {
@@ -784,11 +780,11 @@ cog_fdo_shell_initable_init (GInitable *initable,
     };
     wl_data.touch.listener = touch_listener;
 
-    if (!init_input (&error)) {
+    if (!init_input (error)) {
         destroy_window ();
         clear_egl ();
         clear_wayland ();
-        return;
+        return FALSE;
     }
 
     /* init WPE host data */

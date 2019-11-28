@@ -90,10 +90,10 @@ cog_view_class_init (CogViewClass *klass)
                              G_PARAM_STATIC_STRINGS);
 
     s_properties[PROP_SHELL] =
-        g_param_spec_string ("shell",
+        g_param_spec_object ("shell",
                              "Shell",
                              "The CogShell which created the CogView",
-                             NULL,
+                             COG_TYPE_SHELL,
                              G_PARAM_READWRITE |
                              G_PARAM_CONSTRUCT_ONLY |
                              G_PARAM_STATIC_STRINGS);
