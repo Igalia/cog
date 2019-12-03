@@ -152,8 +152,11 @@ init_drm (void)
             continue;
 
         resources = drmModeGetResources (drm_data.fd);
-        if (resources)
+        if (resources) {
+            fprintf(stderr, "retrieved resources for device %p, primary node %s\n",
+                device, device->nodes[DRM_NODE_PRIMARY]);
             break;
+        }
 
         close (drm_data.fd);
         drm_data.fd = -1;
