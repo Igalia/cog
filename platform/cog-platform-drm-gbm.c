@@ -250,10 +250,10 @@ init_drm (void)
 static void
 drm_page_flip_handler (int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data)
 {
-    wpe_view_backend_exportable_fdo_dispatch_frame_complete (wpe_host_data.exportable);
-
     g_clear_pointer (&drm_data.committed_buffer, destroy_buffer);
     drm_data.committed_buffer = (struct buffer_object *) data;
+
+    wpe_view_backend_exportable_fdo_dispatch_frame_complete (wpe_host_data.exportable);
 }
 
 static void
