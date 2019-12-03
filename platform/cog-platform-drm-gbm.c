@@ -177,14 +177,28 @@ init_drm (void)
         return FALSE;
     }
 
-    for (int i = 0, area = 0; i < drm_data.connector->count_modes; ++i) {
-        drmModeModeInfo *current_mode = &drm_data.connector->modes[i];
-        if (current_mode->type & DRM_MODE_TYPE_PREFERRED) {
-            drm_data.mode = current_mode;
-            break;
+    fprintf(stderr, "Available  modes:\n");
+    for (int i = 0; i < drm_data.connector->count_modes; ++i) {
+        drmModeModeInfo *mode = &drm_data.connector->modes[i];
+        fprintf(stderr, "  [%d] mode '%s', %ux%u@%u\n", i,
+            mode->name, mode->hdisplay, mode->vdisplay, mode->vrefresh);
+    }
+
+    const char* selected_mode_index = getenv("COG_DRM_MODE_INDEX");
+    if (selected_mode_index) {
+        char* end_char;
+        unsigned selected_mode_index_value = strtoul(selected_mode_index, &end_char, 10);
+        if (selected_mode_index_value >= drm_data.connector->count_modes) {
+            g_warning ("COG_DRM_MODE_INDEX value out of bounds");
+            return FALSE;
         }
 
-        if (current_mode->hdisplay == 800 && current_mode->vdisplay == 600) {
+        drm_data.mode = &drm_data.connector->modes[selected_mode_index_value];
+    }
+
+    for (int i = 0, area = 0; drm_data.mode == NULL && i < drm_data.connector->count_modes; ++i) {
+        drmModeModeInfo *current_mode = &drm_data.connector->modes[i];
+        if (current_mode->type & DRM_MODE_TYPE_PREFERRED) {
             drm_data.mode = current_mode;
             break;
         }
@@ -200,6 +214,9 @@ init_drm (void)
         g_clear_pointer (&resources, drmModeFreeResources);
         return FALSE;
     }
+
+    fprintf(stderr, "Selected mode '%s', %ux%u@%u\n", drm_data.mode->name,
+        drm_data.mode->hdisplay, drm_data.mode->vdisplay, drm_data.mode->vrefresh);
 
     for (int i = 0; i < resources->count_encoders; ++i) {
         drm_data.encoder = drmModeGetEncoder (drm_data.fd, resources->encoders[i]);
