@@ -97,6 +97,39 @@ on_action_open (G_GNUC_UNUSED GAction *action,
                               g_variant_get_string (param, NULL));
 }
 
+static void
+on_action_add (G_GNUC_UNUSED GAction *action,
+               GVariant              *param,
+               CogLauncher           *launcher)
+{
+    g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
+
+    CogView* view = cog_shell_create_view (launcher->shell,
+                                           g_variant_get_string (param, NULL), NULL);
+    cog_shell_add_view (launcher->shell, view);
+    cog_shell_set_active_view (launcher->shell, view);
+}
+
+static void
+on_action_remove (G_GNUC_UNUSED GAction *action,
+                  GVariant              *param,
+                  CogLauncher           *launcher)
+{
+    g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
+}
+
+static void
+on_action_present (G_GNUC_UNUSED GAction *action,
+                   GVariant              *param,
+                   CogLauncher           *launcher)
+{
+    g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
+
+    cog_shell_set_active_view (launcher->shell,
+                               cog_shell_get_view (launcher->shell,
+                                                   g_variant_get_string (param, NULL)));
+}
+
 static gboolean
 on_signal_quit (CogLauncher *launcher)
 {
@@ -286,6 +319,9 @@ cog_launcher_constructed (GObject *object)
     cog_launcher_add_action (launcher, "next", on_action_next, NULL);
     cog_launcher_add_action (launcher, "reload", on_action_reload, NULL);
     cog_launcher_add_action (launcher, "open", on_action_open, G_VARIANT_TYPE_STRING);
+    cog_launcher_add_action (launcher, "add", on_action_add, G_VARIANT_TYPE_STRING);
+    cog_launcher_add_action (launcher, "remove", on_action_remove, G_VARIANT_TYPE_STRING);
+    cog_launcher_add_action (launcher, "present", on_action_present, G_VARIANT_TYPE_STRING);
 
     launcher->sigint_source = g_unix_signal_add (SIGINT,
                                                  G_SOURCE_FUNC (on_signal_quit),
