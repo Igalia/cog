@@ -138,6 +138,29 @@ cmd_generic_no_args (const char               *name,
     return EXIT_SUCCESS;
 }
 
+/* A generic command applid to views. Receives the name of the view as
+ * single argument. */
+static int
+cmd_generic_view (const char *name,
+                   const void *data,
+                   int         argc,
+                   char      **argv)
+{
+    cmd_check_simple_help (name, 1, &argc, &argv);
+
+    g_autoptr(GVariantBuilder) param_name =
+        g_variant_builder_new (G_VARIANT_TYPE ("av"));
+    g_variant_builder_add (param_name, "v", g_variant_new_string (argv[1]));
+
+    GVariant *params = g_variant_new ("(sava{sv})", name, param_name, NULL);
+    g_autoptr(GError) error = NULL;
+    if (!call_method (GTK_ACTIONS_ACTIVATE, params, &error)) {
+        g_printerr ("%s\n", error->message);
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
 static int
 cmd_appid (const char               *name,
            G_GNUC_UNUSED const void *data,
@@ -306,6 +329,21 @@ cmd_find_by_name (const char *name)
             .name = "reload",
             .desc = "Reload the current page",
             .handler = cmd_generic_no_args,
+        },
+        {
+            .name = "add",
+            .desc = "Add a new view",
+            .handler = cmd_generic_view,
+        },
+        {
+            .name = "close",
+            .desc = "Close a view",
+            .handler = cmd_generic_view,
+        },
+        {
+            .name = "present",
+            .desc = "Present a view",
+            .handler = cmd_generic_view,
         },
         {
             .name = NULL,
