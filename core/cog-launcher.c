@@ -68,7 +68,7 @@ on_action_prev (G_GNUC_UNUSED GAction  *action,
                 G_GNUC_UNUSED GVariant *param,
                 CogLauncher            *launcher)
 {
-    // webkit_web_view_go_back (cog_shell_get_web_view (launcher->shell));
+    webkit_web_view_go_back (WEBKIT_WEB_VIEW (cog_shell_get_active_view (launcher->shell)));
 }
 
 static void
@@ -76,7 +76,7 @@ on_action_next (G_GNUC_UNUSED GAction  *action,
                 G_GNUC_UNUSED GVariant *param,
                 CogLauncher            *launcher)
 {
-    // webkit_web_view_go_forward (cog_shell_get_web_view (launcher->shell));
+    webkit_web_view_go_forward (WEBKIT_WEB_VIEW (cog_shell_get_active_view (launcher->shell)));
 }
 
 static void
@@ -84,7 +84,7 @@ on_action_reload (G_GNUC_UNUSED GAction  *action,
                   G_GNUC_UNUSED GVariant *param,
                   CogLauncher            *launcher)
 {
-    // webkit_web_view_reload (cog_shell_get_web_view (launcher->shell));
+    webkit_web_view_reload (WEBKIT_WEB_VIEW (cog_shell_get_active_view (launcher->shell)));
 }
 
 static void
@@ -93,8 +93,8 @@ on_action_open (G_GNUC_UNUSED GAction *action,
                 CogLauncher           *launcher)
 {
     g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
-    // webkit_web_view_load_uri (cog_shell_get_web_view (launcher->shell),
-    //                           g_variant_get_string (param, NULL));
+    webkit_web_view_load_uri (WEBKIT_WEB_VIEW (cog_shell_get_active_view (launcher->shell)),
+                              g_variant_get_string (param, NULL));
 }
 
 static gboolean
