@@ -399,10 +399,12 @@ input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_e
 
     if (touch_type == LIBINPUT_EVENT_TOUCH_DOWN
         || touch_type == LIBINPUT_EVENT_TOUCH_MOTION) {
-        touch_point->x = libinput_event_touch_get_x_transformed (touch_event,
-                                                                 input_data.input_width);
-        touch_point->y = libinput_event_touch_get_y_transformed (touch_event,
-                                                                 input_data.input_height);
+        //touch_point->x = libinput_event_touch_get_x_transformed (touch_event,
+        //                                                         input_data.input_width);
+        //touch_point->y = libinput_event_touch_get_y_transformed (touch_event,
+        //                                                         input_data.input_height);
+        touch_point->x = libinput_event_touch_get_x (touch_event);
+        touch_point->y = libinput_event_touch_get_y (touch_event);
     }
 }
 
