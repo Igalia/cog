@@ -153,7 +153,8 @@ cog_launcher_open (GApplication *application,
         g_warning ("Requested opening %i files, opening only the first one", n_files);
 
     g_autofree char *uri = g_file_get_uri (files[0]);
-    // webkit_web_view_load_uri (cog_shell_get_web_view (COG_LAUNCHER (application)->shell), uri);
+    webkit_web_view_load_uri (WEBKIT_WEB_VIEW (cog_shell_get_active_view (COG_LAUNCHER (application)->shell)),
+                              uri);
 }
 
 
