@@ -364,6 +364,48 @@ cog_shell_get_views (CogShell *shell)
     return priv->views;
 }
 
+CogView*
+cog_shell_get_active_view (CogShell *shell)
+{
+    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
+
+    CogShellPrivate *priv = cog_shell_get_instance_private (shell);
+
+    for (GList *item = g_list_first (priv->views); item; item = g_list_next (item)) {
+        CogView *view = item->data;
+        WebKitWebViewBackend *view_backend = webkit_web_view_get_backend (WEBKIT_WEB_VIEW(view));
+        struct wpe_view_backend *backend = webkit_web_view_backend_get_wpe_backend (view_backend);
+        if (wpe_view_backend_get_activity_state (backend) == 1) {
+            g_debug ("cog_shell_active_view - view_name: %s - found", cog_view_get_name (view));
+            return view;
+        }
+    }
+
+    g_debug ("cog_shell_get_active_view - not found");
+    return NULL;
+}
+
+void
+cog_shell_set_active_view (CogShell *shell, CogView *view)
+{
+    g_return_if_fail (COG_IS_SHELL (shell));
+    g_return_if_fail (COG_IS_VIEW (view));
+
+    CogShellPrivate *priv = cog_shell_get_instance_private (shell);
+
+    for (GList *item = g_list_first (priv->views); item; item = g_list_next (item)) {
+        CogView *view_iter = item->data;
+        WebKitWebViewBackend *view_backend = webkit_web_view_get_backend (WEBKIT_WEB_VIEW(view_iter));
+        struct wpe_view_backend *backend = webkit_web_view_backend_get_wpe_backend (view_backend);
+        if (strcmp (cog_view_get_name (view_iter), cog_view_get_name (view)) == 0) {
+            wpe_view_backend_add_activity_state (backend, 1);
+            g_debug ("cog_shell_set_active_view - view_name: %s - set active", cog_view_get_name (view));
+        } else {
+            wpe_view_backend_remove_activity_state (backend, 1);
+        }
+    }
+}
+
 WebKitWebViewBackend*
 cog_shell_new_view_backend (CogShell *shell)
 {
