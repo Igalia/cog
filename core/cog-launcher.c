@@ -276,6 +276,7 @@ cog_launcher_constructed (GObject *object)
     // Created the default view
     CogView* view = cog_shell_create_view (launcher->shell, "default", NULL);
     cog_shell_add_view (launcher->shell, view);
+    cog_shell_set_active_view (launcher->shell, view);
 
     g_signal_connect (launcher->shell, "notify::web-view", G_CALLBACK (on_notify_web_view), launcher);
 
