@@ -104,10 +104,6 @@ static struct {
 
 static void destroy_buffer (struct buffer_object *buffer)
 {
-    //fprintf(stderr, "destroy_buffer() buffer %p, fb_id %d\n", buffer, buffer->fb_id);
-    // drmModeRmFB (drm_data.fd, buffer->fb_id);
-    // gbm_bo_destroy (buffer->bo);
-
     wpe_view_backend_exportable_fdo_dispatch_release_buffer (wpe_host_data.exportable, buffer->buffer_resource);
     g_free (buffer);
 }
@@ -254,49 +250,6 @@ drm_page_flip_handler (int fd, unsigned int frame, unsigned int sec, unsigned in
     drm_data.committed_buffer = (struct buffer_object *) data;
 
     wpe_view_backend_exportable_fdo_dispatch_frame_complete (wpe_host_data.exportable);
-}
-
-static void
-drm_update_from_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource, uint32_t width, uint32_t height, uint32_t format)
-{
-#if 0
-    uint32_t in_handles[4] = { 0, };
-    uint32_t in_strides[4] = { 0, };
-    uint32_t in_offsets[4] = { 0, };
-    uint64_t in_modifiers[4] = { 0, };
-
-    in_modifiers[0] = gbm_bo_get_modifier (bo);
-
-    int plane_count = MIN (gbm_bo_get_plane_count (bo), 4);
-    for (int i = 0; i < plane_count; ++i) {
-        in_handles[i] = gbm_bo_get_handle_for_plane (bo, i).u32;
-        in_strides[i] = gbm_bo_get_stride_for_plane (bo, i);
-        in_offsets[i] = gbm_bo_get_offset (bo, i);
-        in_modifiers[i] = in_modifiers[0];
-    }
-
-    int flags = 0;
-    if (in_modifiers[0])
-        flags = DRM_MODE_FB_MODIFIERS;
-
-    uint32_t fb_id = 0;
-    int ret = drmModeAddFB2WithModifiers (drm_data.fd, width, height, format,
-                                          in_handles, in_strides, in_offsets, in_modifiers,
-                                          &fb_id, flags);
-
-    int ret = -1;
-    if (ret) {
-        in_handles[0] = gbm_bo_get_handle (bo).u32;
-        in_handles[1] = in_handles[2] = in_handles[3] = 0;
-        in_strides[0] = gbm_bo_get_stride (bo);
-        in_strides[1] = in_strides[2] = in_strides[3] = 0;
-        in_offsets[0] = in_offsets[1] = in_offsets[2] = in_offsets[3] = 0;
-
-        ret = drmModeAddFB2 (drm_data.fd, width, height, format,
-                             in_handles, in_strides, in_offsets,
-                             &fb_id, 0);
-    }
-#endif
 }
 
 
@@ -608,42 +561,8 @@ init_glib (void)
 
 
 static void
-on_export_buffer_resource (void *data, struct wl_resource *buffer_resource)
-{
-    struct gbm_bo* bo = gbm_bo_import (gbm_data.device, GBM_BO_IMPORT_WL_BUFFER,
-                                       (void *) buffer_resource, GBM_BO_USE_SCANOUT);
-    if (!bo) {
-        g_warning ("failed to import a wl_buffer resource into gbm_bo");
-        return;
-    }
-
-    uint32_t width = gbm_bo_get_width (bo);
-    uint32_t height = gbm_bo_get_height (bo);
-    uint32_t format = gbm_bo_get_format (bo);
-
-    drm_update_from_bo (bo, buffer_resource, width, height, format);
-}
-
-static void
 on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dmabuf_resource *dmabuf_resource)
 {
-#if 0
-    struct gbm_import_fd_modifier_data modifier_data = {
-        .width = dmabuf_resource->width,
-        .height = dmabuf_resource->height,
-        .format = dmabuf_resource->format,
-        .num_fds = dmabuf_resource->n_planes,
-        .modifier = dmabuf_resource->modifiers[0],
-    };
-    for (uint32_t i = 0; i < modifier_data.num_fds; ++i) {
-        modifier_data.fds[i] = dmabuf_resource->fds[i];
-        modifier_data.strides[i] = dmabuf_resource->strides[i];
-        modifier_data.offsets[i] = dmabuf_resource->offsets[i];
-    }
-
-    struct gbm_bo *bo = gbm_bo_import (gbm_data.device, GBM_BO_IMPORT_FD_MODIFIER,
-                                       (void *)(&modifier_data), GBM_BO_USE_SCANOUT);
-#endif
     struct gbm_import_fd_data fd_data = {
         .fd = dmabuf_resource->fds[0],
         .width = dmabuf_resource->width,
@@ -651,9 +570,6 @@ on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dm
         .stride = dmabuf_resource->strides[0],
         .format = dmabuf_resource->format,
     };
-
-    //fprintf(stderr, "on_export_dmabuf_resource(): fd %d, (%u,%u) stride %u format %x, errno %d\n",
-    //    fd_data.fd, fd_data.width, fd_data.height, fd_data.stride, fd_data.format, errno);
 
     struct gbm_bo *bo = gbm_bo_import (gbm_data.device, GBM_BO_IMPORT_FD,
                                        (void *)(&fd_data), GBM_BO_USE_SCANOUT);
@@ -672,8 +588,6 @@ on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dm
             }
         }
     }
-    //fprintf(stderr, "\timported bo %p, cached %p, format %x, bpp %u\n",
-    //    bo, cached, gbm_bo_get_format(bo), gbm_bo_get_bpp(bo));
 
     int ret;
     if (!cached) {
@@ -694,8 +608,6 @@ on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dm
         cached->buffer_resource = dmabuf_resource->buffer_resource;
         wl_list_insert (&gbm_data.exported_buffers, &cached->link);
     }
-    //fprintf(stderr, "\tcached %p, fb_id %u, bo %p buffer_resource %p\n",
-    //    cached, cached->fb_id, cached->bo, cached->buffer_resource);
 
     if (!drm_data.mode_set) {
         ret = drmModeSetCrtc (drm_data.fd, drm_data.crtc_id, cached->fb_id, 0, 0,
@@ -768,7 +680,6 @@ cog_platform_setup (CogPlatform *platform,
         return FALSE;
     }
 
-    //wpe_fdo_initialize_for_egl_display (egl_data.display);
     wpe_fdo_initialize_for_gbm_device (gbm_data.device);
 
     return TRUE;
@@ -793,7 +704,6 @@ cog_platform_get_view_backend (CogPlatform   *platform,
                                GError       **error)
 {
     static struct wpe_view_backend_exportable_fdo_client exportable_client = {
-        .export_buffer_resource = on_export_buffer_resource,
         .export_dmabuf_resource = on_export_dmabuf_resource,
     };
 
