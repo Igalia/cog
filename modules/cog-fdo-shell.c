@@ -53,9 +53,7 @@ extern PwlEGLData egl_data;
 extern PwlWinData win_data;
 extern PwlXKBData xkb_data;
 
-static struct {
-    struct wpe_view_backend_exportable_fdo *exportable;
-} wpe_host_data;
+GSList* wpe_host_data_exportable = NULL;
 
 static struct {
     struct wpe_view_backend *backend;
@@ -581,8 +579,16 @@ on_surface_frame (void *data, struct wl_callback *callback, uint32_t time)
         wpe_view_data.frame_callback = NULL;
     }
 
-    wpe_view_backend_exportable_fdo_dispatch_frame_complete
-        (wpe_host_data.exportable);
+    GSList* iterator = NULL;
+    for (iterator = wpe_host_data_exportable; iterator; iterator = iterator->next) {
+        struct wpe_view_backend_exportable_fdo *exportable = iterator->data;
+        // struct wpe_view_backend *backend = wpe_view_backend_exportable_fdo_get_view_backend (exportable);
+        // if (wpe_view_backend_get_activity_state (backend) == wpe_view_activity_state_visible) {
+            wpe_view_backend_exportable_fdo_dispatch_frame_complete
+                (iterator->data);
+        // }
+    }
+
 }
 
 static const struct wl_callback_listener frame_listener = {
@@ -605,8 +611,15 @@ static void
 on_buffer_release (void* data, struct wl_buffer* buffer)
 {
     struct wpe_fdo_egl_exported_image * image = data;
-    wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (wpe_host_data.exportable,
-                                                                         image);
+    GSList* iterator = NULL;
+    for (iterator = wpe_host_data_exportable; iterator; iterator = iterator->next) {
+        struct wpe_view_backend_exportable_fdo *exportable = iterator->data;
+        struct wpe_view_backend *backend = wpe_view_backend_exportable_fdo_get_view_backend(exportable);
+        if (wpe_view_backend_get_activity_state (backend) == wpe_view_activity_state_visible) {
+            wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (iterator->data,
+                                                                                 image);
+        }
+    }
     g_clear_pointer (&buffer, wl_buffer_destroy);
 }
 
@@ -646,7 +659,6 @@ on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
                        0, 0,
                        win_data.width * wl_data.current_output.scale,
                        win_data.height * wl_data.current_output.scale);
-
     request_frame ();
 
     wl_surface_commit (win_data.wl_surface);
@@ -659,22 +671,23 @@ cog_shell_new_fdo_view_backend (CogShell *shell)
         .export_fdo_egl_image = on_export_fdo_egl_image,
     };
 
-    wpe_host_data.exportable =
+    struct wpe_view_backend_exportable_fdo *exportable =
         wpe_view_backend_exportable_fdo_egl_create (&exportable_egl_client,
                                                     NULL,
                                                     DEFAULT_WIDTH,
                                                     DEFAULT_HEIGHT);
-    g_assert (wpe_host_data.exportable);
+    g_assert (exportable);
+    wpe_host_data_exportable = g_slist_append(wpe_host_data_exportable, exportable);
 
     /* init WPE view backend */
     wpe_view_data.backend =
-        wpe_view_backend_exportable_fdo_get_view_backend (wpe_host_data.exportable);
+        wpe_view_backend_exportable_fdo_get_view_backend (exportable);
     g_assert (wpe_view_data.backend);
 
     WebKitWebViewBackend *wk_view_backend =
         webkit_web_view_backend_new (wpe_view_data.backend,
                                      (GDestroyNotify) wpe_view_backend_exportable_fdo_destroy,
-                                     wpe_host_data.exportable);
+                                     exportable);
     g_assert (wk_view_backend);
 
     if (!wl_data.event_src) {

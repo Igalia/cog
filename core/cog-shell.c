@@ -375,7 +375,7 @@ cog_shell_get_active_view (CogShell *shell)
         CogView *view = item->data;
         WebKitWebViewBackend *view_backend = webkit_web_view_get_backend (WEBKIT_WEB_VIEW(view));
         struct wpe_view_backend *backend = webkit_web_view_backend_get_wpe_backend (view_backend);
-        if (wpe_view_backend_get_activity_state (backend) == 1) {
+        if (wpe_view_backend_get_activity_state (backend) == wpe_view_activity_state_visible) {
             g_debug ("cog_shell_active_view - view_name: %s - found", cog_view_get_name (view));
             return view;
         }
@@ -398,7 +398,7 @@ cog_shell_set_active_view (CogShell *shell, CogView *view)
         WebKitWebViewBackend *view_backend = webkit_web_view_get_backend (WEBKIT_WEB_VIEW(view_iter));
         struct wpe_view_backend *backend = webkit_web_view_backend_get_wpe_backend (view_backend);
         if (strcmp (cog_view_get_name (view_iter), cog_view_get_name (view)) == 0) {
-            wpe_view_backend_add_activity_state (backend, 1);
+            wpe_view_backend_add_activity_state (backend, wpe_view_activity_state_visible);
             g_debug ("cog_shell_set_active_view - view_name: %s - set active", cog_view_get_name (view));
         } else {
             wpe_view_backend_remove_activity_state (backend, 1);
