@@ -13,20 +13,37 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+
+
+#ifndef EGL_EXT_platform_base
+#define EGL_EXT_platform_base 1
+typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platform, void *native_display, const EGLint *attrib_list);
+#endif
+
+#ifndef EGL_KHR_platform_gbm
+#define EGL_KHR_platform_gbm 1
+#define EGL_PLATFORM_GBM_KHR              0x31D7
+#endif
+
 
 struct buffer_object {
-    uint32_t fb_id;
-    struct gbm_bo *bo;
+    EGLImageKHR image;
     struct wl_resource *buffer_resource;
+
+    struct gbm_bo *bo;
 };
 
 struct cached_bo {
     struct wl_list link;
     struct wl_listener destroyListener;
 
-    struct wl_resource *buffer_resource;
     uint32_t fb_id;
     struct gbm_bo *bo;
+    struct buffer_object *current_buffer;
 };
 
 static struct {
@@ -60,10 +77,55 @@ static struct {
 };
 
 static struct {
+    uint32_t width;
+    uint32_t height;
+
+    float input_coords_transform[6];
+
+    float position_coords[4][2];
+    float texture_coords[4][2];
+} geometry_data = {
+    .width = 0,
+    .height = 0,
+};
+
+static struct {
     struct gbm_device *device;
-    struct wl_list exported_buffers;
+    struct gbm_surface *surface;
 } gbm_data = {
     .device = NULL,
+    .surface = NULL,
+};
+
+static struct {
+    EGLDisplay display;
+
+    PFNEGLCREATEIMAGEKHRPROC create_image;
+    PFNEGLDESTROYIMAGEKHRPROC destroy_image;
+    PFNGLEGLIMAGETARGETTEXTURE2DOESPROC image_target_texture;
+
+    EGLConfig config;
+    EGLContext context;
+    EGLSurface surface;
+} egl_data = {
+    .display = EGL_NO_DISPLAY,
+    .config = 0,
+};
+
+static struct {
+    GLint vertex_shader;
+    GLint fragment_shader;
+    GLint program;
+    GLuint texture;
+
+    GLint attr_pos;
+    GLint attr_texture;
+    GLint uniform_texture;
+} gl_data = {
+    .vertex_shader = 0,
+    .fragment_shader = 0,
+    .program = 0,
+    .texture = 0,
 };
 
 static struct {
@@ -102,10 +164,24 @@ static struct {
 } wpe_view_data;
 
 
-static void destroy_buffer (struct buffer_object *buffer)
+static void
+destroy_buffer (struct buffer_object *buffer)
 {
+    gbm_surface_release_buffer (gbm_data.surface, buffer->bo);
+    egl_data.destroy_image (egl_data.display, buffer->image);
+
     wpe_view_backend_exportable_fdo_dispatch_release_buffer (wpe_host_data.exportable, buffer->buffer_resource);
     g_free (buffer);
+}
+
+static void
+destroy_cached_bo (struct gbm_bo *bo, void *data)
+{
+    struct cached_bo *cached = data;
+    drmModeRmFB (drm_data.fd, cached->fb_id);
+
+    if (cached->current_buffer && cached->current_buffer->bo == bo)
+        cached->current_buffer->bo = NULL;
 }
 
 static void
@@ -253,6 +329,90 @@ drm_page_flip_handler (int fd, unsigned int frame, unsigned int sec, unsigned in
 }
 
 
+static gboolean
+init_geometry (void)
+{
+    geometry_data.width = drm_data.width;
+    geometry_data.height = drm_data.height;
+
+    float input_coords_transform[6] = {
+        1, 0,
+        0, 1,
+        0, 0,
+    };
+
+    float position_coords[4][2] = {
+        { -1,  1 }, {  1,  1 },
+        { -1, -1 }, {  1, -1 },
+    };
+    float texture_coords[4][2] = {
+        { 0, 0 }, { 1, 0 },
+        { 0, 1 }, { 1, 1 },
+    };
+
+    const char* rotation_mode = getenv("COG_DRM_ROTATION");
+    if (rotation_mode) {
+        if (!strcmp(rotation_mode, "0")) {
+            // Everything is already default-initialized for 0-degrees rotation.
+        } else if (!strcmp(rotation_mode, "90")) {
+            geometry_data.width = drm_data.height;
+            geometry_data.height = drm_data.width;
+
+            float rot_input[6] = {
+                0, 1,
+                -1, 0,
+                drm_data.height, 0,
+            };
+            memcpy (input_coords_transform, rot_input, 6 * sizeof(float));
+
+            float rot_coords[4][2] = {
+                { 1, 0 }, { 1, 1 },
+                { 0, 0 }, { 0, 1 },
+            };
+            memcpy (texture_coords, rot_coords, 8 * sizeof(float));
+        } else if (!strcmp(rotation_mode, "180")) {
+            float rot_input[6] = {
+                -1, 0,
+                0, -1,
+                drm_data.width, drm_data.height,
+            };
+            memcpy (input_coords_transform, rot_input, 6 * sizeof(float));
+
+            float rot_coords[4][2] = {
+                { 1, 1 }, { 0, 1 },
+                { 1, 0 }, { 0, 0 },
+            };
+            memcpy (texture_coords, rot_coords, 8 * sizeof(float));
+        } else if (!strcmp(rotation_mode, "270")) {
+            geometry_data.width = drm_data.height;
+            geometry_data.height = drm_data.width;
+
+            float rot_input[6] = {
+                0, -1,
+                1, 0,
+                0, drm_data.width,
+            };
+            memcpy (input_coords_transform, rot_input, 6 * sizeof(float));
+
+            float rot_coords[4][2] = {
+                { 0, 1 }, { 0, 0 },
+                { 1, 1 }, { 1, 0 },
+            };
+            memcpy (texture_coords, rot_coords, 8 * sizeof(float));
+        } else {
+            fprintf(stderr, "unknown COG_DRM_ROTATION value '%s' (supporting 0, 90, 180, 270\n",
+                rotation_mode);
+        }
+    }
+
+    memcpy(geometry_data.input_coords_transform, input_coords_transform, 6 * sizeof(float));
+    memcpy(geometry_data.position_coords, position_coords, 8 * sizeof(float));
+    memcpy(geometry_data.texture_coords, texture_coords, 8 * sizeof(float));
+
+    return TRUE;
+}
+
+
 static void
 clear_gbm (void)
 {
@@ -266,10 +426,173 @@ init_gbm (void)
     if (!gbm_data.device)
         return FALSE;
 
-    wl_list_init(&gbm_data.exported_buffers);
+    gbm_data.surface = gbm_surface_create (gbm_data.device, drm_data.width, drm_data.height,
+                                           GBM_FORMAT_XRGB8888, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+    if (!gbm_data.surface)
+        return FALSE;
     return TRUE;
 }
 
+
+static void
+clear_egl (void)
+{
+    if (egl_data.surface != EGL_NO_SURFACE)
+        eglDestroySurface (egl_data.display, egl_data.surface);
+
+    if (egl_data.context != EGL_NO_CONTEXT)
+        eglDestroyContext (egl_data.display, egl_data.context);
+}
+
+static gboolean
+init_egl (void)
+{
+    static const EGLint context_attribs[] = {
+        EGL_CONTEXT_CLIENT_VERSION, 2,
+        EGL_NONE,
+    };
+
+    static const EGLint config_attribs[] = {
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_RED_SIZE, 1,
+        EGL_GREEN_SIZE, 1,
+        EGL_BLUE_SIZE, 1,
+        EGL_ALPHA_SIZE, 0,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+        EGL_SAMPLES, 0,
+        EGL_NONE,
+    };
+
+    PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display = (PFNEGLGETPLATFORMDISPLAYEXTPROC) eglGetProcAddress ("eglGetPlatformDisplayEXT");
+    if (get_platform_display)
+        egl_data.display = get_platform_display (EGL_PLATFORM_GBM_KHR, gbm_data.device, NULL);
+    else
+        egl_data.display = eglGetDisplay((EGLNativeDisplayType) gbm_data.device);
+    if (egl_data.display == EGL_NO_DISPLAY)
+        return FALSE;
+
+    if (!eglInitialize(egl_data.display, NULL, NULL))
+        return FALSE;
+
+    egl_data.create_image = (PFNEGLCREATEIMAGEKHRPROC) eglGetProcAddress ("eglCreateImageKHR");
+    egl_data.destroy_image = (PFNEGLDESTROYIMAGEKHRPROC) eglGetProcAddress ("eglDestroyImageKHR");
+    egl_data.image_target_texture = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC) eglGetProcAddress ("glEGLImageTargetTexture2DOES");
+    if (!egl_data.create_image || !egl_data.destroy_image || !egl_data.image_target_texture)
+        return FALSE;
+
+    if (!eglBindAPI (EGL_OPENGL_ES_API))
+        return FALSE;
+
+    {
+
+        EGLint count = 0;
+        EGLint matched = 0;
+        EGLConfig *configs;
+
+        if (!eglGetConfigs (egl_data.display, NULL, 0, &count) || count < 1)
+            return FALSE;
+
+        configs = g_new0 (EGLConfig, count);
+        if (!eglChooseConfig (egl_data.display, config_attribs, configs, count, &matched) || !matched) {
+            g_free (configs);
+            return FALSE;
+        }
+
+        for (int i = 0; i < matched; ++i) {
+            EGLint id = 0;
+            if (!eglGetConfigAttrib (egl_data.display, configs[i], EGL_NATIVE_VISUAL_ID, &id))
+                continue;
+
+            if (id == GBM_FORMAT_XRGB8888) {
+                egl_data.config = configs[i];
+                break;
+            }
+        }
+
+        g_free (configs);
+        if (!egl_data.config)
+            return FALSE;
+    }
+
+    egl_data.context = eglCreateContext (egl_data.display, egl_data.config, EGL_NO_CONTEXT, context_attribs);
+    if (egl_data.context == EGL_NO_CONTEXT)
+        return FALSE;
+
+    egl_data.surface = eglCreateWindowSurface (egl_data.display, egl_data.config, gbm_data.surface, NULL);
+    if (egl_data.surface == EGL_NO_SURFACE)
+        return FALSE;
+
+    eglMakeCurrent (egl_data.display, egl_data.surface, egl_data.surface, egl_data.context);
+    return TRUE;
+}
+
+
+static void
+clear_gl (void)
+{
+    if (gl_data.texture)
+        glDeleteTextures (1, &gl_data.texture);
+
+    if (gl_data.vertex_shader)
+        glDeleteShader (gl_data.vertex_shader);
+    if (gl_data.fragment_shader)
+        glDeleteShader (gl_data.fragment_shader);
+    if (gl_data.program)
+        glDeleteProgram (gl_data.program);
+}
+
+static gboolean
+init_gl (void)
+{
+    static const char* vertex_shader_source =
+        "attribute vec2 pos;\n"
+        "attribute vec2 texture;\n"
+        "varying vec2 v_texture;\n"
+        "void main() {\n"
+        "  v_texture = texture;\n"
+        "  gl_Position = vec4(pos, 0, 1);\n"
+        "}\n";
+    static const char* fragment_shader_source =
+        "precision mediump float;\n"
+        "uniform sampler2D u_texture;\n"
+        "varying vec2 v_texture;\n"
+        "void main() {\n"
+        "  gl_FragColor = texture2D(u_texture, v_texture);\n"
+        "}\n";
+
+    gl_data.vertex_shader = glCreateShader (GL_VERTEX_SHADER);
+    glShaderSource (gl_data.vertex_shader, 1, &vertex_shader_source, NULL);
+    glCompileShader (gl_data.vertex_shader);
+
+    gl_data.fragment_shader = glCreateShader (GL_FRAGMENT_SHADER);
+    glShaderSource (gl_data.fragment_shader, 1, &fragment_shader_source, NULL);
+    glCompileShader (gl_data.fragment_shader);
+
+    gl_data.program = glCreateProgram ();
+    glAttachShader (gl_data.program, gl_data.vertex_shader);
+    glAttachShader (gl_data.program, gl_data.fragment_shader);
+    glLinkProgram (gl_data.program);
+
+    GLint link_status = 0;
+    glGetProgramiv (gl_data.program, GL_LINK_STATUS, &link_status);
+    if (!link_status)
+        return FALSE;
+
+    gl_data.attr_pos = glGetAttribLocation (gl_data.program, "pos");
+    gl_data.attr_texture = glGetAttribLocation (gl_data.program, "texture");
+    gl_data.uniform_texture = glGetUniformLocation (gl_data.program, "u_texture");
+
+    glGenTextures (1, &gl_data.texture);
+    glBindTexture (GL_TEXTURE_2D, gl_data.texture);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA, geometry_data.width, geometry_data.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glBindTexture (GL_TEXTURE_2D, 0);
+
+    return TRUE;
+}
 
 static void
 input_handle_key_event (struct libinput_event_keyboard *key_event)
@@ -293,6 +616,15 @@ input_handle_key_event (struct libinput_event_keyboard *key_event)
     };
 
     wpe_view_backend_dispatch_keyboard_event (wpe_view_data.backend, &event);
+}
+
+static void
+input_transform_event_coords (float x, float y, float *out_x, float *out_y)
+{
+    float *t = geometry_data.input_coords_transform;
+
+    *out_x = x * t[0] + y * t[2] + t[4];
+    *out_y = x * t[1] + y * t[3] + t[5];
 }
 
 static void
@@ -356,8 +688,13 @@ input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_e
         //                                                         input_data.input_width);
         //touch_point->y = libinput_event_touch_get_y_transformed (touch_event,
         //                                                         input_data.input_height);
-        touch_point->x = libinput_event_touch_get_x (touch_event);
-        touch_point->y = libinput_event_touch_get_y (touch_event);
+
+        float x, y;
+        input_transform_event_coords (libinput_event_touch_get_x (touch_event),
+                                      libinput_event_touch_get_y (touch_event),
+                                      &x, &y);
+        touch_point->x = x;
+        touch_point->y = y;
     }
 }
 
@@ -561,35 +898,57 @@ init_glib (void)
 
 
 static void
-on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dmabuf_resource *dmabuf_resource)
+render_resource (struct wpe_view_backend_exportable_fdo_dmabuf_resource *dmabuf_resource)
 {
-    struct gbm_import_fd_data fd_data = {
-        .fd = dmabuf_resource->fds[0],
-        .width = dmabuf_resource->width,
-        .height = dmabuf_resource->height,
-        .stride = dmabuf_resource->strides[0],
-        .format = dmabuf_resource->format,
+    //fprintf(stderr, "render_resource(): (%d,%d), format %x, fd %d offset %u pitch %u\n",
+    //    dmabuf_resource->width, dmabuf_resource->height, dmabuf_resource->format,
+    //    dmabuf_resource->fds[0], dmabuf_resource->offsets[0], dmabuf_resource->strides[0]);
+    EGLint image_attributes[] = {
+        EGL_WIDTH, dmabuf_resource->width,
+        EGL_HEIGHT, dmabuf_resource->height,
+        EGL_LINUX_DRM_FOURCC_EXT, dmabuf_resource->format,
+        EGL_DMA_BUF_PLANE0_FD_EXT, dmabuf_resource->fds[0],
+        EGL_DMA_BUF_PLANE0_OFFSET_EXT, dmabuf_resource->offsets[0],
+        EGL_DMA_BUF_PLANE0_PITCH_EXT, dmabuf_resource->strides[0],
+        EGL_NONE,
     };
+    EGLImageKHR image = egl_data.create_image (egl_data.display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
+                                               (EGLClientBuffer) NULL, image_attributes);
 
-    struct gbm_bo *bo = gbm_bo_import (gbm_data.device, GBM_BO_IMPORT_FD,
-                                       (void *)(&fd_data), GBM_BO_USE_SCANOUT);
+    eglMakeCurrent (egl_data.display, egl_data.surface, egl_data.surface, egl_data.context);
+
+    glViewport (0, 0, drm_data.width, drm_data.height);
+    glClearColor (1.0, 0, 0, 1.0);
+    glClear (GL_COLOR_BUFFER_BIT);
+
+    glUseProgram (gl_data.program);
+
+    glActiveTexture (GL_TEXTURE0);
+    glBindTexture (GL_TEXTURE_2D, gl_data.texture);
+    egl_data.image_target_texture (GL_TEXTURE_2D, image);
+    glUniform1i (gl_data.uniform_texture, 0);
+
+    glVertexAttribPointer (gl_data.attr_pos, 2, GL_FLOAT, GL_FALSE, 0, geometry_data.position_coords);
+    glVertexAttribPointer (gl_data.attr_texture, 2, GL_FLOAT, GL_FALSE, 0, geometry_data.texture_coords);
+
+    glEnableVertexAttribArray (gl_data.attr_pos);
+    glEnableVertexAttribArray (gl_data.attr_texture);
+
+    glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+
+    glDisableVertexAttribArray (gl_data.attr_pos);
+    glDisableVertexAttribArray (gl_data.attr_texture);
+
+    eglSwapBuffers (egl_data.display, egl_data.surface);
+
+    struct gbm_bo* bo = gbm_surface_lock_front_buffer (gbm_data.surface);
     if (!bo) {
-        g_warning ("failed to import a dma-buf resource into gbm_bo");
+        g_warning ("failed to lock GBM front buffer");
         return;
     }
 
-    struct cached_bo *cached = NULL;
-    {
-        struct cached_bo* entry;
-        wl_list_for_each (entry, &gbm_data.exported_buffers, link) {
-            if (entry->buffer_resource == dmabuf_resource->buffer_resource) {
-                cached = entry;
-                break;
-            }
-        }
-    }
-
     int ret;
+    struct cached_bo *cached = gbm_bo_get_user_data (bo);
     if (!cached) {
         uint32_t fb_id = 0;
         uint32_t handles[] = { gbm_bo_get_handle(bo).u32, 0, 0, 0 };
@@ -605,8 +964,7 @@ on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dm
         cached = g_new0 (struct cached_bo, 1);
         cached->fb_id = fb_id;
         cached->bo = bo;
-        cached->buffer_resource = dmabuf_resource->buffer_resource;
-        wl_list_insert (&gbm_data.exported_buffers, &cached->link);
+        gbm_bo_set_user_data (bo, cached, destroy_cached_bo);
     }
 
     if (!drm_data.mode_set) {
@@ -621,14 +979,22 @@ on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dm
     }
 
     struct buffer_object *buffer = g_new0 (struct buffer_object, 1);
-    buffer->fb_id = cached->fb_id;
-    buffer->bo = bo;
+    buffer->image = image;
     buffer->buffer_resource = dmabuf_resource->buffer_resource;
+    buffer->bo = bo;
+
+    cached->current_buffer = buffer;
 
     ret = drmModePageFlip (drm_data.fd, drm_data.crtc_id, cached->fb_id,
                            DRM_MODE_PAGE_FLIP_EVENT, buffer);
     if (ret)
         g_warning ("failed to schedule a page flip: %s", strerror (errno));
+}
+
+static void
+on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dmabuf_resource *dmabuf_resource)
+{
+    render_resource (dmabuf_resource);
 }
 
 gboolean
@@ -656,11 +1022,35 @@ cog_platform_setup (CogPlatform *platform,
         return FALSE;
     }
 
+    if (!init_geometry()) {
+        g_set_error_literal (error,
+                             COG_PLATFORM_WPE_ERROR,
+                             COG_PLATFORM_WPE_ERROR_INIT,
+                             "Failed to initialize geometry");
+        return FALSE;
+    }
+
     if (!init_gbm ()) {
         g_set_error_literal (error,
                              COG_PLATFORM_WPE_ERROR,
                              COG_PLATFORM_WPE_ERROR_INIT,
                              "Failed to initialize GBM");
+        return FALSE;
+    }
+
+    if (!init_egl ()) {
+        g_set_error_literal (error,
+                             COG_PLATFORM_WPE_ERROR,
+                             COG_PLATFORM_WPE_ERROR_INIT,
+                             "Failed to initialize EGL");
+        return FALSE;
+    }
+
+    if (!init_gl ()) {
+        g_set_error_literal (error,
+                             COG_PLATFORM_WPE_ERROR,
+                             COG_PLATFORM_WPE_ERROR_INIT,
+                             "Failed to initialize GL");
         return FALSE;
     }
 
@@ -694,6 +1084,8 @@ cog_platform_teardown (CogPlatform *platform)
 
     clear_glib ();
     clear_input ();
+    clear_gl ();
+    clear_egl ();
     clear_gbm ();
     clear_drm ();
 }
@@ -709,8 +1101,8 @@ cog_platform_get_view_backend (CogPlatform   *platform,
 
     wpe_host_data.exportable = wpe_view_backend_exportable_fdo_create (&exportable_client,
                                                                        NULL,
-                                                                       drm_data.width,
-                                                                       drm_data.height);
+                                                                       geometry_data.width,
+                                                                       geometry_data.height);
     g_assert (wpe_host_data.exportable);
 
     wpe_view_data.backend = wpe_view_backend_exportable_fdo_get_view_backend (wpe_host_data.exportable);
