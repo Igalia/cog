@@ -582,11 +582,11 @@ on_surface_frame (void *data, struct wl_callback *callback, uint32_t time)
     GSList* iterator = NULL;
     for (iterator = wpe_host_data_exportable; iterator; iterator = iterator->next) {
         struct wpe_view_backend_exportable_fdo *exportable = iterator->data;
-        // struct wpe_view_backend *backend = wpe_view_backend_exportable_fdo_get_view_backend (exportable);
-        // if (wpe_view_backend_get_activity_state (backend) == wpe_view_activity_state_visible) {
+        struct wpe_view_backend *backend = wpe_view_backend_exportable_fdo_get_view_backend (exportable);
+        if ((wpe_view_backend_get_activity_state (backend) & wpe_view_activity_state_in_window) == wpe_view_activity_state_in_window) {
             wpe_view_backend_exportable_fdo_dispatch_frame_complete
                 (iterator->data);
-        // }
+        }
     }
 
 }
@@ -615,7 +615,7 @@ on_buffer_release (void* data, struct wl_buffer* buffer)
     for (iterator = wpe_host_data_exportable; iterator; iterator = iterator->next) {
         struct wpe_view_backend_exportable_fdo *exportable = iterator->data;
         struct wpe_view_backend *backend = wpe_view_backend_exportable_fdo_get_view_backend(exportable);
-        if (wpe_view_backend_get_activity_state (backend) == wpe_view_activity_state_visible) {
+        if ((wpe_view_backend_get_activity_state (backend) & wpe_view_activity_state_in_window) == wpe_view_activity_state_in_window) {
             wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (iterator->data,
                                                                                  image);
         }
@@ -630,38 +630,46 @@ static const struct wl_buffer_listener buffer_listener = {
 static void
 on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 {
-    wpe_view_data.image = image;
+    GSList* iterator = NULL;
+    for (iterator = wpe_host_data_exportable; iterator; iterator = iterator->next) {
+        struct wpe_view_backend_exportable_fdo *exportable = iterator->data;
+        struct wpe_view_backend *backend = wpe_view_backend_exportable_fdo_get_view_backend (exportable);
+        if ((wpe_view_backend_get_activity_state (backend) & wpe_view_activity_state_visible) == wpe_view_activity_state_visible) {
+            wpe_view_backend_add_activity_state (backend, wpe_view_activity_state_in_window);
+            wpe_view_data.image = image;
 
-    if (win_data.is_fullscreen) {
-      struct wl_region *region;
-      region = wl_compositor_create_region (wl_data.compositor);
-      wl_region_add (region, 0, 0, win_data.width, win_data.height);
-      wl_surface_set_opaque_region (win_data.wl_surface, region);
-      wl_region_destroy (region);
-    } else {
-      wl_surface_set_opaque_region (win_data.wl_surface, NULL);
+            if (win_data.is_fullscreen) {
+              struct wl_region *region;
+              region = wl_compositor_create_region (wl_data.compositor);
+              wl_region_add (region, 0, 0, win_data.width, win_data.height);
+              wl_surface_set_opaque_region (win_data.wl_surface, region);
+              wl_region_destroy (region);
+            } else {
+              wl_surface_set_opaque_region (win_data.wl_surface, NULL);
+            }
+
+            static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
+                s_eglCreateWaylandBufferFromImageWL;
+            if (s_eglCreateWaylandBufferFromImageWL == NULL) {
+                s_eglCreateWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
+                    eglGetProcAddress ("eglCreateWaylandBufferFromImageWL");
+                g_assert (s_eglCreateWaylandBufferFromImageWL);
+            }
+
+            wpe_view_data.buffer = s_eglCreateWaylandBufferFromImageWL (egl_data.display, wpe_fdo_egl_exported_image_get_egl_image (wpe_view_data.image));
+            g_assert (wpe_view_data.buffer);
+            wl_buffer_add_listener(wpe_view_data.buffer, &buffer_listener, image);
+
+            wl_surface_attach (win_data.wl_surface, wpe_view_data.buffer, 0, 0);
+            wl_surface_damage (win_data.wl_surface,
+                               0, 0,
+                               win_data.width * wl_data.current_output.scale,
+                               win_data.height * wl_data.current_output.scale);
+            request_frame ();
+
+            wl_surface_commit (win_data.wl_surface);
+        }
     }
-
-    static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
-        s_eglCreateWaylandBufferFromImageWL;
-    if (s_eglCreateWaylandBufferFromImageWL == NULL) {
-        s_eglCreateWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
-            eglGetProcAddress ("eglCreateWaylandBufferFromImageWL");
-        g_assert (s_eglCreateWaylandBufferFromImageWL);
-    }
-
-    wpe_view_data.buffer = s_eglCreateWaylandBufferFromImageWL (egl_data.display, wpe_fdo_egl_exported_image_get_egl_image (wpe_view_data.image));
-    g_assert (wpe_view_data.buffer);
-    wl_buffer_add_listener(wpe_view_data.buffer, &buffer_listener, image);
-
-    wl_surface_attach (win_data.wl_surface, wpe_view_data.buffer, 0, 0);
-    wl_surface_damage (win_data.wl_surface,
-                       0, 0,
-                       win_data.width * wl_data.current_output.scale,
-                       win_data.height * wl_data.current_output.scale);
-    request_frame ();
-
-    wl_surface_commit (win_data.wl_surface);
 }
 
 WebKitWebViewBackend*
