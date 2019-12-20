@@ -33,8 +33,8 @@ static PwlDisplay *s_pdisplay = NULL;
 static bool s_support_checked = false;
 G_LOCK_DEFINE_STATIC (s_globals);
 
-static void resize_window (void);
-static void handle_key_event (uint32_t key, uint32_t state, uint32_t time);
+static void resize_window (void *data);
+static void handle_key_event (void *data, uint32_t key, uint32_t state, uint32_t time);
 
 typedef struct {
     CogShellClass parent_class;
@@ -56,11 +56,24 @@ extern PwlXKBData xkb_data;
 GSList* wpe_host_data_exportable = NULL;
 
 static struct {
-    struct wpe_view_backend *backend;
-    struct wpe_fdo_egl_exported_image *image;
     struct wl_buffer *buffer;
     struct wl_callback *frame_callback;
 } wpe_view_data = {NULL, };
+
+typedef struct {
+    struct wpe_view_backend_exportable_fdo *exportable;
+    struct wpe_view_backend *backend;
+    struct wpe_fdo_egl_exported_image *image;
+} WpeViewBackendData;
+
+void
+wpe_view_backend_data_free (WpeViewBackendData *data)
+{
+    wpe_view_backend_exportable_fdo_destroy (data->exportable);
+    /* TODO: Either free data->backend or make sure it is freed elsewhere. */
+    /* TODO: I think the data->image is actually freed already when it's not needed anymore. */
+    g_free (data);
+}
 
 /* Output scale */
 #if HAVE_DEVICE_SCALING
@@ -91,9 +104,21 @@ output_handle_scale (void *data,
     g_info ("Got scale factor %i for output %p\n", factor, output);
 }
 
+struct wpe_view_backend*
+cog_shell_get_active_wpe_backend (CogShell *shell)
+{
+    WebKitWebView *webview = WEBKIT_WEB_VIEW(cog_shell_get_active_view (shell));
+
+    return webkit_web_view_backend_get_wpe_backend (webkit_web_view_get_backend (webview));
+}
+
 static void
 surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *output)
 {
+    CogShell *shell = COG_SHELL (data);
+
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+
     int32_t scale_factor = -1;
 
     for (int i=0; i < G_N_ELEMENTS (wl_data.metrics); i++)
@@ -108,7 +133,7 @@ surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *
     }
     g_debug ("Surface entered output %p with scale factor %i\n", output, scale_factor);
     wl_surface_set_buffer_scale (surface, scale_factor);
-    wpe_view_backend_dispatch_set_device_scale_factor (wpe_view_data.backend, scale_factor);
+    wpe_view_backend_dispatch_set_device_scale_factor (backend, scale_factor);
     wl_data.current_output.scale = scale_factor;
 }
 #endif /* HAVE_DEVICE_SCALING */
@@ -140,6 +165,10 @@ pointer_on_motion (void* data,
                    wl_fixed_t fixed_x,
                    wl_fixed_t fixed_y)
 {
+    CogShell *shell = COG_SHELL (data);
+
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+
     wl_data.pointer.x = wl_fixed_to_int (fixed_x);
     wl_data.pointer.y = wl_fixed_to_int (fixed_y);
     struct wpe_input_pointer_event event = {
@@ -151,7 +180,7 @@ pointer_on_motion (void* data,
         wl_data.pointer.state
     };
 
-    wpe_view_backend_dispatch_pointer_event (wpe_view_data.backend, &event);
+    wpe_view_backend_dispatch_pointer_event (backend, &event);
 }
 
 static void
@@ -162,6 +191,10 @@ pointer_on_button (void* data,
                    uint32_t button,
                    uint32_t state)
 {
+    CogShell *shell = COG_SHELL (data);
+
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+
     /* @FIXME: what is this for?
     if (button >= BTN_MOUSE)
         button = button - BTN_MOUSE + 1;
@@ -181,7 +214,7 @@ pointer_on_button (void* data,
         wl_data.pointer.state,
     };
 
-    wpe_view_backend_dispatch_pointer_event (wpe_view_data.backend, &event);
+    wpe_view_backend_dispatch_pointer_event (backend, &event);
 }
 
 static void
@@ -191,6 +224,10 @@ pointer_on_axis (void* data,
                  uint32_t axis,
                  wl_fixed_t value)
 {
+    CogShell *shell = COG_SHELL (data);
+
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+
     struct wpe_input_axis_event event = {
         wpe_input_axis_event_type_motion,
         time,
@@ -200,7 +237,7 @@ pointer_on_axis (void* data,
         wl_fixed_to_int(value) > 0 ? -1 : 1,
     };
 
-    wpe_view_backend_dispatch_axis_event (wpe_view_data.backend, &event);
+    wpe_view_backend_dispatch_axis_event (backend, &event);
 }
 
 #if WAYLAND_1_10_OR_GREATER
@@ -254,6 +291,10 @@ touch_on_down (void *data,
     if (id < 0 || id >= 10)
         return;
 
+    CogShell *shell = COG_SHELL (data);
+
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+
     struct wpe_input_touch_event_raw raw_event = {
         wpe_input_touch_event_type_down,
         time,
@@ -274,7 +315,7 @@ touch_on_down (void *data,
         raw_event.time
     };
 
-    wpe_view_backend_dispatch_touch_event (wpe_view_data.backend, &event);
+    wpe_view_backend_dispatch_touch_event (backend, &event);
 }
 
 static void
@@ -286,6 +327,10 @@ touch_on_up (void *data,
 {
     if (id < 0 || id >= 10)
         return;
+
+    CogShell *shell = COG_SHELL (data);
+
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
 
     struct wpe_input_touch_event_raw raw_event = {
         wpe_input_touch_event_type_up,
@@ -307,7 +352,7 @@ touch_on_up (void *data,
         raw_event.time
     };
 
-    wpe_view_backend_dispatch_touch_event (wpe_view_data.backend, &event);
+    wpe_view_backend_dispatch_touch_event (backend, &event);
 
     memset (&touch_points[id],
             0x00,
@@ -324,6 +369,10 @@ touch_on_motion (void *data,
 {
     if (id < 0 || id >= 10)
         return;
+
+    CogShell *shell = COG_SHELL (data);
+
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
 
     struct wpe_input_touch_event_raw raw_event = {
         wpe_input_touch_event_type_motion,
@@ -345,7 +394,7 @@ touch_on_motion (void *data,
         raw_event.time
     };
 
-    wpe_view_backend_dispatch_touch_event (wpe_view_data.backend, &event);
+    wpe_view_backend_dispatch_touch_event (backend, &event);
 }
 
 static void
@@ -451,10 +500,13 @@ cog_fdo_shell_class_finalize (CogFdoShellClass *klass)
     clear_wayland ();
 }
 static void
-resize_window (void)
+resize_window (void *data)
 {
     int32_t pixel_width = win_data.width * wl_data.current_output.scale;
     int32_t pixel_height = win_data.height * wl_data.current_output.scale;
+
+    CogShell *shell = COG_SHELL (data);
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
 
     if (win_data.egl_window)
         wl_egl_window_resize (win_data.egl_window,
@@ -462,7 +514,7 @@ resize_window (void)
 			                  pixel_height,
 			                  0, 0);
 
-    wpe_view_backend_dispatch_set_size (wpe_view_data.backend,
+    wpe_view_backend_dispatch_set_size (backend,
                                         win_data.width,
                                         win_data.height);
     g_debug ("Resized EGL buffer to: (%u, %u) @%ix\n",
@@ -539,8 +591,12 @@ capture_app_key_bindings (uint32_t keysym,
 
 
 static void
-handle_key_event (uint32_t key, uint32_t state, uint32_t time)
+handle_key_event (void *data, uint32_t key, uint32_t state, uint32_t time)
 {
+    CogShell *shell = COG_SHELL (data);
+
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+
     uint32_t keysym = xkb_state_key_get_one_sym (xkb_data.state, key);
     uint32_t unicode = xkb_state_key_get_utf32 (xkb_data.state, key);
 
@@ -566,29 +622,22 @@ handle_key_event (uint32_t key, uint32_t state, uint32_t time)
         xkb_data.modifiers
     };
 
-    wpe_view_backend_dispatch_keyboard_event (wpe_view_data.backend, &event);
+    wpe_view_backend_dispatch_keyboard_event (backend, &event);
 }
 
 
 static void
 on_surface_frame (void *data, struct wl_callback *callback, uint32_t time)
 {
+    struct wpe_view_backend_exportable_fdo *exportable = (struct wpe_view_backend_exportable_fdo*) data;
+
     if (wpe_view_data.frame_callback != NULL) {
         g_assert (wpe_view_data.frame_callback == callback);
         wl_callback_destroy (wpe_view_data.frame_callback);
         wpe_view_data.frame_callback = NULL;
     }
 
-    GSList* iterator = NULL;
-    for (iterator = wpe_host_data_exportable; iterator; iterator = iterator->next) {
-        struct wpe_view_backend_exportable_fdo *exportable = iterator->data;
-        struct wpe_view_backend *backend = wpe_view_backend_exportable_fdo_get_view_backend (exportable);
-        if ((wpe_view_backend_get_activity_state (backend) & wpe_view_activity_state_in_window) == wpe_view_activity_state_in_window) {
-            wpe_view_backend_exportable_fdo_dispatch_frame_complete
-                (iterator->data);
-        }
-    }
-
+    wpe_view_backend_exportable_fdo_dispatch_frame_complete (exportable);
 }
 
 static const struct wl_callback_listener frame_listener = {
@@ -596,7 +645,7 @@ static const struct wl_callback_listener frame_listener = {
 };
 
 static void
-request_frame (void)
+request_frame (struct wpe_view_backend_exportable_fdo *exportable)
 {
     if (wpe_view_data.frame_callback != NULL)
         return;
@@ -604,22 +653,23 @@ request_frame (void)
     wpe_view_data.frame_callback = wl_surface_frame (win_data.wl_surface);
     wl_callback_add_listener (wpe_view_data.frame_callback,
                               &frame_listener,
-                              NULL);
+                              exportable);
 }
 
 static void
 on_buffer_release (void* data, struct wl_buffer* buffer)
 {
-    struct wpe_fdo_egl_exported_image * image = data;
-    GSList* iterator = NULL;
-    for (iterator = wpe_host_data_exportable; iterator; iterator = iterator->next) {
-        struct wpe_view_backend_exportable_fdo *exportable = iterator->data;
-        struct wpe_view_backend *backend = wpe_view_backend_exportable_fdo_get_view_backend(exportable);
-        if ((wpe_view_backend_get_activity_state (backend) & wpe_view_activity_state_in_window) == wpe_view_activity_state_in_window) {
-            wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (iterator->data,
-                                                                                 image);
-        }
-    }
+    WpeViewBackendData *backend_data = (WpeViewBackendData*) data;
+
+    /* TODO: These asserts might be unnecessary, but having for now. */
+    g_assert (backend_data);
+
+    /* TODO: I think it is possible that Wayland will release this buffer
+       also in cases when we don't have an image. Hence the if check here. */
+    if (backend_data->image)
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (backend_data->exportable, backend_data->image);
+    backend_data->image = NULL;
+
     g_clear_pointer (&buffer, wl_buffer_destroy);
 }
 
@@ -628,48 +678,54 @@ static const struct wl_buffer_listener buffer_listener = {
 };
 
 static void
-on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
+on_export_fdo_egl_image (void *data, struct wpe_fdo_egl_exported_image *image)
 {
-    GSList* iterator = NULL;
-    for (iterator = wpe_host_data_exportable; iterator; iterator = iterator->next) {
-        struct wpe_view_backend_exportable_fdo *exportable = iterator->data;
-        struct wpe_view_backend *backend = wpe_view_backend_exportable_fdo_get_view_backend (exportable);
-        if ((wpe_view_backend_get_activity_state (backend) & wpe_view_activity_state_visible) == wpe_view_activity_state_visible) {
-            wpe_view_backend_add_activity_state (backend, wpe_view_activity_state_in_window);
-            wpe_view_data.image = image;
+    WpeViewBackendData *backend_data = (WpeViewBackendData*) data;
+    g_assert (backend_data);
 
-            if (win_data.is_fullscreen) {
-              struct wl_region *region;
-              region = wl_compositor_create_region (wl_data.compositor);
-              wl_region_add (region, 0, 0, win_data.width, win_data.height);
-              wl_surface_set_opaque_region (win_data.wl_surface, region);
-              wl_region_destroy (region);
-            } else {
-              wl_surface_set_opaque_region (win_data.wl_surface, NULL);
-            }
+    /* TODO: Doing this under the assumption that we might get another
+       exported image without Wayland having released its buffer. I don't
+       really know. If that's the case, it might make sense to free the
+       image here as well. */
+    if (backend_data->image)
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (backend_data->exportable, backend_data->image);
 
-            static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
-                s_eglCreateWaylandBufferFromImageWL;
-            if (s_eglCreateWaylandBufferFromImageWL == NULL) {
-                s_eglCreateWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
-                    eglGetProcAddress ("eglCreateWaylandBufferFromImageWL");
-                g_assert (s_eglCreateWaylandBufferFromImageWL);
-            }
+    backend_data->image = image;
 
-            wpe_view_data.buffer = s_eglCreateWaylandBufferFromImageWL (egl_data.display, wpe_fdo_egl_exported_image_get_egl_image (wpe_view_data.image));
-            g_assert (wpe_view_data.buffer);
-            wl_buffer_add_listener(wpe_view_data.buffer, &buffer_listener, image);
+    /* TODO: Also not sure whether this is needed, but just in case we're not active, let's not do anything... */
+    if (!(wpe_view_backend_get_activity_state (backend_data->backend) & wpe_view_activity_state_visible))
+        return;
 
-            wl_surface_attach (win_data.wl_surface, wpe_view_data.buffer, 0, 0);
-            wl_surface_damage (win_data.wl_surface,
-                               0, 0,
-                               win_data.width * wl_data.current_output.scale,
-                               win_data.height * wl_data.current_output.scale);
-            request_frame ();
-
-            wl_surface_commit (win_data.wl_surface);
-        }
+    if (win_data.is_fullscreen) {
+        struct wl_region *region;
+        region = wl_compositor_create_region (wl_data.compositor);
+        wl_region_add (region, 0, 0, win_data.width, win_data.height);
+        wl_surface_set_opaque_region (win_data.wl_surface, region);
+        wl_region_destroy (region);
+    } else {
+        wl_surface_set_opaque_region (win_data.wl_surface, NULL);
     }
+
+    static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
+        s_eglCreateWaylandBufferFromImageWL;
+    if (s_eglCreateWaylandBufferFromImageWL == NULL) {
+        s_eglCreateWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
+            eglGetProcAddress ("eglCreateWaylandBufferFromImageWL");
+        g_assert (s_eglCreateWaylandBufferFromImageWL);
+    }
+
+    wpe_view_data.buffer = s_eglCreateWaylandBufferFromImageWL (egl_data.display, wpe_fdo_egl_exported_image_get_egl_image (image));
+    g_assert (wpe_view_data.buffer);
+    wl_buffer_add_listener (wpe_view_data.buffer, &buffer_listener, data);
+
+    wl_surface_attach (win_data.wl_surface, wpe_view_data.buffer, 0, 0);
+    wl_surface_damage (win_data.wl_surface,
+                       0, 0,
+                       win_data.width * wl_data.current_output.scale,
+                       win_data.height * wl_data.current_output.scale);
+    request_frame (backend_data->exportable);
+
+    wl_surface_commit (win_data.wl_surface);
 }
 
 WebKitWebViewBackend*
@@ -679,23 +735,23 @@ cog_shell_new_fdo_view_backend (CogShell *shell)
         .export_fdo_egl_image = on_export_fdo_egl_image,
     };
 
-    struct wpe_view_backend_exportable_fdo *exportable =
-        wpe_view_backend_exportable_fdo_egl_create (&exportable_egl_client,
-                                                    NULL,
-                                                    DEFAULT_WIDTH,
-                                                    DEFAULT_HEIGHT);
-    g_assert (exportable);
-    wpe_host_data_exportable = g_slist_append(wpe_host_data_exportable, exportable);
+    WpeViewBackendData *data = g_new0 (WpeViewBackendData, 1);
+
+    data->exportable = wpe_view_backend_exportable_fdo_egl_create (&exportable_egl_client,
+                                                                   data,
+                                                                   DEFAULT_WIDTH,
+                                                                   DEFAULT_HEIGHT);
+    g_assert (data->exportable);
 
     /* init WPE view backend */
-    wpe_view_data.backend =
-        wpe_view_backend_exportable_fdo_get_view_backend (exportable);
-    g_assert (wpe_view_data.backend);
+    data->backend =
+        wpe_view_backend_exportable_fdo_get_view_backend (data->exportable);
+    g_assert (data->backend);
 
     WebKitWebViewBackend *wk_view_backend =
-        webkit_web_view_backend_new (wpe_view_data.backend,
-                                     (GDestroyNotify) wpe_view_backend_exportable_fdo_destroy,
-                                     exportable);
+        webkit_web_view_backend_new (data->backend,
+                                     (GDestroyNotify) wpe_view_backend_data_free,
+                                     data);
     g_assert (wk_view_backend);
 
     if (!wl_data.event_src) {
@@ -757,7 +813,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
         return FALSE;
     }
 
-    if (!create_window (error)) {
+    if (!create_window ((void*)initable, error)) {
         clear_egl ();
         clear_wayland ();
         return FALSE;
@@ -801,7 +857,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
     };
     wl_data.touch.listener = touch_listener;
 
-    if (!init_input (error)) {
+    if (!init_input ((void*)initable, error)) {
         destroy_window ();
         clear_egl ();
         clear_wayland ();
