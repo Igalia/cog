@@ -195,7 +195,7 @@ shell_surface_configure (void *data,
 
     g_debug ("New wl_shell configuration: (%" PRIu32 ", %" PRIu32 ")", width, height);
 
-    wl_data.resize_window();
+    wl_data.resize_window (data);
 }
 
 static const struct wl_shell_surface_listener shell_surface_listener = {
@@ -450,7 +450,7 @@ xdg_toplevel_on_configure (void *data,
 
     g_debug ("New XDG toplevel configuration: (%" PRIu32 ", %" PRIu32 ")", width, height);
 
-    wl_data.resize_window();
+    wl_data.resize_window(data);
 }
 
 static void
@@ -465,7 +465,7 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 };
 
 
-gboolean create_window (GError **error)
+gboolean create_window (void *data, GError **error)
 {
     g_debug ("Creating Wayland surface...");
 
@@ -473,7 +473,7 @@ gboolean create_window (GError **error)
     g_assert (win_data.wl_surface);
 
 #if HAVE_DEVICE_SCALING
-    wl_surface_add_listener (win_data.wl_surface, &win_data.surface_listener, NULL);
+    wl_surface_add_listener (win_data.wl_surface, &win_data.surface_listener, data);
 #endif /* HAVE_DEVICE_SCALING */
 
     if (wl_data.xdg_shell != NULL) {
@@ -489,7 +489,7 @@ gboolean create_window (GError **error)
         g_assert (win_data.xdg_toplevel);
 
         xdg_toplevel_add_listener (win_data.xdg_toplevel,
-                                   &xdg_toplevel_listener, NULL);
+                                   &xdg_toplevel_listener, data);
         // TODO: xdg_toplevel_set_title (win_data.xdg_toplevel, COG_DEFAULT_APPNAME);
 
         const char *app_id = NULL;
@@ -514,7 +514,7 @@ gboolean create_window (GError **error)
 
         wl_shell_surface_add_listener (win_data.shell_surface,
                                        &shell_surface_listener,
-                                       0);
+                                       data);
         wl_shell_surface_set_toplevel (win_data.shell_surface);
 
         /* wl_shell needs an initial surface configuration. */
@@ -644,13 +644,13 @@ keyboard_on_leave (void *data,
 gboolean
 repeat_delay_timeout (void *data)
 {
-    wl_data.handle_key_event (wl_data.keyboard.repeat_data.key,
+    wl_data.handle_key_event (data, wl_data.keyboard.repeat_data.key,
                       wl_data.keyboard.repeat_data.state,
                       wl_data.keyboard.repeat_data.time);
 
     wl_data.keyboard.repeat_data.event_source =
         g_timeout_add (wl_data.keyboard.repeat_info.rate,
-                       (GSourceFunc) repeat_delay_timeout, NULL);
+                       (GSourceFunc) repeat_delay_timeout, data);
 
     return G_SOURCE_REMOVE;
 }
@@ -668,7 +668,7 @@ keyboard_on_key (void *data,
     key += 8;
 
     wl_data.keyboard.serial = serial;
-    wl_data.handle_key_event (key, state, time);
+    wl_data.handle_key_event (data, key, state, time);
 
     if (wl_data.keyboard.repeat_info.rate == 0)
         return;
@@ -691,7 +691,7 @@ keyboard_on_key (void *data,
         wl_data.keyboard.repeat_data.state = state;
         wl_data.keyboard.repeat_data.event_source =
             g_timeout_add (wl_data.keyboard.repeat_info.delay,
-                           (GSourceFunc) repeat_delay_timeout, NULL);
+                           (GSourceFunc) repeat_delay_timeout, data);
     }
 }
 
@@ -762,7 +762,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     if (has_pointer && wl_data.pointer.obj == NULL) {
         wl_data.pointer.obj = wl_seat_get_pointer (wl_data.seat);
         g_assert (wl_data.pointer.obj);
-        wl_pointer_add_listener (wl_data.pointer.obj, &wl_data.pointer.listener, NULL);
+        wl_pointer_add_listener (wl_data.pointer.obj, &wl_data.pointer.listener, data);
         g_debug ("  - Pointer");
     } else if (! has_pointer && wl_data.pointer.obj != NULL) {
         wl_pointer_release (wl_data.pointer.obj);
@@ -774,7 +774,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     if (has_keyboard && wl_data.keyboard.obj == NULL) {
         wl_data.keyboard.obj = wl_seat_get_keyboard (wl_data.seat);
         g_assert (wl_data.keyboard.obj);
-        wl_keyboard_add_listener (wl_data.keyboard.obj, &wl_data.keyboard.listener, NULL);
+        wl_keyboard_add_listener (wl_data.keyboard.obj, &wl_data.keyboard.listener, data);
         g_debug ("  - Keyboard");
     } else if (! has_keyboard && wl_data.keyboard.obj != NULL) {
         wl_keyboard_release (wl_data.keyboard.obj);
@@ -786,7 +786,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     if (has_touch && wl_data.touch.obj == NULL) {
         wl_data.touch.obj = wl_seat_get_touch (wl_data.seat);
         g_assert (wl_data.touch.obj);
-        wl_touch_add_listener (wl_data.touch.obj, &wl_data.touch.listener, NULL);
+        wl_touch_add_listener (wl_data.touch.obj, &wl_data.touch.listener, data);
         g_debug ("  - Touch");
     } else if (! has_touch && wl_data.touch.obj != NULL) {
         wl_touch_release (wl_data.touch.obj);
@@ -808,10 +808,10 @@ static const struct wl_seat_listener seat_listener = {
 };
 
 
-gboolean init_input (GError **error)
+gboolean init_input (void *data, GError **error)
 {
     if (wl_data.seat != NULL) {
-        wl_seat_add_listener (wl_data.seat, &seat_listener, NULL);
+        wl_seat_add_listener (wl_data.seat, &seat_listener, data);
 
         xkb_data.context = xkb_context_new (XKB_CONTEXT_NO_FLAGS);
         g_assert (xkb_data.context);

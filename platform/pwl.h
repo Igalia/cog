@@ -133,8 +133,8 @@ typedef struct {
 
     GSource *event_src;
 
-    void (*resize_window)();
-    void (*handle_key_event)(uint32_t key, uint32_t state, uint32_t time);
+    void (*resize_window)(void* data);
+    void (*handle_key_event)(void* data, uint32_t key, uint32_t state, uint32_t time);
 
     struct wl_output_listener output_listener;
 } PwlData;
@@ -181,10 +181,10 @@ void clear_egl (void);
 gboolean init_wayland (GError **error);
 void clear_wayland (void);
 
-gboolean create_window (GError **error);
+gboolean create_window (void *data, GError **error);
 void destroy_window (void);
 
-gboolean init_input (GError **error);
+gboolean init_input (void *data, GError **error);
 void clear_input (void);
 
 /* Keyboard */
