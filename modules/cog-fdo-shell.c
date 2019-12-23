@@ -29,6 +29,8 @@
 # define TRACE(fmt, ...) ((void) 0)
 #endif
 
+const static int wpe_view_activity_state_initiated = 1 << 4;
+
 static PwlDisplay *s_pdisplay = NULL;
 static bool s_support_checked = false;
 G_LOCK_DEFINE_STATIC (s_globals);
@@ -56,8 +58,7 @@ extern PwlXKBData xkb_data;
 GSList* wpe_host_data_exportable = NULL;
 
 static struct {
-    struct wl_buffer *buffer;
-    struct wl_callback *frame_callback;
+    struct wpe_fdo_egl_exported_image *image;
 } wpe_view_data = {NULL, };
 
 typedef struct {
@@ -455,6 +456,7 @@ cog_fdo_shell_is_supported (void)
 }
 
 WebKitWebViewBackend* cog_shell_new_fdo_view_backend (CogShell *shell);
+WebKitWebViewBackend* cog_shell_fdo_resume_active_views (CogShell *shell);
 
 static void
 cog_fdo_shell_class_init (CogFdoShellClass *klass)
@@ -463,6 +465,7 @@ cog_fdo_shell_class_init (CogFdoShellClass *klass)
     CogShellClass *shell_class = COG_SHELL_CLASS (klass);
     shell_class->is_supported = cog_fdo_shell_is_supported;
     shell_class->cog_shell_new_view_backend = cog_shell_new_fdo_view_backend;
+    shell_class->cog_shell_resume_active_views = cog_shell_fdo_resume_active_views;
 
     wl_data.resize_window = resize_window;
     wl_data.handle_key_event = handle_key_event;
@@ -629,14 +632,8 @@ handle_key_event (void *data, uint32_t key, uint32_t state, uint32_t time)
 static void
 on_surface_frame (void *data, struct wl_callback *callback, uint32_t time)
 {
+    wl_callback_destroy (callback);
     struct wpe_view_backend_exportable_fdo *exportable = (struct wpe_view_backend_exportable_fdo*) data;
-
-    if (wpe_view_data.frame_callback != NULL) {
-        g_assert (wpe_view_data.frame_callback == callback);
-        wl_callback_destroy (wpe_view_data.frame_callback);
-        wpe_view_data.frame_callback = NULL;
-    }
-
     wpe_view_backend_exportable_fdo_dispatch_frame_complete (exportable);
 }
 
@@ -647,11 +644,8 @@ static const struct wl_callback_listener frame_listener = {
 static void
 request_frame (struct wpe_view_backend_exportable_fdo *exportable)
 {
-    if (wpe_view_data.frame_callback != NULL)
-        return;
-
-    wpe_view_data.frame_callback = wl_surface_frame (win_data.wl_surface);
-    wl_callback_add_listener (wpe_view_data.frame_callback,
+    struct wl_callback *frame_callback = wl_surface_frame (win_data.wl_surface);
+    wl_callback_add_listener (frame_callback,
                               &frame_listener,
                               exportable);
 }
@@ -664,12 +658,12 @@ on_buffer_release (void* data, struct wl_buffer* buffer)
     /* TODO: These asserts might be unnecessary, but having for now. */
     g_assert (backend_data);
 
-    /* TODO: I think it is possible that Wayland will release this buffer
-       also in cases when we don't have an image. Hence the if check here. */
-    if (backend_data->image)
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (backend_data->exportable, backend_data->image);
-    backend_data->image = NULL;
-
+    // Corner case: dispaching the last generated image. Required when the
+    // active view changes.
+    if (wpe_view_data.image && wpe_view_data.image != backend_data->image) {
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (backend_data->exportable, wpe_view_data.image);
+    }
+    wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (backend_data->exportable, backend_data->image);
     g_clear_pointer (&buffer, wl_buffer_destroy);
 }
 
@@ -683,18 +677,10 @@ on_export_fdo_egl_image (void *data, struct wpe_fdo_egl_exported_image *image)
     WpeViewBackendData *backend_data = (WpeViewBackendData*) data;
     g_assert (backend_data);
 
-    /* TODO: Doing this under the assumption that we might get another
-       exported image without Wayland having released its buffer. I don't
-       really know. If that's the case, it might make sense to free the
-       image here as well. */
-    if (backend_data->image)
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (backend_data->exportable, backend_data->image);
-
     backend_data->image = image;
+    wpe_view_data.image = image;
+    wpe_view_backend_add_activity_state (backend_data->backend, wpe_view_activity_state_initiated);
 
-    /* TODO: Also not sure whether this is needed, but just in case we're not active, let's not do anything... */
-    if (!(wpe_view_backend_get_activity_state (backend_data->backend) & wpe_view_activity_state_visible))
-        return;
 
     if (win_data.is_fullscreen) {
         struct wl_region *region;
@@ -714,11 +700,11 @@ on_export_fdo_egl_image (void *data, struct wpe_fdo_egl_exported_image *image)
         g_assert (s_eglCreateWaylandBufferFromImageWL);
     }
 
-    wpe_view_data.buffer = s_eglCreateWaylandBufferFromImageWL (egl_data.display, wpe_fdo_egl_exported_image_get_egl_image (image));
-    g_assert (wpe_view_data.buffer);
-    wl_buffer_add_listener (wpe_view_data.buffer, &buffer_listener, data);
+    struct wl_buffer *buffer = s_eglCreateWaylandBufferFromImageWL (egl_data.display, wpe_fdo_egl_exported_image_get_egl_image (image));
+    g_assert (buffer);
+    wl_buffer_add_listener (buffer, &buffer_listener, data);
 
-    wl_surface_attach (win_data.wl_surface, wpe_view_data.buffer, 0, 0);
+    wl_surface_attach (win_data.wl_surface, buffer, 0, 0);
     wl_surface_damage (win_data.wl_surface,
                        0, 0,
                        win_data.width * wl_data.current_output.scale,
@@ -761,6 +747,25 @@ cog_shell_new_fdo_view_backend (CogShell *shell)
     }
 
     return wk_view_backend;
+}
+
+
+WebKitWebViewBackend*
+cog_shell_fdo_resume_active_views (CogShell *shell)
+{
+    GSList* iterator = NULL;
+    for (iterator = wpe_host_data_exportable; iterator; iterator =  iterator->next) {
+        struct wpe_view_backend_exportable_fdo *exportable = iterator->data;
+        struct wpe_view_backend *backend = wpe_view_backend_exportable_fdo_get_view_backend (exportable);
+        if (wpe_view_backend_get_activity_state (backend) & wpe_view_activity_state_visible) {
+            if (wpe_view_backend_get_activity_state (backend) & wpe_view_activity_state_initiated) {
+                g_debug("cog_shell_resume_active_views: %p", exportable);
+                request_frame (exportable);
+            }
+        }
+    }
+    WebKitWebView *webview = WEBKIT_WEB_VIEW(cog_shell_get_active_view (shell));
+    return webkit_web_view_get_backend(webview);
 }
 
 static void
