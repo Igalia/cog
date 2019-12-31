@@ -12,9 +12,7 @@
 
 #include "core/cog.h"
 
-#if 0
 #if !COG_USE_WEBKITGTK
-# include "cog-platform.h"
 #if defined(WPE_CHECK_VERSION) && WPE_CHECK_VERSION(1, 3, 0)
 # define HAVE_DEVICE_SCALING 1
 #else
@@ -44,12 +42,6 @@ static struct {
     GStrv    dir_handlers;
     GStrv    arguments;
     char    *background_color;
-#if !COG_USE_WEBKITGTK
-    union {
-        char *platform_name;
-        CogPlatform *platform;
-    };
-#endif // !COG_USE_WEBKITGTK
     union {
         char *action_name;
         enum webprocess_fail_action action_id;
@@ -61,7 +53,6 @@ static struct {
     .device_scale_factor = 1.0,
 #endif // HAVE_DEVICE_SCALING
 };
-
 
 static GOptionEntry s_cli_options[] =
 {
@@ -97,11 +88,6 @@ static GOptionEntry s_cli_options[] =
     { "bg-color", 'b', 0, G_OPTION_ARG_STRING, &s_options.background_color,
         "Background color, as a CSS name or in #RRGGBBAA hex syntax (default: white)",
         "BG_COLOR" },
-#if !COG_USE_WEBKITGTK
-    { "platform", 'P', 0, G_OPTION_ARG_STRING, &s_options.platform_name,
-        "Platform plug-in to use.",
-        "NAME" },
-#endif // !COG_USE_WEBKITGTK
     { "web-extensions-dir", '\0', 0, G_OPTION_ARG_STRING, &s_options.web_extensions_dir,
       "Load Web Extensions from given directory.",
       "PATH"},
@@ -111,6 +97,7 @@ static GOptionEntry s_cli_options[] =
 };
 
 
+#if 0
 static gboolean
 load_settings (CogShell *shell, GKeyFile *key_file, GError **error)
 {
@@ -513,8 +500,9 @@ main (int argc, char *argv[])
                          print_module_info, NULL);
 
     g_autoptr(GApplication) app = G_APPLICATION (cog_launcher_get_default ());
+    g_application_add_main_option_entries (app, s_cli_options);
 
-    auto f = g_application_run (app, argc, argv);
+    int f = g_application_run (app, argc, argv);
     g_debug ("Exiting...");
     return f;
 }
