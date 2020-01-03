@@ -74,7 +74,7 @@ pwl_display_destroy (PwlDisplay *self)
 static gboolean
 wl_src_prepare (GSource *base, gint *timeout)
 {
-    struct wl_event_source *src = (struct wl_event_source *) base;
+    struct pwl_event_source *src = (struct pwl_event_source *) base;
 
     *timeout = -1;
 
@@ -90,7 +90,7 @@ wl_src_prepare (GSource *base, gint *timeout)
 static gboolean
 wl_src_check (GSource *base)
 {
-    struct wl_event_source *src = (struct wl_event_source *) base;
+    struct pwl_event_source *src = (struct pwl_event_source *) base;
 
     if (src->pfd.revents & G_IO_IN) {
         if (wl_display_read_events(src->display) < 0)
@@ -106,7 +106,7 @@ wl_src_check (GSource *base)
 static gboolean
 wl_src_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
 {
-    struct wl_event_source *src = (struct wl_event_source *) base;
+    struct pwl_event_source *src = (struct pwl_event_source *) base;
 
     if (src->pfd.revents & G_IO_IN) {
         if (wl_display_dispatch_pending(src->display) < 0)
@@ -137,9 +137,9 @@ setup_wayland_event_source (GMainContext *main_context,
         .finalize = wl_src_finalize,
     };
 
-    struct wl_event_source *wl_source =
-        (struct wl_event_source *) g_source_new (&wl_src_funcs,
-                                               sizeof (struct wl_event_source));
+    struct pwl_event_source *wl_source =
+        (struct pwl_event_source *) g_source_new (&wl_src_funcs,
+                                               sizeof (struct pwl_event_source));
     wl_source->display = display;
     wl_source->pfd.fd = wl_display_get_fd (display);
     wl_source->pfd.events = G_IO_IN | G_IO_ERR | G_IO_HUP;
