@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include "cog-config.h"
+
 #include <stdbool.h>
 
 #include <glib.h>
@@ -22,17 +24,14 @@
 #include "xdg-shell-client.h"
 #include "fullscreen-shell-unstable-v1-client.h"
 
-
 #define DEFAULT_WIDTH  1024
 #define DEFAULT_HEIGHT  768
 
-// TODO: #if defined(WPE_CHECK_VERSION) && WPE_CHECK_VERSION(1, 3, 0)
-#if 1
+#if defined(COG_DEVICE_SCALING) && COG_DEVICE_SCALING
 # define HAVE_DEVICE_SCALING 1
 #else
 # define HAVE_DEVICE_SCALING 0
-#endif /* WPE_CHECK_VERSION */
-
+#endif /* COG_DEVICE_SCALING */
 
 G_BEGIN_DECLS
 
