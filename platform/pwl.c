@@ -14,14 +14,6 @@
 
 #include <gio/gio.h>
 
-// TODO: #if defined(WPE_CHECK_VERSION) && WPE_CHECK_VERSION(1, 3, 0)
-#if 1
-# define HAVE_DEVICE_SCALING 1
-#else
-# define HAVE_DEVICE_SCALING 0
-#endif /* WPE_CHECK_VERSION */
-
-
 PwlData wl_data = {
     .current_output.scale = 1,
 };
