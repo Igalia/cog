@@ -148,7 +148,7 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC (PwlDisplay, pwl_display_destroy)
 typedef struct wl_buffer * (EGLAPIENTRYP PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL) (EGLDisplay dpy, EGLImageKHR image);
 #endif
 
-struct wl_event_source {
+struct pwl_event_source {
     GSource source;
     GPollFD pfd;
     struct wl_display* display;
