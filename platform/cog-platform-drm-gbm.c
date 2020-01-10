@@ -564,9 +564,31 @@ init_gl (void)
     glShaderSource (gl_data.vertex_shader, 1, &vertex_shader_source, NULL);
     glCompileShader (gl_data.vertex_shader);
 
+    GLint vertex_shader_compile_status = 0;
+    glGetShaderiv (gl_data.vertex_shader, GL_COMPILE_STATUS, &vertex_shader_compile_status);
+    if (!vertex_shader_compile_status) {
+        GLsizei vertex_shader_info_log_length = 0;
+        char vertex_shader_info_log[1024];
+        glGetShaderInfoLog (gl_data.vertex_shader, 1023,
+            &vertex_shader_info_log_length, vertex_shader_info_log);
+        vertex_shader_info_log[vertex_shader_info_log_length] = 0;
+        g_warning ("Unable to compile vertex shader:\n%s", vertex_shader_info_log);
+    }
+
     gl_data.fragment_shader = glCreateShader (GL_FRAGMENT_SHADER);
     glShaderSource (gl_data.fragment_shader, 1, &fragment_shader_source, NULL);
     glCompileShader (gl_data.fragment_shader);
+
+    GLint fragment_shader_compile_status = 0;
+    glGetShaderiv (gl_data.fragment_shader, GL_COMPILE_STATUS, &fragment_shader_compile_status);
+    if (!fragment_shader_compile_status) {
+        GLsizei fragment_shader_info_log_length = 0;
+        char fragment_shader_info_log[1024];
+        glGetShaderInfoLog (gl_data.fragment_shader, 1023,
+            &fragment_shader_info_log_length, fragment_shader_info_log);
+        fragment_shader_info_log[fragment_shader_info_log_length] = 0;
+        g_warning ("Unable to compile fragment shader:\n%s", fragment_shader_info_log);
+    }
 
     gl_data.program = glCreateProgram ();
     glAttachShader (gl_data.program, gl_data.vertex_shader);
@@ -575,8 +597,15 @@ init_gl (void)
 
     GLint link_status = 0;
     glGetProgramiv (gl_data.program, GL_LINK_STATUS, &link_status);
-    if (!link_status)
+    if (!link_status) {
+        GLsizei program_info_log_length = 0;
+        char program_info_log[1024];
+        glGetProgramInfoLog (gl_data.program, 1023,
+            &program_info_log_length, program_info_log);
+        program_info_log[program_info_log_length] = 0;
+        g_warning ("Unable to link program:\n%s", program_info_log);
         return FALSE;
+    }
 
     gl_data.attr_pos = glGetAttribLocation (gl_data.program, "pos");
     gl_data.attr_texture = glGetAttribLocation (gl_data.program, "texture");
