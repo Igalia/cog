@@ -396,6 +396,13 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
 #endif
                                                       NULL);
 
+#if !COG_USE_WEBKITGTK && COG_IM_API_SUPPORTED
+    if (s_options.platform) {
+        g_autoptr(WebKitInputMethodContext) im_context = cog_platform_create_im_context (s_options.platform);
+        webkit_web_view_set_input_method_context (web_view, im_context);
+    }
+#endif
+
     if (s_options.background_color != NULL) {
 #if COG_BG_COLOR_API_SUPPORTED
         gboolean has_valid_color = FALSE;

@@ -35,6 +35,11 @@
 #include "xdg-shell-client.h"
 #include "fullscreen-shell-unstable-v1-client.h"
 
+#if COG_IM_API_SUPPORTED
+#include "cog-im-context-fdo.h"
+#include "text-input-unstable-v3-client.h"
+#endif
+
 #define DEFAULT_WIDTH  1024
 #define DEFAULT_HEIGHT  768
 
@@ -74,6 +79,10 @@ static struct {
 #if HAVE_DEVICE_SCALING
     struct output_metrics metrics[16];
 #endif /* HAVE_DEVICE_SCALING */
+
+#if COG_IM_API_SUPPORTED
+    struct zwp_text_input_manager_v3 *text_input_manager;
+#endif
 
     struct {
         int32_t scale;
@@ -495,6 +504,13 @@ registry_global (void               *data,
             g_warning ("Exceeded %" G_GSIZE_FORMAT " connected outputs(!)", G_N_ELEMENTS (wl_data.metrics));
         }
 #endif /* HAVE_DEVICE_SCALING */
+#if COG_IM_API_SUPPORTED
+    } else if (strcmp (interface, zwp_text_input_manager_v3_interface.name) == 0) {
+        wl_data.text_input_manager = wl_registry_bind (registry,
+                                                       name,
+                                                       &zwp_text_input_manager_v3_interface,
+                                                       version);
+#endif
     } else {
         interface_used = FALSE;
     }
@@ -1482,6 +1498,15 @@ init_input (GError **error)
                 xkb_compose_state_new (xkb_data.compose_table,
                                        XKB_COMPOSE_STATE_NO_FLAGS);
         }
+
+#if COG_IM_API_SUPPORTED
+        if (wl_data.text_input_manager != NULL) {
+            struct zwp_text_input_v3 *text_input =
+                zwp_text_input_manager_v3_get_text_input (wl_data.text_input_manager,
+                                                          wl_data.seat);
+            cog_im_context_fdo_set_text_input (text_input);
+        }
+#endif
     }
 
     return TRUE;
@@ -1493,6 +1518,11 @@ clear_input (void)
     g_clear_pointer (&wl_data.pointer.obj, wl_pointer_destroy);
     g_clear_pointer (&wl_data.keyboard.obj, wl_keyboard_destroy);
     g_clear_pointer (&wl_data.seat, wl_seat_destroy);
+
+#if COG_IM_API_SUPPORTED
+    cog_im_context_fdo_set_text_input (NULL);
+    g_clear_pointer (&wl_data.text_input_manager, zwp_text_input_manager_v3_destroy);
+#endif
 
     g_clear_pointer (&xkb_data.state, xkb_state_unref);
     g_clear_pointer (&xkb_data.compose_state, xkb_compose_state_unref);
@@ -1609,3 +1639,13 @@ cog_platform_get_view_backend (CogPlatform   *platform,
 
     return wk_view_backend;
 }
+
+#if COG_IM_API_SUPPORTED
+WebKitInputMethodContext*
+cog_platform_create_im_context (CogPlatform *platform)
+{
+    if (wl_data.text_input_manager)
+        return cog_im_context_fdo_new ();
+    return NULL;
+}
+#endif
