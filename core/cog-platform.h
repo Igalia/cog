@@ -32,23 +32,26 @@ typedef enum {
 
 /* @FIXME: Eventually move this interface to GObject. */
 typedef struct _CogPlatform CogPlatform;
+typedef struct _WebKitInputMethodContext WebKitInputMethodContext;
 
-CogPlatform          *cog_platform_new              (void);
-void                  cog_platform_free             (CogPlatform   *platform);
+CogPlatform              *cog_platform_new               (void);
+void                      cog_platform_free              (CogPlatform   *platform);
 
-gboolean              cog_platform_try_load         (CogPlatform   *platform,
-                                                     const gchar   *soname);
+gboolean                  cog_platform_try_load          (CogPlatform   *platform,
+                                                          const gchar   *soname);
 
-gboolean              cog_platform_setup            (CogPlatform   *platform,
-                                                     CogShell      *shell,
-                                                     const char    *params,
-                                                     GError       **error);
+gboolean                  cog_platform_setup             (CogPlatform   *platform,
+                                                          CogShell      *shell,
+                                                          const char    *params,
+                                                          GError       **error);
 
-void                  cog_platform_teardown         (CogPlatform   *platform);
+void                      cog_platform_teardown          (CogPlatform   *platform);
 
-WebKitWebViewBackend *cog_platform_get_view_backend (CogPlatform   *platform,
-                                                     WebKitWebView *related_view,
-                                                     GError       **error);
+WebKitWebViewBackend     *cog_platform_get_view_backend  (CogPlatform   *platform,
+                                                          WebKitWebView *related_view,
+                                                          GError       **error);
+
+WebKitInputMethodContext *cog_platform_create_im_context (CogPlatform   *platform);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (CogPlatform, cog_platform_free)
 

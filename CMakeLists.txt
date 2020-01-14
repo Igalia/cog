@@ -127,6 +127,11 @@ else ()
     else ()
         add_definitions(-DCOG_BG_COLOR_API_SUPPORTED=0)
     endif ()
+    if ("${WEB_ENGINE_VERSION}" VERSION_GREATER "2.27.3")
+        set(COG_IM_API_SUPPORTED ON)
+    else ()
+        set(COG_IM_API_SUPPORTED OFF)
+    endif ()
 endif ()
 
 include(CheckCCompilerFlag)
@@ -232,8 +237,16 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
         ${WAYLAND_LDFLAGS}
         ${WAYLAND_EGL_LDFLAGS}
     )
+    set(COGPLATFORM_FDO_SOURCES platform/cog-platform-fdo.c)
 
-    add_library(cogplatform-fdo MODULE platform/cog-platform-fdo.c)
+    if (COG_IM_API_SUPPORTED)
+        list(APPEND COGPLATFORM_FDO_SOURCES platform/cog-im-context-fdo.c)
+        add_definitions(-DCOG_IM_API_SUPPORTED=1)
+    else ()
+        add_definitions(-DCOG_IM_API_SUPPORTED=0)
+    endif ()
+
+    add_library(cogplatform-fdo MODULE ${COGPLATFORM_FDO_SOURCES})
     set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
     target_include_directories(cogplatform-fdo PUBLIC wayland ${COGPLATFORM_FDO_INCLUDE_DIRS})
     target_link_libraries(cogplatform-fdo cogcore ${COGPLATFORM_FDO_LDFLAGS})
@@ -245,6 +258,9 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
     find_package(WaylandProtocols REQUIRED)
     add_wayland_protocol(cogplatform-fdo CLIENT xdg-shell)
     add_wayland_protocol(cogplatform-fdo CLIENT fullscreen-shell-unstable-v1)
+    if (COG_IM_API_SUPPORTED)
+        add_wayland_protocol(cogplatform-fdo CLIENT text-input-unstable-v3)
+    endif ()
 
     install(TARGETS cogplatform-fdo
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
