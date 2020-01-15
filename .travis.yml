@@ -6,7 +6,7 @@ sudo: false
 env:
   global:
     - TOOLCHAINS_URL=https://wk-contrib.igalia.com/yocto/meta-perf-browser/browsers/nightly/sdk
-    - TOOLCHAIN_NAME=wandboard-mesa/browsers-glibc-x86_64-core-image-weston-wpe-armv7at2hf-neon-wandboard-mesa-toolchain-1.0.sh
+    - TOOLCHAIN_NAME=wandboard-mesa/browsers-glibc-x86_64-core-image-weston-browsers-armv7at2hf-neon-wandboard-mesa-toolchain-1.0.sh
 
 addons:
   apt:
