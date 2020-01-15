@@ -59,6 +59,8 @@ option(COG_PLATFORM_FDO "Build the FDO platform module" ON)
 option(COG_PLATFORM_DRM "Build the DRM platform module" OFF)
 option(COG_BUILD_PROGRAMS "Build and install programs as well" ON)
 option(INSTALL_MAN_PAGES "Install the man(1) pages if COG_BUILD_PROGRAMS is enabled" ON)
+option(COG_WESTON_DIRECT_DISPLAY "Build direct display support for the FDO platform module" OFF)
+
 set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
 
@@ -256,6 +258,50 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
         add_definitions(-DCOG_IM_API_SUPPORTED=0)
     endif ()
 
+    find_path(WPEBACKEND_FDO_HAS_VIDEO_PLANE_DISPLAY_DMABUF_EXT
+        NAMES wpe/extensions/video-plane-display-dmabuf.h
+        PATHS ${COGPLATFORM_FDO_DEPS_INCLUDE_DIRS}
+        NO_DEFAULT_PATH
+    )
+    if (WPEBACKEND_FDO_HAS_VIDEO_PLANE_DISPLAY_DMABUF_EXT)
+        set(WPEBACKEND_FDO_HAS_VIDEO_PLANE_DISPLAY_DMABUF_EXT ON)
+    else ()
+        set(WPEBACKEND_FDO_HAS_VIDEO_PLANE_DISPLAY_DMABUF_EXT OFF)
+    endif ()
+
+    if (COG_WESTON_DIRECT_DISPLAY AND WPEBACKEND_FDO_HAS_VIDEO_PLANE_DISPLAY_DMABUF_EXT)
+        file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/weston)
+        pkg_check_modules(LIBWESTON REQUIRED libweston-9-protocols)
+        pkg_get_variable(LIBWESTON_PKG_DATA_DIR libweston-9-protocols "pkgdatadir")
+        find_package(WaylandScanner REQUIRED)
+        add_custom_command(
+            OUTPUT ${CMAKE_BINARY_DIR}/weston/weston-direct-display-client-protocol.h
+                   ${CMAKE_BINARY_DIR}/weston/weston-direct-display-protocol.c
+            DEPENDS ${LIBWESTON_PKG_DATA_DIR}/weston-direct-display.xml
+            COMMAND ${WAYLAND_SCANNER} client-header < ${LIBWESTON_PKG_DATA_DIR}/weston-direct-display.xml > ${CMAKE_BINARY_DIR}/weston/weston-direct-display-client-protocol.h
+            COMMAND ${WAYLAND_SCANNER} ${WAYLAND_SCANNER_CODE_ARG} < ${LIBWESTON_PKG_DATA_DIR}/weston-direct-display.xml > ${CMAKE_BINARY_DIR}/weston/weston-direct-display-protocol.c
+            VERBATIM
+        )
+
+        add_custom_command(
+            OUTPUT ${CMAKE_BINARY_DIR}/weston/weston-content-protection-client-protocol.h
+                   ${CMAKE_BINARY_DIR}/weston/weston-content-protection-protocol.c
+            DEPENDS ${LIBWESTON_PKG_DATA_DIR}/weston-content-protection.xml
+            COMMAND ${WAYLAND_SCANNER} client-header < ${LIBWESTON_PKG_DATA_DIR}/weston-content-protection.xml > ${CMAKE_BINARY_DIR}/weston/weston-content-protection-client-protocol.h
+            COMMAND ${WAYLAND_SCANNER} ${WAYLAND_SCANNER_CODE_ARG} < ${LIBWESTON_PKG_DATA_DIR}/weston-content-protection.xml > ${CMAKE_BINARY_DIR}/weston/weston-content-protection-protocol.c
+            VERBATIM
+        )
+
+        list(APPEND COGPLATFORM_FDO_SOURCES
+            ${CMAKE_BINARY_DIR}/weston/weston-direct-display-protocol.c
+            ${CMAKE_BINARY_DIR}/weston/weston-content-protection-protocol.c
+        )
+        list(APPEND COGPLATFORM_FDO_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/weston)
+        set(ENABLE_WESTON_DIRECT_DISPLAY 1)
+    else ()
+        set(ENABLE_WESTON_DIRECT_DISPLAY 0)
+    endif ()
+
     add_library(cogplatform-fdo MODULE ${COGPLATFORM_FDO_SOURCES})
     set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
     target_include_directories(cogplatform-fdo PUBLIC wayland ${COGPLATFORM_FDO_INCLUDE_DIRS})
@@ -264,6 +310,7 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
         PUBLIC ${COGPLATFORM_FDO_CFLAGS}
         PRIVATE -DG_LOG_DOMAIN=\"Cog-FDO\"
     )
+    target_compile_options(cogplatform-fdo PRIVATE -DCOG_ENABLE_WESTON_DIRECT_DISPLAY=${ENABLE_WESTON_DIRECT_DISPLAY})
 
     find_package(WaylandProtocols REQUIRED)
     add_wayland_protocol(cogplatform-fdo CLIENT xdg-shell)
@@ -273,6 +320,7 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
         add_wayland_protocol(cogplatform-fdo CLIENT text-input-unstable-v1)
         add_wayland_protocol(cogplatform-fdo CLIENT text-input-unstable-v3)
     endif ()
+    add_wayland_protocol(cogplatform-fdo CLIENT linux-dmabuf-unstable-v1)
 
     install(TARGETS cogplatform-fdo
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
