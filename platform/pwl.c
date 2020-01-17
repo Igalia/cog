@@ -63,7 +63,8 @@ pwl_display_destroy (PwlDisplay *self)
         g_clear_pointer (&wl_data.fshell, zwp_fullscreen_shell_v1_destroy);
         g_clear_pointer (&wl_data.shell, wl_shell_destroy);
         g_clear_pointer (&wl_data.compositor, wl_compositor_destroy);
-        g_clear_pointer (&wl_data.registry, wl_registry_destroy);
+
+        g_clear_pointer (&self->registry, wl_registry_destroy);
 
         wl_display_flush (self->display);
         g_clear_pointer (&self->display, wl_display_disconnect);
@@ -398,9 +399,9 @@ init_wayland (PwlDisplay *display, GError **error)
         return FALSE;
     }
 
-    wl_data.registry = wl_display_get_registry (display->display);
-    g_assert (wl_data.registry);
-    wl_registry_add_listener (wl_data.registry,
+    display->registry = wl_display_get_registry (display->display);
+    g_assert (display->registry);
+    wl_registry_add_listener (display->registry,
                               &registry_listener,
                               NULL);
     wl_display_roundtrip (display->display);
