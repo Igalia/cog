@@ -1,5 +1,7 @@
 /*
  * pwl.c
+ *
+ * Copyright (C) 2020 Igalia S.L.
  * Copyright (C) 2019 Adrian Perez de Castro <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
@@ -47,6 +49,7 @@ pwl_display_connect (const char *name, GError **error)
     return g_steal_pointer (&self);
 }
 
+
 void
 pwl_display_destroy (PwlDisplay *self)
 {
@@ -55,6 +58,13 @@ pwl_display_destroy (PwlDisplay *self)
     g_debug ("%s: Destroying @ %p", G_STRFUNC, self);
 
     if (self->display) {
+        g_clear_pointer (&wl_data.event_src, g_source_destroy);
+        g_clear_pointer (&wl_data.xdg_shell, xdg_wm_base_destroy);
+        g_clear_pointer (&wl_data.fshell, zwp_fullscreen_shell_v1_destroy);
+        g_clear_pointer (&wl_data.shell, wl_shell_destroy);
+        g_clear_pointer (&wl_data.compositor, wl_compositor_destroy);
+        g_clear_pointer (&wl_data.registry, wl_registry_destroy);
+
         wl_display_flush (self->display);
         g_clear_pointer (&self->display, wl_display_disconnect);
     }
@@ -120,7 +130,7 @@ wl_src_finalize (GSource *base)
 
 GSource *
 setup_wayland_event_source (GMainContext *main_context,
-                            struct wl_display *display)
+                            PwlDisplay *display)
 {
     static GSourceFuncs wl_src_funcs = {
         .prepare = wl_src_prepare,
@@ -132,8 +142,8 @@ setup_wayland_event_source (GMainContext *main_context,
     struct pwl_event_source *wl_source =
         (struct pwl_event_source *) g_source_new (&wl_src_funcs,
                                                sizeof (struct pwl_event_source));
-    wl_source->display = display;
-    wl_source->pfd.fd = wl_display_get_fd (display);
+    wl_source->display = display->display;
+    wl_source->pfd.fd = wl_display_get_fd (display->display);
     wl_source->pfd.events = G_IO_IN | G_IO_ERR | G_IO_HUP;
     wl_source->pfd.revents = 0;
     g_source_add_poll (&wl_source->source, &wl_source->pfd);
@@ -293,11 +303,12 @@ static const struct wl_registry_listener registry_listener = {
 #endif /* HAVE_DEVICE_SCALING */
 };
 
-gboolean init_egl (GError **error)
+gboolean
+init_egl (PwlDisplay *display, GError **error)
 {
     g_debug ("Initializing EGL...");
 
-    egl_data.display = eglGetDisplay ((EGLNativeDisplayType) wl_data.display);
+    egl_data.display = eglGetDisplay ((EGLNativeDisplayType) display->display);
     if (egl_data.display == EGL_NO_DISPLAY) {
         // TODO: ERR_EGL (error, "Could not open EGL display");
         return FALSE;
@@ -374,11 +385,12 @@ void clear_egl (void)
 }
 
 
-gboolean init_wayland (GError **error)
+gboolean
+init_wayland (PwlDisplay *display, GError **error)
 {
     g_debug ("Initializing Wayland...");
 
-    if (!(wl_data.display = wl_display_connect (NULL))) {
+    if (!(display->display = wl_display_connect (NULL))) {
         g_set_error (error,
                      G_FILE_ERROR,
                      g_file_error_from_errno (errno),
@@ -386,12 +398,12 @@ gboolean init_wayland (GError **error)
         return FALSE;
     }
 
-    wl_data.registry = wl_display_get_registry (wl_data.display);
+    wl_data.registry = wl_display_get_registry (display->display);
     g_assert (wl_data.registry);
     wl_registry_add_listener (wl_data.registry,
                               &registry_listener,
                               NULL);
-    wl_display_roundtrip (wl_data.display);
+    wl_display_roundtrip (display->display);
 
     g_assert (wl_data.compositor);
     g_assert (wl_data.xdg_shell != NULL ||
@@ -399,25 +411,6 @@ gboolean init_wayland (GError **error)
               wl_data.fshell != NULL);
 
     return TRUE;
-}
-
-void clear_wayland (void)
-{
-    g_source_destroy (wl_data.event_src);
-
-    if (wl_data.xdg_shell != NULL)
-        xdg_wm_base_destroy (wl_data.xdg_shell);
-    if (wl_data.fshell != NULL)
-        zwp_fullscreen_shell_v1_destroy (wl_data.fshell);
-    if (wl_data.shell != NULL)
-        wl_shell_destroy (wl_data.shell);
-
-    if (wl_data.compositor != NULL)
-        wl_compositor_destroy (wl_data.compositor);
-
-    wl_registry_destroy (wl_data.registry);
-    wl_display_flush (wl_data.display);
-    wl_display_disconnect (wl_data.display);
 }
 
 static void
