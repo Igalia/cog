@@ -1,5 +1,7 @@
 /*
  * cog-fdo-shell.c
+ *
+ * Copyright (C) 2020 Igalia S.L.
  * Copyright (C) 2018-2019 Adrian Perez de Castro <aperez@igalia.com>
  * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  *
@@ -500,8 +502,9 @@ cog_fdo_shell_class_finalize (CogFdoShellClass *klass)
 
     destroy_window ();
     clear_egl ();
-    clear_wayland ();
 }
+
+
 static void
 resize_window (void *data)
 {
@@ -743,7 +746,7 @@ cog_shell_new_fdo_view_backend (CogShell *shell)
     if (!wl_data.event_src) {
         wl_data.event_src =
             setup_wayland_event_source (g_main_context_get_thread_default (),
-                                        wl_data.display);
+                                        s_pdisplay);
     }
 
     return wk_view_backend;
@@ -810,17 +813,14 @@ cog_fdo_shell_initable_init (GInitable *initable,
     win_data.surface_listener = surface_listener;
 #endif /* HAVE_DEVICE_SCALING */
 
-    if (!init_wayland (error))
+    if (!init_wayland (s_pdisplay, error))
         return FALSE;
 
-    if (!init_egl (error)) {
-        clear_wayland ();
+    if (!init_egl (s_pdisplay, error))
         return FALSE;
-    }
 
     if (!create_window ((void*)initable, error)) {
         clear_egl ();
-        clear_wayland ();
         return FALSE;
     }
 
@@ -865,7 +865,6 @@ cog_fdo_shell_initable_init (GInitable *initable,
     if (!init_input ((void*)initable, error)) {
         destroy_window ();
         clear_egl ();
-        clear_wayland ();
         return FALSE;
     }
 
