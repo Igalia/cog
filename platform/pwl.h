@@ -79,7 +79,6 @@ typedef struct output_metrics {
 #endif /* HAVE_DEVICE_SCALING */
 
 typedef struct {
-    struct wl_registry *registry;
     struct wl_compositor *compositor;
 
     struct xdg_wm_base *xdg_shell;
