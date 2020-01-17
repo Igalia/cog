@@ -79,8 +79,6 @@ typedef struct output_metrics {
 #endif /* HAVE_DEVICE_SCALING */
 
 typedef struct {
-    struct wl_compositor *compositor;
-
     struct xdg_wm_base *xdg_shell;
     struct zwp_fullscreen_shell_v1 *fshell;
     struct wl_shell *shell;
@@ -177,7 +175,7 @@ void clear_egl (void);
 
 gboolean init_wayland (PwlDisplay*, GError **error);
 
-gboolean create_window (void *data, GError **error);
+gboolean create_window (PwlDisplay*, void *data, GError **error);
 void destroy_window (void);
 
 gboolean init_input (void *data, GError **error);

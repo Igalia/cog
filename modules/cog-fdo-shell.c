@@ -687,7 +687,7 @@ on_export_fdo_egl_image (void *data, struct wpe_fdo_egl_exported_image *image)
 
     if (win_data.is_fullscreen) {
         struct wl_region *region;
-        region = wl_compositor_create_region (wl_data.compositor);
+        region = wl_compositor_create_region (s_pdisplay->compositor);
         wl_region_add (region, 0, 0, win_data.width, win_data.height);
         wl_surface_set_opaque_region (win_data.wl_surface, region);
         wl_region_destroy (region);
@@ -819,7 +819,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
     if (!init_egl (s_pdisplay, error))
         return FALSE;
 
-    if (!create_window ((void*)initable, error)) {
+    if (!create_window (s_pdisplay, (void*)initable, error)) {
         clear_egl ();
         return FALSE;
     }
