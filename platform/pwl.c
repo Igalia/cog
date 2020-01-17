@@ -305,7 +305,7 @@ static const struct wl_registry_listener registry_listener = {
 };
 
 gboolean
-init_egl (PwlDisplay *display, GError **error)
+pwl_display_egl_init (PwlDisplay *display, GError **error)
 {
     g_debug ("Initializing EGL...");
 
@@ -318,14 +318,14 @@ init_egl (PwlDisplay *display, GError **error)
     EGLint major, minor;
     if (!eglInitialize (egl_data.display, &major, &minor)) {
         // TODO: ERR_EGL (error, "Could not initialize  EGL");
-        clear_egl ();
+        pwl_display_egl_deinit ();
         return FALSE;
     }
     g_info ("EGL version %d.%d initialized.", major, minor);
 
     if (!eglBindAPI (EGL_OPENGL_ES_API)) {
         // TODO: ERR_EGL (error, "Could not bind OpenGL ES API to EGL");
-        clear_egl ();
+        pwl_display_egl_deinit ();
         return FALSE;
     }
 
@@ -354,7 +354,7 @@ init_egl (PwlDisplay *display, GError **error)
                           1,
                           &num_configs)) {
         // TODO: ERR_EGL (error, "Could not find a suitable EGL configuration");
-        clear_egl ();
+        pwl_display_egl_deinit ();
         return FALSE;
     }
     g_assert (num_configs > 0);
@@ -365,14 +365,14 @@ init_egl (PwlDisplay *display, GError **error)
                                          context_attribs);
     if (egl_data.context == EGL_NO_CONTEXT) {
         // TODO: ERR_EGL (error, "Could not create EGL context");
-        clear_egl ();
+        pwl_display_egl_deinit ();
         return FALSE;
     }
 
     return TRUE;
 }
 
-void clear_egl (void)
+void pwl_display_egl_deinit (void)
 {
     if (egl_data.display != EGL_NO_DISPLAY) {
         if (egl_data.context != EGL_NO_CONTEXT) {
