@@ -170,8 +170,8 @@ GSource *
 setup_wayland_event_source (GMainContext *main_context,
                             PwlDisplay *display);
 
-gboolean init_egl (PwlDisplay*, GError **error);
-void clear_egl (void);
+gboolean pwl_display_egl_init (PwlDisplay*, GError **error);
+void pwl_display_egl_deinit (void);
 
 gboolean init_wayland (PwlDisplay*, GError **error);
 
