@@ -37,6 +37,8 @@
 
 #if COG_IM_API_SUPPORTED
 #include "cog-im-context-fdo.h"
+#include "cog-im-context-fdo-v1.h"
+#include "text-input-unstable-v1-client.h"
 #include "text-input-unstable-v3-client.h"
 #endif
 
@@ -82,6 +84,7 @@ static struct {
 
 #if COG_IM_API_SUPPORTED
     struct zwp_text_input_manager_v3 *text_input_manager;
+    struct zwp_text_input_manager_v1 *text_input_manager_v1;
 #endif
 
     struct {
@@ -510,6 +513,11 @@ registry_global (void               *data,
                                                        name,
                                                        &zwp_text_input_manager_v3_interface,
                                                        version);
+    } else if (strcmp (interface, zwp_text_input_manager_v1_interface.name) == 0) {
+        wl_data.text_input_manager_v1 = wl_registry_bind (registry,
+                                                          name,
+                                                          &zwp_text_input_manager_v1_interface,
+                                                          version);
 #endif
     } else {
         interface_used = FALSE;
@@ -1505,6 +1513,12 @@ init_input (GError **error)
                 zwp_text_input_manager_v3_get_text_input (wl_data.text_input_manager,
                                                           wl_data.seat);
             cog_im_context_fdo_set_text_input (text_input);
+        } else if (wl_data.text_input_manager_v1 != NULL) {
+            struct zwp_text_input_v1 *text_input =
+                zwp_text_input_manager_v1_create_text_input (wl_data.text_input_manager_v1);
+            cog_im_context_fdo_v1_set_text_input (text_input,
+                                                  wl_data.seat,
+                                                  win_data.wl_surface);
         }
 #endif
     }
@@ -1522,6 +1536,8 @@ clear_input (void)
 #if COG_IM_API_SUPPORTED
     cog_im_context_fdo_set_text_input (NULL);
     g_clear_pointer (&wl_data.text_input_manager, zwp_text_input_manager_v3_destroy);
+    cog_im_context_fdo_v1_set_text_input (NULL, NULL, NULL);
+    g_clear_pointer (&wl_data.text_input_manager_v1, zwp_text_input_manager_v1_destroy);
 #endif
 
     g_clear_pointer (&xkb_data.state, xkb_state_unref);
@@ -1625,6 +1641,11 @@ cog_platform_get_view_backend (CogPlatform   *platform,
         wpe_view_backend_exportable_fdo_get_view_backend (wpe_host_data.exportable);
     g_assert (wpe_view_data.backend);
 
+#if COG_IM_API_SUPPORTED
+    if (wl_data.text_input_manager_v1 != NULL)
+        cog_im_context_fdo_v1_set_view_backend (wpe_view_data.backend);
+#endif
+
     WebKitWebViewBackend *wk_view_backend =
         webkit_web_view_backend_new (wpe_view_data.backend,
                        (GDestroyNotify) wpe_view_backend_exportable_fdo_destroy,
@@ -1646,6 +1667,8 @@ cog_platform_create_im_context (CogPlatform *platform)
 {
     if (wl_data.text_input_manager)
         return cog_im_context_fdo_new ();
+    if (wl_data.text_input_manager_v1)
+        return cog_im_context_fdo_v1_new ();
     return NULL;
 }
 #endif

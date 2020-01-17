@@ -240,7 +240,10 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
     set(COGPLATFORM_FDO_SOURCES platform/cog-platform-fdo.c)
 
     if (COG_IM_API_SUPPORTED)
-        list(APPEND COGPLATFORM_FDO_SOURCES platform/cog-im-context-fdo.c)
+        list(APPEND COGPLATFORM_FDO_SOURCES
+            platform/cog-im-context-fdo.c
+            platform/cog-im-context-fdo-v1.c
+        )
         add_definitions(-DCOG_IM_API_SUPPORTED=1)
     else ()
         add_definitions(-DCOG_IM_API_SUPPORTED=0)
@@ -259,6 +262,7 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
     add_wayland_protocol(cogplatform-fdo CLIENT xdg-shell)
     add_wayland_protocol(cogplatform-fdo CLIENT fullscreen-shell-unstable-v1)
     if (COG_IM_API_SUPPORTED)
+        add_wayland_protocol(cogplatform-fdo CLIENT text-input-unstable-v1)
         add_wayland_protocol(cogplatform-fdo CLIENT text-input-unstable-v3)
     endif ()
 
