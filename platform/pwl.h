@@ -79,7 +79,6 @@ typedef struct output_metrics {
 #endif /* HAVE_DEVICE_SCALING */
 
 typedef struct {
-    struct wl_display *display;
     struct wl_registry *registry;
     struct wl_compositor *compositor;
 
@@ -172,13 +171,12 @@ typedef struct {
 
 GSource *
 setup_wayland_event_source (GMainContext *main_context,
-                            struct wl_display *display);
+                            PwlDisplay *display);
 
-gboolean init_egl (GError **error);
+gboolean init_egl (PwlDisplay*, GError **error);
 void clear_egl (void);
 
-gboolean init_wayland (GError **error);
-void clear_wayland (void);
+gboolean init_wayland (PwlDisplay*, GError **error);
 
 gboolean create_window (void *data, GError **error);
 void destroy_window (void);
