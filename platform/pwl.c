@@ -62,8 +62,8 @@ pwl_display_destroy (PwlDisplay *self)
         g_clear_pointer (&wl_data.xdg_shell, xdg_wm_base_destroy);
         g_clear_pointer (&wl_data.fshell, zwp_fullscreen_shell_v1_destroy);
         g_clear_pointer (&wl_data.shell, wl_shell_destroy);
-        g_clear_pointer (&wl_data.compositor, wl_compositor_destroy);
 
+        g_clear_pointer (&self->compositor, wl_compositor_destroy);
         g_clear_pointer (&self->registry, wl_registry_destroy);
 
         wl_display_flush (self->display);
@@ -226,7 +226,7 @@ registry_global (void               *data,
     gboolean interface_used = TRUE;
 
     if (strcmp (interface, wl_compositor_interface.name) == 0) {
-        wl_data.compositor = wl_registry_bind (registry,
+        ((PwlDisplay *) data)->compositor = wl_registry_bind (registry,
                                                name,
                                                &wl_compositor_interface,
                                                version);
@@ -403,10 +403,10 @@ init_wayland (PwlDisplay *display, GError **error)
     g_assert (display->registry);
     wl_registry_add_listener (display->registry,
                               &registry_listener,
-                              NULL);
+                              display);
     wl_display_roundtrip (display->display);
 
-    g_assert (wl_data.compositor);
+    g_assert (display->compositor);
     g_assert (wl_data.xdg_shell != NULL ||
               wl_data.shell != NULL ||
               wl_data.fshell != NULL);
@@ -451,11 +451,11 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 };
 
 
-gboolean create_window (void *data, GError **error)
+gboolean create_window (PwlDisplay* display, void *data, GError **error)
 {
     g_debug ("Creating Wayland surface...");
 
-    win_data.wl_surface = wl_compositor_create_surface (wl_data.compositor);
+    win_data.wl_surface = wl_compositor_create_surface (display->compositor);
     g_assert (win_data.wl_surface);
 
 #if HAVE_DEVICE_SCALING
