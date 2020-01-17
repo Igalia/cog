@@ -501,7 +501,7 @@ cog_fdo_shell_class_finalize (CogFdoShellClass *klass)
     clear_input ();
 
     destroy_window ();
-    clear_egl ();
+    pwl_display_egl_deinit ();
 }
 
 
@@ -816,11 +816,11 @@ cog_fdo_shell_initable_init (GInitable *initable,
     if (!init_wayland (s_pdisplay, error))
         return FALSE;
 
-    if (!init_egl (s_pdisplay, error))
+    if (!pwl_display_egl_init (s_pdisplay, error))
         return FALSE;
 
     if (!create_window (s_pdisplay, (void*)initable, error)) {
-        clear_egl ();
+        pwl_display_egl_deinit ();
         return FALSE;
     }
 
@@ -864,7 +864,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
 
     if (!init_input ((void*)initable, error)) {
         destroy_window ();
-        clear_egl ();
+        pwl_display_egl_deinit ();
         return FALSE;
     }
 
