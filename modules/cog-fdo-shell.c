@@ -117,7 +117,8 @@ cog_shell_get_active_wpe_backend (CogShell *shell)
 static void
 surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *output)
 {
-    CogShell *shell = COG_SHELL (data);
+    PwlDisplay *display = (PwlDisplay*) data;
+    CogShell *shell = (CogShell*) display->userdata;
 
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
 
@@ -167,7 +168,8 @@ pointer_on_motion (void* data,
                    wl_fixed_t fixed_x,
                    wl_fixed_t fixed_y)
 {
-    CogShell *shell = COG_SHELL (data);
+    PwlDisplay *display = (PwlDisplay*) data;
+    CogShell *shell = (CogShell*) display->userdata;
 
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
 
@@ -193,7 +195,8 @@ pointer_on_button (void* data,
                    uint32_t button,
                    uint32_t state)
 {
-    CogShell *shell = COG_SHELL (data);
+    PwlDisplay *display = (PwlDisplay*) data;
+    CogShell *shell = (CogShell*) display->userdata;
 
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
 
@@ -226,7 +229,8 @@ pointer_on_axis (void* data,
                  uint32_t axis,
                  wl_fixed_t value)
 {
-    CogShell *shell = COG_SHELL (data);
+    PwlDisplay *display = (PwlDisplay*) data;
+    CogShell *shell = (CogShell*) display->userdata;
 
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
 
@@ -293,7 +297,8 @@ touch_on_down (void *data,
     if (id < 0 || id >= 10)
         return;
 
-    CogShell *shell = COG_SHELL (data);
+    PwlDisplay *display = (PwlDisplay*) data;
+    CogShell *shell = (CogShell*) display->userdata;
 
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
 
@@ -330,7 +335,8 @@ touch_on_up (void *data,
     if (id < 0 || id >= 10)
         return;
 
-    CogShell *shell = COG_SHELL (data);
+    PwlDisplay *display = (PwlDisplay*) data;
+    CogShell *shell = (CogShell*) display->userdata;
 
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
 
@@ -372,7 +378,8 @@ touch_on_motion (void *data,
     if (id < 0 || id >= 10)
         return;
 
-    CogShell *shell = COG_SHELL (data);
+    PwlDisplay *display = (PwlDisplay*) data;
+    CogShell *shell = (CogShell*) display->userdata;
 
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
 
@@ -497,7 +504,7 @@ cog_fdo_shell_class_finalize (CogFdoShellClass *klass)
     wpe_view_backend_exportable_fdo_destroy (wpe_host_data.exportable);
     * /
 */
-    clear_input ();
+    clear_input (s_pdisplay);
 
     destroy_window (s_pdisplay);
     pwl_display_egl_deinit (s_pdisplay);
@@ -510,7 +517,9 @@ resize_window (void *data)
     int32_t pixel_width = win_data.width * wl_data.current_output.scale;
     int32_t pixel_height = win_data.height * wl_data.current_output.scale;
 
-    CogShell *shell = COG_SHELL (data);
+    PwlDisplay *display = (PwlDisplay*) data;
+    CogShell *shell = (CogShell*) display->userdata;
+
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
 
     if (win_data.egl_window)
@@ -598,7 +607,8 @@ capture_app_key_bindings (uint32_t keysym,
 static void
 handle_key_event (void *data, uint32_t key, uint32_t state, uint32_t time)
 {
-    CogShell *shell = COG_SHELL (data);
+    PwlDisplay *display = (PwlDisplay*) data;
+    CogShell *shell = (CogShell*) display->userdata;
 
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
 
@@ -795,6 +805,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
     }
 
     TRACE ("");
+    s_pdisplay->userdata = initable;
 
 #if HAVE_DEVICE_SCALING
     const struct wl_output_listener output_listener = {
@@ -818,7 +829,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
     if (!pwl_display_egl_init (s_pdisplay, error))
         return FALSE;
 
-    if (!create_window (s_pdisplay, (void*)initable, error)) {
+    if (!create_window (s_pdisplay, error)) {
         pwl_display_egl_deinit (s_pdisplay);
         return FALSE;
     }
@@ -861,7 +872,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
     };
     wl_data.touch.listener = touch_listener;
 
-    if (!init_input ((void*)initable, error)) {
+    if (!init_input (s_pdisplay, error)) {
         destroy_window (s_pdisplay);
         pwl_display_egl_deinit (s_pdisplay);
         return FALSE;

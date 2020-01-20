@@ -221,6 +221,7 @@ registry_global (void               *data,
                  const char         *interface,
                  uint32_t            version)
 {
+    PwlDisplay *display = (PwlDisplay*) data;
     gboolean interface_used = TRUE;
 
     if (strcmp (interface, wl_compositor_interface.name) == 0) {
@@ -449,7 +450,7 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 };
 
 
-gboolean create_window (PwlDisplay* display, void *data, GError **error)
+gboolean create_window (PwlDisplay* display, GError **error)
 {
     g_debug ("Creating Wayland surface...");
 
@@ -457,7 +458,7 @@ gboolean create_window (PwlDisplay* display, void *data, GError **error)
     g_assert (win_data.wl_surface);
 
 #if HAVE_DEVICE_SCALING
-    wl_surface_add_listener (win_data.wl_surface, &win_data.surface_listener, data);
+    wl_surface_add_listener (win_data.wl_surface, &win_data.surface_listener, display);
 #endif /* HAVE_DEVICE_SCALING */
 
     if (wl_data.xdg_shell != NULL) {
@@ -473,7 +474,7 @@ gboolean create_window (PwlDisplay* display, void *data, GError **error)
         g_assert (win_data.xdg_toplevel);
 
         xdg_toplevel_add_listener (win_data.xdg_toplevel,
-                                   &xdg_toplevel_listener, data);
+                                   &xdg_toplevel_listener, display);
         // TODO: xdg_toplevel_set_title (win_data.xdg_toplevel, COG_DEFAULT_APPNAME);
 
         const char *app_id = NULL;
@@ -498,7 +499,7 @@ gboolean create_window (PwlDisplay* display, void *data, GError **error)
 
         wl_shell_surface_add_listener (win_data.shell_surface,
                                        &shell_surface_listener,
-                                       data);
+                                       display);
         wl_shell_surface_set_toplevel (win_data.shell_surface);
 
         /* wl_shell needs an initial surface configuration. */
@@ -740,6 +741,7 @@ static void
 seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
 {
     g_debug ("Enumerating seat capabilities:");
+    PwlDisplay *display = (PwlDisplay*) data;
 
     /* Pointer */
     const bool has_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
@@ -792,10 +794,10 @@ static const struct wl_seat_listener seat_listener = {
 };
 
 
-gboolean init_input (void *data, GError **error)
+gboolean init_input (PwlDisplay *display, GError **error)
 {
     if (wl_data.seat != NULL) {
-        wl_seat_add_listener (wl_data.seat, &seat_listener, data);
+        wl_seat_add_listener (wl_data.seat, &seat_listener, display);
 
         xkb_data.context = xkb_context_new (XKB_CONTEXT_NO_FLAGS);
         g_assert (xkb_data.context);
@@ -813,7 +815,7 @@ gboolean init_input (void *data, GError **error)
     return TRUE;
 }
 
-void clear_input (void)
+void clear_input (PwlDisplay* display)
 {
     g_clear_pointer (&wl_data.pointer.obj, wl_pointer_destroy);
     g_clear_pointer (&wl_data.keyboard.obj, wl_keyboard_destroy);
