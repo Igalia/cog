@@ -53,7 +53,6 @@ static void cog_fdo_shell_initable_iface_init (GInitableIface *iface);
 struct wpe_input_touch_event_raw touch_points[10];
 
 extern PwlData wl_data;
-extern PwlEGLData egl_data;
 extern PwlWinData win_data;
 extern PwlXKBData xkb_data;
 
@@ -500,8 +499,8 @@ cog_fdo_shell_class_finalize (CogFdoShellClass *klass)
 */
     clear_input ();
 
-    destroy_window ();
-    pwl_display_egl_deinit ();
+    destroy_window (s_pdisplay);
+    pwl_display_egl_deinit (s_pdisplay);
 }
 
 
@@ -703,7 +702,7 @@ on_export_fdo_egl_image (void *data, struct wpe_fdo_egl_exported_image *image)
         g_assert (s_eglCreateWaylandBufferFromImageWL);
     }
 
-    struct wl_buffer *buffer = s_eglCreateWaylandBufferFromImageWL (egl_data.display, wpe_fdo_egl_exported_image_get_egl_image (image));
+    struct wl_buffer *buffer = s_eglCreateWaylandBufferFromImageWL (s_pdisplay->egl_display, wpe_fdo_egl_exported_image_get_egl_image (image));
     g_assert (buffer);
     wl_buffer_add_listener (buffer, &buffer_listener, data);
 
@@ -820,7 +819,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
         return FALSE;
 
     if (!create_window (s_pdisplay, (void*)initable, error)) {
-        pwl_display_egl_deinit ();
+        pwl_display_egl_deinit (s_pdisplay);
         return FALSE;
     }
 
@@ -863,13 +862,13 @@ cog_fdo_shell_initable_init (GInitable *initable,
     wl_data.touch.listener = touch_listener;
 
     if (!init_input ((void*)initable, error)) {
-        destroy_window ();
-        pwl_display_egl_deinit ();
+        destroy_window (s_pdisplay);
+        pwl_display_egl_deinit (s_pdisplay);
         return FALSE;
     }
 
     /* init WPE host data */
-    wpe_fdo_initialize_for_egl_display (egl_data.display);
+    wpe_fdo_initialize_for_egl_display (s_pdisplay->egl_display);
 
     return TRUE;
 }
