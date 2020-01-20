@@ -39,6 +39,7 @@ typedef struct {
     struct wl_display *display;
     struct wl_registry *registry;
     struct wl_compositor *compositor;
+    struct wl_seat *seat;
     struct egl_display *egl_display;
     EGLContext egl_context;
     EGLConfig egl_config;
@@ -80,8 +81,6 @@ typedef struct {
     struct xdg_wm_base *xdg_shell;
     struct zwp_fullscreen_shell_v1 *fshell;
     struct wl_shell *shell;
-
-    struct wl_seat *seat;
 
 #if HAVE_DEVICE_SCALING
     struct output_metrics metrics[16];

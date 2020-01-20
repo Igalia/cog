@@ -248,7 +248,7 @@ registry_global (void               *data,
                                            &zwp_fullscreen_shell_v1_interface,
                                            version);
     } else if (strcmp (interface, wl_seat_interface.name) == 0) {
-        wl_data.seat = wl_registry_bind (registry,
+        display->seat = wl_registry_bind (registry,
                                          name,
                                          &wl_seat_interface,
                                          version);
@@ -746,7 +746,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     /* Pointer */
     const bool has_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
     if (has_pointer && wl_data.pointer.obj == NULL) {
-        wl_data.pointer.obj = wl_seat_get_pointer (wl_data.seat);
+        wl_data.pointer.obj = wl_seat_get_pointer (display->seat);
         g_assert (wl_data.pointer.obj);
         wl_pointer_add_listener (wl_data.pointer.obj, &wl_data.pointer.listener, data);
         g_debug ("  - Pointer");
@@ -758,7 +758,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     /* Keyboard */
     const bool has_keyboard = capabilities & WL_SEAT_CAPABILITY_KEYBOARD;
     if (has_keyboard && wl_data.keyboard.obj == NULL) {
-        wl_data.keyboard.obj = wl_seat_get_keyboard (wl_data.seat);
+        wl_data.keyboard.obj = wl_seat_get_keyboard (display->seat);
         g_assert (wl_data.keyboard.obj);
         wl_keyboard_add_listener (wl_data.keyboard.obj, &wl_data.keyboard.listener, data);
         g_debug ("  - Keyboard");
@@ -770,7 +770,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     /* Touch */
     const bool has_touch = capabilities & WL_SEAT_CAPABILITY_TOUCH;
     if (has_touch && wl_data.touch.obj == NULL) {
-        wl_data.touch.obj = wl_seat_get_touch (wl_data.seat);
+        wl_data.touch.obj = wl_seat_get_touch (display->seat);
         g_assert (wl_data.touch.obj);
         wl_touch_add_listener (wl_data.touch.obj, &wl_data.touch.listener, data);
         g_debug ("  - Touch");
@@ -796,8 +796,8 @@ static const struct wl_seat_listener seat_listener = {
 
 gboolean init_input (PwlDisplay *display, GError **error)
 {
-    if (wl_data.seat != NULL) {
-        wl_seat_add_listener (wl_data.seat, &seat_listener, display);
+    if (display->seat != NULL) {
+        wl_seat_add_listener (display->seat, &seat_listener, display);
 
         xkb_data.context = xkb_context_new (XKB_CONTEXT_NO_FLAGS);
         g_assert (xkb_data.context);
@@ -819,7 +819,7 @@ void clear_input (PwlDisplay* display)
 {
     g_clear_pointer (&wl_data.pointer.obj, wl_pointer_destroy);
     g_clear_pointer (&wl_data.keyboard.obj, wl_keyboard_destroy);
-    g_clear_pointer (&wl_data.seat, wl_seat_destroy);
+    g_clear_pointer (&(display->seat), wl_seat_destroy);
 
     g_clear_pointer (&xkb_data.state, xkb_state_unref);
     g_clear_pointer (&xkb_data.compose_state, xkb_compose_state_unref);
