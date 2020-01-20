@@ -39,13 +39,10 @@ typedef struct {
     struct wl_display *display;
     struct wl_registry *registry;
     struct wl_compositor *compositor;
-} PwlDisplay;
-
-typedef struct {
-    struct egl_display *display;
-    EGLContext context;
+    struct egl_display *egl_display;
+    EGLContext egl_context;
     EGLConfig egl_config;
-} PwlEGLData;
+} PwlDisplay;
 
 typedef struct {
     struct xkb_context* context;
@@ -171,12 +168,12 @@ setup_wayland_event_source (GMainContext *main_context,
                             PwlDisplay *display);
 
 gboolean pwl_display_egl_init (PwlDisplay*, GError **error);
-void pwl_display_egl_deinit (void);
+void pwl_display_egl_deinit (PwlDisplay*);
 
 gboolean init_wayland (PwlDisplay*, GError **error);
 
 gboolean create_window (PwlDisplay*, void *data, GError **error);
-void destroy_window (void);
+void destroy_window (PwlDisplay*);
 
 gboolean init_input (void *data, GError **error);
 void clear_input (void);
