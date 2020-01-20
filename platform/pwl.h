@@ -42,6 +42,7 @@ typedef struct {
     struct egl_display *egl_display;
     EGLContext egl_context;
     EGLConfig egl_config;
+    void *userdata;
 } PwlDisplay;
 
 typedef struct {
@@ -172,11 +173,11 @@ void pwl_display_egl_deinit (PwlDisplay*);
 
 gboolean init_wayland (PwlDisplay*, GError **error);
 
-gboolean create_window (PwlDisplay*, void *data, GError **error);
+gboolean create_window (PwlDisplay*, GError **error);
 void destroy_window (PwlDisplay*);
 
-gboolean init_input (void *data, GError **error);
-void clear_input (void);
+gboolean init_input (PwlDisplay*, GError **error);
+void clear_input (PwlDisplay*);
 
 /* Keyboard */
 void
