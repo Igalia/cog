@@ -20,8 +20,6 @@ PwlData wl_data = {
     .current_output.scale = 1,
 };
 
-PwlEGLData egl_data;
-
 PwlWinData win_data = {
     .egl_surface = EGL_NO_SURFACE,
     .width = DEFAULT_WIDTH,
@@ -309,23 +307,23 @@ pwl_display_egl_init (PwlDisplay *display, GError **error)
 {
     g_debug ("Initializing EGL...");
 
-    egl_data.display = eglGetDisplay ((EGLNativeDisplayType) display->display);
-    if (egl_data.display == EGL_NO_DISPLAY) {
+    display->egl_display = eglGetDisplay ((EGLNativeDisplayType) display->display);
+    if (display->egl_display == EGL_NO_DISPLAY) {
         // TODO: ERR_EGL (error, "Could not open EGL display");
         return FALSE;
     }
 
     EGLint major, minor;
-    if (!eglInitialize (egl_data.display, &major, &minor)) {
+    if (!eglInitialize (display->egl_display, &major, &minor)) {
         // TODO: ERR_EGL (error, "Could not initialize  EGL");
-        pwl_display_egl_deinit ();
+        pwl_display_egl_deinit (display);
         return FALSE;
     }
     g_info ("EGL version %d.%d initialized.", major, minor);
 
     if (!eglBindAPI (EGL_OPENGL_ES_API)) {
         // TODO: ERR_EGL (error, "Could not bind OpenGL ES API to EGL");
-        pwl_display_egl_deinit ();
+        pwl_display_egl_deinit (display);
         return FALSE;
     }
 
@@ -348,39 +346,39 @@ pwl_display_egl_init (PwlDisplay *display, GError **error)
     };
 
     EGLint num_configs;
-    if (!eglChooseConfig (egl_data.display,
+    if (!eglChooseConfig (display->egl_display,
                           config_attribs,
-                          &egl_data.egl_config,
+                          &(display->egl_config),
                           1,
                           &num_configs)) {
         // TODO: ERR_EGL (error, "Could not find a suitable EGL configuration");
-        pwl_display_egl_deinit ();
+        pwl_display_egl_deinit (display);
         return FALSE;
     }
     g_assert (num_configs > 0);
 
-    egl_data.context = eglCreateContext (egl_data.display,
-                                         egl_data.egl_config,
+    display->egl_context = eglCreateContext (display->egl_display,
+                                         display->egl_config,
                                          EGL_NO_CONTEXT,
                                          context_attribs);
-    if (egl_data.context == EGL_NO_CONTEXT) {
+    if (display->egl_context == EGL_NO_CONTEXT) {
         // TODO: ERR_EGL (error, "Could not create EGL context");
-        pwl_display_egl_deinit ();
+        pwl_display_egl_deinit (display);
         return FALSE;
     }
 
     return TRUE;
 }
 
-void pwl_display_egl_deinit (void)
+void pwl_display_egl_deinit (PwlDisplay *display)
 {
-    if (egl_data.display != EGL_NO_DISPLAY) {
-        if (egl_data.context != EGL_NO_CONTEXT) {
-            eglDestroyContext (egl_data.display, egl_data.context);
+    if (display->egl_display != EGL_NO_DISPLAY) {
+        if (display->egl_context != EGL_NO_CONTEXT) {
+            eglDestroyContext (display->egl_display, display->egl_context);
         }
-        eglTerminate (egl_data.display);
-        egl_data.context = EGL_NO_CONTEXT;
-        egl_data.display = EGL_NO_DISPLAY;
+        eglTerminate (display->egl_display);
+        display->egl_context = EGL_NO_CONTEXT;
+        display->egl_display = EGL_NO_DISPLAY;
     }
     eglReleaseThread ();
 }
@@ -544,16 +542,16 @@ gboolean create_window (PwlDisplay* display, void *data, GError **error)
 
     return TRUE;
 }
-void destroy_window (void)
+void destroy_window (PwlDisplay *display)
 {
-    if (egl_data.display != EGL_NO_DISPLAY) {
-        eglMakeCurrent (egl_data.display,
+    if (display->egl_display != EGL_NO_DISPLAY) {
+        eglMakeCurrent (display->egl_display,
                         EGL_NO_SURFACE,
                         EGL_NO_SURFACE,
                         EGL_NO_CONTEXT);
 
         if (win_data.egl_surface) {
-            eglDestroySurface (egl_data.display, win_data.egl_surface);
+            eglDestroySurface (display->egl_display, win_data.egl_surface);
             win_data.egl_surface = EGL_NO_DISPLAY;
         }
     }
