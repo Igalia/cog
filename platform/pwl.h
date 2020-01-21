@@ -213,8 +213,12 @@ void pwl_display_egl_deinit (PwlDisplay*);
 
 gboolean init_wayland (PwlDisplay*, GError **error);
 
+PwlWindow* pwl_window_create (PwlDisplay*);
+void pwl_window_destroy (PwlWindow*);
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (PwlWindow, pwl_window_destroy)
+
 gboolean create_window (PwlDisplay*, PwlWindow*, GError **error);
-void destroy_window (PwlDisplay*, PwlWindow*);
 
 gboolean init_input (PwlDisplay*, GError **error);
 void clear_input (PwlDisplay*);

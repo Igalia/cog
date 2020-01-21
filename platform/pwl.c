@@ -584,17 +584,6 @@ gboolean create_window (PwlDisplay* display, PwlWindow* window, GError **error)
 {
     g_debug ("Creating Wayland surface...");
 
-    window->display = display,
-
-    window->egl_surface = EGL_NO_SURFACE,
-    window->width = DEFAULT_WIDTH,
-    window->height = DEFAULT_HEIGHT,
-    window->is_fullscreen = false,
-    window->is_maximized = false,
-
-    window->wl_surface = wl_compositor_create_surface (display->compositor);
-    g_assert (window->wl_surface);
-
 #if HAVE_DEVICE_SCALING
     static const struct wl_surface_listener surface_listener = {
         .enter = surface_handle_enter,
@@ -686,7 +675,8 @@ gboolean create_window (PwlDisplay* display, PwlWindow* window, GError **error)
     return TRUE;
 }
 
-void destroy_window (PwlDisplay *display, PwlWindow *window)
+static void
+destroy_window (PwlDisplay *display, PwlWindow *window)
 {
     if (display->egl_display != EGL_NO_DISPLAY) {
         eglMakeCurrent (display->egl_display,
@@ -1159,6 +1149,34 @@ static const struct wl_seat_listener seat_listener = {
     .name = seat_on_name,
 };
 
+
+PwlWindow*
+pwl_window_create (PwlDisplay *display)
+{
+    g_return_val_if_fail (display, NULL);
+
+    g_autoptr(PwlWindow) self = g_slice_new0 (PwlWindow);
+    self->display = display;
+    self->egl_surface = EGL_NO_SURFACE,
+    self->width = DEFAULT_WIDTH,
+    self->height = DEFAULT_HEIGHT,
+    self->wl_surface = wl_compositor_create_surface (display->compositor);
+
+    /* TODO: Move the rest of window initialization here. */
+
+    return g_steal_pointer (&self);
+}
+
+
+void
+pwl_window_destroy (PwlWindow *self)
+{
+    g_return_if_fail (self);
+
+    /* TODO: Move window destruction here. */
+    destroy_window (self->display, self);
+    g_slice_free (PwlWindow, self);
+}
 
 gboolean init_input (PwlDisplay *display, GError **error)
 {
