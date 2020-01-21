@@ -317,7 +317,7 @@ cog_fdo_shell_class_finalize (CogFdoShellClass *klass)
 */
     clear_input (s_pdisplay);
 
-    destroy_window (s_pdisplay, s_pwindow);
+    g_clear_pointer (&s_pwindow, pwl_window_destroy);
     pwl_display_egl_deinit (s_pdisplay);
 }
 
@@ -584,7 +584,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
     }
 
     TRACE ("");
-    s_pwindow = g_new0 (PwlWindow, 1);
+    s_pwindow = pwl_window_create (s_pdisplay);
 
 #if HAVE_DEVICE_SCALING
     s_pdisplay->on_surface_enter = on_surface_enter;
@@ -624,7 +624,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
 
     if (!init_input (s_pdisplay, error)) {
         g_critical ("init_input failed");
-        destroy_window (s_pdisplay, s_pwindow);
+        g_clear_pointer (&s_pwindow, pwl_window_destroy);
         pwl_display_egl_deinit (s_pdisplay);
         return FALSE;
     }
