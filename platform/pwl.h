@@ -35,7 +35,9 @@
 
 G_BEGIN_DECLS
 
-typedef struct {
+typedef struct _PwlDisplay PwlDisplay;
+
+struct _PwlDisplay {
     struct wl_display *display;
     struct wl_registry *registry;
     struct wl_compositor *compositor;
@@ -43,8 +45,11 @@ typedef struct {
     struct egl_display *egl_display;
     EGLContext egl_context;
     EGLConfig egl_config;
+
+    void (*on_surface_enter) (PwlDisplay*, void *userdata);
+
     void *userdata;
-} PwlDisplay;
+};
 
 typedef struct {
     struct xkb_context* context;
