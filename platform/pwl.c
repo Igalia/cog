@@ -348,10 +348,10 @@ registry_global (void               *data,
     gboolean interface_used = TRUE;
 
     if (strcmp (interface, wl_compositor_interface.name) == 0) {
-        ((PwlDisplay *) data)->compositor = wl_registry_bind (registry,
-                                               name,
-                                               &wl_compositor_interface,
-                                               version);
+        display->compositor = wl_registry_bind (registry,
+                                                name,
+                                                &wl_compositor_interface,
+                                                version);
     } else if (strcmp (interface, wl_shell_interface.name) == 0) {
         display->shell = wl_registry_bind (registry,
                                           name,
