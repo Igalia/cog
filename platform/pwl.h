@@ -146,6 +146,8 @@ struct pwl_event_source {
 };
 
 typedef struct {
+    PwlDisplay *display;
+
     struct wl_surface *wl_surface;
     struct wl_surface_listener surface_listener;
     struct wl_egl_window *egl_window;
@@ -171,8 +173,8 @@ void pwl_display_egl_deinit (PwlDisplay*);
 
 gboolean init_wayland (PwlDisplay*, GError **error);
 
-gboolean create_window (PwlDisplay*, GError **error);
-void destroy_window (PwlDisplay*);
+gboolean create_window (PwlDisplay*, PwlWinData*, GError **error);
+void destroy_window (PwlDisplay*, PwlWinData*);
 
 gboolean init_input (PwlDisplay*, GError **error);
 void clear_input (PwlDisplay*);

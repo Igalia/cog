@@ -20,14 +20,6 @@ PwlData wl_data = {
     .current_output.scale = 1,
 };
 
-PwlWinData win_data = {
-    .egl_surface = EGL_NO_SURFACE,
-    .width = DEFAULT_WIDTH,
-    .height = DEFAULT_HEIGHT,
-    .is_fullscreen = false,
-    .is_maximized = false,
-};
-
 PwlXKBData xkb_data = {NULL, };
 
 
@@ -156,7 +148,7 @@ setup_wayland_event_source (GMainContext *main_context,
 }
 
 static void
-configure_surface_geometry (int32_t width, int32_t height)
+configure_surface_geometry (PwlWinData *win_data, int32_t width, int32_t height)
 {
     const char* env_var;
     if (width == 0) {
@@ -174,8 +166,8 @@ configure_surface_geometry (int32_t width, int32_t height)
             height = DEFAULT_HEIGHT;
     }
 
-    win_data.width = width;
-    win_data.height = height;
+    win_data->width = width;
+    win_data->height = height;
 }
 
 static void
@@ -192,11 +184,12 @@ shell_surface_configure (void *data,
                          uint32_t edges,
                          int32_t width, int32_t height)
 {
-    configure_surface_geometry (width, height);
+    PwlWinData *win_data = (PwlWinData*) data;
+    configure_surface_geometry (win_data, width, height);
 
     g_debug ("New wl_shell configuration: (%" PRIu32 ", %" PRIu32 ")", width, height);
 
-    wl_data.resize_window (data);
+    wl_data.resize_window (win_data);
 }
 
 static const struct wl_shell_surface_listener shell_surface_listener = {
@@ -431,11 +424,12 @@ xdg_toplevel_on_configure (void *data,
                            int32_t width, int32_t height,
                            struct wl_array *states)
 {
-    configure_surface_geometry (width, height);
+    PwlWinData *win_data = (PwlWinData*) data;
+    configure_surface_geometry (win_data, width, height);
 
     g_debug ("New XDG toplevel configuration: (%" PRIu32 ", %" PRIu32 ")", width, height);
 
-    wl_data.resize_window(data);
+    wl_data.resize_window (data);
 }
 
 static void
@@ -450,31 +444,39 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 };
 
 
-gboolean create_window (PwlDisplay* display, GError **error)
+gboolean create_window (PwlDisplay* display, PwlWinData* win_data, GError **error)
 {
     g_debug ("Creating Wayland surface...");
 
-    win_data.wl_surface = wl_compositor_create_surface (display->compositor);
-    g_assert (win_data.wl_surface);
+    win_data->display = display,
+
+    win_data->egl_surface = EGL_NO_SURFACE,
+    win_data->width = DEFAULT_WIDTH,
+    win_data->height = DEFAULT_HEIGHT,
+    win_data->is_fullscreen = false,
+    win_data->is_maximized = false,
+
+    win_data->wl_surface = wl_compositor_create_surface (display->compositor);
+    g_assert (win_data->wl_surface);
 
 #if HAVE_DEVICE_SCALING
-    wl_surface_add_listener (win_data.wl_surface, &win_data.surface_listener, display);
+    wl_surface_add_listener (win_data->wl_surface, &(win_data->surface_listener), display);
 #endif /* HAVE_DEVICE_SCALING */
 
     if (wl_data.xdg_shell != NULL) {
-        win_data.xdg_surface =
+        win_data->xdg_surface =
             xdg_wm_base_get_xdg_surface (wl_data.xdg_shell,
-                                         win_data.wl_surface);
-        g_assert (win_data.xdg_surface);
+                                         win_data->wl_surface);
+        g_assert (win_data->xdg_surface);
 
-        xdg_surface_add_listener (win_data.xdg_surface, &xdg_surface_listener,
+        xdg_surface_add_listener (win_data->xdg_surface, &xdg_surface_listener,
                                   NULL);
-        win_data.xdg_toplevel =
-            xdg_surface_get_toplevel (win_data.xdg_surface);
-        g_assert (win_data.xdg_toplevel);
+        win_data->xdg_toplevel =
+            xdg_surface_get_toplevel (win_data->xdg_surface);
+        g_assert (win_data->xdg_toplevel);
 
-        xdg_toplevel_add_listener (win_data.xdg_toplevel,
-                                   &xdg_toplevel_listener, display);
+        xdg_toplevel_add_listener (win_data->xdg_toplevel,
+                                   &xdg_toplevel_listener, win_data);
         // TODO: xdg_toplevel_set_title (win_data.xdg_toplevel, COG_DEFAULT_APPNAME);
 
         const char *app_id = NULL;
@@ -485,65 +487,66 @@ gboolean create_window (PwlDisplay* display, GError **error)
         if (!app_id) {
             // TODO: app_id = COG_DEFAULT_APPID;
         }
-        xdg_toplevel_set_app_id (win_data.xdg_toplevel, app_id);
-        wl_surface_commit(win_data.wl_surface);
+        xdg_toplevel_set_app_id (win_data->xdg_toplevel, app_id);
+        wl_surface_commit(win_data->wl_surface);
     } else if (wl_data.fshell != NULL) {
         zwp_fullscreen_shell_v1_present_surface (wl_data.fshell,
-                                                 win_data.wl_surface,
+                                                 win_data->wl_surface,
                                                  ZWP_FULLSCREEN_SHELL_V1_PRESENT_METHOD_DEFAULT,
                                                  NULL);
     } else if (wl_data.shell != NULL) {
-        win_data.shell_surface = wl_shell_get_shell_surface (wl_data.shell,
-                                                             win_data.wl_surface);
-        g_assert (win_data.shell_surface);
+        win_data->shell_surface = wl_shell_get_shell_surface (wl_data.shell,
+                                                             win_data->wl_surface);
+        g_assert (win_data->shell_surface);
 
-        wl_shell_surface_add_listener (win_data.shell_surface,
+        wl_shell_surface_add_listener (win_data->shell_surface,
                                        &shell_surface_listener,
-                                       display);
-        wl_shell_surface_set_toplevel (win_data.shell_surface);
+                                       win_data);
+        wl_shell_surface_set_toplevel (win_data->shell_surface);
 
         /* wl_shell needs an initial surface configuration. */
-        configure_surface_geometry (0, 0);
+        configure_surface_geometry (win_data, 0, 0);
     }
 
     const char* env_var;
     if ((env_var = g_getenv ("COG_PLATFORM_FDO_VIEW_FULLSCREEN")) &&
         g_ascii_strtoll (env_var, NULL, 10) > 0)
     {
-        win_data.is_maximized = false;
-        win_data.is_fullscreen = true;
+        win_data->is_maximized = false;
+        win_data->is_fullscreen = true;
 
         if (wl_data.xdg_shell != NULL) {
-            xdg_toplevel_set_fullscreen (win_data.xdg_toplevel, NULL);
+            xdg_toplevel_set_fullscreen (win_data->xdg_toplevel, NULL);
         } else if (wl_data.shell != NULL) {
-            wl_shell_surface_set_fullscreen (win_data.shell_surface,
+            wl_shell_surface_set_fullscreen (win_data->shell_surface,
                                              WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE,
                                              0,
                                              NULL);
         } else {
             g_warning ("No available shell capable of fullscreening.");
-            win_data.is_fullscreen = false;
+            win_data->is_fullscreen = false;
         }
     }
     else if ((env_var = g_getenv ("COG_PLATFORM_FDO_VIEW_MAXIMIZE")) &&
              g_ascii_strtoll (env_var, NULL, 10) > 0)
     {
-        win_data.is_maximized = true;
-        win_data.is_fullscreen = false;
+        win_data->is_maximized = true;
+        win_data->is_fullscreen = false;
 
         if (wl_data.xdg_shell != NULL) {
-            xdg_toplevel_set_maximized (win_data.xdg_toplevel);
+            xdg_toplevel_set_maximized (win_data->xdg_toplevel);
         } else if (wl_data.shell != NULL) {
-            wl_shell_surface_set_maximized (win_data.shell_surface, NULL);
+            wl_shell_surface_set_maximized (win_data->shell_surface, NULL);
         } else {
             g_warning ("No available shell capable of maximizing.");
-            win_data.is_maximized = false;
+            win_data->is_maximized = false;
         }
     }
 
     return TRUE;
 }
-void destroy_window (PwlDisplay *display)
+
+void destroy_window (PwlDisplay *display, PwlWinData *win_data)
 {
     if (display->egl_display != EGL_NO_DISPLAY) {
         eglMakeCurrent (display->egl_display,
@@ -551,17 +554,17 @@ void destroy_window (PwlDisplay *display)
                         EGL_NO_SURFACE,
                         EGL_NO_CONTEXT);
 
-        if (win_data.egl_surface) {
-            eglDestroySurface (display->egl_display, win_data.egl_surface);
-            win_data.egl_surface = EGL_NO_DISPLAY;
+        if (win_data->egl_surface) {
+            eglDestroySurface (display->egl_display, win_data->egl_surface);
+            win_data->egl_surface = EGL_NO_DISPLAY;
         }
     }
 
-    g_clear_pointer (&win_data.egl_window, wl_egl_window_destroy);
-    g_clear_pointer (&win_data.xdg_toplevel, xdg_toplevel_destroy);
-    g_clear_pointer (&win_data.xdg_surface, xdg_surface_destroy);
-    g_clear_pointer (&win_data.shell_surface, wl_shell_surface_destroy);
-    g_clear_pointer (&win_data.wl_surface, wl_surface_destroy);
+    g_clear_pointer (&(win_data->egl_window), wl_egl_window_destroy);
+    g_clear_pointer (&(win_data->xdg_toplevel), xdg_toplevel_destroy);
+    g_clear_pointer (&(win_data->xdg_surface), xdg_surface_destroy);
+    g_clear_pointer (&(win_data->shell_surface), wl_shell_surface_destroy);
+    g_clear_pointer (&(win_data->wl_surface), wl_surface_destroy);
 }
 
 /* Keyboard */
@@ -613,7 +616,6 @@ keyboard_on_enter (void *data,
                    struct wl_surface *surface,
                    struct wl_array *keys)
 {
-    g_assert (surface == win_data.wl_surface);
     wl_data.keyboard.serial = serial;
 }
 
