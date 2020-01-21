@@ -123,147 +123,55 @@ on_surface_enter (PwlDisplay* display, void *userdata)
 }
 #endif /* HAVE_DEVICE_SCALING */
 
+
 /* Pointer */
-
 static void
-pointer_on_enter (void* data,
-                  struct wl_pointer* pointer,
-                  uint32_t serial,
-                  struct wl_surface* surface,
-                  wl_fixed_t fixed_x,
-                  wl_fixed_t fixed_y)
+on_pointer_on_motion (PwlDisplay* display, void *userdata)
 {
-}
-
-static void
-pointer_on_leave (void* data,
-                  struct wl_pointer *pointer,
-                  uint32_t serial,
-                  struct wl_surface* surface)
-{
-}
-
-static void
-pointer_on_motion (void* data,
-                   struct wl_pointer *pointer,
-                   uint32_t time,
-                   wl_fixed_t fixed_x,
-                   wl_fixed_t fixed_y)
-{
-    PwlDisplay *display = (PwlDisplay*) data;
-    CogShell *shell = (CogShell*) display->userdata;
-
+    CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-
-    wl_data.pointer.x = wl_fixed_to_int (fixed_x);
-    wl_data.pointer.y = wl_fixed_to_int (fixed_y);
     struct wpe_input_pointer_event event = {
         wpe_input_pointer_event_type_motion,
-        time,
+        wl_data.pointer.time,
         wl_data.pointer.x * wl_data.current_output.scale,
         wl_data.pointer.y * wl_data.current_output.scale,
         wl_data.pointer.button,
         wl_data.pointer.state
     };
-
     wpe_view_backend_dispatch_pointer_event (backend, &event);
 }
 
 static void
-pointer_on_button (void* data,
-                   struct wl_pointer *pointer,
-                   uint32_t serial,
-                   uint32_t time,
-                   uint32_t button,
-                   uint32_t state)
+on_pointer_on_button (PwlDisplay* display, void *userdata)
 {
-    PwlDisplay *display = (PwlDisplay*) data;
-    CogShell *shell = (CogShell*) display->userdata;
-
+    CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-
-    /* @FIXME: what is this for?
-    if (button >= BTN_MOUSE)
-        button = button - BTN_MOUSE + 1;
-    else
-        button = 0;
-    */
-
-    wl_data.pointer.button = !!state ? button : 0;
-    wl_data.pointer.state = state;
-
     struct wpe_input_pointer_event event = {
         wpe_input_pointer_event_type_button,
-        time,
+        wl_data.pointer.time,
         wl_data.pointer.x * wl_data.current_output.scale,
         wl_data.pointer.y * wl_data.current_output.scale,
         wl_data.pointer.button,
         wl_data.pointer.state,
     };
-
     wpe_view_backend_dispatch_pointer_event (backend, &event);
 }
 
 static void
-pointer_on_axis (void* data,
-                 struct wl_pointer *pointer,
-                 uint32_t time,
-                 uint32_t axis,
-                 wl_fixed_t value)
+on_pointer_on_axis (PwlDisplay* display, void *userdata)
 {
-    PwlDisplay *display = (PwlDisplay*) data;
-    CogShell *shell = (CogShell*) display->userdata;
-
+    CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-
     struct wpe_input_axis_event event = {
         wpe_input_axis_event_type_motion,
-        time,
+        wl_data.pointer.time,
         wl_data.pointer.x * wl_data.current_output.scale,
         wl_data.pointer.y * wl_data.current_output.scale,
-        axis,
-        wl_fixed_to_int(value) > 0 ? -1 : 1,
+        wl_data.pointer.axis,
+        wl_data.pointer.value,
     };
-
     wpe_view_backend_dispatch_axis_event (backend, &event);
 }
-
-#if WAYLAND_1_10_OR_GREATER
-
-static void
-pointer_on_frame (void* data,
-                  struct wl_pointer *pointer)
-{
-    /* @FIXME: buffer pointer events and handle them in frame. That's the
-     * recommended usage of this interface.
-     */
-}
-
-static void
-pointer_on_axis_source (void *data,
-                        struct wl_pointer *wl_pointer,
-                        uint32_t axis_source)
-{
-}
-
-static void
-pointer_on_axis_stop (void *data,
-                      struct wl_pointer *wl_pointer,
-                      uint32_t time,
-                      uint32_t axis)
-{
-}
-
-static void
-pointer_on_axis_discrete (void *data,
-                          struct wl_pointer *wl_pointer,
-                          uint32_t axis,
-                          int32_t discrete)
-{
-}
-
-#endif /* WAYLAND_1_10_OR_GREATER */
-
 
 /* Touch */
 static void
@@ -801,6 +709,9 @@ cog_fdo_shell_initable_init (GInitable *initable,
 
     s_pdisplay->on_surface_enter = on_surface_enter;
 #endif /* HAVE_DEVICE_SCALING */
+    s_pdisplay->on_pointer_on_motion = on_pointer_on_motion;
+    s_pdisplay->on_pointer_on_button = on_pointer_on_button;
+    s_pdisplay->on_pointer_on_axis = on_pointer_on_axis;
 
     if (!init_wayland (s_pdisplay, error))
         return FALSE;
@@ -812,22 +723,6 @@ cog_fdo_shell_initable_init (GInitable *initable,
         pwl_display_egl_deinit (s_pdisplay);
         return FALSE;
     }
-
-    const struct wl_pointer_listener pointer_listener = {
-        .enter = pointer_on_enter,
-        .leave = pointer_on_leave,
-        .motion = pointer_on_motion,
-        .button = pointer_on_button,
-        .axis = pointer_on_axis,
-
-    #if WAYLAND_1_10_OR_GREATER
-        .frame = pointer_on_frame,
-        .axis_source = pointer_on_axis_source,
-        .axis_stop = pointer_on_axis_stop,
-        .axis_discrete = pointer_on_axis_discrete,
-    #endif /* WAYLAND_1_10_OR_GREATER */
-    };
-    wl_data.pointer.listener = pointer_listener;
 
     xkb_data.modifier.control = wpe_input_keyboard_modifier_control;
     xkb_data.modifier.alt = wpe_input_keyboard_modifier_alt;

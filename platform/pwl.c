@@ -597,6 +597,121 @@ void destroy_window (PwlDisplay *display, PwlWinData *win_data)
     g_clear_pointer (&(win_data->wl_surface), wl_surface_destroy);
 }
 
+
+/* Pointer */
+
+static void
+pointer_on_enter (void* data,
+                  struct wl_pointer* pointer,
+                  uint32_t serial,
+                  struct wl_surface* surface,
+                  wl_fixed_t fixed_x,
+                  wl_fixed_t fixed_y)
+{
+}
+
+static void
+pointer_on_leave (void* data,
+                  struct wl_pointer *pointer,
+                  uint32_t serial,
+                  struct wl_surface* surface)
+{
+}
+
+static void
+pointer_on_motion (void* data,
+                   struct wl_pointer *pointer,
+                   uint32_t time,
+                   wl_fixed_t fixed_x,
+                   wl_fixed_t fixed_y)
+{
+    PwlDisplay *display = data;
+    wl_data.pointer.time = time;
+    wl_data.pointer.x = wl_fixed_to_int (fixed_x);
+    wl_data.pointer.y = wl_fixed_to_int (fixed_y);
+    if (display->on_pointer_on_motion) {
+        display->on_pointer_on_motion (display, display->userdata);
+    }
+}
+
+static void
+pointer_on_button (void* data,
+                   struct wl_pointer *pointer,
+                   uint32_t serial,
+                   uint32_t time,
+                   uint32_t button,
+                   uint32_t state)
+{
+    PwlDisplay *display = data;
+
+    /* @FIXME: what is this for?
+    if (button >= BTN_MOUSE)
+        button = button - BTN_MOUSE + 1;
+    else
+        button = 0;
+    */
+
+    wl_data.pointer.button = !!state ? button : 0;
+    wl_data.pointer.state = state;
+    wl_data.pointer.time = time;
+
+    if (display->on_pointer_on_button) {
+        display->on_pointer_on_button (display, display->userdata);
+    }
+}
+
+static void
+pointer_on_axis (void* data,
+                 struct wl_pointer *pointer,
+                 uint32_t time,
+                 uint32_t axis,
+                 wl_fixed_t value)
+{
+    PwlDisplay *display = data;
+    wl_data.pointer.axis = axis;
+    wl_data.pointer.time = time;
+    wl_data.pointer.value = wl_fixed_to_int(value) > 0 ? -1 : 1;
+    if (display->on_pointer_on_axis) {
+        display->on_pointer_on_axis (display, display->userdata);
+    }
+}
+#if WAYLAND_1_10_OR_GREATER
+
+static void
+pointer_on_frame (void* data,
+                  struct wl_pointer *pointer)
+{
+    /* @FIXME: buffer pointer events and handle them in frame. That's the
+     * recommended usage of this interface.
+     */
+}
+
+static void
+pointer_on_axis_source (void *data,
+                        struct wl_pointer *wl_pointer,
+                        uint32_t axis_source)
+{
+}
+
+static void
+pointer_on_axis_stop (void *data,
+                      struct wl_pointer *wl_pointer,
+                      uint32_t time,
+                      uint32_t axis)
+{
+}
+
+static void
+pointer_on_axis_discrete (void *data,
+                          struct wl_pointer *wl_pointer,
+                          uint32_t axis,
+                          int32_t discrete)
+{
+}
+
+#endif /* WAYLAND_1_10_OR_GREATER */
+
+
 /* Keyboard */
 void
 keyboard_on_keymap (void *data,
@@ -776,11 +891,25 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     PwlDisplay *display = (PwlDisplay*) data;
 
     /* Pointer */
+    static const struct wl_pointer_listener pointer_listener = {
+        .enter = pointer_on_enter,
+        .leave = pointer_on_leave,
+        .motion = pointer_on_motion,
+        .button = pointer_on_button,
+        .axis = pointer_on_axis,
+    #if WAYLAND_1_10_OR_GREATER
+        .frame = pointer_on_frame,
+        .axis_source = pointer_on_axis_source,
+        .axis_stop = pointer_on_axis_stop,
+        .axis_discrete = pointer_on_axis_discrete,
+    #endif /* WAYLAND_1_10_OR_GREATER */
+    };
     const bool has_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
     if (has_pointer && wl_data.pointer.obj == NULL) {
         wl_data.pointer.obj = wl_seat_get_pointer (display->seat);
         g_assert (wl_data.pointer.obj);
-        wl_pointer_add_listener (wl_data.pointer.obj, &wl_data.pointer.listener, data);
+        g_assert (data);
+        wl_pointer_add_listener (wl_data.pointer.obj, &pointer_listener, data);
         g_debug ("  - Pointer");
     } else if (! has_pointer && wl_data.pointer.obj != NULL) {
         wl_pointer_release (wl_data.pointer.obj);
