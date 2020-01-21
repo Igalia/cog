@@ -573,6 +573,16 @@ cog_fdo_shell_initable_init (GInitable *initable,
         return FALSE;
     }
 
+    if (!init_wayland (s_pdisplay, error)) {
+        g_critical ("init_wayland failed");
+        return FALSE;
+    }
+
+    if (!pwl_display_egl_init (s_pdisplay, error)) {
+        g_critical ("pwl_display_egl_init failed");
+        return FALSE;
+    }
+
     TRACE ("");
     s_pwindow = g_new0 (PwlWindow, 1);
 
@@ -599,13 +609,8 @@ cog_fdo_shell_initable_init (GInitable *initable,
     s_pdisplay->on_capture_app_key = on_capture_app_key;
     s_pdisplay->on_capture_app_key_userdata = initable;
 
-    if (!init_wayland (s_pdisplay, error))
-        return FALSE;
-
-    if (!pwl_display_egl_init (s_pdisplay, error))
-        return FALSE;
-
     if (!create_window (s_pdisplay, s_pwindow, error)) {
+        g_critical ("create_window failed");
         pwl_display_egl_deinit (s_pdisplay);
         return FALSE;
     }
@@ -618,6 +623,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
     s_pdisplay->xkb_data.modifier.shift = wpe_input_keyboard_modifier_shift;
 
     if (!init_input (s_pdisplay, error)) {
+        g_critical ("init_input failed");
         destroy_window (s_pdisplay, s_pwindow);
         pwl_display_egl_deinit (s_pdisplay);
         return FALSE;
