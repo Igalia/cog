@@ -115,7 +115,6 @@ typedef struct {
         } repeat_data;
 
         uint32_t serial;
-        struct wl_keyboard_listener listener;
     } keyboard;
 
     struct {
@@ -177,48 +176,5 @@ void destroy_window (PwlDisplay*);
 
 gboolean init_input (PwlDisplay*, GError **error);
 void clear_input (PwlDisplay*);
-
-/* Keyboard */
-void
-keyboard_on_keymap (void *data,
-                    struct wl_keyboard *wl_keyboard,
-                    uint32_t format,
-                    int32_t fd,
-                    uint32_t size);
-void
-keyboard_on_enter (void *data,
-                   struct wl_keyboard *wl_keyboard,
-                   uint32_t serial,
-                   struct wl_surface *surface,
-                   struct wl_array *keys);
-
-void
-keyboard_on_leave (void *data,
-                   struct wl_keyboard *wl_keyboard,
-                   uint32_t serial,
-                   struct wl_surface *surface);
-
-void
-keyboard_on_key (void *data,
-                 struct wl_keyboard *wl_keyboard,
-                 uint32_t serial,
-                 uint32_t time,
-                 uint32_t key,
-                 uint32_t state);
-
-void
-keyboard_on_modifiers (void *data,
-                       struct wl_keyboard *wl_keyboard,
-                       uint32_t serial,
-                       uint32_t mods_depressed,
-                       uint32_t mods_latched,
-                       uint32_t mods_locked,
-                       uint32_t group);
-
-void
-keyboard_on_repeat_info (void *data,
-                         struct wl_keyboard *wl_keyboard,
-                         int32_t rate,
-                         int32_t delay);
 
 G_END_DECLS

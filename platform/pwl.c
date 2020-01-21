@@ -760,7 +760,15 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     if (has_keyboard && wl_data.keyboard.obj == NULL) {
         wl_data.keyboard.obj = wl_seat_get_keyboard (display->seat);
         g_assert (wl_data.keyboard.obj);
-        wl_keyboard_add_listener (wl_data.keyboard.obj, &wl_data.keyboard.listener, data);
+        static const struct wl_keyboard_listener keyboard_listener = {
+            .keymap = keyboard_on_keymap,
+            .enter = keyboard_on_enter,
+            .leave = keyboard_on_leave,
+            .key = keyboard_on_key,
+            .modifiers = keyboard_on_modifiers,
+            .repeat_info = keyboard_on_repeat_info,
+        };
+        wl_keyboard_add_listener (wl_data.keyboard.obj, &keyboard_listener, data);
         g_debug ("  - Keyboard");
     } else if (! has_keyboard && wl_data.keyboard.obj != NULL) {
         wl_keyboard_release (wl_data.keyboard.obj);
