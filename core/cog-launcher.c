@@ -372,7 +372,7 @@ cog_launcher_add_web_settings_option_entries (CogLauncher *launcher)
         g_option_group_new ("websettings",
                             "WebKitSettings options can be used to configure features exposed to the loaded Web content.\n"
                             "\n"
-                            "  BOOL values are either 'true', '1', 'false', or '0'. Ommitting the value implies '1'.\n"
+                            "  BOOL values are either 'true', '1', 'false', or '0'. Omitting the value implies '1'.\n"
                             "  INTEGER values can be decimal, octal (prefix '0'), or hexadecimal (prefix '0x').\n"
                             "  UNSIGNED values behave like INTEGER, but negative values are not accepted.\n"
                             "  FLOAT values may optionally use decimal separators and scientific notation.\n"
@@ -736,7 +736,7 @@ static GOptionEntry s_permissions_options[] =
         .long_name = "set-permissions",
         .arg = G_OPTION_ARG_CALLBACK,
         .arg_data = option_entry_parse_permissions,
-        .description = "Set permissions to access certain ressources (default: 'none')",
+        .description = "Set permissions to access certain resources (default: 'none')",
         .arg_description = "[all | none]",
     },
     { NULL }
