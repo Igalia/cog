@@ -115,29 +115,11 @@ cog_shell_get_active_wpe_backend (CogShell *shell)
 }
 
 static void
-surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *output)
+on_surface_enter (PwlDisplay* display, void *userdata)
 {
-    PwlDisplay *display = (PwlDisplay*) data;
-    CogShell *shell = (CogShell*) display->userdata;
-
+    CogShell *shell = (CogShell*) userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-
-    int32_t scale_factor = -1;
-
-    for (int i=0; i < G_N_ELEMENTS (wl_data.metrics); i++)
-    {
-        if (wl_data.metrics[i].output == output) {
-            scale_factor = wl_data.metrics[i].scale;
-        }
-    }
-    if (scale_factor == -1) {
-        g_warning ("No scale factor available for output %p\n", output);
-        return;
-    }
-    g_debug ("Surface entered output %p with scale factor %i\n", output, scale_factor);
-    wl_surface_set_buffer_scale (surface, scale_factor);
-    wpe_view_backend_dispatch_set_device_scale_factor (backend, scale_factor);
-    wl_data.current_output.scale = scale_factor;
+    wpe_view_backend_dispatch_set_device_scale_factor (backend, wl_data.current_output.scale);
 }
 #endif /* HAVE_DEVICE_SCALING */
 
@@ -817,11 +799,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
     };
     wl_data.output_listener = output_listener;
 
-    static const struct wl_surface_listener surface_listener = {
-        .enter = surface_handle_enter,
-        .leave = noop,
-    };
-    s_win_data->surface_listener = surface_listener;
+    s_pdisplay->on_surface_enter = on_surface_enter;
 #endif /* HAVE_DEVICE_SCALING */
 
     if (!init_wayland (s_pdisplay, error))

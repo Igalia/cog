@@ -275,6 +275,32 @@ registry_global (void               *data,
 
 #if HAVE_DEVICE_SCALING
 static void
+noop()
+{
+}
+
+static void
+surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *output)
+{
+    PwlDisplay *display = data;
+    int32_t scale_factor = -1;
+
+    for (int i=0; i < G_N_ELEMENTS (wl_data.metrics); i++)
+    {
+        if (wl_data.metrics[i].output == output) {
+            scale_factor = wl_data.metrics[i].scale;
+        }
+    }
+    if (scale_factor == -1) {
+        g_warning ("No scale factor available for output %p\n", output);
+        return;
+    }
+    g_debug ("Surface entered output %p with scale factor %i\n", output, scale_factor);
+    wl_surface_set_buffer_scale (surface, scale_factor);
+    wl_data.current_output.scale = scale_factor;
+    display->on_surface_enter(display, display->userdata);
+}
+static void
 registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
 {
     for (int i = 0; i < G_N_ELEMENTS (wl_data.metrics); i++)
@@ -460,7 +486,11 @@ gboolean create_window (PwlDisplay* display, PwlWinData* win_data, GError **erro
     g_assert (win_data->wl_surface);
 
 #if HAVE_DEVICE_SCALING
-    wl_surface_add_listener (win_data->wl_surface, &(win_data->surface_listener), display);
+    static const struct wl_surface_listener surface_listener = {
+        .enter = surface_handle_enter,
+        .leave = noop,
+    };
+    wl_surface_add_listener (win_data->wl_surface, &surface_listener, display);
 #endif /* HAVE_DEVICE_SCALING */
 
     if (wl_data.xdg_shell != NULL) {
