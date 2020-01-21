@@ -50,6 +50,10 @@ struct _PwlDisplay {
     void (*on_pointer_on_motion) (PwlDisplay*, void *userdata);
     void (*on_pointer_on_button) (PwlDisplay*, void *userdata);
     void (*on_pointer_on_axis) (PwlDisplay*, void *userdata);
+    
+    void (*on_touch_on_down)     (PwlDisplay*, void *userdata);
+    void (*on_touch_on_up)       (PwlDisplay*, void *userdata);
+    void (*on_touch_on_motion)   (PwlDisplay*, void *userdata);
 
     void *userdata;
 };
@@ -129,7 +133,10 @@ typedef struct {
 
     struct {
         struct wl_touch *obj;
-        struct wl_touch_listener listener;
+        int32_t id;
+        uint32_t time;
+        wl_fixed_t x;
+        wl_fixed_t y;
     } touch;
 
     GSource *event_src;

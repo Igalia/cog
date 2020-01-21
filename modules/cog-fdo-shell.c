@@ -175,32 +175,19 @@ on_pointer_on_axis (PwlDisplay* display, void *userdata)
 
 /* Touch */
 static void
-touch_on_down (void *data,
-               struct wl_touch *touch,
-               uint32_t serial,
-               uint32_t time,
-               struct wl_surface *surface,
-               int32_t id,
-               wl_fixed_t x,
-               wl_fixed_t y)
+on_touch_on_down (PwlDisplay* display, void *userdata)
 {
-    if (id < 0 || id >= 10)
-        return;
-
-    PwlDisplay *display = (PwlDisplay*) data;
-    CogShell *shell = (CogShell*) display->userdata;
-
+    CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-
     struct wpe_input_touch_event_raw raw_event = {
         wpe_input_touch_event_type_down,
-        time,
-        id,
-        wl_fixed_to_int (x) * wl_data.current_output.scale,
-        wl_fixed_to_int (y) * wl_data.current_output.scale,
+        wl_data.touch.time,
+        wl_data.touch.id,
+        wl_fixed_to_int (wl_data.touch.x) * wl_data.current_output.scale,
+        wl_fixed_to_int (wl_data.touch.y) * wl_data.current_output.scale,
     };
 
-    memcpy (&touch_points[id],
+    memcpy (&touch_points[wl_data.touch.id],
             &raw_event,
             sizeof (struct wpe_input_touch_event_raw));
 
@@ -216,29 +203,19 @@ touch_on_down (void *data,
 }
 
 static void
-touch_on_up (void *data,
-             struct wl_touch *touch,
-             uint32_t serial,
-             uint32_t time,
-             int32_t id)
+on_touch_on_up (PwlDisplay* display, void *userdata)
 {
-    if (id < 0 || id >= 10)
-        return;
-
-    PwlDisplay *display = (PwlDisplay*) data;
-    CogShell *shell = (CogShell*) display->userdata;
-
+    CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-
     struct wpe_input_touch_event_raw raw_event = {
         wpe_input_touch_event_type_up,
-        time,
-        id,
-        touch_points[id].x,
-        touch_points[id].y,
+        wl_data.touch.time,
+        wl_data.touch.id,
+        touch_points[wl_data.touch.id].x,
+        touch_points[wl_data.touch.id].y,
     };
 
-    memcpy (&touch_points[id],
+    memcpy (&touch_points[wl_data.touch.id],
             &raw_event,
             sizeof (struct wpe_input_touch_event_raw));
 
@@ -252,36 +229,27 @@ touch_on_up (void *data,
 
     wpe_view_backend_dispatch_touch_event (backend, &event);
 
-    memset (&touch_points[id],
+    memset (&touch_points[wl_data.touch.id],
             0x00,
             sizeof (struct wpe_input_touch_event_raw));
 }
 
 static void
-touch_on_motion (void *data,
-                 struct wl_touch *touch,
-                 uint32_t time,
-                 int32_t id,
-                 wl_fixed_t x,
-                 wl_fixed_t y)
+on_touch_on_motion (PwlDisplay* display, void *userdata)
 {
-    if (id < 0 || id >= 10)
-        return;
-
-    PwlDisplay *display = (PwlDisplay*) data;
-    CogShell *shell = (CogShell*) display->userdata;
+    CogShell *shell = userdata;
 
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
 
     struct wpe_input_touch_event_raw raw_event = {
         wpe_input_touch_event_type_motion,
-        time,
-        id,
-        wl_fixed_to_int (x) * wl_data.current_output.scale,
-        wl_fixed_to_int (y) * wl_data.current_output.scale,
+        wl_data.touch.time,
+        wl_data.touch.id,
+        wl_fixed_to_int (wl_data.touch.x) * wl_data.current_output.scale,
+        wl_fixed_to_int (wl_data.touch.y) * wl_data.current_output.scale,
     };
 
-    memcpy (&touch_points[id],
+    memcpy (&touch_points[wl_data.touch.id],
             &raw_event,
             sizeof (struct wpe_input_touch_event_raw));
 
@@ -294,17 +262,6 @@ touch_on_motion (void *data,
     };
 
     wpe_view_backend_dispatch_touch_event (backend, &event);
-}
-
-static void
-touch_on_frame (void *data, struct wl_touch *touch)
-{
-    /* @FIXME: buffer touch events and handle them here */
-}
-
-static void
-touch_on_cancel (void *data, struct wl_touch *touch)
-{
 }
 
 G_DEFINE_DYNAMIC_TYPE_EXTENDED (CogFdoShell, cog_fdo_shell, COG_TYPE_SHELL, 0,
@@ -713,6 +670,10 @@ cog_fdo_shell_initable_init (GInitable *initable,
     s_pdisplay->on_pointer_on_button = on_pointer_on_button;
     s_pdisplay->on_pointer_on_axis = on_pointer_on_axis;
 
+    s_pdisplay->on_touch_on_down = on_touch_on_down;
+    s_pdisplay->on_touch_on_up = on_touch_on_up;
+    s_pdisplay->on_touch_on_motion = on_touch_on_motion;
+
     if (!init_wayland (s_pdisplay, error))
         return FALSE;
 
@@ -727,15 +688,6 @@ cog_fdo_shell_initable_init (GInitable *initable,
     xkb_data.modifier.control = wpe_input_keyboard_modifier_control;
     xkb_data.modifier.alt = wpe_input_keyboard_modifier_alt;
     xkb_data.modifier.shift = wpe_input_keyboard_modifier_shift;
-
-    const struct wl_touch_listener touch_listener = {
-        .down = touch_on_down,
-        .up = touch_on_up,
-        .motion = touch_on_motion,
-        .frame = touch_on_frame,
-        .cancel = touch_on_cancel,
-    };
-    wl_data.touch.listener = touch_listener;
 
     if (!init_input (s_pdisplay, error)) {
         destroy_window (s_pdisplay, s_win_data);

@@ -712,6 +712,78 @@ pointer_on_axis_discrete (void *data,
 #endif /* WAYLAND_1_10_OR_GREATER */
 
 
+/* Touch */
+static void
+touch_on_down (void *data,
+               struct wl_touch *touch,
+               uint32_t serial,
+               uint32_t time,
+               struct wl_surface *surface,
+               int32_t id,
+               wl_fixed_t x,
+               wl_fixed_t y)
+{
+    if (id < 0 || id >= 10)
+        return;
+
+    PwlDisplay *display = data;
+    wl_data.touch.id = id;
+    wl_data.touch.time = time;
+    wl_data.touch.x = x;
+    wl_data.touch.y = y;
+    if (display->on_touch_on_down) {
+        display->on_touch_on_down (display, display->userdata);
+    }
+}
+
+static void
+touch_on_up (void *data,
+             struct wl_touch *touch,
+             uint32_t serial,
+             uint32_t time,
+             int32_t id)
+{
+    if (id < 0 || id >= 10)
+        return;
+    wl_data.touch.id = id;
+    wl_data.touch.time = time;
+    PwlDisplay *display = data;
+    if (display->on_touch_on_up) {
+        display->on_touch_on_up (display, display->userdata);
+    }
+}
+
+static void
+touch_on_motion (void *data,
+                 struct wl_touch *touch,
+                 uint32_t time,
+                 int32_t id,
+                 wl_fixed_t x,
+                 wl_fixed_t y)
+{
+    if (id < 0 || id >= 10)
+        return;
+    wl_data.touch.id = id;
+    wl_data.touch.time = time;
+    wl_data.touch.x = x;
+    wl_data.touch.y = y;
+    PwlDisplay *display = (PwlDisplay*) data;
+    if (display->on_touch_on_motion) {
+        display->on_touch_on_motion (display, display->userdata);
+    }
+}
+
+static void
+touch_on_frame (void *data, struct wl_touch *touch)
+{
+    /* @FIXME: buffer touch events and handle them here */
+}
+
+static void
+touch_on_cancel (void *data, struct wl_touch *touch)
+{
+}
+
 /* Keyboard */
 void
 keyboard_on_keymap (void *data,
@@ -941,7 +1013,14 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     if (has_touch && wl_data.touch.obj == NULL) {
         wl_data.touch.obj = wl_seat_get_touch (display->seat);
         g_assert (wl_data.touch.obj);
-        wl_touch_add_listener (wl_data.touch.obj, &wl_data.touch.listener, data);
+        static const struct wl_touch_listener touch_listener = {
+            .down = touch_on_down,
+            .up = touch_on_up,
+            .motion = touch_on_motion,
+            .frame = touch_on_frame,
+            .cancel = touch_on_cancel,
+        };
+        wl_touch_add_listener (wl_data.touch.obj, &touch_listener, data);
         g_debug ("  - Touch");
     } else if (! has_touch && wl_data.touch.obj != NULL) {
         wl_touch_release (wl_data.touch.obj);
