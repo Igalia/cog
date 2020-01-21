@@ -34,8 +34,7 @@
 const static int wpe_view_activity_state_initiated = 1 << 4;
 
 static PwlDisplay *s_pdisplay = NULL;
-static PwlWinData *s_win_data = NULL;
-
+static PwlWindow* s_pwindow = NULL;
 static bool s_support_checked = false;
 G_LOCK_DEFINE_STATIC (s_globals);
 
@@ -318,19 +317,17 @@ cog_fdo_shell_class_finalize (CogFdoShellClass *klass)
 */
     clear_input (s_pdisplay);
 
-    destroy_window (s_pdisplay, s_win_data);
+    destroy_window (s_pdisplay, s_pwindow);
     pwl_display_egl_deinit (s_pdisplay);
 }
 
 
 static void
-on_window_resize (PwlWinData *win_data, void *userdata)
+on_window_resize (PwlWindow *window, void *userdata)
 {
     CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-    wpe_view_backend_dispatch_set_size (backend,
-                                        win_data->width,
-                                        win_data->height);
+    wpe_view_backend_dispatch_set_size (backend, window->width, window->height);
 }
 
 
@@ -428,7 +425,7 @@ static const struct wl_callback_listener frame_listener = {
 static void
 request_frame (struct wpe_view_backend_exportable_fdo *exportable)
 {
-    struct wl_callback *frame_callback = wl_surface_frame (s_win_data->wl_surface);
+    struct wl_callback *frame_callback = wl_surface_frame (s_pwindow->wl_surface);
     wl_callback_add_listener (frame_callback,
                               &frame_listener,
                               exportable);
@@ -466,14 +463,14 @@ on_export_fdo_egl_image (void *data, struct wpe_fdo_egl_exported_image *image)
     wpe_view_backend_add_activity_state (backend_data->backend, wpe_view_activity_state_initiated);
 
 
-    if (s_win_data->is_fullscreen) {
+    if (s_pwindow->is_fullscreen) {
         struct wl_region *region;
         region = wl_compositor_create_region (s_pdisplay->compositor);
-        wl_region_add (region, 0, 0, s_win_data->width, s_win_data->height);
-        wl_surface_set_opaque_region (s_win_data->wl_surface, region);
+        wl_region_add (region, 0, 0, s_pwindow->width, s_pwindow->height);
+        wl_surface_set_opaque_region (s_pwindow->wl_surface, region);
         wl_region_destroy (region);
     } else {
-        wl_surface_set_opaque_region (s_win_data->wl_surface, NULL);
+        wl_surface_set_opaque_region (s_pwindow->wl_surface, NULL);
     }
 
     static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
@@ -488,14 +485,14 @@ on_export_fdo_egl_image (void *data, struct wpe_fdo_egl_exported_image *image)
     g_assert (buffer);
     wl_buffer_add_listener (buffer, &buffer_listener, data);
 
-    wl_surface_attach (s_win_data->wl_surface, buffer, 0, 0);
-    wl_surface_damage (s_win_data->wl_surface,
+    wl_surface_attach (s_pwindow->wl_surface, buffer, 0, 0);
+    wl_surface_damage (s_pwindow->wl_surface,
                        0, 0,
-                       s_win_data->width * s_pdisplay->current_output.scale,
-                       s_win_data->height * s_pdisplay->current_output.scale);
+                       s_pwindow->width * s_pdisplay->current_output.scale,
+                       s_pwindow->height * s_pdisplay->current_output.scale);
     request_frame (backend_data->exportable);
 
-    wl_surface_commit (s_win_data->wl_surface);
+    wl_surface_commit (s_pwindow->wl_surface);
 }
 
 WebKitWebViewBackend*
@@ -577,7 +574,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
     }
 
     TRACE ("");
-    s_win_data = g_new0 (PwlWinData, 1);
+    s_pwindow = g_new0 (PwlWindow, 1);
 
 #if HAVE_DEVICE_SCALING
     s_pdisplay->on_surface_enter = on_surface_enter;
@@ -608,20 +605,20 @@ cog_fdo_shell_initable_init (GInitable *initable,
     if (!pwl_display_egl_init (s_pdisplay, error))
         return FALSE;
 
-    if (!create_window (s_pdisplay, s_win_data, error)) {
+    if (!create_window (s_pdisplay, s_pwindow, error)) {
         pwl_display_egl_deinit (s_pdisplay);
         return FALSE;
     }
 
-    s_win_data->on_window_resize = on_window_resize;
-    s_win_data->on_window_resize_userdata = initable;
+    s_pwindow->on_window_resize = on_window_resize;
+    s_pwindow->on_window_resize_userdata = initable;
 
     s_pdisplay->xkb_data.modifier.control = wpe_input_keyboard_modifier_control;
     s_pdisplay->xkb_data.modifier.alt = wpe_input_keyboard_modifier_alt;
     s_pdisplay->xkb_data.modifier.shift = wpe_input_keyboard_modifier_shift;
 
     if (!init_input (s_pdisplay, error)) {
-        destroy_window (s_pdisplay, s_win_data);
+        destroy_window (s_pdisplay, s_pwindow);
         pwl_display_egl_deinit (s_pdisplay);
         return FALSE;
     }

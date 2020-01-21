@@ -180,9 +180,9 @@ struct pwl_event_source {
     struct wl_display* display;
 };
 
-typedef struct _PwlWinData PwlWinData;
+typedef struct _PwlWindow PwlWindow;
 
-struct _PwlWinData {
+struct _PwlWindow {
     PwlDisplay *display;
 
     struct wl_surface *wl_surface;
@@ -200,7 +200,7 @@ struct _PwlWinData {
     bool is_fullscreen;
     bool is_maximized;
 
-    void (*on_window_resize) (PwlWinData*, void *userdata);
+    void (*on_window_resize) (PwlWindow*, void *userdata);
     void *on_window_resize_userdata;
 };
 
@@ -213,8 +213,8 @@ void pwl_display_egl_deinit (PwlDisplay*);
 
 gboolean init_wayland (PwlDisplay*, GError **error);
 
-gboolean create_window (PwlDisplay*, PwlWinData*, GError **error);
-void destroy_window (PwlDisplay*, PwlWinData*);
+gboolean create_window (PwlDisplay*, PwlWindow*, GError **error);
+void destroy_window (PwlDisplay*, PwlWindow*);
 
 gboolean init_input (PwlDisplay*, GError **error);
 void clear_input (PwlDisplay*);
