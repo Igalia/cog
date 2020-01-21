@@ -853,15 +853,6 @@ cog_fdo_shell_initable_init (GInitable *initable,
     xkb_data.modifier.control = wpe_input_keyboard_modifier_control;
     xkb_data.modifier.alt = wpe_input_keyboard_modifier_alt;
     xkb_data.modifier.shift = wpe_input_keyboard_modifier_shift;
-    const struct wl_keyboard_listener keyboard_listener = {
-        .keymap = keyboard_on_keymap,
-        .enter = keyboard_on_enter,
-        .leave = keyboard_on_leave,
-        .key = keyboard_on_key,
-        .modifiers = keyboard_on_modifiers,
-        .repeat_info = keyboard_on_repeat_info,
-    };
-    wl_data.keyboard.listener = keyboard_listener;
 
     const struct wl_touch_listener touch_listener = {
         .down = touch_on_down,
