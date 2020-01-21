@@ -47,6 +47,9 @@ struct _PwlDisplay {
     EGLConfig egl_config;
 
     void (*on_surface_enter) (PwlDisplay*, void *userdata);
+    void (*on_pointer_on_motion) (PwlDisplay*, void *userdata);
+    void (*on_pointer_on_button) (PwlDisplay*, void *userdata);
+    void (*on_pointer_on_axis) (PwlDisplay*, void *userdata);
 
     void *userdata;
 };
@@ -97,11 +100,13 @@ typedef struct {
 
     struct {
         struct wl_pointer *obj;
+        uint32_t time;
+        uint32_t axis;
         int32_t x;
         int32_t y;
         uint32_t button;
         uint32_t state;
-        struct wl_pointer_listener listener;
+        wl_fixed_t value;
     } pointer;
 
     struct {
