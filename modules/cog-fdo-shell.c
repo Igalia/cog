@@ -339,8 +339,8 @@ cog_fdo_shell_class_finalize (CogFdoShellClass *klass)
 static void
 on_window_resize (PwlWinData *win_data, void *userdata)
 {
-    CogFdoShellCallbackData *cb_userdata = userdata;
-    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (cb_userdata->shell);
+    CogShell *shell = userdata;
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
     wpe_view_backend_dispatch_set_size (backend,
                                         win_data->width,
                                         win_data->height);
@@ -631,7 +631,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
     }
 
     s_win_data->on_window_resize = on_window_resize;
-    s_win_data->on_window_resize_userdata = s_callback_userdata;
+    s_win_data->on_window_resize_userdata = initable;
 
     xkb_data.modifier.control = wpe_input_keyboard_modifier_control;
     xkb_data.modifier.alt = wpe_input_keyboard_modifier_alt;
