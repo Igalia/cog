@@ -200,6 +200,10 @@ struct wl_surface* pwl_window_get_surface (const PwlWindow*);
 void pwl_window_get_size (const PwlWindow*, uint32_t *w, uint32_t *h);
 
 bool pwl_window_is_fullscreen (const PwlWindow*);
+void pwl_window_set_fullscreen (PwlWindow*, bool fullscreen);
+
+bool pwl_window_is_maximized (const PwlWindow*);
+void pwl_window_set_maximized (PwlWindow*, bool maximized);
 
 void pwl_window_set_opaque_region (const PwlWindow*,
                                    uint32_t x, uint32_t y,
