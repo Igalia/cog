@@ -210,8 +210,6 @@ void pwl_window_notify_resize (PwlWindow*,
                                void (*callback) (PwlWindow*, uint32_t w, uint32_t h, void*),
                                void *userdata);
 
-gboolean create_window (PwlDisplay*, PwlWindow*, GError **error);
-
 gboolean init_input (PwlDisplay*, GError **error);
 void clear_input (PwlDisplay*);
 

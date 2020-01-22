@@ -348,11 +348,6 @@ shell_surface_configure (void *data,
     resize_window (window);
 }
 
-static const struct wl_shell_surface_listener shell_surface_listener = {
-    .ping = shell_surface_ping,
-    .configure = shell_surface_configure,
-};
-
 static void
 xdg_shell_ping (void *data, struct xdg_wm_base *shell, uint32_t serial)
 {
@@ -576,10 +571,6 @@ xdg_surface_on_configure (void *data,
     xdg_surface_ack_configure (surface, serial);
 }
 
-static const struct xdg_surface_listener xdg_surface_listener = {
-    .configure = xdg_surface_on_configure
-};
-
 static void
 xdg_toplevel_on_configure (void *data,
                            struct xdg_toplevel *toplevel,
@@ -600,69 +591,9 @@ xdg_toplevel_on_close (void *data, struct xdg_toplevel *xdg_toplevel)
     // TODO g_application_quit (g_application_get_default ());
 }
 
-static const struct xdg_toplevel_listener xdg_toplevel_listener = {
-    .configure = xdg_toplevel_on_configure,
-    .close = xdg_toplevel_on_close,
-};
-
-
-gboolean create_window (PwlDisplay* display, PwlWindow* window, GError **error)
+static void
+create_window (PwlDisplay* display, PwlWindow* window)
 {
-    g_debug ("Creating Wayland surface...");
-
-#if HAVE_DEVICE_SCALING
-    static const struct wl_surface_listener surface_listener = {
-        .enter = surface_handle_enter,
-        .leave = noop,
-    };
-    wl_surface_add_listener (window->wl_surface, &surface_listener, display);
-#endif /* HAVE_DEVICE_SCALING */
-
-    if (display->xdg_shell != NULL) {
-        window->xdg_surface =
-            xdg_wm_base_get_xdg_surface (display->xdg_shell,
-                                         window->wl_surface);
-        g_assert (window->xdg_surface);
-
-        xdg_surface_add_listener (window->xdg_surface, &xdg_surface_listener,
-                                  NULL);
-        window->xdg_toplevel =
-            xdg_surface_get_toplevel (window->xdg_surface);
-        g_assert (window->xdg_toplevel);
-
-        xdg_toplevel_add_listener (window->xdg_toplevel,
-                                   &xdg_toplevel_listener, window);
-        // TODO: xdg_toplevel_set_title (window.xdg_toplevel, COG_DEFAULT_APPNAME);
-
-        const char *app_id = NULL;
-        GApplication *app = g_application_get_default ();
-        if (app) {
-            app_id = g_application_get_application_id (app);
-        }
-        if (!app_id) {
-            // TODO: app_id = COG_DEFAULT_APPID;
-        }
-        xdg_toplevel_set_app_id (window->xdg_toplevel, app_id);
-        wl_surface_commit(window->wl_surface);
-    } else if (display->fshell != NULL) {
-        zwp_fullscreen_shell_v1_present_surface (display->fshell,
-                                                 window->wl_surface,
-                                                 ZWP_FULLSCREEN_SHELL_V1_PRESENT_METHOD_DEFAULT,
-                                                 NULL);
-    } else if (display->shell != NULL) {
-        window->shell_surface = wl_shell_get_shell_surface (display->shell,
-                                                            window->wl_surface);
-        g_assert (window->shell_surface);
-
-        wl_shell_surface_add_listener (window->shell_surface,
-                                       &shell_surface_listener,
-                                       window);
-        wl_shell_surface_set_toplevel (window->shell_surface);
-
-        /* wl_shell needs an initial surface configuration. */
-        configure_surface_geometry (window, 0, 0);
-    }
-
     const char* env_var;
     if ((env_var = g_getenv ("COG_PLATFORM_FDO_VIEW_FULLSCREEN")) &&
         g_ascii_strtoll (env_var, NULL, 10) > 0)
@@ -697,8 +628,6 @@ gboolean create_window (PwlDisplay* display, PwlWindow* window, GError **error)
             window->is_maximized = false;
         }
     }
-
-    return TRUE;
 }
 
 static void
@@ -1188,7 +1117,64 @@ pwl_window_create (PwlDisplay *display)
     self->height = DEFAULT_HEIGHT,
     self->wl_surface = wl_compositor_create_surface (display->compositor);
 
-    /* TODO: Move the rest of window initialization here. */
+#if HAVE_DEVICE_SCALING
+    static const struct wl_surface_listener surface_listener = {
+        .enter = surface_handle_enter,
+        .leave = noop,
+    };
+    wl_surface_add_listener (self->wl_surface, &surface_listener, display);
+#endif /* HAVE_DEVICE_SCALING */
+
+    if (display->xdg_shell) {
+        self->xdg_surface = xdg_wm_base_get_xdg_surface (display->xdg_shell,
+                                                         self->wl_surface);
+        static const struct xdg_surface_listener xdg_surface_listener = {
+            .configure = xdg_surface_on_configure,
+        };
+        xdg_surface_add_listener (self->xdg_surface,
+                                  &xdg_surface_listener,
+                                  NULL);
+
+        self->xdg_toplevel = xdg_surface_get_toplevel (self->xdg_surface);
+        static const struct xdg_toplevel_listener xdg_toplevel_listener = {
+            .configure = xdg_toplevel_on_configure,
+            .close = xdg_toplevel_on_close,
+        };
+        xdg_toplevel_add_listener (self->xdg_toplevel,
+                                   &xdg_toplevel_listener,
+                                   self);
+
+        // TODO: xdg_toplevel_set_title (window.xdg_toplevel, COG_DEFAULT_APPNAME);
+        // TODO: xdg_toplevel_set_app_id (window->xdg_toplevel, app_id);
+
+        wl_surface_commit(self->wl_surface);
+    } else if (display->fshell) {
+        zwp_fullscreen_shell_v1_present_surface (display->fshell,
+                                                 self->wl_surface,
+                                                 ZWP_FULLSCREEN_SHELL_V1_PRESENT_METHOD_DEFAULT,
+                                                 NULL);
+        self->is_fullscreen = true;
+    } else if (display->shell) {
+        self->shell_surface = wl_shell_get_shell_surface (display->shell,
+                                                          self->wl_surface);
+        static const struct wl_shell_surface_listener shell_surface_listener = {
+            .ping = shell_surface_ping,
+            .configure = shell_surface_configure,
+        };
+        wl_shell_surface_add_listener (self->shell_surface,
+                                       &shell_surface_listener,
+                                       self);
+        wl_shell_surface_set_toplevel (self->shell_surface);
+
+        /* wl_shell needs an initial surface configuration. */
+        configure_surface_geometry (self, 0, 0);
+    }
+
+    /*
+     * TODO: Remove this call to create_window() and instead have proper
+     *       methods to set maximization and fullscreen states.
+     */
+    create_window (display, self);
 
     return g_steal_pointer (&self);
 }
