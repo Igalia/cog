@@ -437,7 +437,7 @@ request_frame (struct wpe_view_backend_exportable_fdo *exportable)
 static void
 on_buffer_release (void* data, struct wl_buffer* buffer)
 {
-    WpeViewBackendData *backend_data = (WpeViewBackendData*) data;
+    WpeViewBackendData *backend_data = data;
 
     /* TODO: These asserts might be unnecessary, but having for now. */
     g_assert (backend_data);
@@ -458,7 +458,7 @@ static const struct wl_buffer_listener buffer_listener = {
 static void
 on_export_fdo_egl_image (void *data, struct wpe_fdo_egl_exported_image *image)
 {
-    WpeViewBackendData *backend_data = (WpeViewBackendData*) data;
+    WpeViewBackendData *backend_data = data;
     g_assert (backend_data);
 
     backend_data->image = image;

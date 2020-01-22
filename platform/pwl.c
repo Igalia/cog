@@ -152,7 +152,7 @@ output_handle_scale (void *data,
                      struct wl_output *output,
                      int32_t factor)
 {
-    PwlDisplay *display = (PwlDisplay*) data;
+    PwlDisplay *display = data;
     bool found = false;
     for (int i = 0; i < G_N_ELEMENTS (display->metrics); i++)
     {
@@ -314,7 +314,7 @@ shell_surface_configure (void *data,
                          uint32_t edges,
                          int32_t width, int32_t height)
 {
-    PwlWinData *win_data = (PwlWinData*) data;
+    PwlWinData *win_data = data;
     configure_surface_geometry (win_data, width, height);
 
     g_debug ("New wl_shell configuration: (%" PRIu32 ", %" PRIu32 ")", width, height);
@@ -344,7 +344,7 @@ registry_global (void               *data,
                  const char         *interface,
                  uint32_t            version)
 {
-    PwlDisplay *display = (PwlDisplay*) data;
+    PwlDisplay *display = data;
     gboolean interface_used = TRUE;
 
     if (strcmp (interface, wl_compositor_interface.name) == 0) {
@@ -412,7 +412,7 @@ registry_global (void               *data,
 static void
 registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
 {
-    PwlDisplay *display = (PwlDisplay*) data;
+    PwlDisplay *display = data;
     for (int i = 0; i < G_N_ELEMENTS (display->metrics); i++)
     {
         if (display->metrics[i].name == name) {
@@ -560,7 +560,7 @@ xdg_toplevel_on_configure (void *data,
                            int32_t width, int32_t height,
                            struct wl_array *states)
 {
-    PwlWinData *win_data = (PwlWinData*) data;
+    PwlWinData *win_data = data;
     configure_surface_geometry (win_data, width, height);
 
     g_debug ("New XDG toplevel configuration: (%" PRIu32 ", %" PRIu32 ")", width, height);
@@ -873,7 +873,7 @@ touch_on_motion (void *data,
 {
     if (id < 0 || id >= 10)
         return;
-    PwlDisplay *display = (PwlDisplay*) data;
+    PwlDisplay *display = data;
     display->touch.id = id;
     display->touch.time = time;
     display->touch.x = x;
@@ -902,7 +902,7 @@ keyboard_on_keymap (void *data,
                     int32_t fd,
                     uint32_t size)
 {
-    PwlDisplay *display = (PwlDisplay*) data;
+    PwlDisplay *display = data;
 
     if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1) {
         close (fd);
@@ -945,7 +945,7 @@ keyboard_on_enter (void *data,
                    struct wl_surface *surface,
                    struct wl_array *keys)
 {
-    PwlDisplay *display = (PwlDisplay*) data;
+    PwlDisplay *display = data;
     display->keyboard.serial = serial;
 }
 
@@ -955,14 +955,14 @@ keyboard_on_leave (void *data,
                    uint32_t serial,
                    struct wl_surface *surface)
 {
-    PwlDisplay *display = (PwlDisplay*) data;
+    PwlDisplay *display = data;
     display->keyboard.serial = serial;
 }
 
 gboolean
 repeat_delay_timeout (void *data)
 {
-    PwlDisplay *display = (PwlDisplay*) data;
+    PwlDisplay *display = data;
     handle_key_event (data, display->keyboard.repeat_data.key,
                       display->keyboard.repeat_data.state,
                       display->keyboard.repeat_data.time);
@@ -982,7 +982,7 @@ keyboard_on_key (void *data,
                  uint32_t key,
                  uint32_t state)
 {
-    PwlDisplay *display = (PwlDisplay*) data;
+    PwlDisplay *display = data;
     /* @FIXME: investigate why is this necessary */
     // IDK.
     key += 8;
@@ -1024,7 +1024,7 @@ keyboard_on_modifiers (void *data,
                        uint32_t mods_locked,
                        uint32_t group)
 {
-    PwlDisplay *display = (PwlDisplay*) data;
+    PwlDisplay *display = data;
     xkb_state_update_mask (display->xkb_data.state,
                            mods_depressed,
                            mods_latched,
@@ -1060,7 +1060,7 @@ keyboard_on_repeat_info (void *data,
                          int32_t rate,
                          int32_t delay)
 {
-    PwlDisplay *display = (PwlDisplay*) data;
+    PwlDisplay *display = data;
     display->keyboard.repeat_info.rate = rate;
     display->keyboard.repeat_info.delay = delay;
 
@@ -1078,7 +1078,7 @@ static void
 seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
 {
     g_debug ("Enumerating seat capabilities:");
-    PwlDisplay *display = (PwlDisplay*) data;
+    PwlDisplay *display = data;
 
     /* Pointer */
     static const struct wl_pointer_listener pointer_listener = {
