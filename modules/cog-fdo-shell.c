@@ -323,11 +323,11 @@ cog_fdo_shell_class_finalize (CogFdoShellClass *klass)
 
 
 static void
-on_window_resize (PwlWindow *window, void *userdata)
+on_window_resize (PwlWindow *window, uint32_t width, uint32_t height, void *userdata)
 {
     CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-    wpe_view_backend_dispatch_set_size (backend, window->width, window->height);
+    wpe_view_backend_dispatch_set_size (backend, width, height);
 }
 
 
@@ -425,7 +425,7 @@ static const struct wl_callback_listener frame_listener = {
 static void
 request_frame (struct wpe_view_backend_exportable_fdo *exportable)
 {
-    struct wl_callback *frame_callback = wl_surface_frame (s_pwindow->wl_surface);
+    struct wl_callback *frame_callback = wl_surface_frame (pwl_window_get_surface (s_pwindow));
     wl_callback_add_listener (frame_callback,
                               &frame_listener,
                               exportable);
@@ -462,15 +462,12 @@ on_export_fdo_egl_image (void *data, struct wpe_fdo_egl_exported_image *image)
     wpe_view_data.image = image;
     wpe_view_backend_add_activity_state (backend_data->backend, wpe_view_activity_state_initiated);
 
-
-    if (s_pwindow->is_fullscreen) {
-        struct wl_region *region;
-        region = wl_compositor_create_region (s_pdisplay->compositor);
-        wl_region_add (region, 0, 0, s_pwindow->width, s_pwindow->height);
-        wl_surface_set_opaque_region (s_pwindow->wl_surface, region);
-        wl_region_destroy (region);
+    if (pwl_window_is_fullscreen (s_pwindow)) {
+        uint32_t width, height;
+        pwl_window_get_size (s_pwindow, &width, &height);
+        pwl_window_set_opaque_region (s_pwindow, 0, 0, width, height);
     } else {
-        wl_surface_set_opaque_region (s_pwindow->wl_surface, NULL);
+        pwl_window_unset_opaque_region (s_pwindow);
     }
 
     static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
@@ -485,14 +482,18 @@ on_export_fdo_egl_image (void *data, struct wpe_fdo_egl_exported_image *image)
     g_assert (buffer);
     wl_buffer_add_listener (buffer, &buffer_listener, data);
 
-    wl_surface_attach (s_pwindow->wl_surface, buffer, 0, 0);
-    wl_surface_damage (s_pwindow->wl_surface,
+    uint32_t width, height;
+    pwl_window_get_size (s_pwindow, &width, &height);
+    struct wl_surface *surface = pwl_window_get_surface (s_pwindow);
+
+    wl_surface_attach (surface, buffer, 0, 0);
+    wl_surface_damage (surface,
                        0, 0,
-                       s_pwindow->width * s_pdisplay->current_output.scale,
-                       s_pwindow->height * s_pdisplay->current_output.scale);
+                       width * s_pdisplay->current_output.scale,
+                       height * s_pdisplay->current_output.scale);
     request_frame (backend_data->exportable);
 
-    wl_surface_commit (s_pwindow->wl_surface);
+    wl_surface_commit (surface);
 }
 
 WebKitWebViewBackend*
@@ -615,8 +616,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
         return FALSE;
     }
 
-    s_pwindow->on_window_resize = on_window_resize;
-    s_pwindow->on_window_resize_userdata = initable;
+    pwl_window_notify_resize (s_pwindow, on_window_resize, initable);
 
     s_pdisplay->xkb_data.modifier.control = wpe_input_keyboard_modifier_control;
     s_pdisplay->xkb_data.modifier.alt = wpe_input_keyboard_modifier_alt;

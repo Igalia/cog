@@ -8,13 +8,36 @@
  */
 
 #include "pwl.h"
-
 #include <errno.h>
-
-/* for mmap */
+#include <gio/gio.h>
 #include <sys/mman.h>
 
-#include <gio/gio.h>
+
+struct _PwlWindow {
+    PwlDisplay *display;
+
+    struct wl_surface *wl_surface;
+    struct wl_surface_listener surface_listener;
+    struct wl_egl_window *egl_window;
+    EGLSurface egl_surface;
+
+    struct xdg_surface *xdg_surface;
+    struct xdg_toplevel *xdg_toplevel;
+    struct wl_shell_surface *shell_surface;
+
+    uint32_t width;
+    uint32_t height;
+
+    bool is_fullscreen;
+    bool is_maximized;
+
+    void (*on_window_resize) (PwlWindow*,
+                              uint32_t width,
+                              uint32_t height,
+                              void *userdata);
+    void *on_window_resize_userdata;
+};
+
 
 
 PwlDisplay*
@@ -272,7 +295,10 @@ resize_window (PwlWindow *window)
             pixel_width, pixel_height, window->display->current_output.scale);
 
     if (window->on_window_resize) {
-        (*window->on_window_resize) (window, window->on_window_resize_userdata);
+        (*window->on_window_resize) (window,
+                                     window->width,
+                                     window->height,
+                                     window->on_window_resize_userdata);
     }
 }
 
@@ -1177,6 +1203,67 @@ pwl_window_destroy (PwlWindow *self)
     destroy_window (self->display, self);
     g_slice_free (PwlWindow, self);
 }
+
+
+struct wl_surface*
+pwl_window_get_surface (const PwlWindow *self)
+{
+    g_return_val_if_fail (self, NULL);
+    return self->wl_surface;
+}
+
+
+void
+pwl_window_get_size (const PwlWindow *self, uint32_t *w, uint32_t *h)
+{
+    g_return_if_fail (self);
+    g_return_if_fail (w || h);
+
+    if (w) *w = self->width;
+    if (h) *h = self->height;
+}
+
+
+bool
+pwl_window_is_fullscreen (const PwlWindow *self)
+{
+    g_return_val_if_fail (self, false);
+    return self->is_fullscreen;
+}
+
+
+void
+pwl_window_set_opaque_region (const PwlWindow *self,
+                              uint32_t x, uint32_t y, uint32_t w, uint32_t h)
+{
+    g_return_if_fail (self);
+
+    struct wl_region *region = wl_compositor_create_region (self->display->compositor);
+    wl_region_add (region, x, y, w, h);
+    wl_surface_set_opaque_region (self->wl_surface, region);
+    wl_region_destroy (region);
+}
+
+
+void
+pwl_window_unset_opaque_region (const PwlWindow *self)
+{
+    g_return_if_fail (self);
+    wl_surface_set_opaque_region (self->wl_surface, NULL);
+}
+
+
+void
+pwl_window_notify_resize (PwlWindow *self,
+                          void (*callback) (PwlWindow*, uint32_t w, uint32_t h, void*),
+                          void *userdata)
+{
+    g_return_if_fail (self);
+
+    self->on_window_resize = callback;
+    self->on_window_resize_userdata = userdata;
+}
+
 
 gboolean init_input (PwlDisplay *display, GError **error)
 {

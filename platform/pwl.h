@@ -182,28 +182,6 @@ struct pwl_event_source {
 
 typedef struct _PwlWindow PwlWindow;
 
-struct _PwlWindow {
-    PwlDisplay *display;
-
-    struct wl_surface *wl_surface;
-    struct wl_surface_listener surface_listener;
-    struct wl_egl_window *egl_window;
-    EGLSurface egl_surface;
-
-    struct xdg_surface *xdg_surface;
-    struct xdg_toplevel *xdg_toplevel;
-    struct wl_shell_surface *shell_surface;
-
-    uint32_t width;
-    uint32_t height;
-
-    bool is_fullscreen;
-    bool is_maximized;
-
-    void (*on_window_resize) (PwlWindow*, void *userdata);
-    void *on_window_resize_userdata;
-};
-
 GSource *
 setup_wayland_event_source (GMainContext *main_context,
                             PwlDisplay *display);
@@ -215,8 +193,22 @@ gboolean init_wayland (PwlDisplay*, GError **error);
 
 PwlWindow* pwl_window_create (PwlDisplay*);
 void pwl_window_destroy (PwlWindow*);
-
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (PwlWindow, pwl_window_destroy)
+
+struct wl_surface* pwl_window_get_surface (const PwlWindow*);
+
+void pwl_window_get_size (const PwlWindow*, uint32_t *w, uint32_t *h);
+
+bool pwl_window_is_fullscreen (const PwlWindow*);
+
+void pwl_window_set_opaque_region (const PwlWindow*,
+                                   uint32_t x, uint32_t y,
+                                   uint32_t w, uint32_t h);
+void pwl_window_unset_opaque_region (const PwlWindow*);
+
+void pwl_window_notify_resize (PwlWindow*,
+                               void (*callback) (PwlWindow*, uint32_t w, uint32_t h, void*),
+                               void *userdata);
 
 gboolean create_window (PwlDisplay*, PwlWindow*, GError **error);
 
