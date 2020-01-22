@@ -83,9 +83,6 @@ wpe_view_backend_data_free (WpeViewBackendData *data)
     g_free (data);
 }
 
-
-/* Output scale */
-#if HAVE_DEVICE_SCALING
 struct wpe_view_backend*
 cog_shell_get_active_wpe_backend (CogShell *shell)
 {
@@ -94,6 +91,8 @@ cog_shell_get_active_wpe_backend (CogShell *shell)
     return webkit_web_view_backend_get_wpe_backend (webkit_web_view_get_backend (webview));
 }
 
+/* Output scale */
+#if HAVE_DEVICE_SCALING
 static void
 on_surface_enter (PwlDisplay* display, void *userdata)
 {
