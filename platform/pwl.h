@@ -35,6 +35,18 @@
 
 G_BEGIN_DECLS
 
+typedef struct {
+    struct wl_pointer *obj;
+    uint32_t time;
+    uint32_t axis;
+    int32_t x;
+    int32_t y;
+    uint32_t button;
+    uint32_t state;
+    wl_fixed_t value;
+    void *data;
+} PwlPointer;
+
 typedef struct _PwlDisplay PwlDisplay;
 
 struct _PwlDisplay {
@@ -45,6 +57,8 @@ struct _PwlDisplay {
     struct egl_display *egl_display;
     EGLContext egl_context;
     EGLConfig egl_config;
+
+    PwlPointer pointer;
 
     void (*on_surface_enter) (PwlDisplay*, void *userdata);
     void *on_surface_enter_userdata;
@@ -111,17 +125,6 @@ typedef struct {
     struct {
         int32_t scale;
     } current_output;
-
-    struct {
-        struct wl_pointer *obj;
-        uint32_t time;
-        uint32_t axis;
-        int32_t x;
-        int32_t y;
-        uint32_t button;
-        uint32_t state;
-        wl_fixed_t value;
-    } pointer;
 
     struct {
         struct wl_keyboard *obj;
