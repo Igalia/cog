@@ -47,6 +47,14 @@ typedef struct {
     void *data;
 } PwlPointer;
 
+typedef struct {
+    struct wl_touch *obj;
+    int32_t id;
+    uint32_t time;
+    wl_fixed_t x;
+    wl_fixed_t y;
+} PwlTouch;
+
 typedef struct _PwlDisplay PwlDisplay;
 
 struct _PwlDisplay {
@@ -59,6 +67,7 @@ struct _PwlDisplay {
     EGLConfig egl_config;
 
     PwlPointer pointer;
+    PwlTouch touch;
 
     void (*on_surface_enter) (PwlDisplay*, void *userdata);
     void *on_surface_enter_userdata;
@@ -151,14 +160,6 @@ typedef struct {
 
         uint32_t serial;
     } keyboard;
-
-    struct {
-        struct wl_touch *obj;
-        int32_t id;
-        uint32_t time;
-        wl_fixed_t x;
-        wl_fixed_t y;
-    } touch;
 
     GSource *event_src;
 } PwlData;

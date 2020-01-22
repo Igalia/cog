@@ -840,10 +840,10 @@ touch_on_down (void *data,
         return;
 
     PwlDisplay *display = data;
-    wl_data.touch.id = id;
-    wl_data.touch.time = time;
-    wl_data.touch.x = x;
-    wl_data.touch.y = y;
+    display->touch.id = id;
+    display->touch.time = time;
+    display->touch.x = x;
+    display->touch.y = y;
     if (display->on_touch_on_down) {
         display->on_touch_on_down (display, display->on_touch_on_down_userdata);
     }
@@ -858,9 +858,9 @@ touch_on_up (void *data,
 {
     if (id < 0 || id >= 10)
         return;
-    wl_data.touch.id = id;
-    wl_data.touch.time = time;
     PwlDisplay *display = data;
+    display->touch.id = id;
+    display->touch.time = time;
     if (display->on_touch_on_up) {
         display->on_touch_on_up (display, display->on_touch_on_up_userdata);
     }
@@ -876,11 +876,11 @@ touch_on_motion (void *data,
 {
     if (id < 0 || id >= 10)
         return;
-    wl_data.touch.id = id;
-    wl_data.touch.time = time;
-    wl_data.touch.x = x;
-    wl_data.touch.y = y;
     PwlDisplay *display = (PwlDisplay*) data;
+    display->touch.id = id;
+    display->touch.time = time;
+    display->touch.x = x;
+    display->touch.y = y;
     if (display->on_touch_on_motion) {
         display->on_touch_on_motion (display, display->on_touch_on_motion_userdata);
     }
@@ -1123,9 +1123,9 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
 
     /* Touch */
     const bool has_touch = capabilities & WL_SEAT_CAPABILITY_TOUCH;
-    if (has_touch && wl_data.touch.obj == NULL) {
-        wl_data.touch.obj = wl_seat_get_touch (display->seat);
-        g_assert (wl_data.touch.obj);
+    if (has_touch && display->touch.obj == NULL) {
+        display->touch.obj = wl_seat_get_touch (display->seat);
+        g_assert (display->touch.obj);
         static const struct wl_touch_listener touch_listener = {
             .down = touch_on_down,
             .up = touch_on_up,
@@ -1133,11 +1133,11 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
             .frame = touch_on_frame,
             .cancel = touch_on_cancel,
         };
-        wl_touch_add_listener (wl_data.touch.obj, &touch_listener, data);
+        wl_touch_add_listener (display->touch.obj, &touch_listener, data);
         g_debug ("  - Touch");
-    } else if (! has_touch && wl_data.touch.obj != NULL) {
-        wl_touch_release (wl_data.touch.obj);
-        wl_data.touch.obj = NULL;
+    } else if (! has_touch && display->touch.obj != NULL) {
+        wl_touch_release (display->touch.obj);
+        display->touch.obj = NULL;
     }
 
     g_debug ("Done enumerating seat capabilities.");
