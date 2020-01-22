@@ -36,6 +36,32 @@
 G_BEGIN_DECLS
 
 typedef struct {
+    struct wl_keyboard *obj;
+
+    struct {
+        int32_t rate;
+        int32_t delay;
+    } repeat_info;
+
+    struct {
+        uint32_t key;
+        uint32_t time;
+        uint32_t state;
+        uint32_t event_source;
+    } repeat_data;
+
+    struct {
+        uint32_t keysym;
+        uint32_t unicode;
+        uint32_t state;
+        uint8_t modifiers;
+        uint32_t timestamp;
+    } event;
+
+    uint32_t serial;
+} PwlKeyboard;
+
+typedef struct {
     struct wl_pointer *obj;
     uint32_t time;
     uint32_t axis;
@@ -66,6 +92,7 @@ struct _PwlDisplay {
     EGLContext egl_context;
     EGLConfig egl_config;
 
+    PwlKeyboard keyboard;
     PwlPointer pointer;
     PwlTouch touch;
 
@@ -134,32 +161,6 @@ typedef struct {
     struct {
         int32_t scale;
     } current_output;
-
-    struct {
-        struct wl_keyboard *obj;
-
-        struct {
-            int32_t rate;
-            int32_t delay;
-        } repeat_info;
-
-        struct {
-            uint32_t key;
-            uint32_t time;
-            uint32_t state;
-            uint32_t event_source;
-        } repeat_data;
-
-        struct {
-            uint32_t keysym;
-            uint32_t unicode;
-            uint32_t state;
-            uint8_t modifiers;
-            uint32_t timestamp;
-        } event;
-
-        uint32_t serial;
-    } keyboard;
 
     GSource *event_src;
 } PwlData;

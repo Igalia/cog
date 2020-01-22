@@ -350,14 +350,13 @@ on_window_resize (PwlWinData *win_data, void *userdata)
 static bool
 on_capture_app_key (PwlDisplay *display, void *userdata)
 {
-    CogFdoShellCallbackData *cb_userdata = userdata;
     CogLauncher *launcher = cog_launcher_get_default ();
     WebKitWebView *web_view = WEBKIT_WEB_VIEW(cog_shell_get_active_view (cog_launcher_get_shell (launcher)));
 
-    uint32_t keysym = cb_userdata->wl_data->keyboard.event.keysym;
-    uint32_t unicode = cb_userdata->wl_data->keyboard.event.unicode;
-    uint32_t state = cb_userdata->wl_data->keyboard.event.state;
-    uint8_t modifiers =cb_userdata->wl_data->keyboard.event.modifiers;
+    uint32_t keysym = display->keyboard.event.keysym;
+    uint32_t unicode = display->keyboard.event.unicode;
+    uint32_t state = display->keyboard.event.state;
+    uint8_t modifiers =display->keyboard.event.modifiers;
 
     if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         /* Ctrl+W, exit the application */
@@ -412,16 +411,16 @@ on_capture_app_key (PwlDisplay *display, void *userdata)
 static void
 on_key_event (PwlDisplay* display, void *userdata)
 {
-    CogFdoShellCallbackData *cb_userdata = userdata;
+    CogShell *shell = userdata;
 
-    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (cb_userdata->shell);
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
 
     struct wpe_input_keyboard_event event = {
-        cb_userdata->wl_data->keyboard.event.timestamp,
-        cb_userdata->wl_data->keyboard.event.keysym,
-        cb_userdata->wl_data->keyboard.event.unicode,
-        cb_userdata->wl_data->keyboard.event.state == true,
-        cb_userdata->wl_data->keyboard.event.modifiers
+        display->keyboard.event.timestamp,
+        display->keyboard.event.keysym,
+        display->keyboard.event.unicode,
+        display->keyboard.event.state == true,
+        display->keyboard.event.modifiers
     };
 
     wpe_view_backend_dispatch_keyboard_event (backend, &event);
@@ -616,9 +615,9 @@ cog_fdo_shell_initable_init (GInitable *initable,
     s_pdisplay->on_touch_on_motion_userdata = initable;
 
     s_pdisplay->on_key_event = on_key_event;
-    s_pdisplay->on_key_event_userdata = s_callback_userdata;
+    s_pdisplay->on_key_event_userdata = initable;
     s_pdisplay->on_capture_app_key = on_capture_app_key;
-    s_pdisplay->on_capture_app_key_userdata = s_callback_userdata;
+    s_pdisplay->on_capture_app_key_userdata = initable;
 
     if (!init_wayland (s_pdisplay, error))
         return FALSE;
