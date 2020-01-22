@@ -158,8 +158,6 @@ typedef struct {
     } touch;
 
     GSource *event_src;
-
-    struct wl_output_listener output_listener;
 } PwlData;
 
 PwlDisplay* pwl_display_connect (const char *name, GError**);

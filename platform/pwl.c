@@ -147,6 +147,60 @@ setup_wayland_event_source (GMainContext *main_context,
     return &wl_source->source;
 }
 
+#if HAVE_DEVICE_SCALING
+static void
+noop()
+{
+}
+
+static void
+output_handle_scale (void *data,
+                     struct wl_output *output,
+                     int32_t factor)
+{
+    bool found = false;
+    for (int i = 0; i < G_N_ELEMENTS (wl_data.metrics); i++)
+    {
+        if (wl_data.metrics[i].output == output) {
+            found = true;
+            wl_data.metrics[i].scale = factor;
+            break;
+        }
+    }
+    if (!found)
+    {
+        g_warning ("Unknown output %p\n", output);
+        return;
+    }
+    g_info ("Got scale factor %i for output %p\n", factor, output);
+}
+
+static void
+surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *output)
+{
+    PwlDisplay *display = data;
+    int32_t scale_factor = -1;
+
+    for (int i=0; i < G_N_ELEMENTS (wl_data.metrics); i++)
+    {
+        if (wl_data.metrics[i].output == output) {
+            scale_factor = wl_data.metrics[i].scale;
+        }
+    }
+    if (scale_factor == -1) {
+        g_warning ("No scale factor available for output %p\n", output);
+        return;
+    }
+    g_debug ("Surface entered output %p with scale factor %i\n", output, scale_factor);
+    wl_surface_set_buffer_scale (surface, scale_factor);
+    wl_data.current_output.scale = scale_factor;
+    if (display->on_surface_enter) {
+        display->on_surface_enter(display, display->on_surface_enter_userdata);
+    }
+}
+#endif /* HAVE_DEVICE_SCALING */
+
+
 static bool
 capture_app_key_bindings (PwlDisplay *display,
                           uint32_t keysym,
@@ -332,7 +386,13 @@ registry_global (void               *data,
                                                      name,
                                                      &wl_output_interface,
                                                      version);
-        wl_output_add_listener (output, &wl_data.output_listener, NULL);
+        static const struct wl_output_listener output_listener = {
+            .geometry = noop,
+            .mode = noop,
+            .done = noop,
+            .scale = output_handle_scale,
+        };
+        wl_output_add_listener (output, &output_listener, NULL);
         bool inserted = false;
         for (int i = 0; i < G_N_ELEMENTS (wl_data.metrics); i++)
         {
@@ -354,35 +414,6 @@ registry_global (void               *data,
              interface_used ? "Using" : "Ignoring", interface);
 }
 
-#if HAVE_DEVICE_SCALING
-static void
-noop()
-{
-}
-
-static void
-surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *output)
-{
-    PwlDisplay *display = data;
-    int32_t scale_factor = -1;
-
-    for (int i=0; i < G_N_ELEMENTS (wl_data.metrics); i++)
-    {
-        if (wl_data.metrics[i].output == output) {
-            scale_factor = wl_data.metrics[i].scale;
-        }
-    }
-    if (scale_factor == -1) {
-        g_warning ("No scale factor available for output %p\n", output);
-        return;
-    }
-    g_debug ("Surface entered output %p with scale factor %i\n", output, scale_factor);
-    wl_surface_set_buffer_scale (surface, scale_factor);
-    wl_data.current_output.scale = scale_factor;
-    if (display->on_surface_enter) {
-        display->on_surface_enter(display, display->on_surface_enter_userdata);
-    }
-}
 static void
 registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
 {
@@ -396,7 +427,6 @@ registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
         }
     }
 }
-#endif /* HAVE_DEVICE_SCALING */
 
 static const struct wl_registry_listener registry_listener = {
     .global = registry_global,
