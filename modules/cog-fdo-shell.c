@@ -584,7 +584,6 @@ cog_fdo_shell_initable_init (GInitable *initable,
         return FALSE;
     }
 
-    TRACE ("");
     s_pwindow = pwl_window_create (s_pdisplay);
 
 #if HAVE_DEVICE_SCALING
@@ -609,12 +608,6 @@ cog_fdo_shell_initable_init (GInitable *initable,
     s_pdisplay->on_key_event_userdata = initable;
     s_pdisplay->on_capture_app_key = on_capture_app_key;
     s_pdisplay->on_capture_app_key_userdata = initable;
-
-    if (!create_window (s_pdisplay, s_pwindow, error)) {
-        g_critical ("create_window failed");
-        pwl_display_egl_deinit (s_pdisplay);
-        return FALSE;
-    }
 
     pwl_window_notify_resize (s_pwindow, on_window_resize, initable);
 
