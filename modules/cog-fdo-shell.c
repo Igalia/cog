@@ -126,8 +126,8 @@ cog_shell_get_active_wpe_backend (CogShell *shell)
 static void
 on_surface_enter (PwlDisplay* display, void *userdata)
 {
-    CogShell *shell = (CogShell*) userdata;
-    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+    CogFdoShellCallbackData *cb_userdata = userdata;
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (cb_userdata->shell);
     wpe_view_backend_dispatch_set_device_scale_factor (backend, wl_data.current_output.scale);
 }
 #endif /* HAVE_DEVICE_SCALING */
@@ -679,6 +679,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
     wl_data.output_listener = output_listener;
 
     s_pdisplay->on_surface_enter = on_surface_enter;
+    s_pdisplay->on_surface_enter_userdata = s_callback_userdata;
 #endif /* HAVE_DEVICE_SCALING */
     s_pdisplay->on_pointer_on_motion = on_pointer_on_motion;
     s_pdisplay->on_pointer_on_button = on_pointer_on_button;
