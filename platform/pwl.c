@@ -16,6 +16,65 @@
 G_DEFINE_QUARK (com_igalia_Cog_PwlError, pwl_error)
 
 
+struct _PwlDisplay {
+    struct wl_display *display;
+    struct wl_registry *registry;
+    struct wl_compositor *compositor;
+    struct wl_seat *seat;
+
+    struct egl_display *egl_display;
+    EGLContext egl_context;
+    EGLConfig egl_config;
+    PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL egl_createWaylandBufferFromImageWL;
+
+    PwlKeyboard keyboard;
+    PwlPointer pointer;
+    PwlTouch touch;
+
+    PwlXKBData xkb_data;
+
+    struct xdg_wm_base *xdg_shell;
+    struct zwp_fullscreen_shell_v1 *fshell;
+    struct wl_shell *shell;
+
+#if HAVE_DEVICE_SCALING
+    struct output_metrics metrics[16];
+#endif /* HAVE_DEVICE_SCALING */
+
+    struct {
+        int32_t scale;
+    } current_output;
+
+    GSource *event_src;
+
+    /*
+     * TODO: Move this to PwlWindow. Tracking whether a window has
+     *       entered an output should be handled per-window.
+     */
+    void (*on_surface_enter) (PwlDisplay*, void *userdata);
+    void *on_surface_enter_userdata;
+
+    void (*on_pointer_on_motion) (PwlDisplay*, const PwlPointer*, void *userdata);
+    void *on_pointer_on_motion_userdata;
+    void (*on_pointer_on_button) (PwlDisplay*, const PwlPointer*, void *userdata);
+    void *on_pointer_on_button_userdata;
+    void (*on_pointer_on_axis) (PwlDisplay*, const PwlPointer*, void *userdata);
+    void *on_pointer_on_axis_userdata;
+
+    void (*on_touch_on_down)     (PwlDisplay*, const PwlTouch*, void *userdata);
+    void *on_touch_on_down_userdata;
+    void (*on_touch_on_up)       (PwlDisplay*, const PwlTouch*, void *userdata);
+    void *on_touch_on_up_userdata;
+    void (*on_touch_on_motion)   (PwlDisplay*, const PwlTouch*, void *userdata);
+    void *on_touch_on_motion_userdata;
+
+    void (*on_key_event) (PwlDisplay*, const PwlKeyboard*, void *userdata);
+    void *on_key_event_userdata;
+    bool (*on_capture_app_key) (PwlDisplay*, void *userdata);
+    void *on_capture_app_key_userdata;
+};
+
+
 struct _PwlWindow {
     PwlDisplay *display;
 
@@ -271,6 +330,102 @@ pwl_display_destroy (PwlDisplay *self)
 }
 
 
+void
+pwl_display_notify_surface_enter (PwlDisplay *self,
+                                  void (*callback) (PwlDisplay*, void*),
+                                  void *userdata)
+{
+    g_return_if_fail (self);
+
+    self->on_surface_enter = callback;
+    self->on_surface_enter_userdata = userdata;
+}
+
+
+void
+pwl_display_notify_pointer_motion (PwlDisplay *self,
+                                   void (*callback) (PwlDisplay*, const PwlPointer*, void*),
+                                   void *userdata)
+{
+    g_return_if_fail (self);
+
+    self->on_pointer_on_motion = callback;
+    self->on_pointer_on_motion_userdata = userdata;
+}
+
+
+void
+pwl_display_notify_pointer_button (PwlDisplay *self,
+                                   void (*callback) (PwlDisplay*, const PwlPointer*, void*),
+                                   void *userdata)
+{
+    g_return_if_fail (self);
+
+    self->on_pointer_on_button = callback;
+    self->on_pointer_on_button_userdata = userdata;
+}
+
+
+void
+pwl_display_notify_pointer_axis (PwlDisplay *self,
+                                 void (*callback) (PwlDisplay*, const PwlPointer*, void*),
+                                 void *userdata)
+{
+    g_return_if_fail (self);
+
+    self->on_pointer_on_axis = callback;
+    self->on_pointer_on_axis_userdata = userdata;
+}
+
+
+void
+pwl_display_notify_touch_down (PwlDisplay *self,
+                               void (*callback) (PwlDisplay*, const PwlTouch*, void*),
+                               void *userdata)
+{
+    g_return_if_fail (self);
+
+    self->on_touch_on_down = callback;
+    self->on_touch_on_down_userdata = userdata;
+}
+
+
+void
+pwl_display_notify_touch_up (PwlDisplay *self,
+                             void (*callback) (PwlDisplay*, const PwlTouch*, void*),
+                             void *userdata)
+{
+    g_return_if_fail (self);
+
+    self->on_touch_on_up = callback;
+    self->on_touch_on_up_userdata = userdata;
+}
+
+
+void
+pwl_display_notify_touch_motion (PwlDisplay *self,
+                                 void (*callback) (PwlDisplay*, const PwlTouch*, void*),
+                                 void *userdata)
+{
+    g_return_if_fail (self);
+
+    self->on_touch_on_motion = callback;
+    self->on_touch_on_motion_userdata = userdata;
+}
+
+
+void
+pwl_display_notify_key_event (PwlDisplay *self,
+                              void (*callback) (PwlDisplay*, const PwlKeyboard*, void*),
+                              void *userdata)
+{
+    g_return_if_fail (self);
+
+    self->on_key_event = callback;
+    self->on_key_event_userdata = userdata;
+}
+
+
 static gboolean
 wl_src_prepare (GSource *base, gint *timeout)
 {
@@ -326,7 +481,8 @@ wl_src_finalize (GSource *base)
 {
 }
 
-GSource *
+
+void
 setup_wayland_event_source (GMainContext *main_context,
                             PwlDisplay *display)
 {
@@ -339,7 +495,7 @@ setup_wayland_event_source (GMainContext *main_context,
 
     struct pwl_event_source *wl_source =
         (struct pwl_event_source *) g_source_new (&wl_src_funcs,
-                                               sizeof (struct pwl_event_source));
+                                                  sizeof (struct pwl_event_source));
     wl_source->display = display->display;
     wl_source->pfd.fd = wl_display_get_fd (display->display);
     wl_source->pfd.events = G_IO_IN | G_IO_ERR | G_IO_HUP;
@@ -351,7 +507,7 @@ setup_wayland_event_source (GMainContext *main_context,
 
     g_source_unref (&wl_source->source);
 
-    return &wl_source->source;
+    display->event_src = &wl_source->source;
 }
 
 
@@ -411,7 +567,9 @@ handle_key_event (void *data, uint32_t key, uint32_t state, uint32_t time)
     }
 
     if (display->on_key_event) {
-        (*display->on_key_event) (display, display->on_key_event_userdata);
+        (*display->on_key_event) (display,
+                                  &display->keyboard,
+                                  display->on_key_event_userdata);
     }
 }
 
@@ -504,6 +662,20 @@ pwl_display_egl_init (PwlDisplay *display, GError **error)
     }
     g_info ("EGL version %d.%d initialized.", major, minor);
 
+    /*
+     * TODO: Use eglQueryString() to find out whether required extensions are
+     *       available before trying to actually use functions obtained below
+     *       with eglGetProcAddress().
+     */
+
+    display->egl_createWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
+        eglGetProcAddress ("eglCreateWaylandBufferFromImageWL");
+    if (!display->egl_createWaylandBufferFromImageWL) {
+        /* TODO: Properly report error. */
+        pwl_display_egl_deinit (display);
+        return FALSE;
+    }
+
     if (!eglBindAPI (EGL_OPENGL_ES_API)) {
         // TODO: ERR_EGL (error, "Could not bind OpenGL ES API to EGL");
         pwl_display_egl_deinit (display);
@@ -553,6 +725,7 @@ pwl_display_egl_init (PwlDisplay *display, GError **error)
     return TRUE;
 }
 
+
 void pwl_display_egl_deinit (PwlDisplay *display)
 {
     if (display->egl_display != EGL_NO_DISPLAY) {
@@ -564,6 +737,34 @@ void pwl_display_egl_deinit (PwlDisplay *display)
         display->egl_display = EGL_NO_DISPLAY;
     }
     eglReleaseThread ();
+}
+
+
+EGLDisplay
+pwl_display_egl_get_display (const PwlDisplay *self)
+{
+    g_return_val_if_fail (self, EGL_NO_DISPLAY);
+    return self->egl_display;
+}
+
+
+struct wl_buffer*
+pwl_display_egl_create_buffer_from_image (const PwlDisplay *self,
+                                          EGLImage image)
+{
+    g_return_val_if_fail (self, NULL);
+    g_return_val_if_fail (image != EGL_NO_IMAGE, NULL);
+    g_assert (self->egl_createWaylandBufferFromImageWL);
+
+    return (*self->egl_createWaylandBufferFromImageWL) (self->egl_display, image);
+}
+
+
+PwlXKBData*
+pwl_display_xkb_get_data (PwlDisplay *self)
+{
+    g_return_val_if_fail (self, NULL);
+    return &self->xkb_data;
 }
 
 
@@ -672,7 +873,9 @@ pointer_on_motion (void* data,
     display->pointer.x = wl_fixed_to_int (fixed_x);
     display->pointer.y = wl_fixed_to_int (fixed_y);
     if (display->on_pointer_on_motion) {
-        display->on_pointer_on_motion (display, display->on_pointer_on_motion_userdata);
+        display->on_pointer_on_motion (display,
+                                       &display->pointer,
+                                       display->on_pointer_on_motion_userdata);
     }
 }
 
@@ -698,7 +901,9 @@ pointer_on_button (void* data,
     display->pointer.time = time;
 
     if (display->on_pointer_on_button) {
-        display->on_pointer_on_button (display, display->on_pointer_on_button_userdata);
+        (*display->on_pointer_on_button) (display,
+                                          &display->pointer,
+                                          display->on_pointer_on_button_userdata);
     }
 }
 
@@ -714,7 +919,9 @@ pointer_on_axis (void* data,
     display->pointer.time = time;
     display->pointer.value = wl_fixed_to_int(value) > 0 ? -1 : 1;
     if (display->on_pointer_on_axis) {
-        display->on_pointer_on_axis (display, display->on_pointer_on_axis_userdata);
+        (*display->on_pointer_on_axis) (display,
+                                        &display->pointer,
+                                        display->on_pointer_on_axis_userdata);
     }
 }
 #if WAYLAND_1_10_OR_GREATER
@@ -774,7 +981,9 @@ touch_on_down (void *data,
     display->touch.x = x;
     display->touch.y = y;
     if (display->on_touch_on_down) {
-        display->on_touch_on_down (display, display->on_touch_on_down_userdata);
+        (*display->on_touch_on_down) (display,
+                                      &display->touch,
+                                      display->on_touch_on_down_userdata);
     }
 }
 
@@ -791,7 +1000,9 @@ touch_on_up (void *data,
     display->touch.id = id;
     display->touch.time = time;
     if (display->on_touch_on_up) {
-        display->on_touch_on_up (display, display->on_touch_on_up_userdata);
+        (*display->on_touch_on_up) (display,
+                                    &display->touch,
+                                    display->on_touch_on_up_userdata);
     }
 }
 
@@ -811,7 +1022,9 @@ touch_on_motion (void *data,
     display->touch.x = x;
     display->touch.y = y;
     if (display->on_touch_on_motion) {
-        display->on_touch_on_motion (display, display->on_touch_on_motion_userdata);
+        (*display->on_touch_on_motion) (display,
+                                        &display->touch,
+                                        display->on_touch_on_motion_userdata);
     }
 }
 
@@ -1194,6 +1407,20 @@ pwl_window_get_size (const PwlWindow *self, uint32_t *w, uint32_t *h)
 
     if (w) *w = self->width;
     if (h) *h = self->height;
+}
+
+
+uint32_t
+pwl_window_get_device_scale (const PwlWindow *self)
+{
+    g_return_val_if_fail (self, 1);
+
+#if HAVE_DEVICE_SCALING
+    /* TODO: Track the scaling factor per-window, instead of globally. */
+    return self->display->current_output.scale;
+#else
+    return 1;
+#endif /* HAVE_DEVICE_SCALING */
 }
 
 
