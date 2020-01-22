@@ -35,6 +35,14 @@
 
 G_BEGIN_DECLS
 
+#if HAVE_DEVICE_SCALING
+typedef struct output_metrics {
+  struct wl_output *output;
+  int32_t name;
+  int32_t scale;
+} output_metrics;
+#endif /* HAVE_DEVICE_SCALING */
+
 typedef struct {
     struct wl_keyboard *obj;
 
@@ -81,43 +89,6 @@ typedef struct {
     wl_fixed_t y;
 } PwlTouch;
 
-typedef struct _PwlDisplay PwlDisplay;
-
-struct _PwlDisplay {
-    struct wl_display *display;
-    struct wl_registry *registry;
-    struct wl_compositor *compositor;
-    struct wl_seat *seat;
-    struct egl_display *egl_display;
-    EGLContext egl_context;
-    EGLConfig egl_config;
-
-    PwlKeyboard keyboard;
-    PwlPointer pointer;
-    PwlTouch touch;
-
-    void (*on_surface_enter) (PwlDisplay*, void *userdata);
-    void *on_surface_enter_userdata;
-    void (*on_pointer_on_motion) (PwlDisplay*, void *userdata);
-    void *on_pointer_on_motion_userdata;
-    void (*on_pointer_on_button) (PwlDisplay*, void *userdata);
-    void *on_pointer_on_button_userdata;
-    void (*on_pointer_on_axis) (PwlDisplay*, void *userdata);
-    void *on_pointer_on_axis_userdata;
-    
-    void (*on_touch_on_down)     (PwlDisplay*, void *userdata);
-    void *on_touch_on_down_userdata;
-    void (*on_touch_on_up)       (PwlDisplay*, void *userdata);
-    void *on_touch_on_up_userdata;
-    void (*on_touch_on_motion)   (PwlDisplay*, void *userdata);
-    void *on_touch_on_motion_userdata;
-
-    void (*on_key_event) (PwlDisplay*, void *userdata);
-    void *on_key_event_userdata;
-    bool (*on_capture_app_key) (PwlDisplay*, void *userdata);
-    void *on_capture_app_key_userdata;
-};
-
 typedef struct {
     struct xkb_context* context;
     struct xkb_keymap* keymap;
@@ -141,15 +112,23 @@ typedef struct {
     uint8_t modifiers;
 } PwlXKBData;
 
-#if HAVE_DEVICE_SCALING
-typedef struct output_metrics {
-  struct wl_output *output;
-  int32_t name;
-  int32_t scale;
-} output_metrics;
-#endif /* HAVE_DEVICE_SCALING */
+typedef struct _PwlDisplay PwlDisplay;
 
-typedef struct {
+struct _PwlDisplay {
+    struct wl_display *display;
+    struct wl_registry *registry;
+    struct wl_compositor *compositor;
+    struct wl_seat *seat;
+    struct egl_display *egl_display;
+    EGLContext egl_context;
+    EGLConfig egl_config;
+
+    PwlKeyboard keyboard;
+    PwlPointer pointer;
+    PwlTouch touch;
+
+    PwlXKBData xkb_data;
+
     struct xdg_wm_base *xdg_shell;
     struct zwp_fullscreen_shell_v1 *fshell;
     struct wl_shell *shell;
@@ -163,7 +142,28 @@ typedef struct {
     } current_output;
 
     GSource *event_src;
-} PwlData;
+
+    void (*on_surface_enter) (PwlDisplay*, void *userdata);
+    void *on_surface_enter_userdata;
+    void (*on_pointer_on_motion) (PwlDisplay*, void *userdata);
+    void *on_pointer_on_motion_userdata;
+    void (*on_pointer_on_button) (PwlDisplay*, void *userdata);
+    void *on_pointer_on_button_userdata;
+    void (*on_pointer_on_axis) (PwlDisplay*, void *userdata);
+    void *on_pointer_on_axis_userdata;
+
+    void (*on_touch_on_down)     (PwlDisplay*, void *userdata);
+    void *on_touch_on_down_userdata;
+    void (*on_touch_on_up)       (PwlDisplay*, void *userdata);
+    void *on_touch_on_up_userdata;
+    void (*on_touch_on_motion)   (PwlDisplay*, void *userdata);
+    void *on_touch_on_motion_userdata;
+
+    void (*on_key_event) (PwlDisplay*, void *userdata);
+    void *on_key_event_userdata;
+    bool (*on_capture_app_key) (PwlDisplay*, void *userdata);
+    void *on_capture_app_key_userdata;
+};
 
 PwlDisplay* pwl_display_connect (const char *name, GError**);
 void        pwl_display_destroy (PwlDisplay*);
