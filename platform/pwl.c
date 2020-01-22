@@ -734,7 +734,7 @@ touch_on_down (void *data,
     wl_data.touch.x = x;
     wl_data.touch.y = y;
     if (display->on_touch_on_down) {
-        display->on_touch_on_down (display, display->userdata);
+        display->on_touch_on_down (display, display->on_touch_on_down_userdata);
     }
 }
 
@@ -751,7 +751,7 @@ touch_on_up (void *data,
     wl_data.touch.time = time;
     PwlDisplay *display = data;
     if (display->on_touch_on_up) {
-        display->on_touch_on_up (display, display->userdata);
+        display->on_touch_on_up (display, display->on_touch_on_up_userdata);
     }
 }
 
@@ -771,7 +771,7 @@ touch_on_motion (void *data,
     wl_data.touch.y = y;
     PwlDisplay *display = (PwlDisplay*) data;
     if (display->on_touch_on_motion) {
-        display->on_touch_on_motion (display, display->userdata);
+        display->on_touch_on_motion (display, display->on_touch_on_motion_userdata);
     }
 }
 

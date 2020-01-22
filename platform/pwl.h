@@ -56,8 +56,11 @@ struct _PwlDisplay {
     void *on_pointer_on_axis_userdata;
     
     void (*on_touch_on_down)     (PwlDisplay*, void *userdata);
+    void *on_touch_on_down_userdata;
     void (*on_touch_on_up)       (PwlDisplay*, void *userdata);
+    void *on_touch_on_up_userdata;
     void (*on_touch_on_motion)   (PwlDisplay*, void *userdata);
+    void *on_touch_on_motion_userdata;
 
     void *userdata;
 };

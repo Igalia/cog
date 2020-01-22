@@ -186,17 +186,17 @@ on_pointer_on_axis (PwlDisplay* display, void *userdata)
 static void
 on_touch_on_down (PwlDisplay* display, void *userdata)
 {
-    CogShell *shell = userdata;
-    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+    CogFdoShellCallbackData *cb_userdata = userdata;
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (cb_userdata->shell);
     struct wpe_input_touch_event_raw raw_event = {
         wpe_input_touch_event_type_down,
-        wl_data.touch.time,
-        wl_data.touch.id,
-        wl_fixed_to_int (wl_data.touch.x) * wl_data.current_output.scale,
-        wl_fixed_to_int (wl_data.touch.y) * wl_data.current_output.scale,
+        cb_userdata->wl_data->touch.time,
+        cb_userdata->wl_data->touch.id,
+        wl_fixed_to_int (cb_userdata->wl_data->touch.x) * cb_userdata->wl_data->current_output.scale,
+        wl_fixed_to_int (cb_userdata->wl_data->touch.y) * cb_userdata->wl_data->current_output.scale,
     };
 
-    memcpy (&touch_points[wl_data.touch.id],
+    memcpy (&touch_points[cb_userdata->wl_data->touch.id],
             &raw_event,
             sizeof (struct wpe_input_touch_event_raw));
 
@@ -214,17 +214,17 @@ on_touch_on_down (PwlDisplay* display, void *userdata)
 static void
 on_touch_on_up (PwlDisplay* display, void *userdata)
 {
-    CogShell *shell = userdata;
-    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+    CogFdoShellCallbackData *cb_userdata = userdata;
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (cb_userdata->shell);
     struct wpe_input_touch_event_raw raw_event = {
         wpe_input_touch_event_type_up,
-        wl_data.touch.time,
-        wl_data.touch.id,
+        cb_userdata->wl_data->touch.time,
+        cb_userdata->wl_data->touch.id,
         touch_points[wl_data.touch.id].x,
         touch_points[wl_data.touch.id].y,
     };
 
-    memcpy (&touch_points[wl_data.touch.id],
+    memcpy (&touch_points[cb_userdata->wl_data->touch.id],
             &raw_event,
             sizeof (struct wpe_input_touch_event_raw));
 
@@ -238,7 +238,7 @@ on_touch_on_up (PwlDisplay* display, void *userdata)
 
     wpe_view_backend_dispatch_touch_event (backend, &event);
 
-    memset (&touch_points[wl_data.touch.id],
+    memset (&touch_points[cb_userdata->wl_data->touch.id],
             0x00,
             sizeof (struct wpe_input_touch_event_raw));
 }
@@ -246,19 +246,19 @@ on_touch_on_up (PwlDisplay* display, void *userdata)
 static void
 on_touch_on_motion (PwlDisplay* display, void *userdata)
 {
-    CogShell *shell = userdata;
+    CogFdoShellCallbackData *cb_userdata = userdata;
 
-    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (cb_userdata->shell);
 
     struct wpe_input_touch_event_raw raw_event = {
         wpe_input_touch_event_type_motion,
-        wl_data.touch.time,
-        wl_data.touch.id,
-        wl_fixed_to_int (wl_data.touch.x) * wl_data.current_output.scale,
-        wl_fixed_to_int (wl_data.touch.y) * wl_data.current_output.scale,
+        cb_userdata->wl_data->touch.time,
+        cb_userdata->wl_data->touch.id,
+        wl_fixed_to_int (cb_userdata->wl_data->touch.x) * cb_userdata->wl_data->current_output.scale,
+        wl_fixed_to_int (cb_userdata->wl_data->touch.y) * cb_userdata->wl_data->current_output.scale,
     };
 
-    memcpy (&touch_points[wl_data.touch.id],
+    memcpy (&touch_points[cb_userdata->wl_data->touch.id],
             &raw_event,
             sizeof (struct wpe_input_touch_event_raw));
 
@@ -689,8 +689,11 @@ cog_fdo_shell_initable_init (GInitable *initable,
     s_pdisplay->on_pointer_on_axis_userdata = s_callback_userdata;
 
     s_pdisplay->on_touch_on_down = on_touch_on_down;
+    s_pdisplay->on_touch_on_down_userdata = s_callback_userdata;
     s_pdisplay->on_touch_on_up = on_touch_on_up;
+    s_pdisplay->on_touch_on_up_userdata = s_callback_userdata;
     s_pdisplay->on_touch_on_motion = on_touch_on_motion;
+    s_pdisplay->on_touch_on_motion_userdata = s_callback_userdata;
 
     if (!init_wayland (s_pdisplay, error))
         return FALSE;
