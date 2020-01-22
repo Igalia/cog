@@ -86,75 +86,93 @@ on_surface_enter (PwlDisplay* display, void *userdata)
 {
     CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-    wpe_view_backend_dispatch_set_device_scale_factor (backend, display->current_output.scale);
+    /* TODO: Device scale must be handled per window! */
+    const uint32_t device_scale = pwl_window_get_device_scale (s_pwindow);
+    wpe_view_backend_dispatch_set_device_scale_factor (backend, device_scale);
 }
 #endif /* HAVE_DEVICE_SCALING */
 
 
 /* Pointer */
 static void
-on_pointer_on_motion (PwlDisplay* display, void *userdata)
+on_pointer_on_motion (PwlDisplay* display,
+                      const PwlPointer *pointer,
+                      void *userdata)
 {
     CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+    /* TODO: Device scale must be handled per window! */
+    const uint32_t device_scale = pwl_window_get_device_scale (s_pwindow);
     struct wpe_input_pointer_event event = {
         wpe_input_pointer_event_type_motion,
-        display->pointer.time,
-        display->pointer.x * display->current_output.scale,
-        display->pointer.y * display->current_output.scale,
-        display->pointer.button,
-        display->pointer.state
+        pointer->time,
+        pointer->x * device_scale,
+        pointer->y * device_scale,
+        pointer->button,
+        pointer->state
     };
     wpe_view_backend_dispatch_pointer_event (backend, &event);
 }
 
 static void
-on_pointer_on_button (PwlDisplay* display, void *userdata)
+on_pointer_on_button (PwlDisplay* display,
+                      const PwlPointer *pointer,
+                      void *userdata)
 {
     CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+    /* TODO: Device scale must be handled per window! */
+    const uint32_t device_scale = pwl_window_get_device_scale (s_pwindow);
     struct wpe_input_pointer_event event = {
         wpe_input_pointer_event_type_button,
-        display->pointer.time,
-        display->pointer.x * display->current_output.scale,
-        display->pointer.y * display->current_output.scale,
-        display->pointer.button,
-        display->pointer.state,
+        pointer->time,
+        pointer->x * device_scale,
+        pointer->y * device_scale,
+        pointer->button,
+        pointer->state,
     };
     wpe_view_backend_dispatch_pointer_event (backend, &event);
 }
 
 static void
-on_pointer_on_axis (PwlDisplay* display, void *userdata)
+on_pointer_on_axis (PwlDisplay* display,
+                    const PwlPointer *pointer,
+                    void *userdata)
 {
     CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+    /* TODO: Device scale must be handled per window! */
+    const uint32_t device_scale = pwl_window_get_device_scale (s_pwindow);
     struct wpe_input_axis_event event = {
         wpe_input_axis_event_type_motion,
-        display->pointer.time,
-        display->pointer.x * display->current_output.scale,
-        display->pointer.y * display->current_output.scale,
-        display->pointer.axis,
-        display->pointer.value,
+        pointer->time,
+        pointer->x * device_scale,
+        pointer->y * device_scale,
+        pointer->axis,
+        pointer->value,
     };
     wpe_view_backend_dispatch_axis_event (backend, &event);
 }
 
 /* Touch */
 static void
-on_touch_on_down (PwlDisplay* display, void *userdata)
+on_touch_on_down (PwlDisplay* display,
+                  const PwlTouch* touch,
+                  void *userdata)
 {
     CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+    /* TODO: Device scale must be handled per window! */
+    const uint32_t device_scale = pwl_window_get_device_scale (s_pwindow);
     struct wpe_input_touch_event_raw raw_event = {
         wpe_input_touch_event_type_down,
-        display->touch.time,
-        display->touch.id,
-        wl_fixed_to_int (display->touch.x) * display->current_output.scale,
-        wl_fixed_to_int (display->touch.y) * display->current_output.scale,
+        touch->time,
+        touch->id,
+        wl_fixed_to_int (touch->x) * device_scale,
+        wl_fixed_to_int (touch->y) * device_scale,
     };
 
-    memcpy (&touch_points[display->touch.id],
+    memcpy (&touch_points[touch->id],
             &raw_event,
             sizeof (struct wpe_input_touch_event_raw));
 
@@ -170,19 +188,21 @@ on_touch_on_down (PwlDisplay* display, void *userdata)
 }
 
 static void
-on_touch_on_up (PwlDisplay* display, void *userdata)
+on_touch_on_up (PwlDisplay* display,
+                const PwlTouch *touch,
+                void *userdata)
 {
     CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
     struct wpe_input_touch_event_raw raw_event = {
         wpe_input_touch_event_type_up,
-        display->touch.time,
-        display->touch.id,
-        touch_points[display->touch.id].x,
-        touch_points[display->touch.id].y,
+        touch->time,
+        touch->id,
+        touch_points[touch->id].x,
+        touch_points[touch->id].y,
     };
 
-    memcpy (&touch_points[display->touch.id],
+    memcpy (&touch_points[touch->id],
             &raw_event,
             sizeof (struct wpe_input_touch_event_raw));
 
@@ -196,27 +216,29 @@ on_touch_on_up (PwlDisplay* display, void *userdata)
 
     wpe_view_backend_dispatch_touch_event (backend, &event);
 
-    memset (&touch_points[display->touch.id],
+    memset (&touch_points[touch->id],
             0x00,
             sizeof (struct wpe_input_touch_event_raw));
 }
 
 static void
-on_touch_on_motion (PwlDisplay* display, void *userdata)
+on_touch_on_motion (PwlDisplay* display,
+                    const PwlTouch *touch,
+                    void *userdata)
 {
     CogShell *shell = userdata;
-
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-
+    /* TODO: Device scale must be handled per window! */
+    const uint32_t device_scale = pwl_window_get_device_scale (s_pwindow);
     struct wpe_input_touch_event_raw raw_event = {
         wpe_input_touch_event_type_motion,
-        display->touch.time,
-        display->touch.id,
-        wl_fixed_to_int (display->touch.x) * display->current_output.scale,
-        wl_fixed_to_int (display->touch.y) * display->current_output.scale,
+        touch->time,
+        touch->id,
+        wl_fixed_to_int (touch->x) * device_scale,
+        wl_fixed_to_int (touch->y) * device_scale,
     };
 
-    memcpy (&touch_points[display->touch.id],
+    memcpy (&touch_points[touch->id],
             &raw_event,
             sizeof (struct wpe_input_touch_event_raw));
 
@@ -331,6 +353,8 @@ on_window_resize (PwlWindow *window, uint32_t width, uint32_t height, void *user
 }
 
 
+/* TODO: Keybinding capture should be moved into CogShell. */
+#if 0
 static bool
 on_capture_app_key (PwlDisplay *display, void *userdata)
 {
@@ -390,25 +414,26 @@ on_capture_app_key (PwlDisplay *display, void *userdata)
 
     return false;
 }
+#endif
 
 
 static void
-on_key_event (PwlDisplay* display, void *userdata)
+on_key_event (PwlDisplay* display,
+              const PwlKeyboard *kbd,
+              void *userdata)
 {
     CogShell *shell = userdata;
-
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-
     struct wpe_input_keyboard_event event = {
-        display->keyboard.event.timestamp,
-        display->keyboard.event.keysym,
-        display->keyboard.event.unicode,
-        display->keyboard.event.state == true,
-        display->keyboard.event.modifiers
+        kbd->event.timestamp,
+        kbd->event.keysym,
+        kbd->event.unicode,
+        kbd->event.state == true,
+        kbd->event.modifiers
     };
-
     wpe_view_backend_dispatch_keyboard_event (backend, &event);
 }
+
 
 static void
 on_surface_frame (void *data, struct wl_callback *callback, uint32_t time)
@@ -455,6 +480,7 @@ static const struct wl_buffer_listener buffer_listener = {
 static void
 on_export_fdo_egl_image (void *data, struct wpe_fdo_egl_exported_image *image)
 {
+    /* TODO: Pass the corresponding CogFdoView/PwlWindow as userdata. */
     WpeViewBackendData *backend_data = data;
     g_assert (backend_data);
 
@@ -470,27 +496,19 @@ on_export_fdo_egl_image (void *data, struct wpe_fdo_egl_exported_image *image)
         pwl_window_unset_opaque_region (s_pwindow);
     }
 
-    static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
-        s_eglCreateWaylandBufferFromImageWL;
-    if (s_eglCreateWaylandBufferFromImageWL == NULL) {
-        s_eglCreateWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
-            eglGetProcAddress ("eglCreateWaylandBufferFromImageWL");
-        g_assert (s_eglCreateWaylandBufferFromImageWL);
-    }
-
-    struct wl_buffer *buffer = s_eglCreateWaylandBufferFromImageWL (s_pdisplay->egl_display, wpe_fdo_egl_exported_image_get_egl_image (image));
+    struct wl_buffer *buffer =
+        pwl_display_egl_create_buffer_from_image (s_pdisplay,
+                                                  wpe_fdo_egl_exported_image_get_egl_image (image));
     g_assert (buffer);
     wl_buffer_add_listener (buffer, &buffer_listener, data);
 
     uint32_t width, height;
     pwl_window_get_size (s_pwindow, &width, &height);
     struct wl_surface *surface = pwl_window_get_surface (s_pwindow);
+    uint32_t device_scale = pwl_window_get_device_scale (s_pwindow);
 
     wl_surface_attach (surface, buffer, 0, 0);
-    wl_surface_damage (surface,
-                       0, 0,
-                       width * s_pdisplay->current_output.scale,
-                       height * s_pdisplay->current_output.scale);
+    wl_surface_damage (surface, 0, 0, width * device_scale, height * device_scale);
     request_frame (backend_data->exportable);
 
     wl_surface_commit (surface);
@@ -522,11 +540,7 @@ cog_shell_new_fdo_view_backend (CogShell *shell)
                                      data);
     g_assert (wk_view_backend);
 
-    if (!s_pdisplay->event_src) {
-        s_pdisplay->event_src =
-            setup_wayland_event_source (g_main_context_get_thread_default (),
-                                        s_pdisplay);
-    }
+    setup_wayland_event_source (g_main_context_get_thread_default (), s_pdisplay);
 
     return wk_view_backend;
 }
@@ -582,33 +596,30 @@ cog_fdo_shell_initable_init (GInitable *initable,
     s_pwindow = pwl_window_create (s_pdisplay);
 
 #if HAVE_DEVICE_SCALING
-    s_pdisplay->on_surface_enter = on_surface_enter;
-    s_pdisplay->on_surface_enter_userdata = initable;
+    pwl_display_notify_surface_enter (s_pdisplay, on_surface_enter, s_pwindow);
 #endif /* HAVE_DEVICE_SCALING */
-    s_pdisplay->on_pointer_on_motion = on_pointer_on_motion;
-    s_pdisplay->on_pointer_on_motion_userdata = initable;
-    s_pdisplay->on_pointer_on_button = on_pointer_on_button;
-    s_pdisplay->on_pointer_on_button_userdata = initable;
-    s_pdisplay->on_pointer_on_axis = on_pointer_on_axis;
-    s_pdisplay->on_pointer_on_axis_userdata = initable;
+    pwl_display_notify_pointer_motion (s_pdisplay, on_pointer_on_motion, initable);
+    pwl_display_notify_pointer_button (s_pdisplay, on_pointer_on_button, initable);
+    pwl_display_notify_pointer_axis (s_pdisplay, on_pointer_on_axis, initable);
 
-    s_pdisplay->on_touch_on_down = on_touch_on_down;
-    s_pdisplay->on_touch_on_down_userdata = initable;
-    s_pdisplay->on_touch_on_up = on_touch_on_up;
-    s_pdisplay->on_touch_on_up_userdata = initable;
-    s_pdisplay->on_touch_on_motion = on_touch_on_motion;
-    s_pdisplay->on_touch_on_motion_userdata = initable;
+    pwl_display_notify_touch_down (s_pdisplay, on_touch_on_down, initable);
+    pwl_display_notify_touch_up (s_pdisplay, on_touch_on_up, initable);
+    pwl_display_notify_touch_motion (s_pdisplay, on_touch_on_motion, initable);
 
-    s_pdisplay->on_key_event = on_key_event;
-    s_pdisplay->on_key_event_userdata = initable;
+    pwl_display_notify_key_event (s_pdisplay, on_key_event, initable);
+
+    /* TODO: Move to CogShell. */
+#if 0
     s_pdisplay->on_capture_app_key = on_capture_app_key;
     s_pdisplay->on_capture_app_key_userdata = initable;
+#endif
 
     pwl_window_notify_resize (s_pwindow, on_window_resize, initable);
 
-    s_pdisplay->xkb_data.modifier.control = wpe_input_keyboard_modifier_control;
-    s_pdisplay->xkb_data.modifier.alt = wpe_input_keyboard_modifier_alt;
-    s_pdisplay->xkb_data.modifier.shift = wpe_input_keyboard_modifier_shift;
+    PwlXKBData *xkb_data = pwl_display_xkb_get_data (s_pdisplay);
+    xkb_data->modifier.control = wpe_input_keyboard_modifier_control;
+    xkb_data->modifier.alt = wpe_input_keyboard_modifier_alt;
+    xkb_data->modifier.shift = wpe_input_keyboard_modifier_shift;
 
     if (!init_input (s_pdisplay, error)) {
         g_critical ("init_input failed");
@@ -618,7 +629,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
     }
 
     /* init WPE host data */
-    wpe_fdo_initialize_for_egl_display (s_pdisplay->egl_display);
+    wpe_fdo_initialize_for_egl_display (pwl_display_egl_get_display (s_pdisplay));
 
     return TRUE;
 }

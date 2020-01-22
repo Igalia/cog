@@ -122,59 +122,43 @@ typedef struct {
 
 typedef struct _PwlDisplay PwlDisplay;
 
-struct _PwlDisplay {
-    struct wl_display *display;
-    struct wl_registry *registry;
-    struct wl_compositor *compositor;
-    struct wl_seat *seat;
-    struct egl_display *egl_display;
-    EGLContext egl_context;
-    EGLConfig egl_config;
-
-    PwlKeyboard keyboard;
-    PwlPointer pointer;
-    PwlTouch touch;
-
-    PwlXKBData xkb_data;
-
-    struct xdg_wm_base *xdg_shell;
-    struct zwp_fullscreen_shell_v1 *fshell;
-    struct wl_shell *shell;
-
-#if HAVE_DEVICE_SCALING
-    struct output_metrics metrics[16];
-#endif /* HAVE_DEVICE_SCALING */
-
-    struct {
-        int32_t scale;
-    } current_output;
-
-    GSource *event_src;
-
-    void (*on_surface_enter) (PwlDisplay*, void *userdata);
-    void *on_surface_enter_userdata;
-    void (*on_pointer_on_motion) (PwlDisplay*, void *userdata);
-    void *on_pointer_on_motion_userdata;
-    void (*on_pointer_on_button) (PwlDisplay*, void *userdata);
-    void *on_pointer_on_button_userdata;
-    void (*on_pointer_on_axis) (PwlDisplay*, void *userdata);
-    void *on_pointer_on_axis_userdata;
-
-    void (*on_touch_on_down)     (PwlDisplay*, void *userdata);
-    void *on_touch_on_down_userdata;
-    void (*on_touch_on_up)       (PwlDisplay*, void *userdata);
-    void *on_touch_on_up_userdata;
-    void (*on_touch_on_motion)   (PwlDisplay*, void *userdata);
-    void *on_touch_on_motion_userdata;
-
-    void (*on_key_event) (PwlDisplay*, void *userdata);
-    void *on_key_event_userdata;
-    bool (*on_capture_app_key) (PwlDisplay*, void *userdata);
-    void *on_capture_app_key_userdata;
-};
 
 PwlDisplay* pwl_display_connect (const char *name, GError**);
 void        pwl_display_destroy (PwlDisplay*);
+
+gboolean    pwl_display_egl_init (PwlDisplay*, GError **error);
+void        pwl_display_egl_deinit (PwlDisplay*);
+EGLDisplay  pwl_display_egl_get_display (const PwlDisplay*);
+struct wl_buffer*
+            pwl_display_egl_create_buffer_from_image (const PwlDisplay*, EGLImage);
+
+PwlXKBData* pwl_display_xkb_get_data (PwlDisplay*);
+
+void        pwl_display_notify_surface_enter (PwlDisplay*,
+                                              void (*callback) (PwlDisplay*, void*),
+                                              void *userdata);
+
+void        pwl_display_notify_pointer_motion (PwlDisplay*,
+                                               void (*callback) (PwlDisplay*, const PwlPointer*, void*),
+                                               void *userdata);
+void        pwl_display_notify_pointer_button (PwlDisplay*,
+                                               void (*callback) (PwlDisplay*, const PwlPointer*, void*),
+                                               void *userdata);
+void        pwl_display_notify_pointer_axis (PwlDisplay*,
+                                             void (*callback) (PwlDisplay*, const PwlPointer*, void*),
+                                             void *userdata);
+void        pwl_display_notify_touch_down (PwlDisplay*,
+                                           void (*callback) (PwlDisplay*, const PwlTouch*, void*),
+                                           void *userdata);
+void        pwl_display_notify_touch_up (PwlDisplay*,
+                                         void (*callback) (PwlDisplay*, const PwlTouch*, void*),
+                                         void *userdata);
+void        pwl_display_notify_touch_motion (PwlDisplay*,
+                                             void (*callback) (PwlDisplay*, const PwlTouch*, void*),
+                                             void *userdata);
+void        pwl_display_notify_key_event (PwlDisplay*,
+                                          void (*callback) (PwlDisplay*, const PwlKeyboard*, void*),
+                                          void *userdata);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (PwlDisplay, pwl_display_destroy)
 
@@ -190,12 +174,8 @@ struct pwl_event_source {
 
 typedef struct _PwlWindow PwlWindow;
 
-GSource *
-setup_wayland_event_source (GMainContext *main_context,
-                            PwlDisplay *display);
-
-gboolean pwl_display_egl_init (PwlDisplay*, GError **error);
-void pwl_display_egl_deinit (PwlDisplay*);
+void setup_wayland_event_source (GMainContext *main_context,
+                                 PwlDisplay *display);
 
 gboolean init_wayland (PwlDisplay*, GError **error);
 
@@ -206,6 +186,7 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC (PwlWindow, pwl_window_destroy)
 struct wl_surface* pwl_window_get_surface (const PwlWindow*);
 
 void pwl_window_get_size (const PwlWindow*, uint32_t *w, uint32_t *h);
+uint32_t pwl_window_get_device_scale (const PwlWindow*);
 
 bool pwl_window_is_fullscreen (const PwlWindow*);
 void pwl_window_set_fullscreen (PwlWindow*, bool fullscreen);
