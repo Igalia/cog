@@ -632,7 +632,7 @@ pointer_on_motion (void* data,
     wl_data.pointer.x = wl_fixed_to_int (fixed_x);
     wl_data.pointer.y = wl_fixed_to_int (fixed_y);
     if (display->on_pointer_on_motion) {
-        display->on_pointer_on_motion (display, display->userdata);
+        display->on_pointer_on_motion (display, display->on_pointer_on_motion_userdata);
     }
 }
 
@@ -658,7 +658,7 @@ pointer_on_button (void* data,
     wl_data.pointer.time = time;
 
     if (display->on_pointer_on_button) {
-        display->on_pointer_on_button (display, display->userdata);
+        display->on_pointer_on_button (display, display->on_pointer_on_button_userdata);
     }
 }
 
@@ -674,7 +674,7 @@ pointer_on_axis (void* data,
     wl_data.pointer.time = time;
     wl_data.pointer.value = wl_fixed_to_int(value) > 0 ? -1 : 1;
     if (display->on_pointer_on_axis) {
-        display->on_pointer_on_axis (display, display->userdata);
+        display->on_pointer_on_axis (display, display->on_pointer_on_axis_userdata);
     }
 }
 #if WAYLAND_1_10_OR_GREATER
