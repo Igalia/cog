@@ -66,8 +66,6 @@ struct _PwlDisplay {
     void *on_key_event_userdata;
     bool (*on_capture_app_key) (PwlDisplay*, void *userdata);
     void *on_capture_app_key_userdata;
-
-    void *userdata;
 };
 
 typedef struct {

@@ -619,7 +619,6 @@ cog_fdo_shell_initable_init (GInitable *initable,
     }
 
     TRACE ("");
-    s_pdisplay->userdata = initable;
     s_win_data = g_new0 (PwlWinData, 1);
     s_callback_userdata = g_new0 (CogFdoShellCallbackData, 1);
     s_callback_userdata->shell = (CogShell*) initable;
