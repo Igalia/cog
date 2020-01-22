@@ -47,6 +47,7 @@ struct _PwlDisplay {
     EGLConfig egl_config;
 
     void (*on_surface_enter) (PwlDisplay*, void *userdata);
+    void *on_surface_enter_userdata;
     void (*on_pointer_on_motion) (PwlDisplay*, void *userdata);
     void (*on_pointer_on_button) (PwlDisplay*, void *userdata);
     void (*on_pointer_on_axis) (PwlDisplay*, void *userdata);

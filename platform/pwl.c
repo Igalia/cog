@@ -298,7 +298,9 @@ surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *
     g_debug ("Surface entered output %p with scale factor %i\n", output, scale_factor);
     wl_surface_set_buffer_scale (surface, scale_factor);
     wl_data.current_output.scale = scale_factor;
-    display->on_surface_enter(display, display->userdata);
+    if (display->on_surface_enter) {
+        display->on_surface_enter(display, display->on_surface_enter_userdata);
+    }
 }
 static void
 registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
