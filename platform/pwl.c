@@ -739,9 +739,9 @@ pointer_on_motion (void* data,
                    wl_fixed_t fixed_y)
 {
     PwlDisplay *display = data;
-    wl_data.pointer.time = time;
-    wl_data.pointer.x = wl_fixed_to_int (fixed_x);
-    wl_data.pointer.y = wl_fixed_to_int (fixed_y);
+    display->pointer.time = time;
+    display->pointer.x = wl_fixed_to_int (fixed_x);
+    display->pointer.y = wl_fixed_to_int (fixed_y);
     if (display->on_pointer_on_motion) {
         display->on_pointer_on_motion (display, display->on_pointer_on_motion_userdata);
     }
@@ -764,9 +764,9 @@ pointer_on_button (void* data,
         button = 0;
     */
 
-    wl_data.pointer.button = !!state ? button : 0;
-    wl_data.pointer.state = state;
-    wl_data.pointer.time = time;
+    display->pointer.button = !!state ? button : 0;
+    display->pointer.state = state;
+    display->pointer.time = time;
 
     if (display->on_pointer_on_button) {
         display->on_pointer_on_button (display, display->on_pointer_on_button_userdata);
@@ -781,9 +781,9 @@ pointer_on_axis (void* data,
                  wl_fixed_t value)
 {
     PwlDisplay *display = data;
-    wl_data.pointer.axis = axis;
-    wl_data.pointer.time = time;
-    wl_data.pointer.value = wl_fixed_to_int(value) > 0 ? -1 : 1;
+    display->pointer.axis = axis;
+    display->pointer.time = time;
+    display->pointer.value = wl_fixed_to_int(value) > 0 ? -1 : 1;
     if (display->on_pointer_on_axis) {
         display->on_pointer_on_axis (display, display->on_pointer_on_axis_userdata);
     }
@@ -1090,15 +1090,15 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     #endif /* WAYLAND_1_10_OR_GREATER */
     };
     const bool has_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
-    if (has_pointer && wl_data.pointer.obj == NULL) {
-        wl_data.pointer.obj = wl_seat_get_pointer (display->seat);
-        g_assert (wl_data.pointer.obj);
+    if (has_pointer && display->pointer.obj == NULL) {
+        display->pointer.obj = wl_seat_get_pointer (display->seat);
+        g_assert (display->pointer.obj);
         g_assert (data);
-        wl_pointer_add_listener (wl_data.pointer.obj, &pointer_listener, data);
+        wl_pointer_add_listener (display->pointer.obj, &pointer_listener, data);
         g_debug ("  - Pointer");
-    } else if (! has_pointer && wl_data.pointer.obj != NULL) {
-        wl_pointer_release (wl_data.pointer.obj);
-        wl_data.pointer.obj = NULL;
+    } else if (! has_pointer && display->pointer.obj != NULL) {
+        wl_pointer_release (display->pointer.obj);
+        display->pointer.obj = NULL;
     }
 
     /* Keyboard */
@@ -1178,7 +1178,7 @@ gboolean init_input (PwlDisplay *display, GError **error)
 
 void clear_input (PwlDisplay* display)
 {
-    g_clear_pointer (&wl_data.pointer.obj, wl_pointer_destroy);
+    g_clear_pointer (&(display->pointer.obj), wl_pointer_destroy);
     g_clear_pointer (&wl_data.keyboard.obj, wl_keyboard_destroy);
     g_clear_pointer (&(display->seat), wl_seat_destroy);
 
