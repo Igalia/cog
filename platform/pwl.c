@@ -16,12 +16,6 @@
 
 #include <gio/gio.h>
 
-PwlData wl_data = {
-    .current_output.scale = 1,
-};
-
-PwlXKBData xkb_data = {NULL, };
-
 
 PwlDisplay*
 pwl_display_connect (const char *name, GError **error)
@@ -48,10 +42,10 @@ pwl_display_destroy (PwlDisplay *self)
     g_debug ("%s: Destroying @ %p", G_STRFUNC, self);
 
     if (self->display) {
-        g_clear_pointer (&wl_data.event_src, g_source_destroy);
-        g_clear_pointer (&wl_data.xdg_shell, xdg_wm_base_destroy);
-        g_clear_pointer (&wl_data.fshell, zwp_fullscreen_shell_v1_destroy);
-        g_clear_pointer (&wl_data.shell, wl_shell_destroy);
+        g_clear_pointer (&(self->event_src), g_source_destroy);
+        g_clear_pointer (&(self->xdg_shell), xdg_wm_base_destroy);
+        g_clear_pointer (&(self->fshell), zwp_fullscreen_shell_v1_destroy);
+        g_clear_pointer (&(self->shell), wl_shell_destroy);
 
         g_clear_pointer (&self->compositor, wl_compositor_destroy);
         g_clear_pointer (&self->registry, wl_registry_destroy);
@@ -158,12 +152,13 @@ output_handle_scale (void *data,
                      struct wl_output *output,
                      int32_t factor)
 {
+    PwlDisplay *display = (PwlDisplay*) data;
     bool found = false;
-    for (int i = 0; i < G_N_ELEMENTS (wl_data.metrics); i++)
+    for (int i = 0; i < G_N_ELEMENTS (display->metrics); i++)
     {
-        if (wl_data.metrics[i].output == output) {
+        if (display->metrics[i].output == output) {
             found = true;
-            wl_data.metrics[i].scale = factor;
+            display->metrics[i].scale = factor;
             break;
         }
     }
@@ -181,10 +176,10 @@ surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *
     PwlDisplay *display = data;
     int32_t scale_factor = -1;
 
-    for (int i=0; i < G_N_ELEMENTS (wl_data.metrics); i++)
+    for (int i=0; i < G_N_ELEMENTS (display->metrics); i++)
     {
-        if (wl_data.metrics[i].output == output) {
-            scale_factor = wl_data.metrics[i].scale;
+        if (display->metrics[i].output == output) {
+            scale_factor = display->metrics[i].scale;
         }
     }
     if (scale_factor == -1) {
@@ -193,7 +188,7 @@ surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *
     }
     g_debug ("Surface entered output %p with scale factor %i\n", output, scale_factor);
     wl_surface_set_buffer_scale (surface, scale_factor);
-    wl_data.current_output.scale = scale_factor;
+    display->current_output.scale = scale_factor;
     if (display->on_surface_enter) {
         display->on_surface_enter(display, display->on_surface_enter_userdata);
     }
@@ -235,9 +230,9 @@ handle_key_event (void *data, uint32_t key, uint32_t state, uint32_t time)
 
     display->keyboard.event.state = state;
     display->keyboard.event.timestamp = time;
-    display->keyboard.event.unicode = xkb_state_key_get_utf32 (xkb_data.state, key);
-    display->keyboard.event.keysym = xkb_state_key_get_one_sym (xkb_data.state, key);
-    display->keyboard.event.modifiers = xkb_data.modifiers;
+    display->keyboard.event.unicode = xkb_state_key_get_utf32 (display->xkb_data.state, key);
+    display->keyboard.event.keysym = xkb_state_key_get_one_sym (display->xkb_data.state, key);
+    display->keyboard.event.modifiers = display->xkb_data.modifiers;
     /* Capture app-level key-bindings here */
     if (capture_app_key_bindings (display,
                                   display->keyboard.event.keysym,
@@ -246,13 +241,13 @@ handle_key_event (void *data, uint32_t key, uint32_t state, uint32_t time)
                                   display->keyboard.event.modifiers))
         return;
 
-    if (xkb_data.compose_state != NULL
+    if (display->xkb_data.compose_state != NULL
             && state == WL_KEYBOARD_KEY_STATE_PRESSED
-            && xkb_compose_state_feed (xkb_data.compose_state, display->keyboard.event.keysym)
+            && xkb_compose_state_feed (display->xkb_data.compose_state, display->keyboard.event.keysym)
             == XKB_COMPOSE_FEED_ACCEPTED
-            && xkb_compose_state_get_status (xkb_data.compose_state)
+            && xkb_compose_state_get_status (display->xkb_data.compose_state)
             == XKB_COMPOSE_COMPOSED) {
-        display->keyboard.event.keysym = xkb_compose_state_get_one_sym (xkb_data.compose_state);
+        display->keyboard.event.keysym = xkb_compose_state_get_one_sym (display->xkb_data.compose_state);
         display->keyboard.event.unicode = xkb_keysym_to_utf32 (display->keyboard.event.keysym);
     }
 
@@ -264,8 +259,8 @@ handle_key_event (void *data, uint32_t key, uint32_t state, uint32_t time)
 static void
 resize_window (PwlWinData *win_data)
 {
-    int32_t pixel_width = win_data->width * wl_data.current_output.scale;
-    int32_t pixel_height = win_data->height * wl_data.current_output.scale;
+    int32_t pixel_width = win_data->width * win_data->display->current_output.scale;
+    int32_t pixel_height = win_data->height * win_data->display->current_output.scale;
 
     if (win_data->egl_window)
         wl_egl_window_resize (win_data->egl_window,
@@ -274,7 +269,7 @@ resize_window (PwlWinData *win_data)
 			                0, 0);
 
     g_debug ("Resized EGL buffer to: (%u, %u) @%ix\n",
-            pixel_width, pixel_height, wl_data.current_output.scale);
+            pixel_width, pixel_height, win_data->display->current_output.scale);
 
     if (win_data->on_window_resize) {
         (*win_data->on_window_resize) (win_data, win_data->on_window_resize_userdata);
@@ -358,20 +353,20 @@ registry_global (void               *data,
                                                &wl_compositor_interface,
                                                version);
     } else if (strcmp (interface, wl_shell_interface.name) == 0) {
-        wl_data.shell = wl_registry_bind (registry,
+        display->shell = wl_registry_bind (registry,
                                           name,
                                           &wl_shell_interface,
                                           version);
     } else if (strcmp (interface, xdg_wm_base_interface.name) == 0) {
-        wl_data.xdg_shell = wl_registry_bind (registry,
+        display->xdg_shell = wl_registry_bind (registry,
                                               name,
                                               &xdg_wm_base_interface,
                                               version);
-        g_assert (wl_data.xdg_shell);
-        xdg_wm_base_add_listener (wl_data.xdg_shell, &xdg_shell_listener, NULL);
+        g_assert (display->xdg_shell);
+        xdg_wm_base_add_listener (display->xdg_shell, &xdg_shell_listener, NULL);
     } else if (strcmp (interface,
                        zwp_fullscreen_shell_v1_interface.name) == 0) {
-        wl_data.fshell = wl_registry_bind (registry,
+        display->fshell = wl_registry_bind (registry,
                                            name,
                                            &zwp_fullscreen_shell_v1_interface,
                                            version);
@@ -392,19 +387,19 @@ registry_global (void               *data,
             .done = noop,
             .scale = output_handle_scale,
         };
-        wl_output_add_listener (output, &output_listener, NULL);
+        wl_output_add_listener (output, &output_listener, display);
         bool inserted = false;
-        for (int i = 0; i < G_N_ELEMENTS (wl_data.metrics); i++)
+        for (int i = 0; i < G_N_ELEMENTS (display->metrics); i++)
         {
-            if (wl_data.metrics[i].output == NULL) {
-                wl_data.metrics[i].output = output;
-                wl_data.metrics[i].name = name;
+            if (display->metrics[i].output == NULL) {
+                display->metrics[i].output = output;
+                display->metrics[i].name = name;
                 inserted = true;
                 break;
             }
         }
         if (!inserted) {
-            g_warning ("Exceeded %" G_GSIZE_FORMAT " connected outputs(!)", G_N_ELEMENTS (wl_data.metrics));
+            g_warning ("Exceeded %" G_GSIZE_FORMAT " connected outputs(!)", G_N_ELEMENTS (display->metrics));
         }
 #endif /* HAVE_DEVICE_SCALING */
     } else {
@@ -417,11 +412,12 @@ registry_global (void               *data,
 static void
 registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
 {
-    for (int i = 0; i < G_N_ELEMENTS (wl_data.metrics); i++)
+    PwlDisplay *display = (PwlDisplay*) data;
+    for (int i = 0; i < G_N_ELEMENTS (display->metrics); i++)
     {
-        if (wl_data.metrics[i].name == name) {
-            wl_data.metrics[i].output = NULL;
-            wl_data.metrics[i].name = 0;
+        if (display->metrics[i].name == name) {
+            display->metrics[i].output = NULL;
+            display->metrics[i].name = 0;
             g_debug ("Removed output %i\n", name);
             break;
         }
@@ -530,6 +526,7 @@ init_wayland (PwlDisplay *display, GError **error)
         return FALSE;
     }
 
+    display->current_output.scale = 1;
     display->registry = wl_display_get_registry (display->display);
     g_assert (display->registry);
     wl_registry_add_listener (display->registry,
@@ -538,9 +535,9 @@ init_wayland (PwlDisplay *display, GError **error)
     wl_display_roundtrip (display->display);
 
     g_assert (display->compositor);
-    g_assert (wl_data.xdg_shell != NULL ||
-              wl_data.shell != NULL ||
-              wl_data.fshell != NULL);
+    g_assert (display->xdg_shell != NULL ||
+              display->shell != NULL ||
+              display->fshell != NULL);
 
     return TRUE;
 }
@@ -606,9 +603,9 @@ gboolean create_window (PwlDisplay* display, PwlWinData* win_data, GError **erro
     wl_surface_add_listener (win_data->wl_surface, &surface_listener, display);
 #endif /* HAVE_DEVICE_SCALING */
 
-    if (wl_data.xdg_shell != NULL) {
+    if (display->xdg_shell != NULL) {
         win_data->xdg_surface =
-            xdg_wm_base_get_xdg_surface (wl_data.xdg_shell,
+            xdg_wm_base_get_xdg_surface (display->xdg_shell,
                                          win_data->wl_surface);
         g_assert (win_data->xdg_surface);
 
@@ -632,13 +629,13 @@ gboolean create_window (PwlDisplay* display, PwlWinData* win_data, GError **erro
         }
         xdg_toplevel_set_app_id (win_data->xdg_toplevel, app_id);
         wl_surface_commit(win_data->wl_surface);
-    } else if (wl_data.fshell != NULL) {
-        zwp_fullscreen_shell_v1_present_surface (wl_data.fshell,
+    } else if (display->fshell != NULL) {
+        zwp_fullscreen_shell_v1_present_surface (display->fshell,
                                                  win_data->wl_surface,
                                                  ZWP_FULLSCREEN_SHELL_V1_PRESENT_METHOD_DEFAULT,
                                                  NULL);
-    } else if (wl_data.shell != NULL) {
-        win_data->shell_surface = wl_shell_get_shell_surface (wl_data.shell,
+    } else if (display->shell != NULL) {
+        win_data->shell_surface = wl_shell_get_shell_surface (display->shell,
                                                              win_data->wl_surface);
         g_assert (win_data->shell_surface);
 
@@ -658,9 +655,9 @@ gboolean create_window (PwlDisplay* display, PwlWinData* win_data, GError **erro
         win_data->is_maximized = false;
         win_data->is_fullscreen = true;
 
-        if (wl_data.xdg_shell != NULL) {
+        if (display->xdg_shell != NULL) {
             xdg_toplevel_set_fullscreen (win_data->xdg_toplevel, NULL);
-        } else if (wl_data.shell != NULL) {
+        } else if (display->shell != NULL) {
             wl_shell_surface_set_fullscreen (win_data->shell_surface,
                                              WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE,
                                              0,
@@ -676,9 +673,9 @@ gboolean create_window (PwlDisplay* display, PwlWinData* win_data, GError **erro
         win_data->is_maximized = true;
         win_data->is_fullscreen = false;
 
-        if (wl_data.xdg_shell != NULL) {
+        if (display->xdg_shell != NULL) {
             xdg_toplevel_set_maximized (win_data->xdg_toplevel);
-        } else if (wl_data.shell != NULL) {
+        } else if (display->shell != NULL) {
             wl_shell_surface_set_maximized (win_data->shell_surface, NULL);
         } else {
             g_warning ("No available shell capable of maximizing.");
@@ -905,6 +902,8 @@ keyboard_on_keymap (void *data,
                     int32_t fd,
                     uint32_t size)
 {
+    PwlDisplay *display = (PwlDisplay*) data;
+
     if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1) {
         close (fd);
         return;
@@ -916,26 +915,26 @@ keyboard_on_keymap (void *data,
         return;
     }
 
-    xkb_data.keymap =
-        xkb_keymap_new_from_string (xkb_data.context,
+    display->xkb_data.keymap =
+        xkb_keymap_new_from_string (display->xkb_data.context,
                                     (char *) mapping,
                                     XKB_KEYMAP_FORMAT_TEXT_V1,
                                     XKB_KEYMAP_COMPILE_NO_FLAGS);
     munmap (mapping, size);
     close (fd);
 
-    if (xkb_data.keymap == NULL)
+    if (display->xkb_data.keymap == NULL)
         return;
 
-    xkb_data.state = xkb_state_new (xkb_data.keymap);
-    if (xkb_data.state == NULL)
+    display->xkb_data.state = xkb_state_new (display->xkb_data.keymap);
+    if (display->xkb_data.state == NULL)
         return;
 
-    xkb_data.indexes.control = xkb_keymap_mod_get_index (xkb_data.keymap,
+    display->xkb_data.indexes.control = xkb_keymap_mod_get_index (display->xkb_data.keymap,
                                                          XKB_MOD_NAME_CTRL);
-    xkb_data.indexes.alt = xkb_keymap_mod_get_index (xkb_data.keymap,
+    display->xkb_data.indexes.alt = xkb_keymap_mod_get_index (display->xkb_data.keymap,
                                                      XKB_MOD_NAME_ALT);
-    xkb_data.indexes.shift = xkb_keymap_mod_get_index (xkb_data.keymap,
+    display->xkb_data.indexes.shift = xkb_keymap_mod_get_index (display->xkb_data.keymap,
                                                        XKB_MOD_NAME_SHIFT);
 }
 
@@ -1003,7 +1002,7 @@ keyboard_on_key (void *data,
                 0x00,
                 sizeof (display->keyboard.repeat_data));
     } else if (state == WL_KEYBOARD_KEY_STATE_PRESSED
-               && xkb_keymap_key_repeats (xkb_data.keymap, key)) {
+               && xkb_keymap_key_repeats (display->xkb_data.keymap, key)) {
         if (display->keyboard.repeat_data.event_source)
             g_source_remove (display->keyboard.repeat_data.event_source);
 
@@ -1025,7 +1024,8 @@ keyboard_on_modifiers (void *data,
                        uint32_t mods_locked,
                        uint32_t group)
 {
-    xkb_state_update_mask (xkb_data.state,
+    PwlDisplay *display = (PwlDisplay*) data;
+    xkb_state_update_mask (display->xkb_data.state,
                            mods_depressed,
                            mods_latched,
                            mods_locked,
@@ -1033,24 +1033,24 @@ keyboard_on_modifiers (void *data,
                            0,
                            group);
 
-    xkb_data.modifiers = 0;
+    display->xkb_data.modifiers = 0;
     uint32_t component
         = (XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_LATCHED);
 
-    if (xkb_state_mod_index_is_active (xkb_data.state,
-                                       xkb_data.indexes.control,
+    if (xkb_state_mod_index_is_active (display->xkb_data.state,
+                                       display->xkb_data.indexes.control,
                                        component)) {
-        xkb_data.modifiers |= xkb_data.modifier.control;
+        display->xkb_data.modifiers |= display->xkb_data.modifier.control;
     }
-    if (xkb_state_mod_index_is_active (xkb_data.state,
-                                       xkb_data.indexes.alt,
+    if (xkb_state_mod_index_is_active (display->xkb_data.state,
+                                       display->xkb_data.indexes.alt,
                                        component)) {
-        xkb_data.modifiers |= xkb_data.modifier.alt;
+        display->xkb_data.modifiers |= display->xkb_data.modifier.alt;
     }
-    if (xkb_state_mod_index_is_active (xkb_data.state,
-                                       xkb_data.indexes.shift,
+    if (xkb_state_mod_index_is_active (display->xkb_data.state,
+                                       display->xkb_data.indexes.shift,
                                        component)) {
-        xkb_data.modifiers |= xkb_data.modifier.shift;
+        display->xkb_data.modifiers |= display->xkb_data.modifier.shift;
     }
 }
 
@@ -1165,15 +1165,15 @@ gboolean init_input (PwlDisplay *display, GError **error)
     if (display->seat != NULL) {
         wl_seat_add_listener (display->seat, &seat_listener, display);
 
-        xkb_data.context = xkb_context_new (XKB_CONTEXT_NO_FLAGS);
-        g_assert (xkb_data.context);
-        xkb_data.compose_table =
-            xkb_compose_table_new_from_locale (xkb_data.context,
+        display->xkb_data.context = xkb_context_new (XKB_CONTEXT_NO_FLAGS);
+        g_assert (display->xkb_data.context);
+        display->xkb_data.compose_table =
+            xkb_compose_table_new_from_locale (display->xkb_data.context,
                                                setlocale (LC_CTYPE, NULL),
                                                XKB_COMPOSE_COMPILE_NO_FLAGS);
-        if (xkb_data.compose_table != NULL) {
-            xkb_data.compose_state =
-                xkb_compose_state_new (xkb_data.compose_table,
+        if (display->xkb_data.compose_table != NULL) {
+            display->xkb_data.compose_state =
+                xkb_compose_state_new (display->xkb_data.compose_table,
                                        XKB_COMPOSE_STATE_NO_FLAGS);
         }
     }
@@ -1187,9 +1187,9 @@ void clear_input (PwlDisplay* display)
     g_clear_pointer (&(display->keyboard.obj), wl_keyboard_destroy);
     g_clear_pointer (&(display->seat), wl_seat_destroy);
 
-    g_clear_pointer (&xkb_data.state, xkb_state_unref);
-    g_clear_pointer (&xkb_data.compose_state, xkb_compose_state_unref);
-    g_clear_pointer (&xkb_data.compose_table, xkb_compose_table_unref);
-    g_clear_pointer (&xkb_data.keymap, xkb_keymap_unref);
-    g_clear_pointer (&xkb_data.context, xkb_context_unref);
+    g_clear_pointer (&(display->xkb_data.state), xkb_state_unref);
+    g_clear_pointer (&(display->xkb_data.compose_state), xkb_compose_state_unref);
+    g_clear_pointer (&(display->xkb_data.compose_table), xkb_compose_table_unref);
+    g_clear_pointer (&(display->xkb_data.keymap), xkb_keymap_unref);
+    g_clear_pointer (&(display->xkb_data.context), xkb_context_unref);
 }

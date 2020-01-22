@@ -31,9 +31,6 @@
 # define TRACE(fmt, ...) ((void) 0)
 #endif
 
-extern PwlData wl_data;
-extern PwlXKBData xkb_data;
-
 const static int wpe_view_activity_state_initiated = 1 << 4;
 
 static PwlDisplay *s_pdisplay = NULL;
@@ -90,7 +87,7 @@ on_surface_enter (PwlDisplay* display, void *userdata)
 {
     CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-    wpe_view_backend_dispatch_set_device_scale_factor (backend, wl_data.current_output.scale);
+    wpe_view_backend_dispatch_set_device_scale_factor (backend, display->current_output.scale);
 }
 #endif /* HAVE_DEVICE_SCALING */
 
@@ -104,8 +101,8 @@ on_pointer_on_motion (PwlDisplay* display, void *userdata)
     struct wpe_input_pointer_event event = {
         wpe_input_pointer_event_type_motion,
         display->pointer.time,
-        display->pointer.x * wl_data.current_output.scale,
-        display->pointer.y * wl_data.current_output.scale,
+        display->pointer.x * display->current_output.scale,
+        display->pointer.y * display->current_output.scale,
         display->pointer.button,
         display->pointer.state
     };
@@ -120,8 +117,8 @@ on_pointer_on_button (PwlDisplay* display, void *userdata)
     struct wpe_input_pointer_event event = {
         wpe_input_pointer_event_type_button,
         display->pointer.time,
-        display->pointer.x * wl_data.current_output.scale,
-        display->pointer.y * wl_data.current_output.scale,
+        display->pointer.x * display->current_output.scale,
+        display->pointer.y * display->current_output.scale,
         display->pointer.button,
         display->pointer.state,
     };
@@ -136,8 +133,8 @@ on_pointer_on_axis (PwlDisplay* display, void *userdata)
     struct wpe_input_axis_event event = {
         wpe_input_axis_event_type_motion,
         display->pointer.time,
-        display->pointer.x * wl_data.current_output.scale,
-        display->pointer.y * wl_data.current_output.scale,
+        display->pointer.x * display->current_output.scale,
+        display->pointer.y * display->current_output.scale,
         display->pointer.axis,
         display->pointer.value,
     };
@@ -154,8 +151,8 @@ on_touch_on_down (PwlDisplay* display, void *userdata)
         wpe_input_touch_event_type_down,
         display->touch.time,
         display->touch.id,
-        wl_fixed_to_int (display->touch.x) * wl_data.current_output.scale,
-        wl_fixed_to_int (display->touch.y) * wl_data.current_output.scale,
+        wl_fixed_to_int (display->touch.x) * display->current_output.scale,
+        wl_fixed_to_int (display->touch.y) * display->current_output.scale,
     };
 
     memcpy (&touch_points[display->touch.id],
@@ -216,8 +213,8 @@ on_touch_on_motion (PwlDisplay* display, void *userdata)
         wpe_input_touch_event_type_motion,
         display->touch.time,
         display->touch.id,
-        wl_fixed_to_int (display->touch.x) * wl_data.current_output.scale,
-        wl_fixed_to_int (display->touch.y) * wl_data.current_output.scale,
+        wl_fixed_to_int (display->touch.x) * display->current_output.scale,
+        wl_fixed_to_int (display->touch.y) * display->current_output.scale,
     };
 
     memcpy (&touch_points[display->touch.id],
@@ -494,8 +491,8 @@ on_export_fdo_egl_image (void *data, struct wpe_fdo_egl_exported_image *image)
     wl_surface_attach (s_win_data->wl_surface, buffer, 0, 0);
     wl_surface_damage (s_win_data->wl_surface,
                        0, 0,
-                       s_win_data->width * wl_data.current_output.scale,
-                       s_win_data->height * wl_data.current_output.scale);
+                       s_win_data->width * s_pdisplay->current_output.scale,
+                       s_win_data->height * s_pdisplay->current_output.scale);
     request_frame (backend_data->exportable);
 
     wl_surface_commit (s_win_data->wl_surface);
@@ -527,8 +524,8 @@ cog_shell_new_fdo_view_backend (CogShell *shell)
                                      data);
     g_assert (wk_view_backend);
 
-    if (!wl_data.event_src) {
-        wl_data.event_src =
+    if (!s_pdisplay->event_src) {
+        s_pdisplay->event_src =
             setup_wayland_event_source (g_main_context_get_thread_default (),
                                         s_pdisplay);
     }
@@ -619,9 +616,9 @@ cog_fdo_shell_initable_init (GInitable *initable,
     s_win_data->on_window_resize = on_window_resize;
     s_win_data->on_window_resize_userdata = initable;
 
-    xkb_data.modifier.control = wpe_input_keyboard_modifier_control;
-    xkb_data.modifier.alt = wpe_input_keyboard_modifier_alt;
-    xkb_data.modifier.shift = wpe_input_keyboard_modifier_shift;
+    s_pdisplay->xkb_data.modifier.control = wpe_input_keyboard_modifier_control;
+    s_pdisplay->xkb_data.modifier.alt = wpe_input_keyboard_modifier_alt;
+    s_pdisplay->xkb_data.modifier.shift = wpe_input_keyboard_modifier_shift;
 
     if (!init_input (s_pdisplay, error)) {
         destroy_window (s_pdisplay, s_win_data);
