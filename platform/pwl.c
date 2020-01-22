@@ -542,14 +542,7 @@ gboolean
 init_wayland (PwlDisplay *display, GError **error)
 {
     g_debug ("Initializing Wayland...");
-
-    if (!(display->display = wl_display_connect (NULL))) {
-        g_set_error (error,
-                     G_FILE_ERROR,
-                     g_file_error_from_errno (errno),
-                     "Could not open Wayland display");
-        return FALSE;
-    }
+    g_assert (display->display);
 
     display->current_output.scale = 1;
     display->registry = wl_display_get_registry (display->display);
