@@ -148,7 +148,6 @@ typedef struct {
 
     GSource *event_src;
 
-    void (*resize_window)(void* data);
     void (*handle_key_event)(void* data, uint32_t key, uint32_t state, uint32_t time);
 
     struct wl_output_listener output_listener;
@@ -169,7 +168,9 @@ struct pwl_event_source {
     struct wl_display* display;
 };
 
-typedef struct {
+typedef struct _PwlWinData PwlWinData;
+
+struct _PwlWinData {
     PwlDisplay *display;
 
     struct wl_surface *wl_surface;
@@ -186,7 +187,10 @@ typedef struct {
 
     bool is_fullscreen;
     bool is_maximized;
-} PwlWinData;
+
+    void (*on_window_resize) (PwlWinData*, void *userdata);
+    void *on_window_resize_userdata;
+};
 
 GSource *
 setup_wayland_event_source (GMainContext *main_context,
