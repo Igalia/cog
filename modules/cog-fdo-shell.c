@@ -31,10 +31,14 @@
 # define TRACE(fmt, ...) ((void) 0)
 #endif
 
+extern PwlData wl_data;
+extern PwlXKBData xkb_data;
+
 const static int wpe_view_activity_state_initiated = 1 << 4;
 
 static PwlDisplay *s_pdisplay = NULL;
 static PwlWinData* s_win_data = NULL;
+
 static bool s_support_checked = false;
 G_LOCK_DEFINE_STATIC (s_globals);
 
@@ -49,12 +53,16 @@ typedef struct {
     CogShell parent;
 } CogFdoShell;
 
+typedef struct {
+    CogShell *shell;
+    PwlData  *wl_data;
+} CogFdoShellCallbackData;
+
+static CogFdoShellCallbackData *s_callback_userdata = NULL;
+
 static void cog_fdo_shell_initable_iface_init (GInitableIface *iface);
 
 struct wpe_input_touch_event_raw touch_points[10];
-
-extern PwlData wl_data;
-extern PwlXKBData xkb_data;
 
 GSList* wpe_host_data_exportable = NULL;
 
@@ -76,6 +84,7 @@ wpe_view_backend_data_free (WpeViewBackendData *data)
     /* TODO: I think the data->image is actually freed already when it's not needed anymore. */
     g_free (data);
 }
+
 
 /* Output scale */
 #if HAVE_DEVICE_SCALING
@@ -351,6 +360,8 @@ cog_fdo_shell_class_finalize (CogFdoShellClass *klass)
     wpe_view_backend_exportable_fdo_destroy (wpe_host_data.exportable);
     * /
 */
+    g_free(s_callback_userdata);
+
     clear_input (s_pdisplay);
 
     destroy_window (s_pdisplay, s_win_data);
@@ -654,6 +665,9 @@ cog_fdo_shell_initable_init (GInitable *initable,
     TRACE ("");
     s_pdisplay->userdata = initable;
     s_win_data = g_new0 (PwlWinData, 1);
+    s_callback_userdata = g_new0 (CogFdoShellCallbackData, 1);
+    s_callback_userdata->shell = (CogShell*) initable;
+    s_callback_userdata->wl_data = &wl_data;
 
 #if HAVE_DEVICE_SCALING
     const struct wl_output_listener output_listener = {
