@@ -233,27 +233,27 @@ handle_key_event (void *data, uint32_t key, uint32_t state, uint32_t time)
 {
     PwlDisplay *display = data;
 
-    wl_data.keyboard.event.state = state;
-    wl_data.keyboard.event.timestamp = time;
-    wl_data.keyboard.event.unicode = xkb_state_key_get_utf32 (xkb_data.state, key);
-    wl_data.keyboard.event.keysym = xkb_state_key_get_one_sym (xkb_data.state, key);
-    wl_data.keyboard.event.modifiers = xkb_data.modifiers;
+    display->keyboard.event.state = state;
+    display->keyboard.event.timestamp = time;
+    display->keyboard.event.unicode = xkb_state_key_get_utf32 (xkb_data.state, key);
+    display->keyboard.event.keysym = xkb_state_key_get_one_sym (xkb_data.state, key);
+    display->keyboard.event.modifiers = xkb_data.modifiers;
     /* Capture app-level key-bindings here */
     if (capture_app_key_bindings (display,
-                                  wl_data.keyboard.event.keysym,
-                                  wl_data.keyboard.event.unicode,
+                                  display->keyboard.event.keysym,
+                                  display->keyboard.event.unicode,
                                   state,
-                                  wl_data.keyboard.event.modifiers))
+                                  display->keyboard.event.modifiers))
         return;
 
     if (xkb_data.compose_state != NULL
             && state == WL_KEYBOARD_KEY_STATE_PRESSED
-            && xkb_compose_state_feed (xkb_data.compose_state, wl_data.keyboard.event.keysym)
+            && xkb_compose_state_feed (xkb_data.compose_state, display->keyboard.event.keysym)
             == XKB_COMPOSE_FEED_ACCEPTED
             && xkb_compose_state_get_status (xkb_data.compose_state)
             == XKB_COMPOSE_COMPOSED) {
-        wl_data.keyboard.event.keysym = xkb_compose_state_get_one_sym (xkb_data.compose_state);
-        wl_data.keyboard.event.unicode = xkb_keysym_to_utf32 (wl_data.keyboard.event.keysym);
+        display->keyboard.event.keysym = xkb_compose_state_get_one_sym (xkb_data.compose_state);
+        display->keyboard.event.unicode = xkb_keysym_to_utf32 (display->keyboard.event.keysym);
     }
 
     if (display->on_key_event) {
@@ -946,7 +946,8 @@ keyboard_on_enter (void *data,
                    struct wl_surface *surface,
                    struct wl_array *keys)
 {
-    wl_data.keyboard.serial = serial;
+    PwlDisplay *display = (PwlDisplay*) data;
+    display->keyboard.serial = serial;
 }
 
 void
@@ -955,18 +956,20 @@ keyboard_on_leave (void *data,
                    uint32_t serial,
                    struct wl_surface *surface)
 {
-    wl_data.keyboard.serial = serial;
+    PwlDisplay *display = (PwlDisplay*) data;
+    display->keyboard.serial = serial;
 }
 
 gboolean
 repeat_delay_timeout (void *data)
 {
-    handle_key_event (data, wl_data.keyboard.repeat_data.key,
-                      wl_data.keyboard.repeat_data.state,
-                      wl_data.keyboard.repeat_data.time);
+    PwlDisplay *display = (PwlDisplay*) data;
+    handle_key_event (data, display->keyboard.repeat_data.key,
+                      display->keyboard.repeat_data.state,
+                      display->keyboard.repeat_data.time);
 
-    wl_data.keyboard.repeat_data.event_source =
-        g_timeout_add (wl_data.keyboard.repeat_info.rate,
+    display->keyboard.repeat_data.event_source =
+        g_timeout_add (display->keyboard.repeat_info.rate,
                        (GSourceFunc) repeat_delay_timeout, data);
 
     return G_SOURCE_REMOVE;
@@ -980,34 +983,35 @@ keyboard_on_key (void *data,
                  uint32_t key,
                  uint32_t state)
 {
+    PwlDisplay *display = (PwlDisplay*) data;
     /* @FIXME: investigate why is this necessary */
     // IDK.
     key += 8;
 
-    wl_data.keyboard.serial = serial;
+    display->keyboard.serial = serial;
     handle_key_event (data, key, state, time);
 
-    if (wl_data.keyboard.repeat_info.rate == 0)
+    if (display->keyboard.repeat_info.rate == 0)
         return;
 
     if (state == WL_KEYBOARD_KEY_STATE_RELEASED
-        && wl_data.keyboard.repeat_data.key == key) {
-        if (wl_data.keyboard.repeat_data.event_source)
-            g_source_remove (wl_data.keyboard.repeat_data.event_source);
+        && display->keyboard.repeat_data.key == key) {
+        if (display->keyboard.repeat_data.event_source)
+            g_source_remove (display->keyboard.repeat_data.event_source);
 
-        memset (&wl_data.keyboard.repeat_data,
+        memset (&(display->keyboard.repeat_data),
                 0x00,
-                sizeof (wl_data.keyboard.repeat_data));
+                sizeof (display->keyboard.repeat_data));
     } else if (state == WL_KEYBOARD_KEY_STATE_PRESSED
                && xkb_keymap_key_repeats (xkb_data.keymap, key)) {
-        if (wl_data.keyboard.repeat_data.event_source)
-            g_source_remove (wl_data.keyboard.repeat_data.event_source);
+        if (display->keyboard.repeat_data.event_source)
+            g_source_remove (display->keyboard.repeat_data.event_source);
 
-        wl_data.keyboard.repeat_data.key = key;
-        wl_data.keyboard.repeat_data.time = time;
-        wl_data.keyboard.repeat_data.state = state;
-        wl_data.keyboard.repeat_data.event_source =
-            g_timeout_add (wl_data.keyboard.repeat_info.delay,
+        display->keyboard.repeat_data.key = key;
+        display->keyboard.repeat_data.time = time;
+        display->keyboard.repeat_data.state = state;
+        display->keyboard.repeat_data.event_source =
+            g_timeout_add (display->keyboard.repeat_info.delay,
                            (GSourceFunc) repeat_delay_timeout, data);
     }
 }
@@ -1056,15 +1060,16 @@ keyboard_on_repeat_info (void *data,
                          int32_t rate,
                          int32_t delay)
 {
-    wl_data.keyboard.repeat_info.rate = rate;
-    wl_data.keyboard.repeat_info.delay = delay;
+    PwlDisplay *display = (PwlDisplay*) data;
+    display->keyboard.repeat_info.rate = rate;
+    display->keyboard.repeat_info.delay = delay;
 
     /* a rate of zero disables any repeating. */
-    if (rate == 0 && wl_data.keyboard.repeat_data.event_source > 0) {
-        g_source_remove(wl_data.keyboard.repeat_data.event_source);
-        memset (&wl_data.keyboard.repeat_data,
+    if (rate == 0 && display->keyboard.repeat_data.event_source > 0) {
+        g_source_remove(display->keyboard.repeat_data.event_source);
+        memset (&(display->keyboard.repeat_data),
                 0x00,
-                sizeof (wl_data.keyboard.repeat_data));
+                sizeof (display->keyboard.repeat_data));
     }
 }
 
@@ -1103,9 +1108,9 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
 
     /* Keyboard */
     const bool has_keyboard = capabilities & WL_SEAT_CAPABILITY_KEYBOARD;
-    if (has_keyboard && wl_data.keyboard.obj == NULL) {
-        wl_data.keyboard.obj = wl_seat_get_keyboard (display->seat);
-        g_assert (wl_data.keyboard.obj);
+    if (has_keyboard && display->keyboard.obj == NULL) {
+        display->keyboard.obj = wl_seat_get_keyboard (display->seat);
+        g_assert (display->keyboard.obj);
         static const struct wl_keyboard_listener keyboard_listener = {
             .keymap = keyboard_on_keymap,
             .enter = keyboard_on_enter,
@@ -1114,11 +1119,11 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
             .modifiers = keyboard_on_modifiers,
             .repeat_info = keyboard_on_repeat_info,
         };
-        wl_keyboard_add_listener (wl_data.keyboard.obj, &keyboard_listener, data);
+        wl_keyboard_add_listener (display->keyboard.obj, &keyboard_listener, data);
         g_debug ("  - Keyboard");
-    } else if (! has_keyboard && wl_data.keyboard.obj != NULL) {
-        wl_keyboard_release (wl_data.keyboard.obj);
-        wl_data.keyboard.obj = NULL;
+    } else if (! has_keyboard && display->keyboard.obj != NULL) {
+        wl_keyboard_release (display->keyboard.obj);
+        display->keyboard.obj = NULL;
     }
 
     /* Touch */
@@ -1179,7 +1184,7 @@ gboolean init_input (PwlDisplay *display, GError **error)
 void clear_input (PwlDisplay* display)
 {
     g_clear_pointer (&(display->pointer.obj), wl_pointer_destroy);
-    g_clear_pointer (&wl_data.keyboard.obj, wl_keyboard_destroy);
+    g_clear_pointer (&(display->keyboard.obj), wl_keyboard_destroy);
     g_clear_pointer (&(display->seat), wl_seat_destroy);
 
     g_clear_pointer (&xkb_data.state, xkb_state_unref);
