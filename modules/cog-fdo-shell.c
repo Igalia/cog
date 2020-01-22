@@ -574,11 +574,6 @@ cog_fdo_shell_initable_init (GInitable *initable,
         return FALSE;
     }
 
-    if (!init_wayland (s_pdisplay, error)) {
-        g_critical ("init_wayland failed");
-        return FALSE;
-    }
-
     if (!pwl_display_egl_init (s_pdisplay, error)) {
         g_critical ("pwl_display_egl_init failed");
         return FALSE;
