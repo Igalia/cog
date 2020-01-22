@@ -62,6 +62,11 @@ struct _PwlDisplay {
     void (*on_touch_on_motion)   (PwlDisplay*, void *userdata);
     void *on_touch_on_motion_userdata;
 
+    void (*on_key_event) (PwlDisplay*, void *userdata);
+    void *on_key_event_userdata;
+    bool (*on_capture_app_key) (PwlDisplay*, void *userdata);
+    void *on_capture_app_key_userdata;
+
     void *userdata;
 };
 
@@ -135,6 +140,14 @@ typedef struct {
             uint32_t event_source;
         } repeat_data;
 
+        struct {
+            uint32_t keysym;
+            uint32_t unicode;
+            uint32_t state;
+            uint8_t modifiers;
+            uint32_t timestamp;
+        } event;
+
         uint32_t serial;
     } keyboard;
 
@@ -147,8 +160,6 @@ typedef struct {
     } touch;
 
     GSource *event_src;
-
-    void (*handle_key_event)(void* data, uint32_t key, uint32_t state, uint32_t time);
 
     struct wl_output_listener output_listener;
 } PwlData;

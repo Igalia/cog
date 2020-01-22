@@ -147,6 +147,66 @@ setup_wayland_event_source (GMainContext *main_context,
     return &wl_source->source;
 }
 
+static bool
+capture_app_key_bindings (PwlDisplay *display,
+                          uint32_t keysym,
+                          uint32_t unicode,
+                          uint32_t state,
+                          uint8_t modifiers)
+{
+    if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+        /* fullscreen */
+        /* TODO: Requires disengage window, display and WL seat on capabilities
+        if (modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F11) {
+            if (! s_win_data->is_fullscreen)
+                xdg_toplevel_set_fullscreen (s_win_data->xdg_toplevel, NULL);
+            else
+                xdg_toplevel_unset_fullscreen (s_win_data->xdg_toplevel);
+            s_win_data->is_fullscreen = ! s_win_data->is_fullscreen;
+            return true;
+        } */
+    }
+
+    if (display->on_capture_app_key) {
+        return (*display->on_capture_app_key) (display, display->on_capture_app_key_userdata);
+    }
+
+    return false;
+}
+
+static void
+handle_key_event (void *data, uint32_t key, uint32_t state, uint32_t time)
+{
+    PwlDisplay *display = data;
+
+    wl_data.keyboard.event.state = state;
+    wl_data.keyboard.event.timestamp = time;
+    wl_data.keyboard.event.unicode = xkb_state_key_get_utf32 (xkb_data.state, key);
+    wl_data.keyboard.event.keysym = xkb_state_key_get_one_sym (xkb_data.state, key);
+    wl_data.keyboard.event.modifiers = xkb_data.modifiers;
+    /* Capture app-level key-bindings here */
+    if (capture_app_key_bindings (display,
+                                  wl_data.keyboard.event.keysym,
+                                  wl_data.keyboard.event.unicode,
+                                  state,
+                                  wl_data.keyboard.event.modifiers))
+        return;
+
+    if (xkb_data.compose_state != NULL
+            && state == WL_KEYBOARD_KEY_STATE_PRESSED
+            && xkb_compose_state_feed (xkb_data.compose_state, wl_data.keyboard.event.keysym)
+            == XKB_COMPOSE_FEED_ACCEPTED
+            && xkb_compose_state_get_status (xkb_data.compose_state)
+            == XKB_COMPOSE_COMPOSED) {
+        wl_data.keyboard.event.keysym = xkb_compose_state_get_one_sym (xkb_data.compose_state);
+        wl_data.keyboard.event.unicode = xkb_keysym_to_utf32 (wl_data.keyboard.event.keysym);
+    }
+
+    if (display->on_key_event) {
+        (*display->on_key_event) (display, display->on_key_event_userdata);
+    }
+}
+
 static void
 resize_window (PwlWinData *win_data)
 {
@@ -871,7 +931,7 @@ keyboard_on_leave (void *data,
 gboolean
 repeat_delay_timeout (void *data)
 {
-    wl_data.handle_key_event (data, wl_data.keyboard.repeat_data.key,
+    handle_key_event (data, wl_data.keyboard.repeat_data.key,
                       wl_data.keyboard.repeat_data.state,
                       wl_data.keyboard.repeat_data.time);
 
@@ -895,7 +955,7 @@ keyboard_on_key (void *data,
     key += 8;
 
     wl_data.keyboard.serial = serial;
-    wl_data.handle_key_event (data, key, state, time);
+    handle_key_event (data, key, state, time);
 
     if (wl_data.keyboard.repeat_info.rate == 0)
         return;

@@ -37,12 +37,10 @@ extern PwlXKBData xkb_data;
 const static int wpe_view_activity_state_initiated = 1 << 4;
 
 static PwlDisplay *s_pdisplay = NULL;
-static PwlWinData* s_win_data = NULL;
+static PwlWinData *s_win_data = NULL;
 
 static bool s_support_checked = false;
 G_LOCK_DEFINE_STATIC (s_globals);
-
-static void handle_key_event (void *data, uint32_t key, uint32_t state, uint32_t time);
 
 typedef struct {
     CogShellClass parent_class;
@@ -55,6 +53,7 @@ typedef struct {
 typedef struct {
     CogShell *shell;
     PwlData  *wl_data;
+    PwlWinData  *win_data;
 } CogFdoShellCallbackData;
 
 static CogFdoShellCallbackData *s_callback_userdata = NULL;
@@ -329,8 +328,6 @@ cog_fdo_shell_class_init (CogFdoShellClass *klass)
     shell_class->is_supported = cog_fdo_shell_is_supported;
     shell_class->cog_shell_new_view_backend = cog_shell_new_fdo_view_backend;
     shell_class->cog_shell_resume_active_views = cog_shell_fdo_resume_active_views;
-
-    wl_data.handle_key_event = handle_key_event;
 }
 
 static void
@@ -379,26 +376,20 @@ on_window_resize (PwlWinData *win_data, void *userdata)
 
 
 static bool
-capture_app_key_bindings (uint32_t keysym,
-                          uint32_t unicode,
-                          uint32_t state,
-                          uint8_t modifiers)
+on_capture_app_key (PwlDisplay *display, void *userdata)
 {
+    CogFdoShellCallbackData *cb_userdata = userdata;
     CogLauncher *launcher = cog_launcher_get_default ();
     WebKitWebView *web_view = WEBKIT_WEB_VIEW(cog_shell_get_active_view (cog_launcher_get_shell (launcher)));
 
+    uint32_t keysym = cb_userdata->wl_data->keyboard.event.keysym;
+    uint32_t unicode = cb_userdata->wl_data->keyboard.event.unicode;
+    uint32_t state = cb_userdata->wl_data->keyboard.event.state;
+    uint8_t modifiers =cb_userdata->wl_data->keyboard.event.modifiers;
+
     if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
-        /* fullscreen */
-        if (modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F11) {
-            if (! s_win_data->is_fullscreen)
-                xdg_toplevel_set_fullscreen (s_win_data->xdg_toplevel, NULL);
-            else
-                xdg_toplevel_unset_fullscreen (s_win_data->xdg_toplevel);
-            s_win_data->is_fullscreen = ! s_win_data->is_fullscreen;
-            return true;
-        }
         /* Ctrl+W, exit the application */
-        else if (modifiers == wpe_input_keyboard_modifier_control &&
+        if (modifiers == wpe_input_keyboard_modifier_control &&
                  unicode == 0x17 && keysym == 0x77) {
             // TODO: A loadable module in a library, we shouldn't be causing
             // the application to quit, this should be decided by the application.
@@ -447,41 +438,22 @@ capture_app_key_bindings (uint32_t keysym,
 
 
 static void
-handle_key_event (void *data, uint32_t key, uint32_t state, uint32_t time)
+on_key_event (PwlDisplay* display, void *userdata)
 {
-    PwlDisplay *display = (PwlDisplay*) data;
-    CogShell *shell = (CogShell*) display->userdata;
+    CogFdoShellCallbackData *cb_userdata = userdata;
 
-    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-
-    uint32_t keysym = xkb_state_key_get_one_sym (xkb_data.state, key);
-    uint32_t unicode = xkb_state_key_get_utf32 (xkb_data.state, key);
-
-    /* Capture app-level key-bindings here */
-    if (capture_app_key_bindings (keysym, unicode, state, xkb_data.modifiers))
-        return;
-
-    if (xkb_data.compose_state != NULL
-            && state == WL_KEYBOARD_KEY_STATE_PRESSED
-            && xkb_compose_state_feed (xkb_data.compose_state, keysym)
-            == XKB_COMPOSE_FEED_ACCEPTED
-            && xkb_compose_state_get_status (xkb_data.compose_state)
-            == XKB_COMPOSE_COMPOSED) {
-        keysym = xkb_compose_state_get_one_sym (xkb_data.compose_state);
-        unicode = xkb_keysym_to_utf32 (keysym);
-    }
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (cb_userdata->shell);
 
     struct wpe_input_keyboard_event event = {
-        time,
-        keysym,
-        unicode,
-        state == true,
-        xkb_data.modifiers
+        cb_userdata->wl_data->keyboard.event.timestamp,
+        cb_userdata->wl_data->keyboard.event.keysym,
+        cb_userdata->wl_data->keyboard.event.unicode,
+        cb_userdata->wl_data->keyboard.event.state == true,
+        cb_userdata->wl_data->keyboard.event.modifiers
     };
 
     wpe_view_backend_dispatch_keyboard_event (backend, &event);
 }
-
 
 static void
 on_surface_frame (void *data, struct wl_callback *callback, uint32_t time)
@@ -652,6 +624,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
     s_callback_userdata = g_new0 (CogFdoShellCallbackData, 1);
     s_callback_userdata->shell = (CogShell*) initable;
     s_callback_userdata->wl_data = &wl_data;
+    s_callback_userdata->win_data = s_win_data;
 
 #if HAVE_DEVICE_SCALING
     const struct wl_output_listener output_listener = {
@@ -678,6 +651,11 @@ cog_fdo_shell_initable_init (GInitable *initable,
     s_pdisplay->on_touch_on_up_userdata = s_callback_userdata;
     s_pdisplay->on_touch_on_motion = on_touch_on_motion;
     s_pdisplay->on_touch_on_motion_userdata = s_callback_userdata;
+
+    s_pdisplay->on_key_event = on_key_event;
+    s_pdisplay->on_key_event_userdata = s_callback_userdata;
+    s_pdisplay->on_capture_app_key = on_capture_app_key;
+    s_pdisplay->on_capture_app_key_userdata = s_callback_userdata;
 
     if (!init_wayland (s_pdisplay, error))
         return FALSE;
