@@ -28,6 +28,10 @@ struct _PwlWindow {
     uint32_t width;
     uint32_t height;
 
+    /*
+     * XXX: Should this be en enum? Can a window be maximized *and*
+     *      fullscreened at the same time?
+     */
     bool is_fullscreen;
     bool is_maximized;
 
@@ -591,6 +595,12 @@ xdg_toplevel_on_close (void *data, struct xdg_toplevel *xdg_toplevel)
     // TODO g_application_quit (g_application_get_default ());
 }
 
+/*
+ * TODO: Library code must not use environment variables. This needs to be
+ *       moved to cog.c, adding methods in CogShell which get overriden in
+ *       CogFdoShell, and that in turn calls the appropriate platform
+ *       functions.
+ */
 static void
 create_window (PwlDisplay* display, PwlWindow* window)
 {
@@ -598,35 +608,12 @@ create_window (PwlDisplay* display, PwlWindow* window)
     if ((env_var = g_getenv ("COG_PLATFORM_FDO_VIEW_FULLSCREEN")) &&
         g_ascii_strtoll (env_var, NULL, 10) > 0)
     {
-        window->is_maximized = false;
-        window->is_fullscreen = true;
-
-        if (display->xdg_shell != NULL) {
-            xdg_toplevel_set_fullscreen (window->xdg_toplevel, NULL);
-        } else if (display->shell != NULL) {
-            wl_shell_surface_set_fullscreen (window->shell_surface,
-                                             WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE,
-                                             0,
-                                             NULL);
-        } else {
-            g_warning ("No available shell capable of fullscreening.");
-            window->is_fullscreen = false;
-        }
+        pwl_window_set_fullscreen (window, true);
     }
     else if ((env_var = g_getenv ("COG_PLATFORM_FDO_VIEW_MAXIMIZE")) &&
              g_ascii_strtoll (env_var, NULL, 10) > 0)
     {
-        window->is_maximized = true;
-        window->is_fullscreen = false;
-
-        if (display->xdg_shell != NULL) {
-            xdg_toplevel_set_maximized (window->xdg_toplevel);
-        } else if (display->shell != NULL) {
-            wl_shell_surface_set_maximized (window->shell_surface, NULL);
-        } else {
-            g_warning ("No available shell capable of maximizing.");
-            window->is_maximized = false;
-        }
+        pwl_window_set_maximized (window, true);
     }
 }
 
@@ -1215,6 +1202,70 @@ pwl_window_is_fullscreen (const PwlWindow *self)
 {
     g_return_val_if_fail (self, false);
     return self->is_fullscreen;
+}
+
+
+void
+pwl_window_set_fullscreen (PwlWindow *self, bool fullscreen)
+{
+    g_return_if_fail (self);
+
+    /* Return early if already in the desired state. */
+    if (self->is_fullscreen == fullscreen)
+        return;
+
+    if (self->display->xdg_shell) {
+        if ((self->is_fullscreen = fullscreen)) {
+            xdg_toplevel_set_fullscreen (self->xdg_toplevel, NULL);
+        } else {
+            xdg_toplevel_unset_fullscreen (self->xdg_toplevel);
+        }
+    } else if (self->display->shell) {
+        if ((self->is_fullscreen = fullscreen)) {
+            wl_shell_surface_set_fullscreen (self->shell_surface,
+                                             WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE,
+                                             0, NULL);
+        } else {
+            wl_shell_surface_set_toplevel (self->shell_surface);
+        }
+    } else {
+        g_warning ("No available shell capable of setting fullscreen status.");
+    }
+}
+
+
+bool
+pwl_window_is_maximized (const PwlWindow *self)
+{
+    g_return_val_if_fail (self, false);
+    return self->is_maximized;
+}
+
+
+void
+pwl_window_set_maximized (PwlWindow *self, bool maximized)
+{
+    g_return_if_fail (self);
+
+    /* Return early if already in the desired state. */
+    if (self->is_maximized == maximized)
+        return;
+
+    if (self->display->xdg_shell) {
+        if ((self->is_maximized = maximized)) {
+            xdg_toplevel_set_maximized (self->xdg_toplevel);
+        } else {
+            xdg_toplevel_unset_maximized (self->xdg_toplevel);
+        }
+    } else if (self->display->shell) {
+        if ((self->is_maximized = maximized)) {
+            wl_shell_surface_set_maximized (self->shell_surface, NULL);
+        } else {
+            wl_shell_surface_set_toplevel (self->shell_surface);
+        }
+    } else {
+        g_warning ("No available shell capable of setting maximization status.");
+    }
 }
 
 
