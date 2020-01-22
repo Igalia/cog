@@ -86,33 +86,6 @@ wpe_view_backend_data_free (WpeViewBackendData *data)
 
 /* Output scale */
 #if HAVE_DEVICE_SCALING
-static void
-noop()
-{
-}
-
-static void
-output_handle_scale (void *data,
-                     struct wl_output *output,
-                     int32_t factor)
-{
-    bool found = false;
-    for (int i = 0; i < G_N_ELEMENTS (wl_data.metrics); i++)
-    {
-        if (wl_data.metrics[i].output == output) {
-            found = true;
-            wl_data.metrics[i].scale = factor;
-            break;
-        }
-    }
-    if (!found)
-    {
-        g_warning ("Unknown output %p\n", output);
-        return;
-    }
-    g_info ("Got scale factor %i for output %p\n", factor, output);
-}
-
 struct wpe_view_backend*
 cog_shell_get_active_wpe_backend (CogShell *shell)
 {
@@ -626,14 +599,6 @@ cog_fdo_shell_initable_init (GInitable *initable,
     s_callback_userdata->win_data = s_win_data;
 
 #if HAVE_DEVICE_SCALING
-    const struct wl_output_listener output_listener = {
-        .geometry = noop,
-        .mode = noop,
-        .done = noop,
-        .scale = output_handle_scale,
-    };
-    wl_data.output_listener = output_listener;
-
     s_pdisplay->on_surface_enter = on_surface_enter;
     s_pdisplay->on_surface_enter_userdata = s_callback_userdata;
 #endif /* HAVE_DEVICE_SCALING */
