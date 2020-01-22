@@ -137,15 +137,15 @@ on_surface_enter (PwlDisplay* display, void *userdata)
 static void
 on_pointer_on_motion (PwlDisplay* display, void *userdata)
 {
-    CogShell *shell = userdata;
-    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+    CogFdoShellCallbackData *cb_userdata = userdata;
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (cb_userdata->shell);
     struct wpe_input_pointer_event event = {
         wpe_input_pointer_event_type_motion,
-        wl_data.pointer.time,
-        wl_data.pointer.x * wl_data.current_output.scale,
-        wl_data.pointer.y * wl_data.current_output.scale,
-        wl_data.pointer.button,
-        wl_data.pointer.state
+        cb_userdata->wl_data->pointer.time,
+        cb_userdata->wl_data->pointer.x * cb_userdata->wl_data->current_output.scale,
+        cb_userdata->wl_data->pointer.y * cb_userdata->wl_data->current_output.scale,
+        cb_userdata->wl_data->pointer.button,
+        cb_userdata->wl_data->pointer.state
     };
     wpe_view_backend_dispatch_pointer_event (backend, &event);
 }
@@ -153,15 +153,15 @@ on_pointer_on_motion (PwlDisplay* display, void *userdata)
 static void
 on_pointer_on_button (PwlDisplay* display, void *userdata)
 {
-    CogShell *shell = userdata;
-    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+    CogFdoShellCallbackData *cb_userdata = userdata;
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (cb_userdata->shell);
     struct wpe_input_pointer_event event = {
         wpe_input_pointer_event_type_button,
-        wl_data.pointer.time,
-        wl_data.pointer.x * wl_data.current_output.scale,
-        wl_data.pointer.y * wl_data.current_output.scale,
-        wl_data.pointer.button,
-        wl_data.pointer.state,
+        cb_userdata->wl_data->pointer.time,
+        cb_userdata->wl_data->pointer.x * cb_userdata->wl_data->current_output.scale,
+        cb_userdata->wl_data->pointer.y * cb_userdata->wl_data->current_output.scale,
+        cb_userdata->wl_data->pointer.button,
+        cb_userdata->wl_data->pointer.state,
     };
     wpe_view_backend_dispatch_pointer_event (backend, &event);
 }
@@ -169,15 +169,15 @@ on_pointer_on_button (PwlDisplay* display, void *userdata)
 static void
 on_pointer_on_axis (PwlDisplay* display, void *userdata)
 {
-    CogShell *shell = userdata;
-    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
+    CogFdoShellCallbackData *cb_userdata = userdata;
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (cb_userdata->shell);
     struct wpe_input_axis_event event = {
         wpe_input_axis_event_type_motion,
-        wl_data.pointer.time,
-        wl_data.pointer.x * wl_data.current_output.scale,
-        wl_data.pointer.y * wl_data.current_output.scale,
-        wl_data.pointer.axis,
-        wl_data.pointer.value,
+        cb_userdata->wl_data->pointer.time,
+        cb_userdata->wl_data->pointer.x * cb_userdata->wl_data->current_output.scale,
+        cb_userdata->wl_data->pointer.y * cb_userdata->wl_data->current_output.scale,
+        cb_userdata->wl_data->pointer.axis,
+        cb_userdata->wl_data->pointer.value,
     };
     wpe_view_backend_dispatch_axis_event (backend, &event);
 }
@@ -682,8 +682,11 @@ cog_fdo_shell_initable_init (GInitable *initable,
     s_pdisplay->on_surface_enter_userdata = s_callback_userdata;
 #endif /* HAVE_DEVICE_SCALING */
     s_pdisplay->on_pointer_on_motion = on_pointer_on_motion;
+    s_pdisplay->on_pointer_on_motion_userdata = s_callback_userdata;
     s_pdisplay->on_pointer_on_button = on_pointer_on_button;
+    s_pdisplay->on_pointer_on_button_userdata = s_callback_userdata;
     s_pdisplay->on_pointer_on_axis = on_pointer_on_axis;
+    s_pdisplay->on_pointer_on_axis_userdata = s_callback_userdata;
 
     s_pdisplay->on_touch_on_down = on_touch_on_down;
     s_pdisplay->on_touch_on_up = on_touch_on_up;
