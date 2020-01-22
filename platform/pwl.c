@@ -148,6 +148,27 @@ setup_wayland_event_source (GMainContext *main_context,
 }
 
 static void
+resize_window (PwlWinData *win_data)
+{
+    int32_t pixel_width = win_data->width * wl_data.current_output.scale;
+    int32_t pixel_height = win_data->height * wl_data.current_output.scale;
+
+    if (win_data->egl_window)
+        wl_egl_window_resize (win_data->egl_window,
+			                pixel_width,
+			                pixel_height,
+			                0, 0);
+
+    g_debug ("Resized EGL buffer to: (%u, %u) @%ix\n",
+            pixel_width, pixel_height, wl_data.current_output.scale);
+
+    if (win_data->on_window_resize) {
+        (*win_data->on_window_resize) (win_data, win_data->on_window_resize_userdata);
+    }
+}
+
+
+static void
 configure_surface_geometry (PwlWinData *win_data, int32_t width, int32_t height)
 {
     const char* env_var;
@@ -189,7 +210,7 @@ shell_surface_configure (void *data,
 
     g_debug ("New wl_shell configuration: (%" PRIu32 ", %" PRIu32 ")", width, height);
 
-    wl_data.resize_window (win_data);
+    resize_window (win_data);
 }
 
 static const struct wl_shell_surface_listener shell_surface_listener = {
@@ -457,7 +478,7 @@ xdg_toplevel_on_configure (void *data,
 
     g_debug ("New XDG toplevel configuration: (%" PRIu32 ", %" PRIu32 ")", width, height);
 
-    wl_data.resize_window (data);
+    resize_window (data);
 }
 
 static void

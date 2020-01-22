@@ -42,7 +42,6 @@ static PwlWinData* s_win_data = NULL;
 static bool s_support_checked = false;
 G_LOCK_DEFINE_STATIC (s_globals);
 
-static void resize_window (void *data);
 static void handle_key_event (void *data, uint32_t key, uint32_t state, uint32_t time);
 
 typedef struct {
@@ -331,7 +330,6 @@ cog_fdo_shell_class_init (CogFdoShellClass *klass)
     shell_class->cog_shell_new_view_backend = cog_shell_new_fdo_view_backend;
     shell_class->cog_shell_resume_active_views = cog_shell_fdo_resume_active_views;
 
-    wl_data.resize_window = resize_window;
     wl_data.handle_key_event = handle_key_event;
 }
 
@@ -370,27 +368,13 @@ cog_fdo_shell_class_finalize (CogFdoShellClass *klass)
 
 
 static void
-resize_window (void *data)
+on_window_resize (PwlWinData *win_data, void *userdata)
 {
-    PwlWinData *win_data = (PwlWinData*) data;
-    CogShell *shell = (CogShell*) win_data->display->userdata;
-
-    int32_t pixel_width = win_data->width * wl_data.current_output.scale;
-    int32_t pixel_height = win_data->height * wl_data.current_output.scale;
-
-    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-
-    if (win_data->egl_window)
-        wl_egl_window_resize (win_data->egl_window,
-			                pixel_width,
-			                pixel_height,
-			                0, 0);
-
+    CogFdoShellCallbackData *cb_userdata = userdata;
+    struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (cb_userdata->shell);
     wpe_view_backend_dispatch_set_size (backend,
                                         win_data->width,
                                         win_data->height);
-    g_debug ("Resized EGL buffer to: (%u, %u) @%ix\n",
-            pixel_width, pixel_height, wl_data.current_output.scale);
 }
 
 
@@ -705,6 +689,9 @@ cog_fdo_shell_initable_init (GInitable *initable,
         pwl_display_egl_deinit (s_pdisplay);
         return FALSE;
     }
+
+    s_win_data->on_window_resize = on_window_resize;
+    s_win_data->on_window_resize_userdata = s_callback_userdata;
 
     xkb_data.modifier.control = wpe_input_keyboard_modifier_control;
     xkb_data.modifier.alt = wpe_input_keyboard_modifier_alt;
