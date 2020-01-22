@@ -13,6 +13,9 @@
 #include <sys/mman.h>
 
 
+G_DEFINE_QUARK (com_igalia_Cog_PwlError, pwl_error)
+
+
 struct _PwlWindow {
     PwlDisplay *display;
 
@@ -43,6 +46,161 @@ struct _PwlWindow {
 };
 
 
+#if HAVE_DEVICE_SCALING
+static void
+noop()
+{
+}
+
+static void
+output_handle_scale (void *data,
+                     struct wl_output *output,
+                     int32_t factor)
+{
+    PwlDisplay *display = data;
+    bool found = false;
+    for (int i = 0; i < G_N_ELEMENTS (display->metrics); i++)
+    {
+        if (display->metrics[i].output == output) {
+            found = true;
+            display->metrics[i].scale = factor;
+            break;
+        }
+    }
+    if (!found)
+    {
+        g_warning ("Unknown output %p\n", output);
+        return;
+    }
+    g_info ("Got scale factor %i for output %p\n", factor, output);
+}
+
+
+static void
+surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *output)
+{
+    PwlDisplay *display = data;
+    int32_t scale_factor = -1;
+
+    for (int i=0; i < G_N_ELEMENTS (display->metrics); i++)
+    {
+        if (display->metrics[i].output == output) {
+            scale_factor = display->metrics[i].scale;
+        }
+    }
+    if (scale_factor == -1) {
+        g_warning ("No scale factor available for output %p\n", output);
+        return;
+    }
+    g_debug ("Surface entered output %p with scale factor %i\n", output, scale_factor);
+    wl_surface_set_buffer_scale (surface, scale_factor);
+    display->current_output.scale = scale_factor;
+    if (display->on_surface_enter) {
+        (*display->on_surface_enter) (display,
+                                      display->on_surface_enter_userdata);
+    }
+}
+#endif /* HAVE_DEVICE_SCALING */
+
+
+static void
+xdg_shell_ping (void *data, struct xdg_wm_base *shell, uint32_t serial)
+{
+    xdg_wm_base_pong (shell, serial);
+}
+
+
+static void
+registry_global (void               *data,
+                 struct wl_registry *registry,
+                 uint32_t            name,
+                 const char         *interface,
+                 uint32_t            version)
+{
+    PwlDisplay *display = data;
+    gboolean interface_used = TRUE;
+
+    if (strcmp (interface, wl_compositor_interface.name) == 0) {
+        display->compositor = wl_registry_bind (registry,
+                                                name,
+                                                &wl_compositor_interface,
+                                                version);
+    } else if (strcmp (interface, wl_shell_interface.name) == 0) {
+        display->shell = wl_registry_bind (registry,
+                                           name,
+                                           &wl_shell_interface,
+                                           version);
+    } else if (strcmp (interface, xdg_wm_base_interface.name) == 0) {
+        display->xdg_shell = wl_registry_bind (registry,
+                                               name,
+                                               &xdg_wm_base_interface,
+                                               version);
+        g_assert (display->xdg_shell);
+        static const struct xdg_wm_base_listener xdg_shell_listener = {
+            .ping = xdg_shell_ping,
+        };
+        xdg_wm_base_add_listener (display->xdg_shell, &xdg_shell_listener, NULL);
+    } else if (strcmp (interface,
+                       zwp_fullscreen_shell_v1_interface.name) == 0) {
+        display->fshell = wl_registry_bind (registry,
+                                            name,
+                                            &zwp_fullscreen_shell_v1_interface,
+                                            version);
+    } else if (strcmp (interface, wl_seat_interface.name) == 0) {
+        display->seat = wl_registry_bind (registry,
+                                          name,
+                                          &wl_seat_interface,
+                                          version);
+#if HAVE_DEVICE_SCALING
+    } else if (strcmp (interface, wl_output_interface.name) == 0) {
+        struct wl_output* output = wl_registry_bind (registry,
+                                                     name,
+                                                     &wl_output_interface,
+                                                     version);
+        static const struct wl_output_listener output_listener = {
+            .geometry = noop,
+            .mode = noop,
+            .done = noop,
+            .scale = output_handle_scale,
+        };
+        wl_output_add_listener (output, &output_listener, display);
+        bool inserted = false;
+        for (int i = 0; i < G_N_ELEMENTS (display->metrics); i++)
+        {
+            if (display->metrics[i].output == NULL) {
+                display->metrics[i].output = output;
+                display->metrics[i].name = name;
+                inserted = true;
+                break;
+            }
+        }
+        if (!inserted) {
+            g_warning ("Exceeded %" G_GSIZE_FORMAT " connected outputs(!)", G_N_ELEMENTS (display->metrics));
+        }
+#endif /* HAVE_DEVICE_SCALING */
+    } else {
+        interface_used = FALSE;
+    }
+    g_debug ("%s '%s' interface obtained from the Wayland registry.",
+             interface_used ? "Using" : "Ignoring", interface);
+}
+
+static void
+registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
+{
+    PwlDisplay *display = (PwlDisplay*) data;
+    for (int i = 0; i < G_N_ELEMENTS (display->metrics); i++)
+    {
+        if (display->metrics[i].name == name) {
+            display->metrics[i].output = NULL;
+            display->metrics[i].name = 0;
+            g_debug ("Removed output %i\n", name);
+            break;
+        }
+    }
+}
+
+
 
 PwlDisplay*
 pwl_display_connect (const char *name, GError **error)
@@ -53,6 +211,34 @@ pwl_display_connect (const char *name, GError **error)
         g_set_error_literal (error, G_FILE_ERROR,
                              g_file_error_from_errno (errno),
                              "Could not open Wayland display");
+        return NULL;
+    }
+
+    self->current_output.scale = 1;
+    self->registry = wl_display_get_registry (self->display);
+    static const struct wl_registry_listener registry_listener = {
+        .global = registry_global,
+#if HAVE_DEVICE_SCALING
+        .global_remove = registry_global_remove
+#endif /* HAVE_DEVICE_SCALING */
+    };
+    wl_registry_add_listener (self->registry, &registry_listener, self);
+    wl_display_roundtrip (self->display);
+
+    if (!self->compositor) {
+        g_set_error (error, PWL_ERROR, PWL_ERROR_WAYLAND,
+                     "Wayland display does not support %s",
+                     wl_compositor_interface.name);
+        return NULL;
+    }
+
+    if (!self->xdg_shell && !self->shell && !self->fshell) {
+        g_set_error (error, PWL_ERROR, PWL_ERROR_WAYLAND,
+                     "Wayland display does not support a shell "
+                     "interface (%s, %s, or %s)",
+                     xdg_wm_base_interface.name,
+                     wl_shell_interface.name,
+                     zwp_fullscreen_shell_v1_interface.name);
         return NULL;
     }
 
@@ -167,60 +353,6 @@ setup_wayland_event_source (GMainContext *main_context,
 
     return &wl_source->source;
 }
-
-#if HAVE_DEVICE_SCALING
-static void
-noop()
-{
-}
-
-static void
-output_handle_scale (void *data,
-                     struct wl_output *output,
-                     int32_t factor)
-{
-    PwlDisplay *display = data;
-    bool found = false;
-    for (int i = 0; i < G_N_ELEMENTS (display->metrics); i++)
-    {
-        if (display->metrics[i].output == output) {
-            found = true;
-            display->metrics[i].scale = factor;
-            break;
-        }
-    }
-    if (!found)
-    {
-        g_warning ("Unknown output %p\n", output);
-        return;
-    }
-    g_info ("Got scale factor %i for output %p\n", factor, output);
-}
-
-static void
-surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *output)
-{
-    PwlDisplay *display = data;
-    int32_t scale_factor = -1;
-
-    for (int i=0; i < G_N_ELEMENTS (display->metrics); i++)
-    {
-        if (display->metrics[i].output == output) {
-            scale_factor = display->metrics[i].scale;
-        }
-    }
-    if (scale_factor == -1) {
-        g_warning ("No scale factor available for output %p\n", output);
-        return;
-    }
-    g_debug ("Surface entered output %p with scale factor %i\n", output, scale_factor);
-    wl_surface_set_buffer_scale (surface, scale_factor);
-    display->current_output.scale = scale_factor;
-    if (display->on_surface_enter) {
-        display->on_surface_enter(display, display->on_surface_enter_userdata);
-    }
-}
-#endif /* HAVE_DEVICE_SCALING */
 
 
 static bool
@@ -352,109 +484,6 @@ shell_surface_configure (void *data,
     resize_window (window);
 }
 
-static void
-xdg_shell_ping (void *data, struct xdg_wm_base *shell, uint32_t serial)
-{
-    xdg_wm_base_pong(shell, serial);
-}
-
-static const struct xdg_wm_base_listener xdg_shell_listener = {
-    .ping = xdg_shell_ping,
-};
-
-static void
-registry_global (void               *data,
-                 struct wl_registry *registry,
-                 uint32_t            name,
-                 const char         *interface,
-                 uint32_t            version)
-{
-    PwlDisplay *display = data;
-    gboolean interface_used = TRUE;
-
-    if (strcmp (interface, wl_compositor_interface.name) == 0) {
-        display->compositor = wl_registry_bind (registry,
-                                                name,
-                                                &wl_compositor_interface,
-                                                version);
-    } else if (strcmp (interface, wl_shell_interface.name) == 0) {
-        display->shell = wl_registry_bind (registry,
-                                          name,
-                                          &wl_shell_interface,
-                                          version);
-    } else if (strcmp (interface, xdg_wm_base_interface.name) == 0) {
-        display->xdg_shell = wl_registry_bind (registry,
-                                              name,
-                                              &xdg_wm_base_interface,
-                                              version);
-        g_assert (display->xdg_shell);
-        xdg_wm_base_add_listener (display->xdg_shell, &xdg_shell_listener, NULL);
-    } else if (strcmp (interface,
-                       zwp_fullscreen_shell_v1_interface.name) == 0) {
-        display->fshell = wl_registry_bind (registry,
-                                           name,
-                                           &zwp_fullscreen_shell_v1_interface,
-                                           version);
-    } else if (strcmp (interface, wl_seat_interface.name) == 0) {
-        display->seat = wl_registry_bind (registry,
-                                         name,
-                                         &wl_seat_interface,
-                                         version);
-#if HAVE_DEVICE_SCALING
-    } else if (strcmp (interface, wl_output_interface.name) == 0) {
-        struct wl_output* output = wl_registry_bind (registry,
-                                                     name,
-                                                     &wl_output_interface,
-                                                     version);
-        static const struct wl_output_listener output_listener = {
-            .geometry = noop,
-            .mode = noop,
-            .done = noop,
-            .scale = output_handle_scale,
-        };
-        wl_output_add_listener (output, &output_listener, display);
-        bool inserted = false;
-        for (int i = 0; i < G_N_ELEMENTS (display->metrics); i++)
-        {
-            if (display->metrics[i].output == NULL) {
-                display->metrics[i].output = output;
-                display->metrics[i].name = name;
-                inserted = true;
-                break;
-            }
-        }
-        if (!inserted) {
-            g_warning ("Exceeded %" G_GSIZE_FORMAT " connected outputs(!)", G_N_ELEMENTS (display->metrics));
-        }
-#endif /* HAVE_DEVICE_SCALING */
-    } else {
-        interface_used = FALSE;
-    }
-    g_debug ("%s '%s' interface obtained from the Wayland registry.",
-             interface_used ? "Using" : "Ignoring", interface);
-}
-
-static void
-registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
-{
-    PwlDisplay *display = data;
-    for (int i = 0; i < G_N_ELEMENTS (display->metrics); i++)
-    {
-        if (display->metrics[i].name == name) {
-            display->metrics[i].output = NULL;
-            display->metrics[i].name = 0;
-            g_debug ("Removed output %i\n", name);
-            break;
-        }
-    }
-}
-
-static const struct wl_registry_listener registry_listener = {
-    .global = registry_global,
-#if HAVE_DEVICE_SCALING
-    .global_remove = registry_global_remove
-#endif /* HAVE_DEVICE_SCALING */
-};
 
 gboolean
 pwl_display_egl_init (PwlDisplay *display, GError **error)
@@ -537,28 +566,6 @@ void pwl_display_egl_deinit (PwlDisplay *display)
     eglReleaseThread ();
 }
 
-
-gboolean
-init_wayland (PwlDisplay *display, GError **error)
-{
-    g_debug ("Initializing Wayland...");
-    g_assert (display->display);
-
-    display->current_output.scale = 1;
-    display->registry = wl_display_get_registry (display->display);
-    g_assert (display->registry);
-    wl_registry_add_listener (display->registry,
-                              &registry_listener,
-                              display);
-    wl_display_roundtrip (display->display);
-
-    g_assert (display->compositor);
-    g_assert (display->xdg_shell != NULL ||
-              display->shell != NULL ||
-              display->fshell != NULL);
-
-    return TRUE;
-}
 
 static void
 xdg_surface_on_configure (void *data,

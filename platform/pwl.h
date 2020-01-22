@@ -35,6 +35,14 @@
 
 G_BEGIN_DECLS
 
+#define PWL_ERROR  (pwl_error_quark ())
+GQuark pwl_error_get_quark (void);
+
+typedef enum {
+    PWL_ERROR_WAYLAND,
+} PwlError;
+
+
 #if HAVE_DEVICE_SCALING
 typedef struct output_metrics {
   struct wl_output *output;
