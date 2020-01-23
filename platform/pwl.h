@@ -130,10 +130,6 @@ struct wl_buffer*
 
 PwlXKBData* pwl_display_xkb_get_data (PwlDisplay*);
 
-void        pwl_display_notify_surface_enter (PwlDisplay*,
-                                              void (*callback) (PwlDisplay*, void*),
-                                              void *userdata);
-
 void        pwl_display_notify_pointer_motion (PwlDisplay*,
                                                void (*callback) (PwlDisplay*, const PwlPointer*, void*),
                                                void *userdata);
@@ -187,6 +183,8 @@ void pwl_window_unset_opaque_region (const PwlWindow*);
 void pwl_window_notify_resize (PwlWindow*,
                                void (*callback) (PwlWindow*, uint32_t w, uint32_t h, void*),
                                void *userdata);
-
+void pwl_window_notify_device_scale (PwlWindow*,
+                                     void (*callback) (PwlWindow*, uint32_t scale, void*),
+                                     void *userdata);
 
 G_END_DECLS
