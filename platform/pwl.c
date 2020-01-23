@@ -1574,36 +1574,41 @@ pwl_window_notify_resize (PwlWindow *self,
 }
 
 
-gboolean init_input (PwlDisplay *display, GError **error)
+bool
+pwl_display_input_init (PwlDisplay *self, GError **error)
 {
-    if (display->seat != NULL) {
-        wl_seat_add_listener (display->seat, &seat_listener, display);
+    /* TODO: Return "false" if input is not available or initialization fails. */
 
-        display->xkb_data.context = xkb_context_new (XKB_CONTEXT_NO_FLAGS);
-        g_assert (display->xkb_data.context);
-        display->xkb_data.compose_table =
-            xkb_compose_table_new_from_locale (display->xkb_data.context,
+    if (self->seat != NULL) {
+        wl_seat_add_listener (self->seat, &seat_listener, self);
+
+        self->xkb_data.context = xkb_context_new (XKB_CONTEXT_NO_FLAGS);
+        g_assert (self->xkb_data.context);
+        self->xkb_data.compose_table =
+            xkb_compose_table_new_from_locale (self->xkb_data.context,
                                                setlocale (LC_CTYPE, NULL),
                                                XKB_COMPOSE_COMPILE_NO_FLAGS);
-        if (display->xkb_data.compose_table != NULL) {
-            display->xkb_data.compose_state =
-                xkb_compose_state_new (display->xkb_data.compose_table,
+        if (self->xkb_data.compose_table != NULL) {
+            self->xkb_data.compose_state =
+                xkb_compose_state_new (self->xkb_data.compose_table,
                                        XKB_COMPOSE_STATE_NO_FLAGS);
         }
     }
 
-    return TRUE;
+    return true;
 }
 
-void clear_input (PwlDisplay* display)
-{
-    g_clear_pointer (&(display->pointer.obj), wl_pointer_destroy);
-    g_clear_pointer (&(display->keyboard.obj), wl_keyboard_destroy);
-    g_clear_pointer (&(display->seat), wl_seat_destroy);
 
-    g_clear_pointer (&(display->xkb_data.state), xkb_state_unref);
-    g_clear_pointer (&(display->xkb_data.compose_state), xkb_compose_state_unref);
-    g_clear_pointer (&(display->xkb_data.compose_table), xkb_compose_table_unref);
-    g_clear_pointer (&(display->xkb_data.keymap), xkb_keymap_unref);
-    g_clear_pointer (&(display->xkb_data.context), xkb_context_unref);
+void
+pwl_display_input_deinit (PwlDisplay* self)
+{
+    g_clear_pointer (&self->pointer.obj, wl_pointer_destroy);
+    g_clear_pointer (&self->keyboard.obj, wl_keyboard_destroy);
+    g_clear_pointer (&self->seat, wl_seat_destroy);
+
+    g_clear_pointer (&self->xkb_data.state, xkb_state_unref);
+    g_clear_pointer (&self->xkb_data.compose_state, xkb_compose_state_unref);
+    g_clear_pointer (&self->xkb_data.compose_table, xkb_compose_table_unref);
+    g_clear_pointer (&self->xkb_data.keymap, xkb_keymap_unref);
+    g_clear_pointer (&self->xkb_data.context, xkb_context_unref);
 }

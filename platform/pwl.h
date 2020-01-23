@@ -119,6 +119,9 @@ typedef struct _PwlDisplay PwlDisplay;
 PwlDisplay* pwl_display_connect (const char *name, GError**);
 void        pwl_display_destroy (PwlDisplay*);
 
+bool        pwl_display_input_init (PwlDisplay*, GError **error);
+void        pwl_display_input_deinit (PwlDisplay*);
+
 gboolean    pwl_display_egl_init (PwlDisplay*, GError **error);
 void        pwl_display_egl_deinit (PwlDisplay*);
 EGLDisplay  pwl_display_egl_get_display (const PwlDisplay*);
@@ -185,7 +188,5 @@ void pwl_window_notify_resize (PwlWindow*,
                                void (*callback) (PwlWindow*, uint32_t w, uint32_t h, void*),
                                void *userdata);
 
-gboolean init_input (PwlDisplay*, GError **error);
-void clear_input (PwlDisplay*);
 
 G_END_DECLS
