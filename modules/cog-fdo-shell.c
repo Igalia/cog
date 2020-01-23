@@ -80,17 +80,17 @@ cog_shell_get_active_wpe_backend (CogShell *shell)
 }
 
 /* Output scale */
-#if HAVE_DEVICE_SCALING
 static void
-on_surface_enter (PwlDisplay* display, void *userdata)
+window_on_device_scale (PwlWindow* self, uint32_t device_scale, void *userdata)
 {
+    /*
+     * TODO: Device scale must be handled for the backend of the window,
+     *       and *not* for the current view backend!
+     */
     CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-    /* TODO: Device scale must be handled per window! */
-    const uint32_t device_scale = pwl_window_get_device_scale (s_pwindow);
     wpe_view_backend_dispatch_set_device_scale_factor (backend, device_scale);
 }
-#endif /* HAVE_DEVICE_SCALING */
 
 
 /* Pointer */
@@ -596,9 +596,6 @@ cog_fdo_shell_initable_init (GInitable *initable,
 
     s_pwindow = pwl_window_create (s_pdisplay);
 
-#if HAVE_DEVICE_SCALING
-    pwl_display_notify_surface_enter (s_pdisplay, on_surface_enter, s_pwindow);
-#endif /* HAVE_DEVICE_SCALING */
     pwl_display_notify_pointer_motion (s_pdisplay, on_pointer_on_motion, initable);
     pwl_display_notify_pointer_button (s_pdisplay, on_pointer_on_button, initable);
     pwl_display_notify_pointer_axis (s_pdisplay, on_pointer_on_axis, initable);
@@ -616,6 +613,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
 #endif
 
     pwl_window_notify_resize (s_pwindow, on_window_resize, initable);
+    pwl_window_notify_device_scale (s_pwindow, window_on_device_scale, initable);
 
     PwlXKBData *xkb_data = pwl_display_xkb_get_data (s_pdisplay);
     xkb_data->modifier.control = wpe_input_keyboard_modifier_control;

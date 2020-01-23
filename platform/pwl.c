@@ -50,18 +50,7 @@ struct _PwlDisplay {
     } metrics[16];
 #endif /* HAVE_DEVICE_SCALING */
 
-    struct {
-        int32_t scale;
-    } current_output;
-
     GSource *event_src;
-
-    /*
-     * TODO: Move this to PwlWindow. Tracking whether a window has
-     *       entered an output should be handled per-window.
-     */
-    void (*on_surface_enter) (PwlDisplay*, void *userdata);
-    void *on_surface_enter_userdata;
 
     void (*on_pointer_on_motion) (PwlDisplay*, const PwlPointer*, void *userdata);
     void *on_pointer_on_motion_userdata;
@@ -99,6 +88,10 @@ struct _PwlWindow {
     uint32_t width;
     uint32_t height;
 
+#if HAVE_DEVICE_SCALING
+    uint32_t device_scale;
+#endif /* HAVE_DEVICE_SCALING */
+
     /*
      * XXX: Should this be en enum? Can a window be maximized *and*
      *      fullscreened at the same time?
@@ -111,6 +104,9 @@ struct _PwlWindow {
                               uint32_t height,
                               void *userdata);
     void *on_window_resize_userdata;
+
+    void (*device_scale_callback) (PwlWindow*, uint32_t scale, void* userdata);
+    void *device_scale_userdata;
 };
 
 
@@ -152,28 +148,39 @@ output_handle_scale (void *data,
 
 
 static void
-surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *output)
+window_surface_on_enter (void *data, struct wl_surface *surface, struct wl_output *output)
 {
-    PwlDisplay *display = data;
-    int32_t scale_factor = -1;
+    PwlWindow *self = data;
 
-    for (int i=0; i < G_N_ELEMENTS (display->metrics); i++)
-    {
-        if (display->metrics[i].output == output) {
-            scale_factor = display->metrics[i].scale;
+    g_assert (self->wl_surface == surface);
+
+    int32_t factor = -1;
+    for (unsigned i = 0; i < G_N_ELEMENTS (self->display->metrics); i++) {
+        if (self->display->metrics[i].output == output) {
+            factor = self->display->metrics[i].scale;
+            break;
         }
     }
-    if (scale_factor == -1) {
+    g_debug ("Surface entered output %p with scale factor %i\n", output, factor);
+
+    if (factor < 1) {
         g_warning ("No scale factor available for output %p\n", output);
         return;
     }
-    g_debug ("Surface entered output %p with scale factor %i\n", output, scale_factor);
-    wl_surface_set_buffer_scale (surface, scale_factor);
-    display->current_output.scale = scale_factor;
-    if (display->on_surface_enter) {
-        (*display->on_surface_enter) (display,
-                                      display->on_surface_enter_userdata);
+
+    if (factor == self->device_scale) {
+        g_debug ("Device scaling factor unchanged for window %p.", self);
+        return;
     }
+
+    wl_surface_set_buffer_scale (surface, factor);
+
+    if (self->device_scale_callback) {
+        (*self->device_scale_callback) (self, (uint32_t) factor,
+                                        self->device_scale_userdata);
+    }
+
+    self->device_scale = (uint32_t) factor;
 }
 #endif /* HAVE_DEVICE_SCALING */
 
@@ -289,7 +296,6 @@ pwl_display_connect (const char *name, GError **error)
         return NULL;
     }
 
-    self->current_output.scale = 1;
     self->registry = wl_display_get_registry (self->display);
     static const struct wl_registry_listener registry_listener = {
         .global = registry_global,
@@ -343,18 +349,6 @@ pwl_display_destroy (PwlDisplay *self)
     }
 
     g_slice_free (PwlDisplay, self);
-}
-
-
-void
-pwl_display_notify_surface_enter (PwlDisplay *self,
-                                  void (*callback) (PwlDisplay*, void*),
-                                  void *userdata)
-{
-    g_return_if_fail (self);
-
-    self->on_surface_enter = callback;
-    self->on_surface_enter_userdata = userdata;
 }
 
 
@@ -592,8 +586,10 @@ handle_key_event (void *data, uint32_t key, uint32_t state, uint32_t time)
 static void
 resize_window (PwlWindow *window)
 {
-    int32_t pixel_width = window->width * window->display->current_output.scale;
-    int32_t pixel_height = window->height * window->display->current_output.scale;
+    const uint32_t device_scale = pwl_window_get_device_scale (window);
+
+    int32_t pixel_width = window->width * device_scale;
+    int32_t pixel_height = window->height * device_scale;
 
     if (window->egl_window) {
         wl_egl_window_resize (window->egl_window,
@@ -601,8 +597,8 @@ resize_window (PwlWindow *window)
                               pixel_height,
                               0, 0);
     }
-    g_debug ("Resized EGL buffer to: (%u, %u) @%ix\n",
-            pixel_width, pixel_height, window->display->current_output.scale);
+    g_debug ("Resized EGL buffer to: (%"PRIi32", %"PRIi32") @%"PRIu32"x\n",
+             pixel_width, pixel_height, device_scale);
 
     if (window->on_window_resize) {
         (*window->on_window_resize) (window,
@@ -1347,11 +1343,13 @@ pwl_window_create (PwlDisplay *display)
     self->wl_surface = wl_compositor_create_surface (display->compositor);
 
 #if HAVE_DEVICE_SCALING
+    self->device_scale = 1;
+
     static const struct wl_surface_listener surface_listener = {
-        .enter = surface_handle_enter,
+        .enter = window_surface_on_enter,
         .leave = noop,
     };
-    wl_surface_add_listener (self->wl_surface, &surface_listener, display);
+    wl_surface_add_listener (self->wl_surface, &surface_listener, self);
 #endif /* HAVE_DEVICE_SCALING */
 
     if (display->xdg_shell) {
@@ -1461,8 +1459,7 @@ pwl_window_get_device_scale (const PwlWindow *self)
     g_return_val_if_fail (self, 1);
 
 #if HAVE_DEVICE_SCALING
-    /* TODO: Track the scaling factor per-window, instead of globally. */
-    return self->display->current_output.scale;
+    return self->device_scale;
 #else
     return 1;
 #endif /* HAVE_DEVICE_SCALING */
@@ -1571,6 +1568,18 @@ pwl_window_notify_resize (PwlWindow *self,
 
     self->on_window_resize = callback;
     self->on_window_resize_userdata = userdata;
+}
+
+
+void
+pwl_window_notify_device_scale (PwlWindow *self,
+                                void (*callback) (PwlWindow*, uint32_t scale, void*),
+                                void *userdata)
+{
+    g_return_if_fail (self);
+
+    self->device_scale_callback = callback;
+    self->device_scale_userdata = userdata;
 }
 
 
