@@ -337,9 +337,10 @@ cog_fdo_shell_class_finalize (CogFdoShellClass *klass)
     wpe_view_backend_exportable_fdo_destroy (wpe_host_data.exportable);
     * /
 */
-    clear_input (s_pdisplay);
 
     g_clear_pointer (&s_pwindow, pwl_window_destroy);
+
+    pwl_display_input_deinit (s_pdisplay);
     pwl_display_egl_deinit (s_pdisplay);
 }
 
@@ -621,7 +622,7 @@ cog_fdo_shell_initable_init (GInitable *initable,
     xkb_data->modifier.alt = wpe_input_keyboard_modifier_alt;
     xkb_data->modifier.shift = wpe_input_keyboard_modifier_shift;
 
-    if (!init_input (s_pdisplay, error)) {
+    if (!pwl_display_input_init (s_pdisplay, error)) {
         g_critical ("init_input failed");
         g_clear_pointer (&s_pwindow, pwl_window_destroy);
         pwl_display_egl_deinit (s_pdisplay);
