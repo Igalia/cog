@@ -869,28 +869,6 @@ create_window (PwlDisplay* display, PwlWindow* window)
     }
 }
 
-static void
-destroy_window (PwlDisplay *display, PwlWindow *window)
-{
-    if (display->egl_display != EGL_NO_DISPLAY) {
-        eglMakeCurrent (display->egl_display,
-                        EGL_NO_SURFACE,
-                        EGL_NO_SURFACE,
-                        EGL_NO_CONTEXT);
-
-        if (window->egl_surface) {
-            eglDestroySurface (display->egl_display, window->egl_surface);
-            window->egl_surface = EGL_NO_DISPLAY;
-        }
-    }
-
-    g_clear_pointer (&(window->egl_window), wl_egl_window_destroy);
-    g_clear_pointer (&(window->xdg_toplevel), xdg_toplevel_destroy);
-    g_clear_pointer (&(window->xdg_surface), xdg_surface_destroy);
-    g_clear_pointer (&(window->shell_surface), wl_shell_surface_destroy);
-    g_clear_pointer (&(window->wl_surface), wl_surface_destroy);
-}
-
 
 /* Pointer */
 
@@ -1436,8 +1414,24 @@ pwl_window_destroy (PwlWindow *self)
 {
     g_return_if_fail (self);
 
-    /* TODO: Move window destruction here. */
-    destroy_window (self->display, self);
+    if (self->display->egl_display != EGL_NO_DISPLAY) {
+        eglMakeCurrent (self->display->egl_display,
+                        EGL_NO_SURFACE,
+                        EGL_NO_SURFACE,
+                        EGL_NO_CONTEXT);
+
+        if (self->egl_surface != EGL_NO_SURFACE) {
+            eglDestroySurface (self->display->egl_display, self->egl_surface);
+            self->egl_surface = EGL_NO_DISPLAY;
+        }
+    }
+
+    g_clear_pointer (&self->egl_window, wl_egl_window_destroy);
+    g_clear_pointer (&self->xdg_toplevel, xdg_toplevel_destroy);
+    g_clear_pointer (&self->xdg_surface, xdg_surface_destroy);
+    g_clear_pointer (&self->shell_surface, wl_shell_surface_destroy);
+    g_clear_pointer (&self->wl_surface, wl_surface_destroy);
+
     g_slice_free (PwlWindow, self);
 }
 
