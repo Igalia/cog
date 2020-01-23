@@ -659,6 +659,39 @@ shell_surface_configure (void *data,
 }
 
 
+static void
+set_egl_error (GError **error, EGLint code, const char *message)
+{
+    g_assert (message);
+
+    const char *code_string = NULL;
+    switch (code) {
+#define ERRCASE(v) case EGL_ ## v: code_string = #v; break
+        ERRCASE (SUCCESS);
+        ERRCASE (NOT_INITIALIZED);
+        ERRCASE (BAD_ACCESS);
+        ERRCASE (BAD_ALLOC);
+        ERRCASE (BAD_ATTRIBUTE);
+        ERRCASE (BAD_CONTEXT);
+        ERRCASE (BAD_CONFIG);
+        ERRCASE (BAD_CURRENT_SURFACE);
+        ERRCASE (BAD_DISPLAY);
+        ERRCASE (BAD_SURFACE);
+        ERRCASE (BAD_MATCH);
+        ERRCASE (BAD_PARAMETER);
+        ERRCASE (BAD_NATIVE_PIXMAP);
+        ERRCASE (BAD_NATIVE_WINDOW);
+        ERRCASE (CONTEXT_LOST);
+#undef ERRCASE
+        default:
+            code_string = "UNKNOWN";
+    }
+
+    g_set_error (error, PWL_ERROR, PWL_ERROR_EGL,
+                 "EGL: %s - #%06x %s", message, code, code_string);
+}
+
+
 gboolean
 pwl_display_egl_init (PwlDisplay *display, GError **error)
 {
@@ -666,13 +699,13 @@ pwl_display_egl_init (PwlDisplay *display, GError **error)
 
     display->egl_display = eglGetDisplay ((EGLNativeDisplayType) display->display);
     if (display->egl_display == EGL_NO_DISPLAY) {
-        // TODO: ERR_EGL (error, "Could not open EGL display");
+        set_egl_error (error, eglGetError (), "Could not get display");
         return FALSE;
     }
 
     EGLint major, minor;
     if (!eglInitialize (display->egl_display, &major, &minor)) {
-        // TODO: ERR_EGL (error, "Could not initialize  EGL");
+        set_egl_error (error, eglGetError (), "Initialization failed");
         pwl_display_egl_deinit (display);
         return FALSE;
     }
@@ -687,13 +720,14 @@ pwl_display_egl_init (PwlDisplay *display, GError **error)
     display->egl_createWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
         eglGetProcAddress ("eglCreateWaylandBufferFromImageWL");
     if (!display->egl_createWaylandBufferFromImageWL) {
-        /* TODO: Properly report error. */
+        set_egl_error (error, eglGetError (),
+                       "eglCreateWaylandBufferFromImageWL unsupported");
         pwl_display_egl_deinit (display);
         return FALSE;
     }
 
     if (!eglBindAPI (EGL_OPENGL_ES_API)) {
-        // TODO: ERR_EGL (error, "Could not bind OpenGL ES API to EGL");
+        set_egl_error (error, eglGetError (), "Could not bind OpenEGL ES API");
         pwl_display_egl_deinit (display);
         return FALSE;
     }
@@ -722,7 +756,8 @@ pwl_display_egl_init (PwlDisplay *display, GError **error)
                           &(display->egl_config),
                           1,
                           &num_configs)) {
-        // TODO: ERR_EGL (error, "Could not find a suitable EGL configuration");
+        set_egl_error (error, eglGetError (),
+                       "Could not find a suitable configuration");
         pwl_display_egl_deinit (display);
         return FALSE;
     }
@@ -733,7 +768,7 @@ pwl_display_egl_init (PwlDisplay *display, GError **error)
                                          EGL_NO_CONTEXT,
                                          context_attribs);
     if (display->egl_context == EGL_NO_CONTEXT) {
-        // TODO: ERR_EGL (error, "Could not create EGL context");
+        set_egl_error (error, eglGetError (), "Could not create context");
         pwl_display_egl_deinit (display);
         return FALSE;
     }
