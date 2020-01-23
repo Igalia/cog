@@ -43,14 +43,6 @@ typedef enum {
 } PwlError;
 
 
-#if HAVE_DEVICE_SCALING
-typedef struct output_metrics {
-  struct wl_output *output;
-  int32_t name;
-  int32_t scale;
-} output_metrics;
-#endif /* HAVE_DEVICE_SCALING */
-
 typedef struct {
     struct wl_keyboard *obj;
 
@@ -162,22 +154,11 @@ void        pwl_display_notify_key_event (PwlDisplay*,
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (PwlDisplay, pwl_display_destroy)
 
-#ifndef EGL_WL_create_wayland_buffer_from_image
-typedef struct wl_buffer * (EGLAPIENTRYP PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL) (EGLDisplay dpy, EGLImageKHR image);
-#endif
-
-struct pwl_event_source {
-    GSource source;
-    GPollFD pfd;
-    struct wl_display* display;
-};
 
 typedef struct _PwlWindow PwlWindow;
 
 void setup_wayland_event_source (GMainContext *main_context,
                                  PwlDisplay *display);
-
-gboolean init_wayland (PwlDisplay*, GError **error);
 
 PwlWindow* pwl_window_create (PwlDisplay*);
 void pwl_window_destroy (PwlWindow*);

@@ -13,6 +13,11 @@
 #include <sys/mman.h>
 
 
+#ifndef EGL_WL_create_wayland_buffer_from_image
+typedef struct wl_buffer * (EGLAPIENTRYP PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL) (EGLDisplay dpy, EGLImageKHR image);
+#endif
+
+
 G_DEFINE_QUARK (com_igalia_Cog_PwlError, pwl_error)
 
 
@@ -38,7 +43,11 @@ struct _PwlDisplay {
     struct wl_shell *shell;
 
 #if HAVE_DEVICE_SCALING
-    struct output_metrics metrics[16];
+    struct {
+        struct wl_output *output;
+        int32_t name;
+        int32_t scale;
+    } metrics[16];
 #endif /* HAVE_DEVICE_SCALING */
 
     struct {
@@ -102,6 +111,13 @@ struct _PwlWindow {
                               uint32_t height,
                               void *userdata);
     void *on_window_resize_userdata;
+};
+
+
+struct pwl_event_source {
+    GSource source;
+    GPollFD pfd;
+    struct wl_display* display;
 };
 
 
