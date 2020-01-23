@@ -40,6 +40,7 @@ GQuark pwl_error_get_quark (void);
 
 typedef enum {
     PWL_ERROR_WAYLAND,
+    PWL_ERROR_EGL,
 } PwlError;
 
 
