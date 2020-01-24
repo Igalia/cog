@@ -53,6 +53,8 @@ CogView*    cog_shell_get_active_view (CogShell   *shell);
 void        cog_shell_set_active_view (CogShell   *shell,
                                        CogView    *view);
 
+WebKitSettings*       cog_shell_get_default_web_settings (CogShell *shell);
+
 WebKitWebViewBackend* cog_shell_new_view_backend (CogShell *shell);
 WebKitWebViewBackend* cog_shell_resume_active_views (CogShell *shell);
 G_END_DECLS

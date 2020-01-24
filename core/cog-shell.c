@@ -15,6 +15,7 @@
 
 typedef struct {
     char  *name;
+    WebKitSettings *web_settings;
     GList *views;
 } CogShellPrivate;
 
@@ -23,6 +24,7 @@ G_DEFINE_TYPE_WITH_PRIVATE (CogShell, cog_shell, G_TYPE_OBJECT)
 enum {
     PROP_0,
     PROP_NAME,
+    PROP_WEB_SETTINGS,
     N_PROPERTIES,
 };
 
@@ -38,6 +40,10 @@ cog_shell_get_property (GObject    *object,
     switch (prop_id) {
         case PROP_NAME:
             g_value_set_string (value, cog_shell_get_name (shell));
+            break;
+        case PROP_WEB_SETTINGS:
+            g_value_set_object (value,
+                                ((CogShellPrivate*) cog_shell_get_instance_private (COG_SHELL (object)))->web_settings);
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -55,6 +61,9 @@ cog_shell_set_property (GObject      *object,
         case PROP_NAME:
             priv->name = g_value_dup_string (value);
             break;
+        case PROP_WEB_SETTINGS:
+            ((CogShellPrivate*) cog_shell_get_instance_private (COG_SHELL (object)))->web_settings = g_value_dup_object (value);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
@@ -70,6 +79,7 @@ cog_shell_dispose (GObject *object)
         priv->views = NULL;
     }
     g_clear_pointer (&priv->name, g_free);
+    g_clear_object (&priv->web_settings);
 
     G_OBJECT_CLASS (cog_shell_parent_class)->dispose (object);
 }
@@ -104,6 +114,14 @@ cog_shell_class_init (CogShellClass *klass)
                              NULL,
                              G_PARAM_READWRITE |
                              G_PARAM_CONSTRUCT_ONLY |
+                             G_PARAM_STATIC_STRINGS);
+
+    s_properties[PROP_WEB_SETTINGS] =
+        g_param_spec_object ("web-settings",
+                             "Web Settings",
+                             "The WebKitSettings used by the shell",
+                             WEBKIT_TYPE_SETTINGS,
+                             G_PARAM_READABLE |
                              G_PARAM_STATIC_STRINGS);
 
     g_object_class_install_properties (object_class,
@@ -186,7 +204,11 @@ cog_shell_new_from_module (const char *name,
         return NULL;
     }
 
-    return g_initable_new (shell_type, NULL, NULL, "name", name, NULL);
+    g_autoptr(WebKitSettings) web_settings = g_object_ref_sink (webkit_settings_new ());
+
+    return g_initable_new (shell_type, NULL, NULL,
+                           "name", name,
+                           "web-settings", web_settings, NULL);
 }
 
 /**
@@ -299,7 +321,6 @@ cog_shell_create_view (CogShell *shell, const char *name, const char *propname, 
                                         "backend", view_backend,
                                         NULL);
     }
-
     va_end (varargs);
     return g_steal_pointer (&view);
 }
@@ -406,6 +427,14 @@ cog_shell_set_active_view (CogShell *shell, CogView *view)
         }
     }
     cog_shell_resume_active_views(shell);
+}
+
+WebKitSettings*
+cog_shell_get_default_web_settings (CogShell *shell)
+{
+    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
+
+    return ((CogShellPrivate*) cog_shell_get_instance_private (COG_SHELL (shell)))->web_settings;
 }
 
 WebKitWebViewBackend*
