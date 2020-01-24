@@ -594,6 +594,11 @@ cog_fdo_shell_initable_init (GInitable *initable,
         return FALSE;
     }
 
+    /* TODO: Make the application identifier a CogShell property. */
+    if (COG_DEFAULT_APPID && *COG_DEFAULT_APPID) {
+        pwl_display_set_default_application_id (s_pdisplay, COG_DEFAULT_APPID);
+    }
+
     s_pwindow = pwl_window_create (s_pdisplay);
 
     pwl_display_notify_pointer_motion (s_pdisplay, on_pointer_on_motion, initable);

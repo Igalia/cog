@@ -56,6 +56,7 @@ struct _PwlDisplay {
     struct wl_list outputs; /* wl_list<PwlOutput> */
 #endif /* HAVE_DEVICE_SCALING */
 
+    char *application_id;
     GSource *event_src;
 
     void (*on_pointer_on_motion) (PwlDisplay*, const PwlPointer*, void *userdata);
@@ -363,9 +364,23 @@ pwl_display_destroy (PwlDisplay *self)
 
         wl_display_flush (self->display);
         g_clear_pointer (&self->display, wl_display_disconnect);
+        g_clear_pointer (&self->application_id, g_free);
     }
 
     g_slice_free (PwlDisplay, self);
+}
+
+
+void
+pwl_display_set_default_application_id (PwlDisplay *self,
+                                        const char *application_id)
+{
+    g_return_if_fail (self);
+    g_return_if_fail (application_id);
+    g_return_if_fail (*application_id != '\0');
+
+    g_clear_pointer (&self->application_id, g_free);
+    self->application_id = g_strdup (application_id);
 }
 
 
@@ -1389,8 +1404,10 @@ pwl_window_create (PwlDisplay *display)
                                    self);
 
         // TODO: xdg_toplevel_set_title (window.xdg_toplevel, COG_DEFAULT_APPNAME);
-        // TODO: xdg_toplevel_set_app_id (window->xdg_toplevel, app_id);
 
+        if (display->application_id) {
+            pwl_window_set_application_id (self, display->application_id);
+        }
         wl_surface_commit(self->wl_surface);
     } else if (display->fshell) {
         zwp_fullscreen_shell_v1_present_surface (display->fshell,
@@ -1448,6 +1465,21 @@ pwl_window_destroy (PwlWindow *self)
     g_clear_pointer (&self->wl_surface, wl_surface_destroy);
 
     g_slice_free (PwlWindow, self);
+}
+
+
+void
+pwl_window_set_application_id (PwlWindow *self, const char *application_id)
+{
+    g_return_if_fail (self);
+    g_return_if_fail (application_id);
+    g_return_if_fail (*application_id != '\0');
+
+    if (self->display->xdg_shell) {
+        xdg_toplevel_set_app_id (self->xdg_toplevel, application_id);
+    } else if (self->display->shell) {
+        wl_shell_surface_set_class (self->shell_surface, application_id);
+    }
 }
 
 
