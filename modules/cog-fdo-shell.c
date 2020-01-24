@@ -599,6 +599,11 @@ cog_fdo_shell_initable_init (GInitable *initable,
         pwl_display_set_default_application_id (s_pdisplay, COG_DEFAULT_APPID);
     }
 
+    /* TODO: Set later on the loaded page title as window title. */
+    if (COG_DEFAULT_APPNAME && *COG_DEFAULT_APPNAME) {
+        pwl_display_set_default_window_title (s_pdisplay, COG_DEFAULT_APPNAME);
+    }
+
     s_pwindow = pwl_window_create (s_pdisplay);
 
     pwl_display_notify_pointer_motion (s_pdisplay, on_pointer_on_motion, initable);
