@@ -119,6 +119,9 @@ typedef struct _PwlDisplay PwlDisplay;
 PwlDisplay* pwl_display_connect (const char *name, GError**);
 void        pwl_display_destroy (PwlDisplay*);
 
+void        pwl_display_set_default_application_id (PwlDisplay*,
+                                                    const char *application_id);
+
 bool        pwl_display_input_init (PwlDisplay*, GError **error);
 void        pwl_display_input_deinit (PwlDisplay*);
 
@@ -163,6 +166,8 @@ void setup_wayland_event_source (GMainContext *main_context,
 PwlWindow* pwl_window_create (PwlDisplay*);
 void pwl_window_destroy (PwlWindow*);
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (PwlWindow, pwl_window_destroy)
+
+void pwl_window_set_application_id (PwlWindow*, const char *application_id);
 
 struct wl_surface* pwl_window_get_surface (const PwlWindow*);
 
