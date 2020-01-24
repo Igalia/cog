@@ -121,6 +121,8 @@ void        pwl_display_destroy (PwlDisplay*);
 
 void        pwl_display_set_default_application_id (PwlDisplay*,
                                                     const char *application_id);
+void        pwl_display_set_default_window_title (PwlDisplay*,
+                                                  const char *title);
 
 bool        pwl_display_input_init (PwlDisplay*, GError **error);
 void        pwl_display_input_deinit (PwlDisplay*);
@@ -168,6 +170,7 @@ void pwl_window_destroy (PwlWindow*);
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (PwlWindow, pwl_window_destroy)
 
 void pwl_window_set_application_id (PwlWindow*, const char *application_id);
+void pwl_window_set_title (PwlWindow*, const char *title);
 
 struct wl_surface* pwl_window_get_surface (const PwlWindow*);
 

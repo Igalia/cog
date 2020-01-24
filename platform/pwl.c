@@ -57,6 +57,7 @@ struct _PwlDisplay {
 #endif /* HAVE_DEVICE_SCALING */
 
     char *application_id;
+    char *window_title;
     GSource *event_src;
 
     void (*on_pointer_on_motion) (PwlDisplay*, const PwlPointer*, void *userdata);
@@ -365,6 +366,7 @@ pwl_display_destroy (PwlDisplay *self)
         wl_display_flush (self->display);
         g_clear_pointer (&self->display, wl_display_disconnect);
         g_clear_pointer (&self->application_id, g_free);
+        g_clear_pointer (&self->window_title, g_free);
     }
 
     g_slice_free (PwlDisplay, self);
@@ -381,6 +383,19 @@ pwl_display_set_default_application_id (PwlDisplay *self,
 
     g_clear_pointer (&self->application_id, g_free);
     self->application_id = g_strdup (application_id);
+}
+
+
+void
+pwl_display_set_default_window_title (PwlDisplay *self,
+                                      const char *title)
+{
+    g_return_if_fail (self);
+    g_return_if_fail (title);
+    g_return_if_fail (*title != '\0');
+
+    g_clear_pointer (&self->window_title, g_free);
+    self->window_title = g_strdup (title);
 }
 
 
@@ -1403,8 +1418,10 @@ pwl_window_create (PwlDisplay *display)
                                    &xdg_toplevel_listener,
                                    self);
 
-        // TODO: xdg_toplevel_set_title (window.xdg_toplevel, COG_DEFAULT_APPNAME);
-
+        /* Apply default title/appid, if configured. */
+        if (display->window_title) {
+            pwl_window_set_title (self, display->window_title);
+        }
         if (display->application_id) {
             pwl_window_set_application_id (self, display->application_id);
         }
@@ -1479,6 +1496,21 @@ pwl_window_set_application_id (PwlWindow *self, const char *application_id)
         xdg_toplevel_set_app_id (self->xdg_toplevel, application_id);
     } else if (self->display->shell) {
         wl_shell_surface_set_class (self->shell_surface, application_id);
+    }
+}
+
+
+void
+pwl_window_set_title (PwlWindow *self, const char *title)
+{
+    g_return_if_fail (self);
+    g_return_if_fail (title);
+    g_return_if_fail (*title != '\0');
+
+    if (self->display->xdg_shell) {
+        xdg_toplevel_set_title (self->xdg_toplevel, title);
+    } else if (self->display->shell) {
+        wl_shell_surface_set_title (self->shell_surface, title);
     }
 }
 
