@@ -238,7 +238,7 @@ cog_shell_create_view (CogShell *shell, const char *name, const char *propname, 
         if (!view_class)
             view_class = unref_class = g_type_class_ref (view_type);
 
-        unsigned n_properties = 3;
+        unsigned n_properties = 4;
         g_autofree const char **property_names = g_new (const char*, n_properties);
         g_autofree GValue *property_values = g_new (GValue, n_properties);
         g_autofree GParamSpec **property_pspecs = g_new (GParamSpec*, n_properties);
@@ -255,6 +255,10 @@ cog_shell_create_view (CogShell *shell, const char *name, const char *propname, 
         property_values[2] = (GValue) G_VALUE_INIT;
         g_value_init (&property_values[2], WEBKIT_TYPE_WEB_VIEW_BACKEND);
         g_value_set_boxed (&property_values[2], view_backend);
+        property_names[3] = "web-context";
+        property_values[3] = (GValue) G_VALUE_INIT;
+        g_value_init (&property_values[3], WEBKIT_TYPE_WEB_CONTEXT);
+        g_value_set_boxed (&property_values[3], cog_shell_get_default_web_context(shell));
 
         do {
             GParamSpec *pspec = g_object_class_find_property (view_class, propname);
@@ -297,6 +301,7 @@ cog_shell_create_view (CogShell *shell, const char *name, const char *propname, 
                                         "name", name,
                                         "shell", shell,
                                         "backend", view_backend,
+                                        "web-context", cog_shell_get_default_web_context(shell),
                                         NULL);
     }
 
@@ -406,6 +411,13 @@ cog_shell_set_active_view (CogShell *shell, CogView *view)
         }
     }
     cog_shell_resume_active_views(shell);
+}
+
+WebKitWebContext*
+cog_shell_get_default_web_context (CogShell *shell)
+{
+    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
+    return webkit_web_context_get_default ();
 }
 
 WebKitWebViewBackend*
