@@ -21,6 +21,16 @@ typedef struct wl_buffer * (EGLAPIENTRYP PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL) (
 G_DEFINE_QUARK (com_igalia_Cog_PwlError, pwl_error)
 
 
+#if HAVE_DEVICE_SCALING
+typedef struct {
+    struct wl_output *output;
+    int32_t output_name;
+    int32_t device_scale;
+    struct wl_list link;
+} PwlOutput;
+#endif /* HAVE_DEVICE_SCALING */
+
+
 struct _PwlDisplay {
     struct wl_display *display;
     struct wl_registry *registry;
@@ -43,11 +53,7 @@ struct _PwlDisplay {
     struct wl_shell *shell;
 
 #if HAVE_DEVICE_SCALING
-    struct {
-        struct wl_output *output;
-        int32_t name;
-        int32_t scale;
-    } metrics[16];
+    struct wl_list outputs; /* wl_list<PwlOutput> */
 #endif /* HAVE_DEVICE_SCALING */
 
     GSource *event_src;
@@ -124,26 +130,35 @@ noop()
 }
 
 static void
-output_handle_scale (void *data,
-                     struct wl_output *output,
-                     int32_t factor)
+display_output_on_scale (void *data,
+                         struct wl_output *output,
+                         int32_t factor)
 {
-    PwlDisplay *display = data;
+    PwlDisplay *self = data;
     bool found = false;
-    for (int i = 0; i < G_N_ELEMENTS (display->metrics); i++)
-    {
-        if (display->metrics[i].output == output) {
+
+    PwlOutput *item;
+    wl_list_for_each (item, &self->outputs, link) {
+        if (item->output == output) {
             found = true;
-            display->metrics[i].scale = factor;
             break;
         }
     }
-    if (!found)
-    {
-        g_warning ("Unknown output %p\n", output);
+
+    if (!found) {
+        g_critical ("Unknown output %p\n", output);
         return;
     }
-    g_info ("Got scale factor %i for output %p\n", factor, output);
+
+    if (item->device_scale == factor) {
+        g_debug ("Output #%"PRIi32 " @ %p: Scaling factor %"PRIi32"x unchanged",
+                 item->output_name, output, factor);
+    } else {
+        /* TODO: Notify scale changes to windows in this output.  */
+        g_debug ("Output #%"PRIi32" @ %p: New scaling factor %"PRIi32"x",
+                 item->output_name, item->output, factor);
+        item->device_scale = factor;
+    }
 }
 
 
@@ -155,9 +170,10 @@ window_surface_on_enter (void *data, struct wl_surface *surface, struct wl_outpu
     g_assert (self->wl_surface == surface);
 
     int32_t factor = -1;
-    for (unsigned i = 0; i < G_N_ELEMENTS (self->display->metrics); i++) {
-        if (self->display->metrics[i].output == output) {
-            factor = self->display->metrics[i].scale;
+    PwlOutput *item;
+    wl_list_for_each (item, &self->display->outputs, link) {
+        if (item->output == output) {
+            factor = item->device_scale;
             break;
         }
     }
@@ -235,30 +251,25 @@ registry_global (void               *data,
                                           version);
 #if HAVE_DEVICE_SCALING
     } else if (strcmp (interface, wl_output_interface.name) == 0) {
-        struct wl_output* output = wl_registry_bind (registry,
-                                                     name,
-                                                     &wl_output_interface,
-                                                     version);
+        PwlOutput *item = g_slice_new0 (PwlOutput);
+        item->output = wl_registry_bind (registry, name,
+                                         &wl_output_interface,
+                                         version);
+        item->output_name = name;
+        item->device_scale = 1;
+        wl_list_init (&item->link);
+        wl_list_insert (&display->outputs, &item->link);
+
         static const struct wl_output_listener output_listener = {
             .geometry = noop,
             .mode = noop,
             .done = noop,
-            .scale = output_handle_scale,
+            .scale = display_output_on_scale,
         };
-        wl_output_add_listener (output, &output_listener, display);
-        bool inserted = false;
-        for (int i = 0; i < G_N_ELEMENTS (display->metrics); i++)
-        {
-            if (display->metrics[i].output == NULL) {
-                display->metrics[i].output = output;
-                display->metrics[i].name = name;
-                inserted = true;
-                break;
-            }
-        }
-        if (!inserted) {
-            g_warning ("Exceeded %" G_GSIZE_FORMAT " connected outputs(!)", G_N_ELEMENTS (display->metrics));
-        }
+        wl_output_add_listener (item->output, &output_listener, display);
+
+        g_debug ("Output #%"PRIi32" @ %p: Added with scaling factor 1x",
+                 item->output_name, item->output);
 #endif /* HAVE_DEVICE_SCALING */
     } else {
         interface_used = FALSE;
@@ -270,16 +281,20 @@ registry_global (void               *data,
 static void
 registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
 {
-    PwlDisplay *display = (PwlDisplay*) data;
-    for (int i = 0; i < G_N_ELEMENTS (display->metrics); i++)
-    {
-        if (display->metrics[i].name == name) {
-            display->metrics[i].output = NULL;
-            display->metrics[i].name = 0;
-            g_debug ("Removed output %i\n", name);
+#if HAVE_DEVICE_SCALING
+    PwlDisplay *display = data;
+    PwlOutput *item, *tmp;
+    wl_list_for_each_safe (item, tmp, &display->outputs, link) {
+        if (item->output_name == name) {
+            g_debug ("Output #%"PRIi32" @ %p: Removed.",
+                     item->output_name, item->output);
+            g_clear_pointer (&item->output, wl_output_release);
+            wl_list_remove (&item->link);
+            g_slice_free (PwlOutput, item);
             break;
         }
     }
+#endif /* HAVE_DEVICE_SCALING */
 }
 
 
@@ -288,6 +303,10 @@ PwlDisplay*
 pwl_display_connect (const char *name, GError **error)
 {
     g_autoptr(PwlDisplay) self = g_slice_new0 (PwlDisplay);
+
+#if HAVE_DEVICE_SCALING
+    wl_list_init (&self->outputs);
+#endif /* HAVE_DEVICE_SCALING */
 
     if (!(self->display = wl_display_connect (name))) {
         g_set_error_literal (error, G_FILE_ERROR,
@@ -299,9 +318,7 @@ pwl_display_connect (const char *name, GError **error)
     self->registry = wl_display_get_registry (self->display);
     static const struct wl_registry_listener registry_listener = {
         .global = registry_global,
-#if HAVE_DEVICE_SCALING
         .global_remove = registry_global_remove
-#endif /* HAVE_DEVICE_SCALING */
     };
     wl_registry_add_listener (self->registry, &registry_listener, self);
     wl_display_roundtrip (self->display);
