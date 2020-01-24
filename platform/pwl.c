@@ -1417,15 +1417,6 @@ pwl_window_create (PwlDisplay *display)
         xdg_toplevel_add_listener (self->xdg_toplevel,
                                    &xdg_toplevel_listener,
                                    self);
-
-        /* Apply default title/appid, if configured. */
-        if (display->window_title) {
-            pwl_window_set_title (self, display->window_title);
-        }
-        if (display->application_id) {
-            pwl_window_set_application_id (self, display->application_id);
-        }
-        wl_surface_commit(self->wl_surface);
     } else if (display->fshell) {
         zwp_fullscreen_shell_v1_present_surface (display->fshell,
                                                  self->wl_surface,
@@ -1447,6 +1438,15 @@ pwl_window_create (PwlDisplay *display)
         /* wl_shell needs an initial surface configuration. */
         configure_surface_geometry (self, 0, 0);
     }
+
+    /* Apply default title/appid, if configured. */
+    if (display->window_title) {
+        pwl_window_set_title (self, display->window_title);
+    }
+    if (display->application_id) {
+        pwl_window_set_application_id (self, display->application_id);
+    }
+    wl_surface_commit(self->wl_surface);
 
     /*
      * TODO: Remove this call to create_window() and instead have proper
