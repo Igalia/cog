@@ -113,6 +113,7 @@ load_settings (CogShell *shell, GKeyFile *key_file, GError **error)
 
     return TRUE;
 }
+#endif
 
 
 static int
@@ -145,13 +146,8 @@ on_handle_local_options (GApplication *application,
                          void         *user_data)
 {
     if (s_options.version) {
-        g_print ("%s (%s %u.%u.%u)\n",
+        g_print ("%s (WPE WebKit %u.%u.%u)\n",
                  COG_VERSION_STRING COG_VERSION_EXTRA,
-#if COG_USE_WEBKITGTK
-                 "WebKitGTK",
-#else
-                 "WPE WebKit",
-#endif // COG_USE_WEBKITGTK
                  webkit_get_major_version (),
                  webkit_get_minor_version (),
                  webkit_get_micro_version ());
@@ -175,6 +171,7 @@ on_handle_local_options (GApplication *application,
         s_options.on_failure.action_id = action_id;
     }
 
+#if 0
     const char *uri = NULL;
     if (!s_options.arguments) {
         if (!(uri = g_getenv ("COG_URL"))) {
@@ -272,67 +269,13 @@ on_handle_local_options (GApplication *application,
         // webkit_web_context_set_web_extensions_directory (cog_shell_get_web_context (shell),
         //                                                  s_options.web_extensions_dir);
     }
+#endif
 
     return -1;  /* Continue startup. */
 }
 
 
-#if !COG_USE_WEBKITGTK
-static gboolean
-platform_setup (CogShell *shell)
-{
-    /*
-     * Here we resolve the CogPlatform we are going to use. A Cog platform
-     * is dynamically loaded object that abstracts the specifics about how
-     * a WebView's WPE backend is going to be constructed and rendered on
-     * a given platform.
-     */
-
-    g_debug ("%s: Platform name: %s", __func__, s_options.platform_name);
-
-    if (!s_options.platform_name)
-        return FALSE;
-
-    g_autofree char *platform_soname =
-        g_strdup_printf ("libcogplatform-%s.so", s_options.platform_name);
-    g_clear_pointer (&s_options.platform_name, g_free);
-
-    g_debug ("%s: Platform plugin: %s", __func__, platform_soname);
-
-    g_autoptr(CogPlatform) platform = cog_platform_new ();
-    if (!cog_platform_try_load (platform, platform_soname)) {
-        g_warning ("Could not load: %s (possible cause: %s).\n",
-                   platform_soname, strerror (errno));
-        return FALSE;
-    }
-
-    g_autoptr(GError) error = NULL;
-    if (!cog_platform_setup (platform, shell, "", &error)) {
-        g_warning ("Platform setup failed: %s", error->message);
-        return FALSE;
-    }
-
-    s_options.platform = g_steal_pointer (&platform);
-
-    g_debug ("%s: Platform = %p", __func__, s_options.platform);
-    return TRUE;
-}
-
-
-static void
-on_shutdown (CogLauncher *launcher G_GNUC_UNUSED, void *user_data G_GNUC_UNUSED)
-{
-    g_debug ("%s: Platform = %p", __func__, s_options.platform);
-
-    if (s_options.platform) {
-        cog_platform_teardown (s_options.platform);
-        g_clear_pointer (&s_options.platform, cog_platform_free);
-        g_debug ("%s: Platform teardown completed.", __func__);
-    }
-}
-#endif // !COG_USE_WEBKITGTK
-
-
+#if 0
 static WebKitWebView*
 on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
 {
@@ -443,10 +386,10 @@ static void
 print_module_info (GIOExtension *extension,
                    void         *userdata G_GNUC_UNUSED)
 {
-    g_printerr ("  %s - %d/%s\n",
-                g_io_extension_get_name (extension),
-                g_io_extension_get_priority (extension),
-                g_type_name (g_io_extension_get_type (extension)));
+    g_info ("  %s - %d/%s",
+            g_io_extension_get_name (extension),
+            g_io_extension_get_priority (extension),
+            g_type_name (g_io_extension_get_type (extension)));
 }
 
 
@@ -462,38 +405,28 @@ main (int argc, char *argv[])
         g_set_application_name ("Cog");
     }
 
-#if 0
-#if COG_USE_WEBKITGTK
-    // Workaround for https://bugs.webkit.org/show_bug.cgi?id=150303
-    gtk_init(NULL, NULL);
-#endif // COG_USE_WEBKITGTK
-
-    g_autoptr(GApplication) app = G_APPLICATION (cog_launcher_get_default ());
-    g_application_add_main_option_entries (app, s_cli_options);
-    cog_launcher_add_web_settings_option_entries (COG_LAUNCHER (app));
-    cog_launcher_add_web_cookies_option_entries (COG_LAUNCHER (app));
-    cog_launcher_add_web_permissions_option_entries (COG_LAUNCHER (app));
-
-#if !COG_USE_WEBKITGTK
-    g_signal_connect (app, "shutdown", G_CALLBACK (on_shutdown), NULL);
-#endif // !COG_USE_WEBKITGTK
-
-    g_signal_connect (app, "handle-local-options",
-                      G_CALLBACK (on_handle_local_options), NULL);
-    g_signal_connect (cog_launcher_get_shell (COG_LAUNCHER (app)), "create-view",
-                      G_CALLBACK (on_create_view), NULL);
-
-    return g_application_run (app, argc, argv);
-#endif
-
     cog_modules_add_directory (COG_MODULEDIR);
 
-    g_printerr ("%s\n", COG_MODULES_SHELL_EXTENSION_POINT);
+    g_info ("%s:", COG_MODULES_SHELL_EXTENSION_POINT);
     cog_modules_foreach (COG_MODULES_SHELL_EXTENSION_POINT,
                          print_module_info, NULL);
 
     g_autoptr(GApplication) app = G_APPLICATION (cog_launcher_get_default ());
     g_application_add_main_option_entries (app, s_cli_options);
+
+#if 0
+    cog_launcher_add_web_settings_option_entries (COG_LAUNCHER (app));
+    cog_launcher_add_web_cookies_option_entries (COG_LAUNCHER (app));
+    cog_launcher_add_web_permissions_option_entries (COG_LAUNCHER (app));
+#endif
+
+    g_signal_connect (app, "handle-local-options",
+                      G_CALLBACK (on_handle_local_options), NULL);
+
+#if 0
+    g_signal_connect (cog_launcher_get_shell (COG_LAUNCHER (app)), "create-view",
+                      G_CALLBACK (on_create_view), NULL);
+#endif
 
     int f = g_application_run (app, argc, argv);
     g_debug ("Exiting...");
