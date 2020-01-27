@@ -195,7 +195,4 @@ void pwl_window_notify_device_scale (PwlWindow*,
                                      void (*callback) (PwlWindow*, uint32_t scale, void*),
                                      void *userdata);
 
-struct wpe_fdo_egl_exported_image* pwl_createImageKHR (const PwlDisplay*, struct wl_resource*);
-void pwl_destroyImageKHR (const PwlDisplay*, EGLImageKHR eglImage);
-
 G_END_DECLS

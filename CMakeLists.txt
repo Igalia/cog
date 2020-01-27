@@ -211,7 +211,7 @@ endif ()
 if (COG_MODULE_FDO_SHELL)
     pkg_check_modules (ModuleFdoShell IMPORTED_TARGET REQUIRED
         wpe-webkit-1.0>=2.24.0
-        wpebackend-fdo-1.0>=1.2.1
+        wpebackend-fdo-1.0>=1.3.1
         egl
         xkbcommon
     )

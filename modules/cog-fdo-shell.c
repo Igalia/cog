@@ -54,15 +54,12 @@ GSList* wpe_host_data_exportable = NULL;
 
 static struct {
     struct wpe_fdo_egl_exported_image *image;
-    EGLImageKHR image;
-    struct wl_resource *image_resource;
-} wpe_view_data = {NULL, NULL};
+} wpe_view_data = {NULL, };
 
 typedef struct {
     struct wpe_view_backend_exportable_fdo *exportable;
     struct wpe_view_backend *backend;
-    EGLImageKHR image;
-    struct wl_resource *image_resource;
+    struct wpe_fdo_egl_exported_image *image;
 } WpeViewBackendData;
 
 void
@@ -86,7 +83,6 @@ cog_shell_get_active_wpe_backend (CogShell *shell)
 static void
 window_on_device_scale (PwlWindow* self, uint32_t device_scale, void *userdata)
 {
-#if 0
     /*
      * TODO: Device scale must be handled for the backend of the window,
      *       and *not* for the current view backend!
@@ -94,7 +90,6 @@ window_on_device_scale (PwlWindow* self, uint32_t device_scale, void *userdata)
     CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
     wpe_view_backend_dispatch_set_device_scale_factor (backend, device_scale);
-#endif
 }
 
 
@@ -462,7 +457,6 @@ request_frame (struct wpe_view_backend_exportable_fdo *exportable)
                               exportable);
 }
 
-#if 0
 static void
 on_buffer_release (void* data, struct wl_buffer* buffer)
 {
@@ -520,41 +514,20 @@ on_export_fdo_egl_image (void *data, struct wpe_fdo_egl_exported_image *image)
 
     wl_surface_commit (surface);
 }
-#endif
-
-static void
-on_export_buffer_resource(void *data G_GNUC_UNUSED, struct wl_resource *resource)
-{
-    WpeViewBackendData *backend_data = data;
-    g_assert (backend_data);
-
-    if (wpe_view_data.image) {
-        pwl_destroyImageKHR (s_pdisplay, wpe_view_data.image);
-        wpe_view_data.image = EGL_NO_IMAGE_KHR;
-
-        wpe_view_backend_exportable_fdo_dispatch_release_buffer (backend_data->exportable,
-                                                                 wpe_view_data.image_resource);
-        wpe_view_data.image_resource = NULL;
-    }
-
-    wpe_view_data.image_resource = resource;
-    wpe_view_data.image = pwl_createImageKHR (s_pdisplay, resource);
-}
 
 WebKitWebViewBackend*
 cog_shell_new_fdo_view_backend (CogShell *shell)
 {
-    static struct wpe_view_backend_exportable_fdo_client exportable_client = {
-        .export_buffer_resource = on_export_buffer_resource,
+    static struct wpe_view_backend_exportable_fdo_egl_client exportable_egl_client = {
+        .export_fdo_egl_image = on_export_fdo_egl_image,
     };
 
     WpeViewBackendData *data = g_new0 (WpeViewBackendData, 1);
 
-    data->exportable = wpe_view_backend_exportable_fdo_create (&exportable_client,
-                                                               data,
-                                                               DEFAULT_WIDTH,
-                                                               DEFAULT_HEIGHT);
-
+    data->exportable = wpe_view_backend_exportable_fdo_egl_create (&exportable_egl_client,
+                                                                   data,
+                                                                   DEFAULT_WIDTH,
+                                                                   DEFAULT_HEIGHT);
     g_assert (data->exportable);
 
     /* init WPE view backend */
