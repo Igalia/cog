@@ -58,7 +58,7 @@ can_use_extension (GIOExtension *extension,
     typedef gboolean (*VerifyFunction)(void);
 
     GType type = g_io_extension_get_type (extension);
-    g_autoptr(GTypeClass) type_class = g_type_class_ref (type);
+    g_autofree GTypeClass *type_class = g_type_class_ref (type);
     return (*G_STRUCT_MEMBER (VerifyFunction, type_class, is_supported_offset)) ();
 }
 

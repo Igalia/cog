@@ -89,7 +89,7 @@ window_on_device_scale (PwlWindow* self, uint32_t device_scale, void *userdata)
      */
     CogShell *shell = userdata;
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-    wpe_view_backend_dispatch_set_device_scale_factor (backend, device_scale);
+    // wpe_view_backend_dispatch_set_device_scale_factor (backend, device_scale);
 }
 
 
