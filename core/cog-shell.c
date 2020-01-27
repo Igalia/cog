@@ -12,6 +12,7 @@
 #include "cog-modules.h"
 #include "cog-request-handler.h"
 #include <stdarg.h>
+#include <string.h>  // warning: implicit declaration of function 'strcmp'
 
 typedef struct {
     char  *name;
@@ -218,9 +219,10 @@ cog_shell_create_view (CogShell *shell, const char *name, const char *propname, 
     g_return_val_if_fail (name != NULL, NULL);
 
     GType view_type = cog_shell_get_view_class (shell);
+#if 0
     va_list varargs;
     va_start (varargs, propname);
-
+#endif
     g_autoptr(CogView) view = NULL;
 
     WebKitWebViewBackend *view_backend = NULL;
@@ -228,6 +230,7 @@ cog_shell_create_view (CogShell *shell, const char *name, const char *propname, 
     if (!view_backend) {
         g_warning ("Failed to get platform's view backend");
     }
+#if 0
     if (propname) {
         /*
          * Gather parameters, and add our own (shell, name) to be used with
@@ -292,15 +295,18 @@ cog_shell_create_view (CogShell *shell, const char *name, const char *propname, 
                                                         property_names,
                                                         property_values);
     } else {
+#endif
         /* Fast case: No additional properties specified. */
         view = (CogView*) g_object_new (view_type,
                                         "name", name,
                                         "shell", shell,
                                         "backend", view_backend,
                                         NULL);
+#if 0
     }
 
     va_end (varargs);
+#endif
     return g_steal_pointer (&view);
 }
 

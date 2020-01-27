@@ -11,7 +11,7 @@
 #include <errno.h>
 #include <gio/gio.h>
 #include <sys/mman.h>
-
+#include <string.h>  // warning: implicit declaration of function 'strcmp'
 
 #ifndef EGL_WL_create_wayland_buffer_from_image
 typedef struct wl_buffer * (EGLAPIENTRYP PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL) (EGLDisplay dpy, EGLImageKHR image);
