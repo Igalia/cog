@@ -50,7 +50,7 @@ struct _PwlDisplay {
 
     PwlXKBData xkb_data;
 
-    struct xdg_wm_base *xdg_shell;
+    struct zxdg_shell_v6 *xdg_shell;
     struct zwp_fullscreen_shell_v1 *fshell;
     struct wl_shell *shell;
 
@@ -91,8 +91,8 @@ struct _PwlWindow {
     struct wl_egl_window *egl_window;
     EGLSurface egl_surface;
 
-    struct xdg_surface *xdg_surface;
-    struct xdg_toplevel *xdg_toplevel;
+    struct zxdg_surface_v6 *xdg_surface;
+    struct zxdg_toplevel_v6 *xdg_toplevel;
     struct wl_shell_surface *shell_surface;
 
     uint32_t width;
@@ -206,9 +206,9 @@ window_surface_on_enter (void *data, struct wl_surface *surface, struct wl_outpu
 
 
 static void
-xdg_shell_ping (void *data, struct xdg_wm_base *shell, uint32_t serial)
+xdg_shell_ping (void *data, struct zxdg_shell_v6 *shell, uint32_t serial)
 {
-    xdg_wm_base_pong (shell, serial);
+    zxdg_shell_v6_pong (shell, serial);
 }
 
 
@@ -232,16 +232,16 @@ registry_global (void               *data,
                                            name,
                                            &wl_shell_interface,
                                            version);
-    } else if (strcmp (interface, xdg_wm_base_interface.name) == 0) {
+    } else if (strcmp (interface, zxdg_shell_v6_interface.name) == 0) {
         display->xdg_shell = wl_registry_bind (registry,
                                                name,
-                                               &xdg_wm_base_interface,
+                                               &zxdg_shell_v6_interface,
                                                version);
         g_assert (display->xdg_shell);
-        static const struct xdg_wm_base_listener xdg_shell_listener = {
+        static const struct zxdg_shell_v6_listener xdg_shell_listener = {
             .ping = xdg_shell_ping,
         };
-        xdg_wm_base_add_listener (display->xdg_shell, &xdg_shell_listener, NULL);
+        zxdg_shell_v6_add_listener (display->xdg_shell, &xdg_shell_listener, NULL);
     } else if (strcmp (interface,
                        zwp_fullscreen_shell_v1_interface.name) == 0) {
         display->fshell = wl_registry_bind (registry,
@@ -338,7 +338,7 @@ pwl_display_connect (const char *name, GError **error)
         g_set_error (error, PWL_ERROR, PWL_ERROR_WAYLAND,
                      "Wayland display does not support a shell "
                      "interface (%s, %s, or %s)",
-                     xdg_wm_base_interface.name,
+                     zxdg_shell_v6_interface.name,
                      wl_shell_interface.name,
                      zwp_fullscreen_shell_v1_interface.name);
         return NULL;
@@ -358,7 +358,7 @@ pwl_display_destroy (PwlDisplay *self)
 
     if (self->display) {
         g_clear_pointer (&(self->event_src), g_source_destroy);
-        g_clear_pointer (&(self->xdg_shell), xdg_wm_base_destroy);
+        g_clear_pointer (&(self->xdg_shell), zxdg_shell_v6_destroy);
         g_clear_pointer (&(self->fshell), zwp_fullscreen_shell_v1_destroy);
         g_clear_pointer (&(self->shell), wl_shell_destroy);
 
@@ -874,15 +874,15 @@ pwl_display_xkb_get_data (PwlDisplay *self)
 
 static void
 xdg_surface_on_configure (void *data,
-                          struct xdg_surface *surface,
+                          struct zxdg_surface_v6 *surface,
                           uint32_t serial)
 {
-    xdg_surface_ack_configure (surface, serial);
+    zxdg_surface_v6_ack_configure (surface, serial);
 }
 
 static void
 xdg_toplevel_on_configure (void *data,
-                           struct xdg_toplevel *toplevel,
+                           struct zxdg_toplevel_v6 *toplevel,
                            int32_t width, int32_t height,
                            struct wl_array *states)
 {
@@ -895,7 +895,7 @@ xdg_toplevel_on_configure (void *data,
 }
 
 static void
-xdg_toplevel_on_close (void *data, struct xdg_toplevel *xdg_toplevel)
+xdg_toplevel_on_close (void *data, struct zxdg_toplevel_v6 *xdg_toplevel)
 {
     // TODO g_application_quit (g_application_get_default ());
 }
@@ -1410,21 +1410,21 @@ pwl_window_create (PwlDisplay *display)
 #endif /* HAVE_DEVICE_SCALING */
 
     if (display->xdg_shell) {
-        self->xdg_surface = xdg_wm_base_get_xdg_surface (display->xdg_shell,
+        self->xdg_surface = zxdg_shell_v6_get_xdg_surface (display->xdg_shell,
                                                          self->wl_surface);
-        static const struct xdg_surface_listener xdg_surface_listener = {
+        static const struct zxdg_surface_v6_listener xdg_surface_listener = {
             .configure = xdg_surface_on_configure,
         };
-        xdg_surface_add_listener (self->xdg_surface,
+        zxdg_surface_v6_add_listener (self->xdg_surface,
                                   &xdg_surface_listener,
                                   NULL);
 
-        self->xdg_toplevel = xdg_surface_get_toplevel (self->xdg_surface);
-        static const struct xdg_toplevel_listener xdg_toplevel_listener = {
+        self->xdg_toplevel = zxdg_surface_v6_get_toplevel (self->xdg_surface);
+        static const struct zxdg_toplevel_v6_listener xdg_toplevel_listener = {
             .configure = xdg_toplevel_on_configure,
             .close = xdg_toplevel_on_close,
         };
-        xdg_toplevel_add_listener (self->xdg_toplevel,
+        zxdg_toplevel_v6_add_listener (self->xdg_toplevel,
                                    &xdg_toplevel_listener,
                                    self);
     } else if (display->fshell) {
@@ -1486,8 +1486,8 @@ pwl_window_destroy (PwlWindow *self)
     }
 
     g_clear_pointer (&self->egl_window, wl_egl_window_destroy);
-    g_clear_pointer (&self->xdg_toplevel, xdg_toplevel_destroy);
-    g_clear_pointer (&self->xdg_surface, xdg_surface_destroy);
+    g_clear_pointer (&self->xdg_toplevel, zxdg_toplevel_v6_destroy);
+    g_clear_pointer (&self->xdg_surface, zxdg_surface_v6_destroy);
     g_clear_pointer (&self->shell_surface, wl_shell_surface_destroy);
     g_clear_pointer (&self->wl_surface, wl_surface_destroy);
 
@@ -1576,9 +1576,9 @@ pwl_window_set_fullscreen (PwlWindow *self, bool fullscreen)
 
     if (self->display->xdg_shell) {
         if ((self->is_fullscreen = fullscreen)) {
-            xdg_toplevel_set_fullscreen (self->xdg_toplevel, NULL);
+            zxdg_toplevel_v6_set_fullscreen (self->xdg_toplevel, NULL);
         } else {
-            xdg_toplevel_unset_fullscreen (self->xdg_toplevel);
+            zxdg_toplevel_v6_unset_fullscreen (self->xdg_toplevel);
         }
     } else if (self->display->shell) {
         if ((self->is_fullscreen = fullscreen)) {
@@ -1613,9 +1613,9 @@ pwl_window_set_maximized (PwlWindow *self, bool maximized)
 
     if (self->display->xdg_shell) {
         if ((self->is_maximized = maximized)) {
-            xdg_toplevel_set_maximized (self->xdg_toplevel);
+            zxdg_toplevel_v6_set_maximized (self->xdg_toplevel);
         } else {
-            xdg_toplevel_unset_maximized (self->xdg_toplevel);
+            zxdg_toplevel_v6_unset_maximized (self->xdg_toplevel);
         }
     } else if (self->display->shell) {
         if ((self->is_maximized = maximized)) {

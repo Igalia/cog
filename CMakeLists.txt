@@ -203,7 +203,7 @@ if (COG_MODULE_FDO_SHELL)
     )
 
     find_package (WaylandProtocols REQUIRED)
-    add_wayland_protocol (platform-wl CLIENT xdg-shell)
+    add_wayland_protocol (platform-wl CLIENT xdg-shell-unstable-v6)
     add_wayland_protocol (platform-wl CLIENT fullscreen-shell-unstable-v1)
 endif ()
 
@@ -234,7 +234,7 @@ if (COG_MODULE_FDO_SHELL)
     target_compile_options (fdo-shell PRIVATE
         -DG_LOG_DOMAIN=\"Cog-FDO\" ${EXTRA_CFLAGS})
     find_package (WaylandProtocols REQUIRED)
-    add_wayland_protocol (fdo-shell CLIENT xdg-shell)
+    add_wayland_protocol (fdo-shell CLIENT xdg-shell-unstable-v6)
     add_wayland_protocol (fdo-shell CLIENT fullscreen-shell-unstable-v1)
 
     install (TARGETS fdo-shell
