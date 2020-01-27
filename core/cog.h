@@ -16,14 +16,11 @@
 #include "cog-webkit-utils.h"
 #include "cog-request-handler.h"
 #include "cog-directory-files-handler.h"
+#include "cog-modules.h"
 #include "cog-launcher.h"
 #include "cog-shell.h"
 #include "cog-utils.h"
 #include "cog-view.h"
-
-#if !COG_USE_WEBKITGTK
-# include "cog-platform.h"
-#endif /* !COG_USE_WEBKITGTK */
 
 #undef COG_INSIDE_COG__
 
