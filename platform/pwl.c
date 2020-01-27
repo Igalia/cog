@@ -41,6 +41,8 @@ struct _PwlDisplay {
     EGLContext egl_context;
     EGLConfig egl_config;
     PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL egl_createWaylandBufferFromImageWL;
+    PFNEGLCREATEIMAGEKHRPROC egl_createImageKHR;
+    PFNEGLDESTROYIMAGEKHRPROC egl_destroyImageKHR;
 
     PwlKeyboard keyboard;
     PwlPointer pointer;
@@ -815,6 +817,14 @@ pwl_display_egl_init (PwlDisplay *display, GError **error)
         pwl_display_egl_deinit (display);
         return FALSE;
     }
+
+    display->egl_createImageKHR = (PFNEGLCREATEIMAGEKHRPROC)
+        eglGetProcAddress ("eglCreateImageKHR");
+    g_assert (display->egl_createImageKHR);
+
+    display->egl_destroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC)
+        eglGetProcAddress ("eglDestroyImageKHR");
+    g_assert (display->egl_destroyImageKHR);
 
     return TRUE;
 }
@@ -1663,6 +1673,21 @@ pwl_window_notify_device_scale (PwlWindow *self,
     self->device_scale_userdata = userdata;
 }
 
+struct wpe_fdo_egl_exported_image*
+pwl_createImageKHR (const PwlDisplay* display,
+                    struct wl_resource *resource)
+{
+    return display->egl_createImageKHR (display->egl_display,
+                                        EGL_NO_CONTEXT,
+                                        EGL_WAYLAND_BUFFER_WL,
+                                        resource,
+                                        NULL);
+}
+
+void pwl_destroyImageKHR (const PwlDisplay* display, EGLImageKHR egl_image)
+{
+    display->egl_destroyImageKHR (display->egl_display, egl_image);
+}
 
 bool
 pwl_display_input_init (PwlDisplay *self, GError **error)
