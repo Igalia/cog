@@ -1,5 +1,6 @@
 /*
  * cog-launcher.h
+ * Copyright (C) 2020 Igalia S.L.
  * Copyright (C) 2017 Adrian Perez <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
@@ -20,26 +21,13 @@ G_BEGIN_DECLS
 
 typedef struct _CogRequestHandler CogRequestHandler;
 
-
-#if COG_USE_WEBKITGTK
-# define COG_LAUNCHER_BASE_TYPE GTK_TYPE_APPLICATION
-  typedef GtkApplication       CogLauncherBase;
-  typedef GtkApplicationClass  CogLauncherBaseClass;
-#else
-# define COG_LAUNCHER_BASE_TYPE G_TYPE_APPLICATION
-  typedef GApplication         CogLauncherBase;
-  typedef GApplicationClass    CogLauncherBaseClass;
-#endif
-
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (CogLauncherBase, g_object_unref)
-
 #define COG_TYPE_LAUNCHER (cog_launcher_get_type ())
 
-G_DECLARE_FINAL_TYPE (CogLauncher, cog_launcher, COG, LAUNCHER, CogLauncherBase)
+G_DECLARE_FINAL_TYPE (CogLauncher, cog_launcher, COG, LAUNCHER, GApplication)
 
 struct _CogLauncherClass
 {
-    CogLauncherBaseClass parent_class;
+    GApplicationClass parent_class;
 };
 
 CogLauncher *cog_launcher_get_default                  (void);

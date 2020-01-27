@@ -17,7 +17,6 @@
 #cmakedefine COG_DEFAULT_APPID "@COG_DEFAULT_APPID@"
 #cmakedefine COG_DEFAULT_HOME_URI "@COG_DEFAULT_HOME_URI@"
 #cmakedefine01 COG_DEVICE_SCALING
-#cmakedefine01 COG_USE_WEBKITGTK
 #cmakedefine01 WAYLAND_1_10_OR_GREATER
 
 /* FIXME: Perhaps make this a cmake define instead. */
