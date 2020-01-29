@@ -58,6 +58,7 @@ option(COG_USE_WEBKITGTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
 option(COG_PLATFORM_FDO "Build the FDO platform module" ON)
 option(COG_PLATFORM_DRM "Build the DRM platform module" OFF)
 option(COG_BUILD_PROGRAMS "Build and install programs as well" ON)
+option(INSTALL_MAN_PAGES "Install the man(1) pages if COG_BUILD_PROGRAMS is enabled" ON)
 set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
 
@@ -187,6 +188,12 @@ if (COG_BUILD_PROGRAMS)
         DESTINATION ${CMAKE_INSTALL_BINDIR}
         COMPONENT "runtime"
     )
+    if (INSTALL_MAN_PAGES)
+        install(FILES data/cog.1 data/cogctl.1
+            DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
+            COMPONENT "runtime"
+        )
+    endif ()
 endif ()
 
 

@@ -1,0 +1,83 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH cog 1 "Jan 25, 2020"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+cog \- single-window web browser
+.SH SYNOPSIS
+.B cog
+.RI [ options ]
+.RI [ URL ]
+.SH DESCRIPTION
+\fBcog\fP is a small, single-window web browser based on WPE WebKit.
+It provides no user interface and is suitable to be used as a web
+application container for embedded devices in kiosk mode.
+
+The URL of the website to be opened can be passed either from the
+command-line or with the \fBCOG_URL\fP environment variable.
+
+.SH OPTIONS
+.TP
+.B \-h,\ \-\-help
+Show help options
+.TP
+.B \-\-version
+Print version and exit
+.TP
+.B \-\-print\-appid
+Print application ID and exit
+.TP
+.B \-\-scale=FACTOR
+Zoom/Scaling factor applied to Web content (default: 1.0, no scaling)
+.TP
+.B \-\-device\-scale=FACTOR
+Output device scaling factor (default: 1.0, no scaling, 96 DPI)
+.TP
+.B \-\-doc\-viewer
+Document viewer mode: optimizes for local loading of Web content. This
+reduces memory usage at the cost of reducing caching of resources
+loaded from the network.
+.TP
+.B \-d,\ \-\-dir\-handler=SCHEME:PATH
+Add a URI scheme handler for a directory
+.TP
+.B \-\-webprocess\-failure=ACTION
+Action on WebProcess failures: error-page (default), exit, exit-ok,
+restart.
+.TP
+.B \-C,\ \-\-config=PATH
+Path to a configuration file
+.TP
+.B \-b,\ \-\-bg\-color=BG_COLOR
+Background color, as a CSS name or in #RRGGBBAA hex syntax (default:
+white)
+.TP
+.B \-P,\ \-\-platform=NAME
+Platform plug-in to use.
+.TP
+.B \-\-web\-extensions\-dir=PATH
+Load Web Extensions from given directory.
+
+.SH ENVIRONMENT
+.PP
+.B COG_URL
+URL of the website to be opened
+
+.SH SEE ALSO
+.BR cogctl (1)
+
+.SH AUTHOR
+This manual page was written by Alberto Garcia <berto@igalia.com>
