@@ -34,6 +34,7 @@
 
 #include "xdg-shell-client.h"
 #include "fullscreen-shell-unstable-v1-client.h"
+#include "presentation-time-client.h"
 
 #if COG_IM_API_SUPPORTED
 #include "cog-im-context-fdo.h"
@@ -86,6 +87,8 @@ static struct {
     struct zwp_text_input_manager_v3 *text_input_manager;
     struct zwp_text_input_manager_v1 *text_input_manager_v1;
 #endif
+
+    struct wp_presentation *presentation;
 
     struct {
         int32_t scale;
@@ -519,6 +522,11 @@ registry_global (void               *data,
                                                           &zwp_text_input_manager_v1_interface,
                                                           version);
 #endif
+    } else if (strcmp (interface, wp_presentation_interface.name) == 0) {
+        wl_data.presentation = wl_registry_bind (registry,
+                                                 name,
+                                                 &wp_presentation_interface,
+                                                 version);
     } else {
         interface_used = FALSE;
     }
@@ -1164,15 +1172,47 @@ static const struct wl_callback_listener frame_listener = {
 };
 
 static void
+on_presentation_feedback_sync_output (void *data, struct wp_presentation_feedback *presentation_feedback, struct wl_output *output)
+{
+}
+
+static void
+on_presentation_feedback_presented (void *data, struct wp_presentation_feedback *presentation_feedback,
+    uint32_t tv_sec_hi, uint32_t tv_sec_lo, uint32_t tv_nsec, uint32_t refresh,
+    uint32_t seq_hi, uint32_t seq_lo, uint32_t flags)
+{
+    wp_presentation_feedback_destroy (presentation_feedback);
+}
+
+static void
+on_presentation_feedback_discarded (void *data, struct wp_presentation_feedback *presentation_feedback)
+{
+    wp_presentation_feedback_destroy (presentation_feedback);
+}
+
+static const struct wp_presentation_feedback_listener presentation_feedback_listener = {
+    .sync_output = on_presentation_feedback_sync_output,
+    .presented = on_presentation_feedback_presented,
+    .discarded = on_presentation_feedback_discarded
+};
+
+static void
 request_frame (void)
 {
-    if (wpe_view_data.frame_callback != NULL)
-        return;
+    if (wpe_view_data.frame_callback == NULL) {
+        wpe_view_data.frame_callback = wl_surface_frame (win_data.wl_surface);
+        wl_callback_add_listener (wpe_view_data.frame_callback,
+                                  &frame_listener,
+                                  NULL);
+    }
 
-    wpe_view_data.frame_callback = wl_surface_frame (win_data.wl_surface);
-    wl_callback_add_listener (wpe_view_data.frame_callback,
-                              &frame_listener,
-                              NULL);
+    if (wl_data.presentation != NULL) {
+        struct wp_presentation_feedback *presentation_feedback = wp_presentation_feedback (wl_data.presentation,
+                                                                        win_data.wl_surface);
+        wp_presentation_feedback_add_listener (presentation_feedback,
+                                               &presentation_feedback_listener,
+                                               NULL);
+    }
 }
 
 static void
