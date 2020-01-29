@@ -1,0 +1,76 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH cogctl 1 "Jan 25, 2020"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+cogctl \- tool to control a running Cog instance
+.SH SYNOPSIS
+.B cogctl
+.RI [ options ]
+.RI < command >
+.RI [ command\ options ]
+.SH DESCRIPTION
+\fBcogctl\fP is a tool to control a running Cog instance.
+
+.SH OPTIONS
+.TP
+.B \-h,\ \-\-help
+Show help options
+.TP
+.B \-A,\ \-\-appid=ID
+Application identifier of the Cog instance to control
+.TP
+.B \-o,\ \-\-object\-path=PATH
+Object path implementing the org.gtk.Actions interface
+.TP
+.B \-y,\ \-\-system
+Use the system bus instead of the session bus
+
+.SH COMMANDS
+.TP
+.B help [command]
+Show a list of commands. If followed by a command name then it shows
+additional information about that command.
+.TP
+.B appid
+Display application ID being remotely controlled
+.TP
+.B objpath
+Display the D-Bus object path being used
+.TP
+.B open <URL>
+Open a URL
+.TP
+.B previous
+Navigate backward in the page view history
+.TP
+.B next
+Navigate forward in the page view history
+.TP
+.B ping
+Check whether Cog is running
+.TP
+.B quit
+Exit the application
+.TP
+.B reload
+Reload the current page
+
+.SH SEE ALSO
+.BR cog (1)
+
+.SH AUTHOR
+This manual page was written by Alberto Garcia <berto@igalia.com>
