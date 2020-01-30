@@ -135,15 +135,6 @@ struct wl_buffer*
 
 PwlXKBData* pwl_display_xkb_get_data (PwlDisplay*);
 
-void        pwl_display_notify_pointer_motion (PwlDisplay*,
-                                               void (*callback) (PwlDisplay*, const PwlPointer*, void*),
-                                               void *userdata);
-void        pwl_display_notify_pointer_button (PwlDisplay*,
-                                               void (*callback) (PwlDisplay*, const PwlPointer*, void*),
-                                               void *userdata);
-void        pwl_display_notify_pointer_axis (PwlDisplay*,
-                                             void (*callback) (PwlDisplay*, const PwlPointer*, void*),
-                                             void *userdata);
 void        pwl_display_notify_touch_down (PwlDisplay*,
                                            void (*callback) (PwlDisplay*, const PwlTouch*, void*),
                                            void *userdata);
@@ -193,6 +184,15 @@ void pwl_window_notify_resize (PwlWindow*,
                                void *userdata);
 void pwl_window_notify_device_scale (PwlWindow*,
                                      void (*callback) (PwlWindow*, uint32_t scale, void*),
+                                     void *userdata);
+void pwl_window_notify_pointer_motion (PwlWindow*,
+                                       void (*callback) (PwlWindow*, const PwlPointer*, void*),
+                                       void *userdata);
+void pwl_window_notify_pointer_button (PwlWindow*,
+                                       void (*callback) (PwlWindow*, const PwlPointer*, void*),
+                                       void *userdata);
+void pwl_window_notify_pointer_axis (PwlWindow*,
+                                     void (*callback) (PwlWindow*, const PwlPointer*, void*),
                                      void *userdata);
 
 G_END_DECLS

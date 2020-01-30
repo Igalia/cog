@@ -95,14 +95,14 @@ window_on_device_scale (PwlWindow* self, uint32_t device_scale, void *userdata)
 
 /* Pointer */
 static void
-on_pointer_on_motion (PwlDisplay* display,
-                      const PwlPointer *pointer,
-                      void *userdata)
+on_pointer_motion (PwlWindow* window,
+                   const PwlPointer *pointer,
+                   void *userdata)
 {
     CogShell *shell = userdata;
+    /* TODO: Use the WPE backend of the view displayed in "window". */
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-    /* TODO: Device scale must be handled per window! */
-    const uint32_t device_scale = pwl_window_get_device_scale (s_pwindow);
+    const uint32_t device_scale = pwl_window_get_device_scale (window);
     struct wpe_input_pointer_event event = {
         wpe_input_pointer_event_type_motion,
         pointer->time,
@@ -115,14 +115,14 @@ on_pointer_on_motion (PwlDisplay* display,
 }
 
 static void
-on_pointer_on_button (PwlDisplay* display,
-                      const PwlPointer *pointer,
-                      void *userdata)
+on_pointer_button (PwlWindow* window,
+                   const PwlPointer *pointer,
+                   void *userdata)
 {
     CogShell *shell = userdata;
+    /* TODO: Use the WPE backend of the view displayed in "window". */
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-    /* TODO: Device scale must be handled per window! */
-    const uint32_t device_scale = pwl_window_get_device_scale (s_pwindow);
+    const uint32_t device_scale = pwl_window_get_device_scale (window);
     struct wpe_input_pointer_event event = {
         wpe_input_pointer_event_type_button,
         pointer->time,
@@ -135,14 +135,14 @@ on_pointer_on_button (PwlDisplay* display,
 }
 
 static void
-on_pointer_on_axis (PwlDisplay* display,
-                    const PwlPointer *pointer,
-                    void *userdata)
+on_pointer_axis (PwlWindow* window,
+                 const PwlPointer *pointer,
+                 void *userdata)
 {
     CogShell *shell = userdata;
+    /* TODO: Use the WPE backend of the view displayed in "window". */
     struct wpe_view_backend* backend = cog_shell_get_active_wpe_backend (shell);
-    /* TODO: Device scale must be handled per window! */
-    const uint32_t device_scale = pwl_window_get_device_scale (s_pwindow);
+    const uint32_t device_scale = pwl_window_get_device_scale (window);
     struct wpe_input_axis_event event = {
         wpe_input_axis_event_type_motion,
         pointer->time,
@@ -606,9 +606,9 @@ cog_fdo_shell_initable_init (GInitable *initable,
 
     s_pwindow = pwl_window_create (s_pdisplay);
 
-    pwl_display_notify_pointer_motion (s_pdisplay, on_pointer_on_motion, initable);
-    pwl_display_notify_pointer_button (s_pdisplay, on_pointer_on_button, initable);
-    pwl_display_notify_pointer_axis (s_pdisplay, on_pointer_on_axis, initable);
+    pwl_window_notify_pointer_motion (s_pwindow, on_pointer_motion, initable);
+    pwl_window_notify_pointer_button (s_pwindow, on_pointer_button, initable);
+    pwl_window_notify_pointer_axis (s_pwindow, on_pointer_axis, initable);
 
     pwl_display_notify_touch_down (s_pdisplay, on_touch_on_down, initable);
     pwl_display_notify_touch_up (s_pdisplay, on_touch_on_up, initable);
