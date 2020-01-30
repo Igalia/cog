@@ -42,8 +42,10 @@ struct _PwlDisplay {
     EGLConfig egl_config;
     PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL egl_createWaylandBufferFromImageWL;
 
+    struct wl_pointer *pointer;
+    PwlWindow *pointer_target;  /* Current target of pointer events. */
+
     PwlKeyboard keyboard;
-    PwlPointer pointer;
     PwlTouch touch;
 
     PwlXKBData xkb_data;
@@ -59,13 +61,6 @@ struct _PwlDisplay {
     char *application_id;
     char *window_title;
     GSource *event_src;
-
-    void (*on_pointer_on_motion) (PwlDisplay*, const PwlPointer*, void *userdata);
-    void *on_pointer_on_motion_userdata;
-    void (*on_pointer_on_button) (PwlDisplay*, const PwlPointer*, void *userdata);
-    void *on_pointer_on_button_userdata;
-    void (*on_pointer_on_axis) (PwlDisplay*, const PwlPointer*, void *userdata);
-    void *on_pointer_on_axis_userdata;
 
     void (*on_touch_on_down)     (PwlDisplay*, const PwlTouch*, void *userdata);
     void *on_touch_on_down_userdata;
@@ -100,6 +95,8 @@ struct _PwlWindow {
     uint32_t device_scale;
 #endif /* HAVE_DEVICE_SCALING */
 
+    PwlPointer pointer;
+
     /*
      * XXX: Should this be en enum? Can a window be maximized *and*
      *      fullscreened at the same time?
@@ -115,6 +112,13 @@ struct _PwlWindow {
 
     void (*device_scale_callback) (PwlWindow*, uint32_t scale, void* userdata);
     void *device_scale_userdata;
+
+    void (*on_pointer_motion) (PwlWindow*, const PwlPointer*, void *userdata);
+    void *on_pointer_motion_userdata;
+    void (*on_pointer_button) (PwlWindow*, const PwlPointer*, void *userdata);
+    void *on_pointer_button_userdata;
+    void (*on_pointer_axis) (PwlWindow*, const PwlPointer*, void *userdata);
+    void *on_pointer_axis_userdata;
 };
 
 
@@ -400,38 +404,38 @@ pwl_display_set_default_window_title (PwlDisplay *self,
 
 
 void
-pwl_display_notify_pointer_motion (PwlDisplay *self,
-                                   void (*callback) (PwlDisplay*, const PwlPointer*, void*),
-                                   void *userdata)
+pwl_window_notify_pointer_motion (PwlWindow *self,
+                                  void (*callback) (PwlWindow*, const PwlPointer*, void*),
+                                  void *userdata)
 {
     g_return_if_fail (self);
 
-    self->on_pointer_on_motion = callback;
-    self->on_pointer_on_motion_userdata = userdata;
+    self->on_pointer_motion = callback;
+    self->on_pointer_motion_userdata = userdata;
 }
 
 
 void
-pwl_display_notify_pointer_button (PwlDisplay *self,
-                                   void (*callback) (PwlDisplay*, const PwlPointer*, void*),
-                                   void *userdata)
+pwl_window_notify_pointer_button (PwlWindow *self,
+                                  void (*callback) (PwlWindow*, const PwlPointer*, void*),
+                                  void *userdata)
 {
     g_return_if_fail (self);
 
-    self->on_pointer_on_button = callback;
-    self->on_pointer_on_button_userdata = userdata;
+    self->on_pointer_button = callback;
+    self->on_pointer_button_userdata = userdata;
 }
 
 
 void
-pwl_display_notify_pointer_axis (PwlDisplay *self,
-                                 void (*callback) (PwlDisplay*, const PwlPointer*, void*),
-                                 void *userdata)
+pwl_window_notify_pointer_axis (PwlWindow *self,
+                                void (*callback) (PwlWindow*, const PwlPointer*, void*),
+                                void *userdata)
 {
     g_return_if_fail (self);
 
-    self->on_pointer_on_axis = callback;
-    self->on_pointer_on_axis_userdata = userdata;
+    self->on_pointer_axis = callback;
+    self->on_pointer_axis_userdata = userdata;
 }
 
 
@@ -923,6 +927,17 @@ pointer_on_enter (void* data,
                   wl_fixed_t fixed_x,
                   wl_fixed_t fixed_y)
 {
+    PwlDisplay *display = data;
+    if (pointer != display->pointer) {
+        g_critical ("%s: Got pointer %p, expected %p.",
+                    G_STRFUNC, pointer, display->pointer);
+        return;
+    }
+
+    PwlWindow *window = wl_surface_get_user_data (surface);
+    display->pointer_target = window;
+
+    g_debug ("%s: Target surface %p, window %p.", G_STRFUNC, surface, window);
 }
 
 static void
@@ -931,6 +946,26 @@ pointer_on_leave (void* data,
                   uint32_t serial,
                   struct wl_surface* surface)
 {
+    PwlDisplay *display = data;
+    if (pointer != display->pointer) {
+        g_critical ("%s: Got pointer %p, expected %p.",
+                    G_STRFUNC, pointer, display->pointer);
+        return;
+    }
+
+    if (!display->pointer_target) {
+        g_critical ("%s: No current pointer event target!", G_STRFUNC);
+        return;
+    }
+
+    if (surface != display->pointer_target->wl_surface) {
+        g_critical ("%s: Got leave for surface %p, but current window %p "
+                    "has surface %p.", G_STRFUNC, surface,
+                    display->pointer_target,
+                    display->pointer_target->wl_surface);
+    }
+
+    display->pointer_target = NULL;
 }
 
 static void
@@ -941,13 +976,26 @@ pointer_on_motion (void* data,
                    wl_fixed_t fixed_y)
 {
     PwlDisplay *display = data;
-    display->pointer.time = time;
-    display->pointer.x = wl_fixed_to_int (fixed_x);
-    display->pointer.y = wl_fixed_to_int (fixed_y);
-    if (display->on_pointer_on_motion) {
-        display->on_pointer_on_motion (display,
-                                       &display->pointer,
-                                       display->on_pointer_on_motion_userdata);
+    if (pointer != display->pointer) {
+        g_critical ("%s: Got pointer %p, expected %p.",
+                    G_STRFUNC, pointer, display->pointer);
+        return;
+    }
+
+    PwlWindow *window = display->pointer_target;
+    if (!window) {
+        g_critical ("%s: No current pointer event target!", G_STRFUNC);
+        return;
+    }
+
+    window->pointer.time = time;
+    window->pointer.x = wl_fixed_to_int (fixed_x);
+    window->pointer.y = wl_fixed_to_int (fixed_y);
+
+    if (window->on_pointer_motion) {
+        (*window->on_pointer_motion) (window,
+                                      &window->pointer,
+                                      window->on_pointer_motion_userdata);
     }
 }
 
@@ -960,6 +1008,17 @@ pointer_on_button (void* data,
                    uint32_t state)
 {
     PwlDisplay *display = data;
+    if (pointer != display->pointer) {
+        g_critical ("%s: Got pointer %p, expected %p.",
+                    G_STRFUNC, pointer, display->pointer);
+        return;
+    }
+
+    PwlWindow *window = display->pointer_target;
+    if (!window) {
+        g_critical ("%s: No current pointer event target!", G_STRFUNC);
+        return;
+    }
 
     /* @FIXME: what is this for?
     if (button >= BTN_MOUSE)
@@ -968,14 +1027,14 @@ pointer_on_button (void* data,
         button = 0;
     */
 
-    display->pointer.button = !!state ? button : 0;
-    display->pointer.state = state;
-    display->pointer.time = time;
+    window->pointer.button = !!state ? button : 0;
+    window->pointer.state = state;
+    window->pointer.time = time;
 
-    if (display->on_pointer_on_button) {
-        (*display->on_pointer_on_button) (display,
-                                          &display->pointer,
-                                          display->on_pointer_on_button_userdata);
+    if (window->on_pointer_button) {
+        (*window->on_pointer_button) (window,
+                                      &window->pointer,
+                                      window->on_pointer_button_userdata);
     }
 }
 
@@ -987,13 +1046,26 @@ pointer_on_axis (void* data,
                  wl_fixed_t value)
 {
     PwlDisplay *display = data;
-    display->pointer.axis = axis;
-    display->pointer.time = time;
-    display->pointer.value = wl_fixed_to_int(value) > 0 ? -1 : 1;
-    if (display->on_pointer_on_axis) {
-        (*display->on_pointer_on_axis) (display,
-                                        &display->pointer,
-                                        display->on_pointer_on_axis_userdata);
+    if (pointer != display->pointer) {
+        g_critical ("%s: Got pointer %p, expected %p.",
+                    G_STRFUNC, pointer, display->pointer);
+        return;
+    }
+
+    PwlWindow *window = display->pointer_target;
+    if (!window) {
+        g_critical ("%s: No current pointer event target!", G_STRFUNC);
+        return;
+    }
+
+    window->pointer.axis = axis;
+    window->pointer.time = time;
+    window->pointer.value = wl_fixed_to_int(value) > 0 ? -1 : 1;
+
+    if (window->on_pointer_axis) {
+        (*window->on_pointer_axis) (window,
+                                    &window->pointer,
+                                    window->on_pointer_axis_userdata);
     }
 }
 #if WAYLAND_1_10_OR_GREATER
@@ -1294,8 +1366,16 @@ keyboard_on_repeat_info (void *data,
 static void
 seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
 {
-    g_debug ("Enumerating seat capabilities:");
     PwlDisplay *display = data;
+    g_assert (display);
+
+    if (seat != display->seat) {
+        g_critical ("%s: Multiple seats are not supported.", G_STRFUNC);
+        return;
+    }
+
+    g_debug ("Enumerating seat capabilities:");
+
 
     /* Pointer */
     static const struct wl_pointer_listener pointer_listener = {
@@ -1311,16 +1391,18 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
         .axis_discrete = pointer_on_axis_discrete,
     #endif /* WAYLAND_1_10_OR_GREATER */
     };
-    const bool has_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
-    if (has_pointer && display->pointer.obj == NULL) {
-        display->pointer.obj = wl_seat_get_pointer (display->seat);
-        g_assert (display->pointer.obj);
-        g_assert (data);
-        wl_pointer_add_listener (display->pointer.obj, &pointer_listener, data);
-        g_debug ("  - Pointer");
-    } else if (! has_pointer && display->pointer.obj != NULL) {
-        wl_pointer_release (display->pointer.obj);
-        display->pointer.obj = NULL;
+
+    if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
+        if (!display->pointer) {
+            display->pointer = wl_seat_get_pointer (display->seat);
+            wl_pointer_add_listener (display->pointer, &pointer_listener, display);
+            g_debug ("  - New pointer %p.", display->pointer);
+        } else {
+            g_warning ("Multiple pointers per seat are currently unsupported.");
+        }
+    } else if (display->pointer) {
+        g_debug ("  - Pointer %p gone.", display->pointer);
+        g_clear_pointer (&display->pointer, wl_pointer_release);
     }
 
     /* Keyboard */
@@ -1388,6 +1470,7 @@ pwl_window_create (PwlDisplay *display)
     self->width = DEFAULT_WIDTH,
     self->height = DEFAULT_HEIGHT,
     self->wl_surface = wl_compositor_create_surface (display->compositor);
+    wl_surface_set_user_data (self->wl_surface, self);
 
 #if HAVE_DEVICE_SCALING
     self->device_scale = 1;
@@ -1692,7 +1775,7 @@ pwl_display_input_init (PwlDisplay *self, GError **error)
 void
 pwl_display_input_deinit (PwlDisplay* self)
 {
-    g_clear_pointer (&self->pointer.obj, wl_pointer_destroy);
+    g_clear_pointer (&self->pointer, wl_pointer_destroy);
     g_clear_pointer (&self->keyboard.obj, wl_keyboard_destroy);
     g_clear_pointer (&self->seat, wl_seat_destroy);
 
