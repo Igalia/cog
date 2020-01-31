@@ -564,7 +564,7 @@ setup_wayland_event_source (GMainContext *main_context,
     g_source_add_poll (&wl_source->source, &wl_source->pfd);
 
     g_source_set_can_recurse (&wl_source->source, TRUE);
-    g_source_attach (&wl_source->source, g_main_context_get_thread_default());
+    g_source_attach (&wl_source->source, main_context);
 
     g_source_unref (&wl_source->source);
 
