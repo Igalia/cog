@@ -10,6 +10,7 @@
 #include "pwl.h"
 #include <errno.h>
 #include <gio/gio.h>
+#include <string.h>
 #include <sys/mman.h>
 
 

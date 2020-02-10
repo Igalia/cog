@@ -12,6 +12,7 @@
 #include "cog-modules.h"
 #include "cog-request-handler.h"
 #include <stdarg.h>
+#include <string.h>
 
 typedef struct {
     char  *name;
