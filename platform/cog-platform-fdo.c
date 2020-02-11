@@ -894,6 +894,9 @@ keyboard_on_modifiers (void *data,
                        uint32_t mods_locked,
                        uint32_t group)
 {
+    if (xkb_data.state == NULL)
+        return;
+
     xkb_state_update_mask (xkb_data.state,
                            mods_depressed,
                            mods_latched,
