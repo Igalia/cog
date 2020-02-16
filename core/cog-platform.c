@@ -6,8 +6,10 @@
  * Distributed under terms of the MIT license.
  */
 
-#include <dlfcn.h>
 #include "cog-platform.h"
+
+#define __USE_GNU
+#include <dlfcn.h>
 
 
 G_DEFINE_QUARK (COG_PLATFORM_EGL_ERROR, cog_platform_egl_error)
@@ -78,7 +80,7 @@ cog_platform_try_load (CogPlatform *platform,
     if (!platform->get_view_backend)
         goto err_out;
 
-    platform->create_im_context = dlsym (platform->so,
+    platform->create_im_context = dlsym (RTLD_NEXT,
                                          "cog_platform_create_im_context");
 
     return TRUE;
