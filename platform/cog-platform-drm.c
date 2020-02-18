@@ -749,10 +749,10 @@ on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dm
 }
 
 gboolean
-cog_platform_setup (CogPlatform *platform,
-                    CogShell    *shell G_GNUC_UNUSED,
-                    const char  *params,
-                    GError     **error)
+cog_platform_plugin_setup (CogPlatform *platform,
+                           CogShell    *shell G_GNUC_UNUSED,
+                           const char  *params,
+                           GError     **error)
 {
     g_assert (platform);
     g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
@@ -811,7 +811,7 @@ cog_platform_setup (CogPlatform *platform,
 }
 
 void
-cog_platform_teardown (CogPlatform *platform)
+cog_platform_plugin_teardown (CogPlatform *platform)
 {
     g_assert (platform);
 
@@ -825,9 +825,9 @@ cog_platform_teardown (CogPlatform *platform)
 }
 
 WebKitWebViewBackend *
-cog_platform_get_view_backend (CogPlatform   *platform,
-                               WebKitWebView *related_view,
-                               GError       **error)
+cog_platform_plugin_get_view_backend (CogPlatform   *platform,
+                                      WebKitWebView *related_view,
+                                      GError       **error)
 {
     static struct wpe_view_backend_exportable_fdo_client exportable_client = {
         .export_buffer_resource = on_export_buffer_resource,

@@ -1588,10 +1588,10 @@ clear_input (void)
 }
 
 gboolean
-cog_platform_setup (CogPlatform *platform,
-                    CogShell    *shell G_GNUC_UNUSED,
-                    const char  *params,
-                    GError     **error)
+cog_platform_plugin_setup (CogPlatform *platform,
+                           CogShell    *shell G_GNUC_UNUSED,
+                           const char  *params,
+                           GError     **error)
 {
     g_assert (platform);
     g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
@@ -1632,7 +1632,7 @@ cog_platform_setup (CogPlatform *platform,
 }
 
 void
-cog_platform_teardown (CogPlatform *platform)
+cog_platform_plugin_teardown (CogPlatform *platform)
 {
     g_assert (platform);
 
@@ -1661,9 +1661,9 @@ cog_platform_teardown (CogPlatform *platform)
 }
 
 WebKitWebViewBackend*
-cog_platform_get_view_backend (CogPlatform   *platform,
-                               WebKitWebView *related_view,
-                               GError       **error)
+cog_platform_plugin_get_view_backend (CogPlatform   *platform,
+                                      WebKitWebView *related_view,
+                                      GError       **error)
 {
     static struct wpe_view_backend_exportable_fdo_egl_client exportable_egl_client = {
         .export_fdo_egl_image = on_export_fdo_egl_image,
@@ -1703,7 +1703,7 @@ cog_platform_get_view_backend (CogPlatform   *platform,
 
 #if COG_IM_API_SUPPORTED
 WebKitInputMethodContext*
-cog_platform_create_im_context (CogPlatform *platform)
+cog_platform_plugin_create_im_context (CogPlatform *platform)
 {
     if (wl_data.text_input_manager)
         return cog_im_context_fdo_new ();

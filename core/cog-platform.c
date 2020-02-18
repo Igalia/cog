@@ -65,21 +65,21 @@ cog_platform_try_load (CogPlatform *platform,
     if (!platform->so)
         return FALSE;
 
-    platform->setup = dlsym (platform->so, "cog_platform_setup");
+    platform->setup = dlsym (platform->so, "cog_platform_plugin_setup");
     if (!platform->setup)
         goto err_out;
 
-    platform->teardown = dlsym (platform->so, "cog_platform_teardown");
+    platform->teardown = dlsym (platform->so, "cog_platform_plugin_teardown");
     if (!platform->teardown)
         goto err_out;
 
     platform->get_view_backend = dlsym (platform->so,
-                                        "cog_platform_get_view_backend");
+                                        "cog_platform_plugin_get_view_backend");
     if (!platform->get_view_backend)
         goto err_out;
 
     platform->create_im_context = dlsym (platform->so,
-                                         "cog_platform_create_im_context");
+                                         "cog_platform_plugin_create_im_context");
 
     return TRUE;
 
