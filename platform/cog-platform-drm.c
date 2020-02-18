@@ -195,7 +195,9 @@ init_drm (void)
 
     for (int i = 0; i < resources->count_connectors; ++i) {
         drm_data.connector = drmModeGetConnector (drm_data.fd, resources->connectors[i]);
-        if (drm_data.connector->connection == DRM_MODE_CONNECTED)
+        if (drm_data.connector->connection == DRM_MODE_CONNECTED &&
+            (drm_data.connector->connector_type == DRM_MODE_CONNECTOR_HDMIA
+                || drm_data.connector->connector_type == DRM_MODE_CONNECTOR_HDMIB))
             break;
 
         g_clear_pointer (&drm_data.connector, drmModeFreeConnector);
