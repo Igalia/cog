@@ -177,14 +177,10 @@ static struct {
 
 static struct {
     struct egl_display *display;
-    EGLContext context;
-    EGLConfig egl_config;
 } egl_data;
 
 static struct {
     struct wl_surface *wl_surface;
-    struct wl_egl_window *egl_window;
-    EGLSurface egl_surface;
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     GHashTable *video_surfaces;
@@ -200,7 +196,6 @@ static struct {
     bool is_fullscreen;
     bool is_maximized;
 } win_data = {
-    .egl_surface = EGL_NO_SURFACE,
     .width = DEFAULT_WIDTH,
     .height = DEFAULT_HEIGHT,
     .is_fullscreen = false,
@@ -352,12 +347,6 @@ resize_window (void)
 {
     int32_t pixel_width = win_data.width * wl_data.current_output.scale;
     int32_t pixel_height = win_data.height * wl_data.current_output.scale;
-
-    if (win_data.egl_window)
-        wl_egl_window_resize (win_data.egl_window,
-			                  pixel_width,
-			                  pixel_height,
-			                  0, 0);
 
     wpe_view_backend_dispatch_set_size (wpe_view_data.backend,
                                         win_data.width,
@@ -1637,52 +1626,6 @@ init_egl (GError **error)
     }
     g_info ("EGL version %d.%d initialized.", major, minor);
 
-    if (!eglBindAPI (EGL_OPENGL_ES_API)) {
-        ERR_EGL (error, "Could not bind OpenGL ES API to EGL");
-        clear_egl ();
-        return FALSE;
-    }
-
-    static const EGLint context_attribs[] = {
-        EGL_CONTEXT_CLIENT_VERSION, 2,
-        EGL_NONE
-    };
-
-    static const EGLint config_attribs[] = {
-        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-        EGL_RED_SIZE,     8,
-        EGL_GREEN_SIZE,   8,
-        EGL_BLUE_SIZE,    8,
-        EGL_ALPHA_SIZE,   0,
-        EGL_DEPTH_SIZE,   0,
-        EGL_STENCIL_SIZE, 0,
-        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-        EGL_SAMPLES, 0,
-        EGL_NONE
-    };
-
-    EGLint num_configs;
-    if (!eglChooseConfig (egl_data.display,
-                          config_attribs,
-                          &egl_data.egl_config,
-                          1,
-                          &num_configs)) {
-        ERR_EGL (error, "Could not find a suitable EGL configuration");
-        clear_egl ();
-        return FALSE;
-    }
-    g_assert (num_configs > 0);
-
-    egl_data.context = eglCreateContext (egl_data.display,
-                                         egl_data.egl_config,
-                                         EGL_NO_CONTEXT,
-                                         context_attribs);
-    if (egl_data.context == EGL_NO_CONTEXT) {
-        ERR_EGL (error, "Could not create EGL context");
-        clear_egl ();
-        return FALSE;
-    }
-
     return TRUE;
 }
 
@@ -1690,11 +1633,7 @@ static void
 clear_egl (void)
 {
     if (egl_data.display != EGL_NO_DISPLAY) {
-        if (egl_data.context != EGL_NO_CONTEXT) {
-            eglDestroyContext (egl_data.display, egl_data.context);
-        }
         eglTerminate (egl_data.display);
-        egl_data.context = EGL_NO_CONTEXT;
         egl_data.display = EGL_NO_DISPLAY;
     }
     eglReleaseThread ();
@@ -1802,19 +1741,6 @@ create_window (GError **error)
 static void
 destroy_window (void)
 {
-    if (egl_data.display != EGL_NO_DISPLAY) {
-        eglMakeCurrent (egl_data.display,
-                        EGL_NO_SURFACE,
-                        EGL_NO_SURFACE,
-                        EGL_NO_CONTEXT);
-
-        if (win_data.egl_surface) {
-            eglDestroySurface (egl_data.display, win_data.egl_surface);
-            win_data.egl_surface = EGL_NO_DISPLAY;
-        }
-    }
-
-    g_clear_pointer (&win_data.egl_window, wl_egl_window_destroy);
     g_clear_pointer (&win_data.xdg_toplevel, xdg_toplevel_destroy);
     g_clear_pointer (&win_data.xdg_surface, xdg_surface_destroy);
     g_clear_pointer (&win_data.shell_surface, wl_shell_surface_destroy);
