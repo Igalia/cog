@@ -125,6 +125,7 @@ else ()
     # There is no need to explicitly check wpe-1.0 here because it's a
     # dependency already specified in the wpe-webkit.pc file.
     pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit-1.0>=2.23.91)
+    pkg_get_variable(WPE_BACKENDS_DIR wpe-1.0 backendsdir)
     if ("${WEB_ENGINE_VERSION}" VERSION_GREATER "2.23")
         add_definitions(-DCOG_BG_COLOR_API_SUPPORTED=1)
     else ()
@@ -304,6 +305,9 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
 
     add_library(cogplatform-fdo MODULE ${COGPLATFORM_FDO_SOURCES})
     set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
+    if (WPE_BACKENDS_DIR)
+        set_property(TARGET cogplatform-fdo PROPERTY INSTALL_RPATH ${WPE_BACKENDS_DIR})
+    endif ()
     target_include_directories(cogplatform-fdo PUBLIC wayland ${COGPLATFORM_FDO_INCLUDE_DIRS})
     target_link_libraries(cogplatform-fdo cogcore ${COGPLATFORM_FDO_LDFLAGS})
     target_compile_options(cogplatform-fdo
