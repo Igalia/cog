@@ -19,6 +19,9 @@ enum {
     PROP_0,
     PROP_NAME,
     PROP_SHELL,
+    PROP_VISIBLE,
+    PROP_FOCUSED,
+    PROP_IN_WINDOW,
     N_PROPERTIES,
 };
 
@@ -38,6 +41,15 @@ cog_view_get_property (GObject    *object,
         case PROP_SHELL:
             g_value_set_object (value, cog_view_get_shell (view));
             break;
+        case PROP_VISIBLE:
+            g_value_set_boolean (value, cog_view_get_visible (view));
+            break;
+        case PROP_FOCUSED:
+            g_value_set_boolean (value, cog_view_get_focused (view));
+            break;
+        case PROP_IN_WINDOW:
+            g_value_set_boolean (value, cog_view_get_in_window (view));
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
@@ -49,13 +61,23 @@ cog_view_set_property (GObject      *object,
                        const GValue *value,
                        GParamSpec   *pspec)
 {
-    CogViewPrivate *priv = cog_view_get_instance_private (COG_VIEW (object));
+    CogView *self = COG_VIEW (object);
+    CogViewPrivate *priv = cog_view_get_instance_private (self);
     switch (prop_id) {
         case PROP_NAME:
             priv->name = g_value_dup_string (value);
             break;
         case PROP_SHELL:
             priv->shell = g_value_dup_object (value);
+            break;
+        case PROP_VISIBLE:
+            cog_view_set_visible (self, g_value_get_boolean (value));
+            break;
+        case PROP_FOCUSED:
+            cog_view_set_focused (self, g_value_get_boolean (value));
+            break;
+        case PROP_IN_WINDOW:
+            cog_view_set_in_window (self, g_value_get_boolean (value));
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -98,6 +120,30 @@ cog_view_class_init (CogViewClass *klass)
                              G_PARAM_CONSTRUCT_ONLY |
                              G_PARAM_STATIC_STRINGS);
 
+    s_properties[PROP_VISIBLE] =
+        g_param_spec_boolean ("visible",
+                              "View is visible",
+                              "The view is abeing displayed",
+                              FALSE,
+                              G_PARAM_READWRITE |
+                              G_PARAM_STATIC_STRINGS);
+
+    s_properties[PROP_FOCUSED] =
+        g_param_spec_boolean ("focused",
+                              "View is focused",
+                              "The view has the input focus",
+                              FALSE,
+                              G_PARAM_READWRITE |
+                              G_PARAM_STATIC_STRINGS);
+
+    s_properties[PROP_IN_WINDOW] =
+        g_param_spec_boolean ("in-window",
+                              "View is inside a window",
+                              "The view is inside an application window",
+                              FALSE,
+                              G_PARAM_READWRITE |
+                              G_PARAM_STATIC_STRINGS);
+
     g_object_class_install_properties (object_class,
                                        N_PROPERTIES,
                                        s_properties);
@@ -118,7 +164,7 @@ const char*
 cog_view_get_name (CogView *view)
 {
     g_return_val_if_fail (COG_IS_VIEW (view), NULL);
-    CogViewPrivate *priv = cog_view_get_instance_private (COG_VIEW (view));
+    CogViewPrivate *priv = cog_view_get_instance_private (view);
     return priv->name;
 }
 
@@ -132,6 +178,121 @@ CogShell*
 cog_view_get_shell (CogView *view)
 {
     g_return_val_if_fail (COG_IS_VIEW (view), NULL);
-    CogViewPrivate *priv = cog_view_get_instance_private (COG_VIEW (view));
+    CogViewPrivate *priv = cog_view_get_instance_private (view);
     return priv->shell;
+}
+
+#define COG_MAKE_ACTIVITY_STATE_GETTER(state_name)                 \
+    g_return_val_if_fail (COG_IS_VIEW (view), FALSE);              \
+    struct wpe_view_backend *backend =                             \
+        webkit_web_view_backend_get_wpe_backend (                  \
+            webkit_web_view_get_backend (WEBKIT_WEB_VIEW (view))); \
+    return (wpe_view_backend_get_activity_state (backend)          \
+            & wpe_view_activity_state_ ## state_name)
+
+#define COG_MAKE_ACTIVITY_STATE_SETTER(state_name, caps_state_name)                      \
+    g_return_if_fail (COG_IS_VIEW (view));                                               \
+    struct wpe_view_backend *backend =                                                   \
+        webkit_web_view_backend_get_wpe_backend (                                        \
+            webkit_web_view_get_backend (WEBKIT_WEB_VIEW (view)));                       \
+    const bool was_ ## state_name = (wpe_view_backend_get_activity_state (backend)       \
+                                     & wpe_view_activity_state_ ## state_name);          \
+    if (was_ ## state_name == state_name)                                                \
+        return;                                                                          \
+    if (state_name) {                                                                    \
+        wpe_view_backend_add_activity_state (backend,                                    \
+                                             wpe_view_activity_state_ ## state_name);    \
+    } else {                                                                             \
+        wpe_view_backend_remove_activity_state (backend,                                 \
+                                                wpe_view_activity_state_ ## state_name); \
+    }                                                                                    \
+    g_object_notify_by_pspec (G_OBJECT (view), s_properties[PROP_ ## caps_state_name])
+
+/**
+ * cog_view_get_active:
+ * @view: A #CogView
+ *
+ * Returns: Whether the view is being actively displayed.
+ */
+gboolean
+cog_view_get_visible (CogView *view)
+{
+    COG_MAKE_ACTIVITY_STATE_GETTER (visible);
+}
+
+/**
+ * cog_view_set_active:
+ * @view: A #CogView
+ * @visible: Whether the view should is visible.
+ */
+void
+cog_view_set_visible (CogView *view,
+                      gboolean visible)
+{
+    COG_MAKE_ACTIVITY_STATE_SETTER (visible, VISIBLE);
+}
+
+/**
+ * cog_view_get_focused:
+ * @view: A #CogView
+ *
+ * Returns: Whether the view has the input focus.
+ */
+gboolean
+cog_view_get_focused (CogView *view)
+{
+    COG_MAKE_ACTIVITY_STATE_GETTER (focused);
+}
+
+/**
+ * cog_view_set_focused:
+ * @view: A #CogView
+ * @focused: Whether to give focus to the view.
+ */
+void
+cog_view_set_focused (CogView *view,
+                      gboolean focused)
+{
+    /* XXX: Should only one single view be forced as focused? */
+    COG_MAKE_ACTIVITY_STATE_SETTER (focused, FOCUSED);
+}
+
+/**
+ * cog_view_get_in_window:
+ * @view: A #CogView
+ * 
+ * Returns: Whether the view is inside an application window.
+ */
+gboolean
+cog_view_get_in_window (CogView *view)
+{
+    COG_MAKE_ACTIVITY_STATE_GETTER (in_window);
+}
+
+/**
+ * cog_view_set_in_window:
+ * @view: A #CogView
+ * @in_window: Whether the view is inside an application window.
+ */
+void
+cog_view_set_in_window (CogView *view,
+                        gboolean in_window)
+{
+    COG_MAKE_ACTIVITY_STATE_SETTER (in_window, IN_WINDOW);
+}
+
+#undef COG_MAKE_ACTIVITY_STATE_SETTER
+#undef COG_MAKE_ACTIVITY_STATE_GETTER
+
+/**
+ * cog_view_get_backend:
+ * @view: A #CogView
+ *
+ * Returns: The WPE view backend for the view.
+ */
+struct wpe_view_backend*
+cog_view_get_backend (CogView *self)
+{
+    g_return_val_if_fail (COG_IS_VIEW (self), NULL);
+    return webkit_web_view_backend_get_wpe_backend (webkit_web_view_get_backend ((WebKitWebView*) self));
 }

@@ -24,35 +24,28 @@ struct _CogShellClass {
 
     gboolean (*is_supported)   (void);
     GType    (*get_view_class) (void);
-    WebKitWebViewBackend* (*cog_shell_new_view_backend) (CogShell *shell);
-    WebKitWebViewBackend* (*cog_shell_resume_active_views) (CogShell *shell);
 };
 
-CogShell*   cog_shell_new             (const char *name);
+CogShell*   cog_shell_new              (const char *name);
 
-CogShell*   cog_shell_new_from_module (const char *name,
-                                       const char *module_name);
+CogShell*   cog_shell_new_from_module  (const char *name,
+                                        const char *module_name);
 
-const char* cog_shell_get_name        (CogShell   *shell);
+const char* cog_shell_get_name         (CogShell   *shell);
 
-CogView*    cog_shell_create_view     (CogShell   *shell,
-                                       const char *name,
-                                       const char *prop_1,
-                                       ...);
+CogView*    cog_shell_add_view         (CogShell   *shell,
+                                        const char *name,
+                                        const char *prop_1,
+                                        ...);
 
-void        cog_shell_add_view        (CogShell   *shell,
-                                       CogView    *view);
+void        cog_shell_remove_view      (CogShell   *shell,
+                                        const char *name);
 
-CogView*    cog_shell_get_view        (CogShell   *shell,
-                                       const char *name);
+CogView*    cog_shell_get_view         (CogShell   *shell,
+                                        const char *name);
 
-GList*      cog_shell_get_views       (CogShell   *shell);
+GList*      cog_shell_get_views        (CogShell   *shell);
 
-CogView*    cog_shell_get_active_view (CogShell   *shell);
+CogView*    cog_shell_get_focused_view (CogShell   *shell);
 
-void        cog_shell_set_active_view (CogShell   *shell,
-                                       CogView    *view);
-
-WebKitWebViewBackend* cog_shell_new_view_backend (CogShell *shell);
-WebKitWebViewBackend* cog_shell_resume_active_views (CogShell *shell);
 G_END_DECLS

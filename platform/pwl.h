@@ -27,12 +27,6 @@
 #define DEFAULT_WIDTH  1024
 #define DEFAULT_HEIGHT  768
 
-#if defined(COG_DEVICE_SCALING) && COG_DEVICE_SCALING
-# define HAVE_DEVICE_SCALING 1
-#else
-# define HAVE_DEVICE_SCALING 0
-#endif /* COG_DEVICE_SCALING */
-
 G_BEGIN_DECLS
 
 #define PWL_ERROR  (pwl_error_quark ())
@@ -41,49 +35,40 @@ GQuark pwl_error_get_quark (void);
 typedef enum {
     PWL_ERROR_WAYLAND,
     PWL_ERROR_EGL,
+    PWL_ERROR_UNAVAILABLE,
 } PwlError;
 
 
+enum {
+    PWL_N_TOUCH_POINTS = 10,
+};
+
+
 typedef struct {
-    struct wl_keyboard *obj;
-
-    struct {
-        int32_t rate;
-        int32_t delay;
-    } repeat_info;
-
-    struct {
-        uint32_t key;
-        uint32_t time;
-        uint32_t state;
-        uint32_t event_source;
-    } repeat_data;
-
-    struct {
-        uint32_t keysym;
-        uint32_t unicode;
-        uint32_t state;
-        uint8_t modifiers;
-        uint32_t timestamp;
-    } event;
-
+    uint32_t keysym;
+    uint32_t unicode;
+    uint32_t state;
+    uint8_t modifiers;
+    uint32_t timestamp;
     uint32_t serial;
 } PwlKeyboard;
 
 typedef struct {
-    struct wl_pointer *obj;
-    uint32_t time;
-    uint32_t axis;
-    int32_t x;
-    int32_t y;
-    uint32_t button;
-    uint32_t state;
+    uint32_t   timestamp;
+    int32_t    x;
+    int32_t    y;
+    uint32_t   button;
+    uint32_t   state;
     wl_fixed_t value;
-    void *data;
+    uint32_t   axis;
+    uint32_t   axis_timestamp;
+    wl_fixed_t axis_x_delta;
+    wl_fixed_t axis_y_delta;
+    bool       axis_x_discrete;
+    bool       axis_y_discrete;
 } PwlPointer;
 
 typedef struct {
-    struct wl_touch *obj;
     int32_t id;
     uint32_t time;
     wl_fixed_t x;
@@ -124,9 +109,6 @@ void        pwl_display_set_default_application_id (PwlDisplay*,
 void        pwl_display_set_default_window_title (PwlDisplay*,
                                                   const char *title);
 
-bool        pwl_display_input_init (PwlDisplay*, GError **error);
-void        pwl_display_input_deinit (PwlDisplay*);
-
 gboolean    pwl_display_egl_init (PwlDisplay*, GError **error);
 void        pwl_display_egl_deinit (PwlDisplay*);
 EGLDisplay  pwl_display_egl_get_display (const PwlDisplay*);
@@ -134,19 +116,6 @@ struct wl_buffer*
             pwl_display_egl_create_buffer_from_image (const PwlDisplay*, EGLImage);
 
 PwlXKBData* pwl_display_xkb_get_data (PwlDisplay*);
-
-void        pwl_display_notify_touch_down (PwlDisplay*,
-                                           void (*callback) (PwlDisplay*, const PwlTouch*, void*),
-                                           void *userdata);
-void        pwl_display_notify_touch_up (PwlDisplay*,
-                                         void (*callback) (PwlDisplay*, const PwlTouch*, void*),
-                                         void *userdata);
-void        pwl_display_notify_touch_motion (PwlDisplay*,
-                                             void (*callback) (PwlDisplay*, const PwlTouch*, void*),
-                                             void *userdata);
-void        pwl_display_notify_key_event (PwlDisplay*,
-                                          void (*callback) (PwlDisplay*, const PwlKeyboard*, void*),
-                                          void *userdata);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (PwlDisplay, pwl_display_destroy)
 
@@ -194,5 +163,17 @@ void pwl_window_notify_pointer_button (PwlWindow*,
 void pwl_window_notify_pointer_axis (PwlWindow*,
                                      void (*callback) (PwlWindow*, const PwlPointer*, void*),
                                      void *userdata);
+void pwl_window_notify_touch_down (PwlWindow*,
+                                   void (*callback) (PwlWindow*, const PwlTouch*, void*),
+                                   void *userdata);
+void pwl_window_notify_touch_up (PwlWindow*,
+                                 void (*callback) (PwlWindow*, const PwlTouch*, void*),
+                                 void *userdata);
+void pwl_window_notify_touch_motion (PwlWindow*,
+                                     void (*callback) (PwlWindow*, const PwlTouch*, void*),
+                                     void *userdata);
+void pwl_window_notify_keyboard (PwlWindow*,
+                                 void (*callback) (PwlWindow*, const PwlKeyboard*, void*),
+                                 void *userdata);
 
 G_END_DECLS

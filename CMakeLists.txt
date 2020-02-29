@@ -64,8 +64,6 @@ set(COG_HOME_URI "" CACHE STRING "Default home URI")
 set(COG_MODULEDIR "${CMAKE_INSTALL_PREFIX}/lib/cog/modules"
     CACHE STRING "Default search path for loadable modules")
 
-set(COG_DEVICE_SCALING 1)
-
 if (NOT COG_APPID OR COG_APPID STREQUAL "")
     set(COG_DEFAULT_APPID com.igalia.Cog)
 else ()
@@ -231,17 +229,6 @@ if (COG_MODULE_FDO_SHELL)
         egl
         xkbcommon
     )
-
-    if(ModuleFdoShell_wpebackend-fdo-1.0_VERSION VERSION_LESS "1.3")
-        set(COG_DEVICE_SCALING 0)
-        message(STATUS "Cog device scaling disabled: WPEBackend-fdo version too old (${ModuleFdoShell_wpebackend-fdo-1.0_VERSION} < 1.3)")
-    endif()
-
-    set(WAYLAND_1_10_OR_GREATER OFF)
-    pkg_check_modules(WAYLAND REQUIRED wayland-client)
-    if (NOT (WAYLAND_VERSION VERSION_LESS 1.10))
-        set(WAYLAND_1_10_OR_GREATER ON)
-    endif ()
 
     add_library (fdo-shell MODULE modules/cog-fdo-shell.c)
     set_property (TARGET fdo-shell PROPERTY C_STANDARD 99)

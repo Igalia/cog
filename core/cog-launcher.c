@@ -64,7 +64,9 @@ on_action_prev (G_GNUC_UNUSED GAction  *action,
                 G_GNUC_UNUSED GVariant *param,
                 CogLauncher            *launcher)
 {
-    webkit_web_view_go_back (WEBKIT_WEB_VIEW (cog_shell_get_active_view (launcher->shell)));
+    CogView *view = cog_shell_get_focused_view (launcher->shell);
+    if (!view)
+        webkit_web_view_go_back (WEBKIT_WEB_VIEW (view));
 }
 
 static void
@@ -72,7 +74,9 @@ on_action_next (G_GNUC_UNUSED GAction  *action,
                 G_GNUC_UNUSED GVariant *param,
                 CogLauncher            *launcher)
 {
-    webkit_web_view_go_forward (WEBKIT_WEB_VIEW (cog_shell_get_active_view (launcher->shell)));
+    CogView *view = cog_shell_get_focused_view (launcher->shell);
+    if (view)
+        webkit_web_view_go_forward (WEBKIT_WEB_VIEW (view));
 }
 
 static void
@@ -80,7 +84,9 @@ on_action_reload (G_GNUC_UNUSED GAction  *action,
                   G_GNUC_UNUSED GVariant *param,
                   CogLauncher            *launcher)
 {
-    webkit_web_view_reload (WEBKIT_WEB_VIEW (cog_shell_get_active_view (launcher->shell)));
+    CogView *view = cog_shell_get_focused_view (launcher->shell);
+    if (view)
+        webkit_web_view_reload (WEBKIT_WEB_VIEW (view));
 }
 
 static void
@@ -89,41 +95,49 @@ on_action_open (G_GNUC_UNUSED GAction *action,
                 CogLauncher           *launcher)
 {
     g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
-    webkit_web_view_load_uri (WEBKIT_WEB_VIEW (cog_shell_get_active_view (launcher->shell)),
-                              g_variant_get_string (param, NULL));
+
+    CogView *view = cog_shell_get_focused_view (launcher->shell);
+    if (view) {
+        webkit_web_view_load_uri (WEBKIT_WEB_VIEW (view),
+                                  g_variant_get_string (param, NULL));
+    }
 }
 
 static void
-on_action_add (G_GNUC_UNUSED GAction *action,
-               GVariant              *param,
-               CogLauncher           *launcher)
+on_action_view_add (G_GNUC_UNUSED GAction *action,
+                    GVariant              *param,
+                    CogLauncher           *launcher)
 {
     g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
 
-    CogView* view = cog_shell_create_view (launcher->shell,
-                                           g_variant_get_string (param, NULL), NULL);
-    cog_shell_add_view (launcher->shell, view);
-    cog_shell_set_active_view (launcher->shell, view);
+    /* XXX: Shall it be marked as focused right away? */
+    cog_shell_add_view (launcher->shell,
+                        g_variant_get_string (param, NULL),
+                        NULL);
 }
 
 static void
-on_action_remove (G_GNUC_UNUSED GAction *action,
-                  GVariant              *param,
-                  CogLauncher           *launcher)
+on_action_view_remove (G_GNUC_UNUSED GAction *action,
+                       GVariant              *param,
+                       CogLauncher           *launcher)
 {
     g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
+
+    cog_shell_remove_view (launcher->shell,
+                           g_variant_get_string (param, NULL));
 }
 
 static void
-on_action_present (G_GNUC_UNUSED GAction *action,
-                   GVariant              *param,
-                   CogLauncher           *launcher)
+on_action_view_activate (G_GNUC_UNUSED GAction *action,
+                         GVariant              *param,
+                         CogLauncher           *launcher)
 {
     g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
 
-    cog_shell_set_active_view (launcher->shell,
-                               cog_shell_get_view (launcher->shell,
-                                                   g_variant_get_string (param, NULL)));
+    CogView *view = cog_shell_get_view (launcher->shell,
+                                        g_variant_get_string (param, NULL));
+    if (view)
+        cog_view_set_focused (view, TRUE);
 }
 
 static gboolean
@@ -181,9 +195,11 @@ cog_launcher_open (GApplication *application,
     if (n_files > 1)
         g_warning ("Requested opening %i files, opening only the first one", n_files);
 
+    /* TODO 
     g_autofree char *uri = g_file_get_uri (files[0]);
     webkit_web_view_load_uri (WEBKIT_WEB_VIEW (cog_shell_get_active_view (COG_LAUNCHER (application)->shell)),
                               uri);
+                              */
 }
 
 
@@ -271,9 +287,13 @@ cog_launcher_constructed (GObject *object)
     launcher->shell = g_object_ref_sink (cog_shell_new (g_get_prgname ()));
 
     // Created the default view
-    CogView* view = cog_shell_create_view (launcher->shell, "default", NULL);
-    cog_shell_add_view (launcher->shell, view);
-    cog_shell_set_active_view (launcher->shell, view);
+    CogView* view = cog_shell_add_view (launcher->shell, "default", NULL);
+    g_debug ("%s: CogView @ %p", G_STRFUNC, view);
+    cog_view_set_in_window (view, TRUE);
+    cog_view_set_visible (view, TRUE);
+    cog_view_set_focused (view, TRUE);
+
+    webkit_web_view_load_uri (WEBKIT_WEB_VIEW (view), "https://wpewebkit.org");
 
     g_signal_connect (launcher->shell, "notify::web-view", G_CALLBACK (on_notify_web_view), launcher);
 
@@ -282,9 +302,9 @@ cog_launcher_constructed (GObject *object)
     cog_launcher_add_action (launcher, "next", on_action_next, NULL);
     cog_launcher_add_action (launcher, "reload", on_action_reload, NULL);
     cog_launcher_add_action (launcher, "open", on_action_open, G_VARIANT_TYPE_STRING);
-    cog_launcher_add_action (launcher, "add", on_action_add, G_VARIANT_TYPE_STRING);
-    cog_launcher_add_action (launcher, "remove", on_action_remove, G_VARIANT_TYPE_STRING);
-    cog_launcher_add_action (launcher, "present", on_action_present, G_VARIANT_TYPE_STRING);
+    cog_launcher_add_action (launcher, "view-add", on_action_view_add, G_VARIANT_TYPE_STRING);
+    cog_launcher_add_action (launcher, "view-remove", on_action_view_remove, G_VARIANT_TYPE_STRING);
+    cog_launcher_add_action (launcher, "view-activate", on_action_view_activate, G_VARIANT_TYPE_STRING);
 
     launcher->sigint_source = g_unix_signal_add (SIGINT,
                                                  G_SOURCE_FUNC (on_signal_quit),

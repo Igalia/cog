@@ -14,8 +14,9 @@
 #include <stdarg.h>
 
 typedef struct {
-    char  *name;
-    GList *views;
+    char    *name;
+    GList   *views;
+    CogView *focused_view;
 } CogShellPrivate;
 
 G_DEFINE_TYPE_WITH_PRIVATE (CogShell, cog_shell, G_TYPE_OBJECT)
@@ -23,6 +24,7 @@ G_DEFINE_TYPE_WITH_PRIVATE (CogShell, cog_shell, G_TYPE_OBJECT)
 enum {
     PROP_0,
     PROP_NAME,
+    PROP_FOCUSED_VIEW,
     N_PROPERTIES,
 };
 
@@ -39,6 +41,9 @@ cog_shell_get_property (GObject    *object,
         case PROP_NAME:
             g_value_set_string (value, cog_shell_get_name (shell));
             break;
+        case PROP_FOCUSED_VIEW:
+            g_value_set_object (value, cog_shell_get_focused_view (shell));
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
@@ -50,7 +55,8 @@ cog_shell_set_property (GObject      *object,
                         const GValue *value,
                         GParamSpec   *pspec)
 {
-    CogShellPrivate *priv = cog_shell_get_instance_private (COG_SHELL (object));
+    CogShell *self = COG_SHELL (object);
+    CogShellPrivate *priv = cog_shell_get_instance_private (self);
     switch (prop_id) {
         case PROP_NAME:
             priv->name = g_value_dup_string (value);
@@ -104,6 +110,14 @@ cog_shell_class_init (CogShellClass *klass)
                              NULL,
                              G_PARAM_READWRITE |
                              G_PARAM_CONSTRUCT_ONLY |
+                             G_PARAM_STATIC_STRINGS);
+
+    s_properties[PROP_FOCUSED_VIEW] =
+        g_param_spec_object ("focused-view",
+                             "Focused view",
+                             "CogView instance with focus",
+                             COG_TYPE_VIEW,
+                             G_PARAM_READABLE |
                              G_PARAM_STATIC_STRINGS);
 
     g_object_class_install_properties (object_class,
@@ -203,16 +217,59 @@ cog_shell_get_name (CogShell *shell)
     return priv->name;
 }
 
+
+static void
+shell_on_notify_view_focused (CogView    *view,
+                              GParamSpec *pspec,
+                              CogShell   *shell)
+{
+    CogShellPrivate *priv = cog_shell_get_instance_private (shell);
+    if (cog_view_get_focused (view) && view != priv->focused_view) {
+        for (GList *item = g_list_first (priv->views); item; item = g_list_next (item)) {
+            if (item->data != view)
+                cog_view_set_focused (item->data, FALSE);
+        }
+
+        priv->focused_view = view;
+        g_object_notify_by_pspec (G_OBJECT (shell),
+                                  s_properties[PROP_FOCUSED_VIEW]);
+    }
+}
+
+
+static void
+shell_connect_view (CogShell *shell,
+                    CogView  *view)
+{
+    CogShellPrivate *priv = cog_shell_get_instance_private (shell);
+
+    const gboolean is_first_view = (!priv->views);
+    priv->views = g_list_prepend (priv->views, g_object_ref_sink (view));
+
+    if (is_first_view) {
+        cog_view_set_focused (view, TRUE);
+        priv->focused_view = view;
+        g_object_notify_by_pspec (G_OBJECT (shell),
+                                  s_properties[PROP_FOCUSED_VIEW]);
+    }
+
+    g_signal_connect_object (view,
+                             "notify::focused",
+                             G_CALLBACK (shell_on_notify_view_focused),
+                             shell,
+                             0);
+}
+
 /**
- * cog_shell_create_view:
+ * cog_shell_add_view:
  * @shell: A #CogShell
- * @name: Name for the created #CogView instance
+ * @name: Name for the new view.
  * @...: Properties to pass to the constructor.
  *
- * Returns: (transfer floating): A new #CogView of the type needed by the shell.
+ * Returns: (transfer none): A new #CogView of the type needed by the shell.
  */
 CogView*
-cog_shell_create_view (CogShell *shell, const char *name, const char *propname, ...)
+cog_shell_add_view (CogShell *shell, const char *name, const char *propname, ...)
 {
     g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
     g_return_val_if_fail (name != NULL, NULL);
@@ -222,12 +279,6 @@ cog_shell_create_view (CogShell *shell, const char *name, const char *propname, 
     va_start (varargs, propname);
 
     g_autoptr(CogView) view = NULL;
-
-    WebKitWebViewBackend *view_backend = NULL;
-    view_backend = cog_shell_new_view_backend (shell);
-    if (!view_backend) {
-        g_warning ("Failed to get platform's view backend");
-    }
     if (propname) {
         /*
          * Gather parameters, and add our own (shell, name) to be used with
@@ -238,7 +289,7 @@ cog_shell_create_view (CogShell *shell, const char *name, const char *propname, 
         if (!view_class)
             view_class = unref_class = g_type_class_ref (view_type);
 
-        unsigned n_properties = 3;
+        unsigned n_properties = 2;
         g_autofree const char **property_names = g_new (const char*, n_properties);
         g_autofree GValue *property_values = g_new (GValue, n_properties);
         g_autofree GParamSpec **property_pspecs = g_new (GParamSpec*, n_properties);
@@ -251,10 +302,6 @@ cog_shell_create_view (CogShell *shell, const char *name, const char *propname, 
         property_values[1] = (GValue) G_VALUE_INIT;
         g_value_init (&property_values[1], G_TYPE_STRING);
         g_value_set_string (&property_values[1], name);
-        property_names[2] = "backend";
-        property_values[2] = (GValue) G_VALUE_INIT;
-        g_value_init (&property_values[2], WEBKIT_TYPE_WEB_VIEW_BACKEND);
-        g_value_set_boxed (&property_values[2], view_backend);
 
         do {
             GParamSpec *pspec = g_object_class_find_property (view_class, propname);
@@ -296,31 +343,46 @@ cog_shell_create_view (CogShell *shell, const char *name, const char *propname, 
         view = (CogView*) g_object_new (view_type,
                                         "name", name,
                                         "shell", shell,
-                                        "backend", view_backend,
                                         NULL);
     }
 
     va_end (varargs);
+
+    shell_connect_view (shell, view);
+
     return g_steal_pointer (&view);
 }
 
+
 /**
- * cog_shell_add_view:
+ * cog_shell_remove_view:
  * @shell: A #CogShell
- * @view: A #CogView
+ * @name: Name of the view to remove.
  */
 void
-cog_shell_add_view (CogShell *shell,
-                    CogView  *view)
+cog_shell_remove_view (CogShell   *shell,
+                       const char *name)
 {
     g_return_if_fail (COG_IS_SHELL (shell));
-    g_return_if_fail (COG_IS_VIEW (view));
-    g_return_if_fail (G_TYPE_CHECK_INSTANCE_TYPE (view, cog_shell_get_view_class (shell)));
-    g_return_if_fail (cog_shell_get_view (shell, cog_view_get_name (view)) == NULL);
+    g_return_if_fail (shell != NULL);
 
     CogShellPrivate *priv = cog_shell_get_instance_private (shell);
-    priv->views = g_list_prepend (priv->views, g_object_ref_sink (view));
+    g_autoptr(CogView) view = NULL;
+    GList *item;
+    for (item = g_list_first (priv->views); item; item = g_list_next (item)) {
+        if (strcmp (name, cog_view_get_name (item->data)) == 0) {
+            view = g_steal_pointer (&item->data);
+            break;
+        }
+    }
+    g_return_if_fail (view != NULL);
+
+    g_assert (item && !item->data);
+
+    priv->views = g_list_remove_link (priv->views, item);
+    g_clear_pointer (&item, g_list_free);
 }
+
 
 /**
  * cog_shell_get_view:
@@ -339,13 +401,10 @@ cog_shell_get_view (CogShell   *shell,
     CogShellPrivate *priv = cog_shell_get_instance_private (shell);
     for (GList *item = g_list_first (priv->views); item; item = g_list_next (item)) {
         CogView *view = item->data;
-        if (strcmp (name, cog_view_get_name (view)) == 0) {
-            g_debug("cog_shell_get_view - view_name: %s - found", cog_view_get_name (view));
+        if (strcmp (name, cog_view_get_name (view)) == 0)
             return view;
-        }
     }
 
-    g_debug("cog_shell_get_view - not found");
     return NULL;
 }
 
@@ -364,74 +423,23 @@ cog_shell_get_views (CogShell *shell)
     return priv->views;
 }
 
+/**
+ * cog_shell_get_focused_view:
+ * @shell: A #CogShell
+ *
+ * Returns: (transfer none): The view with focus.
+ */
 CogView*
-cog_shell_get_active_view (CogShell *shell)
+cog_shell_get_focused_view (CogShell *shell)
 {
     g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
 
     CogShellPrivate *priv = cog_shell_get_instance_private (shell);
 
     for (GList *item = g_list_first (priv->views); item; item = g_list_next (item)) {
-        CogView *view = item->data;
-        WebKitWebViewBackend *view_backend = webkit_web_view_get_backend (WEBKIT_WEB_VIEW(view));
-        struct wpe_view_backend *backend = webkit_web_view_backend_get_wpe_backend (view_backend);
-        if (wpe_view_backend_get_activity_state (backend) & wpe_view_activity_state_visible) {
-            g_debug ("cog_shell_active_view - view_name: %s - found", cog_view_get_name (view));
-            return view;
-        }
+        if (cog_view_get_focused (item->data))
+            return item->data;
     }
 
-    g_debug ("cog_shell_get_active_view - not found");
     return NULL;
-}
-
-void
-cog_shell_set_active_view (CogShell *shell, CogView *view)
-{
-    g_return_if_fail (COG_IS_SHELL (shell));
-    g_return_if_fail (COG_IS_VIEW (view));
-
-    CogShellPrivate *priv = cog_shell_get_instance_private (shell);
-
-    for (GList *item = g_list_first (priv->views); item; item = g_list_next (item)) {
-        CogView *view_iter = item->data;
-        WebKitWebViewBackend *view_backend = webkit_web_view_get_backend (WEBKIT_WEB_VIEW(view_iter));
-        struct wpe_view_backend *backend = webkit_web_view_backend_get_wpe_backend (view_backend);
-        if (strcmp (cog_view_get_name (view_iter), cog_view_get_name (view)) == 0) {
-            wpe_view_backend_add_activity_state (backend, wpe_view_activity_state_visible);
-            g_debug ("cog_shell_set_active_view - view_name: %s - set active", cog_view_get_name (view));
-        } else {
-            wpe_view_backend_remove_activity_state (backend, wpe_view_activity_state_visible);
-            g_debug ("cog_shell_set_active_view - view_name: %s - set deactive", cog_view_get_name (view_iter));
-        }
-    }
-    cog_shell_resume_active_views(shell);
-}
-
-WebKitWebViewBackend*
-cog_shell_new_view_backend (CogShell *shell)
-{
-    CogShellClass *klass;
-
-    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
-
-    klass = COG_SHELL_GET_CLASS (shell);
-
-    g_return_val_if_fail (klass->cog_shell_new_view_backend != NULL, NULL);
-
-    return klass->cog_shell_new_view_backend (shell);
-}
-
-WebKitWebViewBackend*
-cog_shell_resume_active_views (CogShell *shell)
-{
-    CogShellClass *klass;
-
-    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
-
-    klass = COG_SHELL_GET_CLASS (shell);
-
-    g_return_val_if_fail (klass->cog_shell_new_view_backend != NULL, NULL);
-
-    return klass->cog_shell_resume_active_views (shell);
 }

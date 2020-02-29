@@ -142,9 +142,9 @@ cmd_generic_no_args (const char               *name,
  * single argument. */
 static int
 cmd_generic_view (const char *name,
-                   const void *data,
-                   int         argc,
-                   char      **argv)
+                  const void *data,
+                  int         argc,
+                  char      **argv)
 {
     cmd_check_simple_help (name, 1, &argc, &argv);
 
@@ -331,17 +331,17 @@ cmd_find_by_name (const char *name)
             .handler = cmd_generic_no_args,
         },
         {
-            .name = "add",
+            .name = "view-add",
             .desc = "Add a new view",
             .handler = cmd_generic_view,
         },
         {
-            .name = "close",
+            .name = "view-remove",
             .desc = "Close a view",
             .handler = cmd_generic_view,
         },
         {
-            .name = "present",
+            .name = "view-activate",
             .desc = "Present a view",
             .handler = cmd_generic_view,
         },
