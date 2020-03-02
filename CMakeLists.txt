@@ -4,7 +4,7 @@ list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/cmake")
 include(VersioningUtils)
 include(GNUInstallDirs)
 
-set_project_version(0 5 0)
+set_project_version(0 5 1)
 
 # Before making a release, the LT_VERSION string should be modified.
 # The string is of the form C:R:A.
@@ -13,7 +13,7 @@ set_project_version(0 5 0)
 # - If binary compatibility has been broken (eg removed or changed interfaces)
 #   change to C+1:0:0
 # - If the interface is the same as the previous version, change to C:R+1:A
-calculate_library_versions_from_libtool_triple(COGCORE 2 0 1)
+calculate_library_versions_from_libtool_triple(COGCORE 3 0 2)
 
 project(cog VERSION "${PROJECT_VERSION}" LANGUAGES C)
 include(DistTargets)

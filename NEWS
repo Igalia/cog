@@ -1,4 +1,14 @@
 =====================
+0.5.1 - March 2, 2020
+=====================
+
+- fdo: Added support for Input Methods.
+- fdo: Added support for smooth scrolling using 2D axis events.
+- fdo: Added support for direct-display video rendering.
+- drm: The DRM platform module is no longer experimental.
+- New manual pages for cog and cogctl.
+
+=====================
 0.3.1 - June 28, 2018
 =====================
 
