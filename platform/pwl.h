@@ -79,8 +79,6 @@ typedef struct {
     struct xkb_context* context;
     struct xkb_keymap* keymap;
     struct xkb_state* state;
-
-    struct xkb_compose_table* compose_table;
     struct xkb_compose_state* compose_state;
 
     struct {

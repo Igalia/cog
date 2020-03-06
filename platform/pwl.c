@@ -713,7 +713,8 @@ window_dispatch_key_event (PwlWindow  *self,
     self->keyboard.keysym = xkb_state_key_get_one_sym (xkb_data->state, key);
     self->keyboard.modifiers = xkb_data->modifiers;
 
-    if (state == WL_KEYBOARD_KEY_STATE_PRESSED &&
+    if (xkb_data->compose_state &&
+        state == WL_KEYBOARD_KEY_STATE_PRESSED &&
         xkb_compose_state_feed (xkb_data->compose_state, self->keyboard.keysym) == XKB_COMPOSE_FEED_ACCEPTED &&
         xkb_compose_state_get_status (xkb_data->compose_state) == XKB_COMPOSE_COMPOSED)
     {
@@ -1104,23 +1105,21 @@ pwl_display_connect (const char *name, GError **error)
         return NULL;
     }
 
-    self->xkb_data.compose_table =
+    struct xkb_compose_table* compose_table =
         xkb_compose_table_new_from_locale (self->xkb_data.context,
                                            setlocale (LC_CTYPE, NULL),
                                            XKB_COMPOSE_COMPILE_NO_FLAGS);
-    if (!self->xkb_data.compose_table) {
-        g_set_error_literal (error, PWL_ERROR, PWL_ERROR_UNAVAILABLE,
-                             "Could not initialize XKB compose table");
-        return NULL;
-    }
+    if (compose_table) {
+        self->xkb_data.compose_state =
+            xkb_compose_state_new (compose_table,
+                                   XKB_COMPOSE_STATE_NO_FLAGS);
+        g_clear_pointer (&compose_table, xkb_compose_table_unref);
 
-    self->xkb_data.compose_state =
-        xkb_compose_state_new (self->xkb_data.compose_table,
-                               XKB_COMPOSE_STATE_NO_FLAGS);
-    if (!self->xkb_data.compose_state) {
-        g_set_error_literal (error, PWL_ERROR, PWL_ERROR_UNAVAILABLE,
-                             "Could not initialize XKB compose state");
-        return NULL;
+        if (!self->xkb_data.compose_state) {
+            g_set_error_literal (error, PWL_ERROR, PWL_ERROR_UNAVAILABLE,
+                                 "Could not initialize XKB compose state");
+            return NULL;
+        }
     }
 
     /* Always have a default keymap, in case we never receive .keymap. */
@@ -1214,7 +1213,6 @@ pwl_display_destroy (PwlDisplay *self)
 
         g_clear_pointer (&self->xkb_data.state, xkb_state_unref);
         g_clear_pointer (&self->xkb_data.compose_state, xkb_compose_state_unref);
-        g_clear_pointer (&self->xkb_data.compose_table, xkb_compose_table_unref);
         g_clear_pointer (&self->xkb_data.keymap, xkb_keymap_unref);
         g_clear_pointer (&self->xkb_data.context, xkb_context_unref);
     }
