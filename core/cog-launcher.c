@@ -284,7 +284,13 @@ cog_launcher_constructed (GObject *object)
 
     CogLauncher *launcher = COG_LAUNCHER (object);
 
-    launcher->shell = g_object_ref_sink (cog_shell_new (g_get_prgname ()));
+    g_autoptr(GError) error = NULL;
+    launcher->shell = g_object_ref_sink (cog_shell_new (&error,
+                                                        g_get_prgname (),
+                                                        "single-window", TRUE,
+                                                        NULL));
+    if (!launcher->shell)
+        g_error ("Cannot instantiate shell: %s.", error->message);
 
     // Created the default view
     CogView* view = cog_shell_add_view (launcher->shell, "default", NULL);

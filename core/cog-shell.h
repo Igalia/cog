@@ -26,10 +26,16 @@ struct _CogShellClass {
     GType    (*get_view_class) (void);
 };
 
-CogShell*   cog_shell_new              (const char *name);
+CogShell*   cog_shell_new              (GError    **error,
+                                        const char *name,
+                                        const char *prop_1,
+                                        ...);
 
-CogShell*   cog_shell_new_from_module  (const char *name,
-                                        const char *module_name);
+CogShell*   cog_shell_new_from_module  (GError    **error,
+                                        const char *name,
+                                        const char *module_name,
+                                        const char *prop_1,
+                                        ...);
 
 const char* cog_shell_get_name         (CogShell   *shell);
 

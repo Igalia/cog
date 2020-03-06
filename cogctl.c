@@ -250,7 +250,7 @@ cmd_help (const char *name,
         const struct cmd *cmds = data;
         for (unsigned i = 0; cmds[i].name; i++) {
             if (cmds[i].desc) {
-                g_print ("  %-10s %s\n", cmds[i].name, cmds[i].desc);
+                g_print ("  %-14s %s\n", cmds[i].name, cmds[i].desc);
             }
         }
     } else if (argc == 2) {

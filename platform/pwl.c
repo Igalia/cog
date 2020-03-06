@@ -160,7 +160,7 @@ display_output_on_scale (void *data,
     }
 
     if (!found) {
-        g_critical ("Unknown output %p\n", output);
+        g_critical ("Unknown output %p.", output);
         return;
     }
 
@@ -191,10 +191,10 @@ window_surface_on_enter (void *data, struct wl_surface *surface, struct wl_outpu
             break;
         }
     }
-    g_debug ("Surface entered output %p with scale factor %i\n", output, factor);
+    g_debug ("Surface entered output %p with scale factor %i.", output, factor);
 
     if (factor < 1) {
-        g_warning ("No scale factor available for output %p\n", output);
+        g_warning ("No scale factor available for output %p.", output);
         return;
     }
 

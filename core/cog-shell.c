@@ -143,8 +143,7 @@ is_construct_property (const char  *func,
                        GType        object_type,
                        const char  *propname,
                        GParamSpec  *pspec,
-                       unsigned     n_properties,
-                       GParamSpec **property_pspecs)
+                       unsigned     n_properties)
 {
     if (G_UNLIKELY (pspec == NULL)) {
         g_critical ("%s: object class '%s' has no property named '%s'",
@@ -158,37 +157,28 @@ is_construct_property (const char  *func,
         return FALSE;
     }
 
-    if (G_UNLIKELY (pspec->flags & (G_PARAM_CONSTRUCT | G_PARAM_CONSTRUCT_ONLY))) {
-        for (unsigned i = 0; i < n_properties; i++) {
-            if (G_UNLIKELY (property_pspecs[i] == pspec)) {
-                g_critical ("%s: property '%s' of object class '%s' cannot be set twice",
-                            func, pspec->name, g_type_name (object_type));
-                return FALSE;
-            }
-        }
-    }
-
     return TRUE;
 }
 
-/**
- * cog_shell_new:
- * @name:
- *
- * Returns: (transfer full): A new #CogShell.
- */
-CogShell*
-cog_shell_new (const char *name)
+static gboolean
+string_array_contains (const char *haystack[],
+                       unsigned    haystack_size,
+                       const char *needle)
 {
-    return cog_shell_new_from_module (name, NULL);
+    for (unsigned i = 0; i < haystack_size; i++)
+        if (strcmp (needle, haystack[i]) == 0)
+            return TRUE;
+
+    return FALSE;
 }
 
-CogShell*
-cog_shell_new_from_module (const char *name,
-                           const char *module_name)
+static CogShell*
+cog_shell_new_internal (GError    **error,
+                        const char *shell_name,
+                        const char *module_name,
+                        const char *prop_name,
+                        va_list     args)
 {
-    g_return_val_if_fail (name != NULL, NULL);
-
     GType shell_type =
         _cog_modules_get_preferred_internal (G_STRFUNC,
                                              _cog_modules_get_shell_extension_point (),
@@ -200,7 +190,121 @@ cog_shell_new_from_module (const char *name,
         return NULL;
     }
 
-    return g_initable_new (shell_type, NULL, NULL, "name", name, NULL);
+    g_autoptr(CogShell) shell = NULL;
+    if (prop_name) {
+        GObjectClass *unref_class = NULL;
+        GObjectClass *shell_class = g_type_class_peek_static (shell_type);
+        if (!shell_class)
+            shell_class = unref_class = g_type_class_ref (shell_type);
+
+        unsigned n_properties = 1;
+        g_autofree const char **property_names = g_new (const char*, n_properties);
+        g_autofree GValue *property_values = g_new (GValue, n_properties);
+
+        property_names[0] = "name";
+        property_values[0] = (GValue) G_VALUE_INIT;
+        g_value_init (&property_values[0], G_TYPE_STRING);
+        g_value_set_string (&property_values[0], shell_name);
+
+        do {
+            GParamSpec *pspec = g_object_class_find_property (shell_class, prop_name);
+            if (!is_construct_property (G_STRFUNC,
+                                        shell_type,
+                                        prop_name,
+                                        pspec,
+                                        n_properties))
+                break;
+
+            if (string_array_contains (property_names, n_properties, prop_name)) {
+                g_critical ("%s: property '%s' of object class '%s' cannot be "
+                            "set twice.", G_STRFUNC, pspec->name,
+                            g_type_name (shell_type));
+                break;
+            }
+
+            property_names = g_renew (const char*, property_names, n_properties + 1);
+            property_values = g_renew (GValue, property_values, n_properties + 1);
+
+            property_names[n_properties] = prop_name;
+
+            g_autofree char *error = NULL;
+            G_VALUE_COLLECT_INIT (&property_values[n_properties],
+                                  pspec->value_type, args,
+                                  G_VALUE_NOCOPY_CONTENTS, &error);
+            if (error) {
+                g_critical ("%s: %s", G_STRFUNC, error);
+                g_value_unset (&property_values[n_properties]);
+                break;
+            }
+
+            n_properties++;
+        } while ((prop_name = va_arg (args, const char*)));
+
+        g_clear_pointer (&unref_class, g_type_class_unref);    
+
+        shell = (CogShell*) g_object_new_with_properties (shell_type,
+                                                          n_properties,
+                                                          property_names,
+                                                          property_values);
+    } else {
+        /* Fast case: No additional properties specified. */
+        shell = (CogShell*) g_object_new (shell_type,
+                                          "name", shell_name,
+                                          NULL);
+    }
+
+    if (G_IS_INITABLE (shell)) {
+        if (!g_initable_init ((GInitable*) shell,
+                              NULL,  /* cancellable */
+                              error))
+            return NULL;
+    }
+
+    va_end (args);
+    return g_steal_pointer (&shell);
+}
+
+/**
+ * cog_shell_new:
+ * @name:
+ *
+ * Returns: (transfer full): A new #CogShell.
+ */
+CogShell*
+cog_shell_new (GError    **error,
+               const char *name,
+               const char *prop_name,
+               ...)
+{
+    va_list args;
+    va_start (args, prop_name);
+    CogShell *self = cog_shell_new_internal (error,
+                                             name,
+                                             NULL,
+                                             prop_name,
+                                             args);
+    va_end (args);
+    return self;
+}
+
+CogShell*
+cog_shell_new_from_module (GError    **error,
+                           const char *name,
+                           const char *module_name,
+                           const char *prop_name,
+                           ...)
+{
+    g_return_val_if_fail (name != NULL, NULL);
+
+    va_list args;
+    va_start (args, prop_name);
+    CogShell *self = cog_shell_new_internal (error,
+                                             name,
+                                             module_name,
+                                             prop_name,
+                                             args);
+    va_end (args);
+    return self;
 }
 
 /**
@@ -260,26 +364,40 @@ shell_connect_view (CogShell *shell,
                              0);
 }
 
+
+static void
+shell_disconnect_view (CogShell *shell,
+                       CogView  *view)
+{
+    g_signal_handlers_disconnect_by_func (view,
+                                          shell_on_notify_view_focused,
+                                          shell);
+}
+
+
 /**
  * cog_shell_add_view:
  * @shell: A #CogShell
- * @name: Name for the new view.
+ * @view_name: Name for the new view.
  * @...: Properties to pass to the constructor.
  *
  * Returns: (transfer none): A new #CogView of the type needed by the shell.
  */
 CogView*
-cog_shell_add_view (CogShell *shell, const char *name, const char *propname, ...)
+cog_shell_add_view (CogShell   *shell,
+                    const char *view_name,
+                    const char *prop_name,
+                    ...)
 {
     g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
-    g_return_val_if_fail (name != NULL, NULL);
+    g_return_val_if_fail (view_name != NULL, NULL);
 
     GType view_type = cog_shell_get_view_class (shell);
     va_list varargs;
-    va_start (varargs, propname);
+    va_start (varargs, prop_name);
 
     g_autoptr(CogView) view = NULL;
-    if (propname) {
+    if (prop_name) {
         /*
          * Gather parameters, and add our own (shell, name) to be used with
          * g_object_new_with_properties()
@@ -292,37 +410,43 @@ cog_shell_add_view (CogShell *shell, const char *name, const char *propname, ...
         unsigned n_properties = 2;
         g_autofree const char **property_names = g_new (const char*, n_properties);
         g_autofree GValue *property_values = g_new (GValue, n_properties);
-        g_autofree GParamSpec **property_pspecs = g_new (GParamSpec*, n_properties);
 
         property_names[0] = "shell";
         property_values[0] = (GValue) G_VALUE_INIT;
         g_value_init (&property_values[0], G_TYPE_OBJECT);
         g_value_set_object (&property_values[0], shell);
+
         property_names[1] = "name";
         property_values[1] = (GValue) G_VALUE_INIT;
         g_value_init (&property_values[1], G_TYPE_STRING);
-        g_value_set_string (&property_values[1], name);
+        g_value_set_string (&property_values[1], view_name);
 
         do {
-            GParamSpec *pspec = g_object_class_find_property (view_class, propname);
+            GParamSpec *pspec = g_object_class_find_property (view_class,
+                                                              prop_name);
             if (!is_construct_property (G_STRFUNC,
                                         view_type,
-                                        propname,
+                                        prop_name,
                                         pspec,
-                                        n_properties,
-                                        property_pspecs))
+                                        n_properties))
                 break;
 
-            property_names = g_renew(const char*, property_names, n_properties + 1);
-            property_values = g_renew(GValue, property_values, n_properties + 1);
-            property_pspecs = g_renew(GParamSpec*, property_pspecs, n_properties + 1);
+            if (string_array_contains (property_names, n_properties, prop_name)) {
+                g_critical ("%s: property '%s' of object class '%s' cannot be "
+                            "set twice.", G_STRFUNC, pspec->name,
+                            g_type_name (view_type));
+                break;
+            }
 
-            property_names[n_properties] = propname;
-            property_pspecs[n_properties] = pspec;
+            property_names = g_renew (const char*, property_names, n_properties + 1);
+            property_values = g_renew (GValue, property_values, n_properties + 1);
+
+            property_names[n_properties] = prop_name;
 
             g_autofree char *error = NULL;
             G_VALUE_COLLECT_INIT (&property_values[n_properties],
-                                  pspec->value_type, varargs, 0, &error);
+                                  pspec->value_type, varargs,
+                                  G_VALUE_NOCOPY_CONTENTS, &error);
             if (error) {
                 g_critical ("%s: %s", G_STRFUNC, error);
                 g_value_unset (&property_values[n_properties]);
@@ -330,7 +454,7 @@ cog_shell_add_view (CogShell *shell, const char *name, const char *propname, ...
             }
 
             n_properties++;
-        } while ((propname = va_arg (varargs, const char*)));
+        } while ((prop_name = va_arg (varargs, const char*)));
 
         g_clear_pointer (&unref_class, g_type_class_unref);
 
@@ -341,8 +465,8 @@ cog_shell_add_view (CogShell *shell, const char *name, const char *propname, ...
     } else {
         /* Fast case: No additional properties specified. */
         view = (CogView*) g_object_new (view_type,
-                                        "name", name,
                                         "shell", shell,
+                                        "name", view_name,
                                         NULL);
     }
 
@@ -367,6 +491,8 @@ cog_shell_remove_view (CogShell   *shell,
     g_return_if_fail (shell != NULL);
 
     CogShellPrivate *priv = cog_shell_get_instance_private (shell);
+    CogView *focused_view = cog_shell_get_focused_view (shell);
+
     g_autoptr(CogView) view = NULL;
     GList *item;
     for (item = g_list_first (priv->views); item; item = g_list_next (item)) {
@@ -381,6 +507,12 @@ cog_shell_remove_view (CogShell   *shell,
 
     priv->views = g_list_remove_link (priv->views, item);
     g_clear_pointer (&item, g_list_free);
+
+    /* Mark some other view as focused. */
+    if (view == focused_view && (item = g_list_first (priv->views)))
+        cog_view_set_focused ((CogView*) item->data, TRUE);
+
+    shell_disconnect_view (shell, view);
 }
 
 
