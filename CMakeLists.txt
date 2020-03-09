@@ -55,6 +55,7 @@ set(COG_DBUS_OWN_USER "" CACHE STRING
     "Additional user allowed to own the well-known name on the system bus")
 
 option(COG_MODULE_FDO_SHELL "Build the FDO shell module" ON)
+option(COG_MODULE_DRM_SHELL "Build the DRM shell module" OFF)
 option(COG_BUILD_PROGRAMS "Build and install programs as well" ON)
 option(INSTALL_MAN_PAGES "Install the man(1) pages if COG_BUILD_PROGRAMS is enabled" ON)
 option(COG_WESTON_DIRECT_DISPLAY "Build direct display support for the FDO platform module" OFF)
@@ -259,6 +260,41 @@ if (COG_MODULE_FDO_SHELL)
         -DG_LOG_DOMAIN=\"Cog-FDO\" ${EXTRA_CFLAGS})
 
     install (TARGETS fdo-shell
+        DESTINATION ${COG_MODULEDIR}
+        COMPONENT "runtime"
+    )
+endif ()
+
+# DRM shell module
+if (COG_MODULE_DRM_SHELL)
+    pkg_check_modules (WPEFDO IMPORTED_TARGET REQUIRED wpebackend-fdo-1.0)
+
+    # platform-drm
+    pkg_check_modules (PlatformDrm IMPORTED_TARGET REQUIRED gbm libdrm)
+
+    add_library (platform-drm STATIC EXCLUDE_FROM_ALL
+        platform/pdrm.h
+        platform/pdrm.c
+    )
+    set_property (TARGET platform-drm PROPERTY C_STANDARD 99)
+    set_property (TARGET platform-drm PROPERTY POSITION_INDEPENDENT_CODE ON)
+    target_compile_options (platform-drm PRIVATE
+        -DG_LOG_DOMAIN=\"Cog-DRM\" ${EXTRA_CFLAGS})
+    target_link_libraries (platform-drm PUBLIC
+        PkgConfig::Gio
+        PkgConfig::PlatformDrm
+        PkgConfig::WPEFDO
+    )
+
+    # Shell module
+    add_library (drm-shell MODULE modules/cog-drm-shell.c)
+    set_property (TARGET drm-shell PROPERTY C_STANDARD 99)
+    target_link_libraries (drm-shell PRIVATE
+        cogcore platform-drm PkgConfig::WPEFDO)
+    target_compile_options (drm-shell PRIVATE
+        -DG_LOG_DOMAIN=\"Cog-DRM\" ${EXTRA_CFLAGS})
+
+    install (TARGETS drm-shell
         DESTINATION ${COG_MODULEDIR}
         COMPONENT "runtime"
     )
