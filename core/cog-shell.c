@@ -13,6 +13,7 @@ typedef struct {
     WebKitSettings   *web_settings;
     WebKitWebContext *web_context;
     WebKitWebView    *web_view;
+    GKeyFile         *config_file;
     GHashTable       *request_handlers;  /* (string, RequestHandlerMapEntry) */
 } CogShellPrivate;
 
@@ -28,6 +29,7 @@ enum {
     PROP_WEB_SETTINGS,
     PROP_WEB_CONTEXT,
     PROP_WEB_VIEW,
+    PROP_CONFIG_FILE,
     N_PROPERTIES,
 };
 
@@ -175,6 +177,9 @@ cog_shell_set_property (GObject      *object,
         case PROP_NAME:
             PRIV (shell)->name = g_value_dup_string (value);
             break;
+        case PROP_CONFIG_FILE:
+            PRIV (shell)->config_file = g_value_get_boxed (value);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
@@ -216,6 +221,7 @@ cog_shell_dispose (GObject *object)
 
     g_clear_pointer (&priv->request_handlers, g_hash_table_unref);
     g_clear_pointer (&priv->name, g_free);
+    g_clear_pointer (&priv->config_file, g_key_file_unref);
 
     G_OBJECT_CLASS (cog_shell_parent_class)->dispose (object);
 }
@@ -278,6 +284,14 @@ cog_shell_class_init (CogShellClass *klass)
                              G_PARAM_READABLE |
                              G_PARAM_STATIC_STRINGS);
 
+    s_properties[PROP_CONFIG_FILE] =
+        g_param_spec_boxed ("config-file",
+                            "Configuration File",
+                            "Configuration file made available to the platform plugin",
+                            G_TYPE_KEY_FILE,
+                            G_PARAM_READWRITE |
+                            G_PARAM_STATIC_STRINGS);
+
     g_object_class_install_properties (object_class, N_PROPERTIES, s_properties);
 }
 
@@ -329,6 +343,14 @@ cog_shell_get_name (CogShell *shell)
 {
     g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
     return PRIV (shell)->name;
+}
+
+
+GKeyFile*
+cog_shell_get_config_file (CogShell *shell)
+{
+    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
+    return PRIV (shell)->config_file;
 }
 
 
