@@ -12,6 +12,9 @@
 #include <gio/gio.h>
 #include <sys/mman.h>
 
+#ifdef HAVE_IVI_SHELL
+#include "ivi-application-client.h"
+#endif /* HAVE_IVI_SHELL */
 
 #if 0
 # define TRACE(fmt, ...) g_debug ("%s: " fmt, G_STRFUNC, __VA_ARGS__)
@@ -67,6 +70,10 @@ struct _PwlDisplay {
     struct zwp_fullscreen_shell_v1 *fshell;
     struct wl_shell *shell;
 
+#ifdef HAVE_IVI_SHELL
+    struct ivi_application *ivi_application;
+#endif /* HAVE_IVI_SHELL */
+
     struct wl_list outputs; /* wl_list<PwlOutput> */
 
     char *application_id;
@@ -87,6 +94,11 @@ struct _PwlWindow {
     struct xdg_surface *xdg_surface;
     struct xdg_toplevel *xdg_toplevel;
     struct wl_shell_surface *shell_surface;
+
+#ifdef HAVE_IVI_SHELL
+    struct ivi_surface *ivi_surface;
+    uint32_t surface_id;
+#endif /* HAVE_IVI_SHELL */
 
     uint32_t width;
     uint32_t height;
@@ -1003,6 +1015,14 @@ registry_global (void               *data,
     PwlDisplay *display = data;
     gboolean interface_used = TRUE;
 
+#if HAVE_IVI_SHELL
+    if (strcmp (interface, ivi_application_interface.name) == 0) {
+        display->ivi_application = wl_registry_bind (registry,
+                                                     name,
+                                                     &ivi_application_interface,
+                                                     version);
+    } else
+#endif /* HAVE_IVI_SHELL */
     if (strcmp (interface, wl_compositor_interface.name) == 0) {
         display->compositor = wl_registry_bind (registry,
                                                 name,
@@ -1168,12 +1188,24 @@ pwl_display_connect (const char *name, GError **error)
         return NULL;
     }
 
-    if (!self->xdg_shell && !self->shell && !self->fshell) {
+    if (!self->xdg_shell && !self->shell && !self->fshell
+#ifdef HAVE_IVI_SHELL
+        && !self->ivi_application
+#endif /* HAVE_IVI_SHELL */
+        )
+    {
         g_set_error (error, PWL_ERROR, PWL_ERROR_WAYLAND,
                      "Wayland display does not support a shell "
-                     "interface (%s, %s, or %s)",
+                     "interface (%s, %s, "
+#ifdef HAVE_IVI_SHELL
+                     "%s, "
+#endif /* HAVE_IVI_SHELL */
+                     "or %s)",
                      xdg_wm_base_interface.name,
                      wl_shell_interface.name,
+#ifdef HAVE_IVI_SHELL
+                     ivi_application_interface.name,
+#endif /* HAVE_IVI_SHELL */
                      zwp_fullscreen_shell_v1_interface.name);
         return NULL;
     }
@@ -1199,6 +1231,9 @@ pwl_display_destroy (PwlDisplay *self)
         g_clear_pointer (&self->xdg_shell, xdg_wm_base_destroy);
         g_clear_pointer (&self->fshell, zwp_fullscreen_shell_v1_destroy);
         g_clear_pointer (&self->shell, wl_shell_destroy);
+#ifdef HAVE_IVI_SHELL
+        g_clear_pointer (&self->ivi_application, ivi_application_destroy);
+#endif /* HAVE_IVI_SHELL */
 
         g_clear_pointer (&self->pointer, wl_pointer_destroy);
         g_clear_pointer (&self->keyboard, wl_keyboard_destroy);
@@ -1684,6 +1719,12 @@ pwl_window_create (PwlDisplay *display)
     };
     wl_surface_add_listener (self->wl_surface, &surface_listener, self);
 
+#ifdef HAVE_IVI_SHELL
+    if (display->ivi_application) {
+        /* Do nothing, .ivi_surface is created when setting an ID. */
+        configure_surface_geometry (self, 0, 0);
+    } else
+#endif /* HAVE_IVI_SHELL */
     if (display->xdg_shell) {
         self->xdg_surface = xdg_wm_base_get_xdg_surface (display->xdg_shell,
                                                          self->wl_surface);
@@ -1748,6 +1789,9 @@ pwl_window_destroy (PwlWindow *self)
 {
     g_return_if_fail (self);
 
+#ifdef HAVE_IVI_SHELL
+    g_clear_pointer (&self->ivi_surface, ivi_surface_destroy);
+#endif /* HAVE_IVI_SHELL */
     g_clear_pointer (&self->xdg_toplevel, xdg_toplevel_destroy);
     g_clear_pointer (&self->xdg_surface, xdg_surface_destroy);
     g_clear_pointer (&self->shell_surface, wl_shell_surface_destroy);
@@ -1769,6 +1813,88 @@ pwl_window_set_application_id (PwlWindow *self, const char *application_id)
     } else if (self->display->shell) {
         wl_shell_surface_set_class (self->shell_surface, application_id);
     }
+}
+
+
+#ifdef HAVE_IVI_SHELL
+static void
+window_ivi_surface_on_configure (void               *data,
+                                 struct ivi_surface *surface G_GNUC_UNUSED,
+                                 int32_t             width,
+                                 int32_t             height)
+{
+    PwlWindow *self = data;
+    g_assert (self->ivi_surface == surface);
+
+    configure_surface_geometry (self, width, height);
+
+    g_debug ("New ivi_surface configuration: (%" PRIi32 ", %" PRIi32 ")",
+             width, height);
+
+    resize_window (self);
+}
+#endif /* HAVE_IVI_SHELL */
+
+
+void
+pwl_window_set_id (PwlWindow *self,
+                   uint32_t   id)
+{
+    g_return_if_fail (self);
+
+#ifdef HAVE_IVI_SHELL
+    if (self->display->ivi_application) {
+        if (self->surface_id == id)
+            return;
+
+        g_clear_pointer (&self->ivi_surface, ivi_surface_destroy);
+        self->surface_id = id;
+
+        /*
+         * For the invalid identifier, do not re-create the ivi_surface and
+         * return early i.e. disable assigning a role to the Wayland surface.
+         */
+        if (self->surface_id == 0)
+            return;
+
+        self->ivi_surface =
+            ivi_application_surface_create (self->display->ivi_application,
+                                            self->surface_id,
+                                            self->wl_surface);
+
+        static const struct ivi_surface_listener listener = {
+            .configure = window_ivi_surface_on_configure,
+        };
+        ivi_surface_add_listener (self->ivi_surface, &listener, self);
+
+        return;
+    }
+#endif /* HAVE_IVI_SHELL */
+
+    static bool warned = false;
+    if (!warned) {
+        warned = true;
+        g_warning ("No available shell capable of using window identifiers.");
+    }
+}
+
+
+uint32_t
+pwl_window_get_id (const PwlWindow *self)
+{
+    g_return_val_if_fail (self, 0);
+
+#ifdef HAVE_IVI_SHELL
+    if (self->display->ivi_application)
+        return self->surface_id;
+#endif /* HAVE_IVI_SHELL */
+
+    static bool warned = false;
+    if (!warned) {
+        warned = true;
+        g_warning ("No available shell capable of using window identifiers.");
+    }
+    return 0;
 }
 
 

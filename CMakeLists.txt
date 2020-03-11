@@ -58,6 +58,7 @@ option(COG_MODULE_FDO_SHELL "Build the FDO shell module" ON)
 option(COG_BUILD_PROGRAMS "Build and install programs as well" ON)
 option(INSTALL_MAN_PAGES "Install the man(1) pages if COG_BUILD_PROGRAMS is enabled" ON)
 option(COG_WESTON_DIRECT_DISPLAY "Build direct display support for the FDO platform module" OFF)
+option(COG_ENABLE_IVI_SHELL "Build with support for the IVI application interface" OFF)
 
 set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
@@ -219,6 +220,10 @@ if (COG_MODULE_FDO_SHELL)
     find_package (WaylandProtocols REQUIRED)
     add_wayland_protocol (platform-wl CLIENT xdg-shell)
     add_wayland_protocol (platform-wl CLIENT fullscreen-shell-unstable-v1)
+    if (COG_ENABLE_IVI_SHELL)
+        add_wayland_protocol (platform-wl CLIENT ivi-application.xml)
+        target_compile_definitions (platform-wl PRIVATE HAVE_IVI_SHELL)
+    endif ()
 endif ()
 
 # FDO shell module

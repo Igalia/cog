@@ -130,6 +130,9 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC (PwlWindow, pwl_window_destroy)
 void pwl_window_set_application_id (PwlWindow*, const char *application_id);
 void pwl_window_set_title (PwlWindow*, const char *title);
 
+void pwl_window_set_id (PwlWindow*, uint32_t);
+uint32_t pwl_window_get_id (const PwlWindow*);
+
 struct wl_surface* pwl_window_get_surface (const PwlWindow*);
 
 void pwl_window_get_size (const PwlWindow*, uint32_t *w, uint32_t *h);
