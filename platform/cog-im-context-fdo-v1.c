@@ -419,10 +419,16 @@ text_input_commit_string (void *data,
         g_clear_pointer (&priv->preedit.text, g_free);
     }
 
-    if (valid && priv->pending_surrounding_delete.length) {
+    if (valid && priv->surrounding.text && priv->pending_surrounding_delete.length) {
+        char *pos = priv->surrounding.text + priv->surrounding.cursor_index;
+        glong char_index = g_utf8_pointer_to_offset (priv->surrounding.text, pos);
+        pos += priv->pending_surrounding_delete.index;
+        glong char_start = g_utf8_pointer_to_offset (priv->surrounding.text, pos);
+        pos += priv->pending_surrounding_delete.length;
+        glong char_end = g_utf8_pointer_to_offset (priv->surrounding.text, pos);
+
         g_signal_emit_by_name (wl_text_input.context, "delete-surrounding",
-                               priv->pending_surrounding_delete.index,
-                               priv->pending_surrounding_delete.length);
+                               char_start - char_index, char_end - char_start);
     }
     priv->pending_surrounding_delete.index = 0;
     priv->pending_surrounding_delete.length = 0;
