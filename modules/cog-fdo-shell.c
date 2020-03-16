@@ -47,17 +47,19 @@ struct _CogFdoShell {
     gboolean            single_window;
     struct wl_callback *frame_callback;
     PwlWindow          *window; /* Non-NULL in single window mode. */
+    uint32_t            window_id;
 
     struct wpe_view_backend_exportable_fdo_egl_client exportable_client;
 };
 
 enum {
-    PROP_0,
-    PROP_SINGLE_WINDOW,
-    N_PROPERTIES,
+    SHELL_PROP_0,
+    SHELL_PROP_SINGLE_WINDOW,
+    SHELL_PROP_WINDOW_ID,
+    SHELL_N_PROPERTIES,
 };
 
-static GParamSpec *s_properties[N_PROPERTIES] = { NULL, };
+static GParamSpec *s_shell_properties[SHELL_N_PROPERTIES] = { NULL, };
 
 
 struct _CogFdoViewClass {
@@ -75,7 +77,16 @@ struct _CogFdoView {
     GHashTable         *buffer_images; /* (wl_buffer, wpe_fdo_egl_exported_image) */
 
     PwlWindow *window; /* Non-NULL in multiple window mode. */
+    uint32_t   window_id;
 };
+
+enum {
+    VIEW_PROP_0,
+    VIEW_PROP_WINDOW_ID,
+    VIEW_N_PROPERTIES,
+};
+
+static GParamSpec *s_view_properties[VIEW_N_PROPERTIES] = { NULL, };
 
 
 static void
@@ -357,6 +368,7 @@ cog_fdo_shell_initable_init (GInitable    *initable,
 
     if (self->single_window) {
         self->window = pwl_window_create (s_display);
+        pwl_window_set_id (self->window, self->window_id);
 
         pwl_window_notify_keyboard (self->window, cog_fdo_shell_on_keyboard, self);
 
@@ -781,6 +793,43 @@ cog_fdo_view_on_export_fdo_egl_image_multi_window (void                         
 
 
 static void
+cog_fdo_view_get_property (GObject    *object,
+                           unsigned    prop_id,
+                           GValue     *value,
+                           GParamSpec *pspec)
+{
+    CogFdoView *self = COG_FDO_VIEW (object);
+    switch (prop_id) {
+        case VIEW_PROP_WINDOW_ID:
+            g_value_set_uint (value, self->window_id);
+            break;
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    }
+}
+
+
+static void
+cog_fdo_view_set_property (GObject      *object,
+                           unsigned      prop_id,
+                           const GValue *value,
+                           GParamSpec   *pspec)
+{
+    CogFdoView *self = COG_FDO_VIEW (object);
+    switch (prop_id) {
+        case VIEW_PROP_WINDOW_ID:
+            self->window_id = g_value_get_uint (value);
+            /* The window might be NULL during construction. */
+            if (self->window)
+                pwl_window_set_id (self->window, self->window_id);
+            break;
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    }
+}
+
+
+static void
 cog_fdo_view_destroy_backend (void *userdata)
 {
     CogFdoView *self = userdata;
@@ -814,6 +863,7 @@ cog_fdo_view_constructor (GType                  type,
     } else {
         /* We need to create the window early to query the size. */
         self->window = pwl_window_create (s_display);
+        pwl_window_set_id (self->window, self->window_id);
 
         pwl_window_notify_keyboard (self->window, cog_fdo_view_on_keyboard, self);
 
@@ -915,9 +965,23 @@ static void
 cog_fdo_view_class_init (CogFdoViewClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
+    object_class->get_property = cog_fdo_view_get_property;
+    object_class->set_property = cog_fdo_view_set_property;
     object_class->constructor = cog_fdo_view_constructor;
     object_class->constructed = cog_fdo_view_constructed;
     object_class->dispose = cog_fdo_view_dispose;
+
+    s_view_properties[VIEW_PROP_WINDOW_ID] =
+        g_param_spec_uint ("window-id",
+                           "Window identifier",
+                           "Window identifier for the view",
+                           0, UINT32_MAX, 0,
+                           G_PARAM_READWRITE |
+                           G_PARAM_STATIC_STRINGS);
+
+    g_object_class_install_properties (object_class,
+                                       VIEW_N_PROPERTIES,
+                                       s_view_properties);
 }
 
 
@@ -968,8 +1032,11 @@ cog_fdo_shell_get_property (GObject    *object,
 {
     CogFdoShell *shell = COG_FDO_SHELL (object);
     switch (prop_id) {
-        case PROP_SINGLE_WINDOW:
+        case SHELL_PROP_SINGLE_WINDOW:
             g_value_set_boolean (value, shell->single_window);
+            break;
+        case SHELL_PROP_WINDOW_ID:
+            g_value_set_uint (value, shell->window_id);
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -985,10 +1052,16 @@ cog_fdo_shell_set_property (GObject      *object,
 {
     CogFdoShell *shell = COG_FDO_SHELL (object);
     switch (prop_id) {
-        case PROP_SINGLE_WINDOW:
+        case SHELL_PROP_SINGLE_WINDOW:
             shell->single_window = g_value_get_boolean (value);
             g_message ("%s: single_window = %s.", G_STRFUNC,
                        shell->single_window ? "TRUE" : FALSE);
+            break;
+        case SHELL_PROP_WINDOW_ID:
+            shell->window_id = g_value_get_uint (value);
+            /* The window might be NULL during construction. */
+            if (shell->window)
+                pwl_window_set_id (shell->window, shell->window_id);
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -1007,7 +1080,7 @@ cog_fdo_shell_class_init (CogFdoShellClass *klass)
     shell_class->is_supported = cog_fdo_shell_is_supported;
     shell_class->get_view_class = cog_fdo_view_get_type;
 
-    s_properties[PROP_SINGLE_WINDOW] =
+    s_shell_properties[SHELL_PROP_SINGLE_WINDOW] =
         g_param_spec_boolean ("single-window",
                               "Single window mode",
                               "Use one window for stacking all views",
@@ -1016,9 +1089,17 @@ cog_fdo_shell_class_init (CogFdoShellClass *klass)
                               G_PARAM_CONSTRUCT_ONLY |
                               G_PARAM_STATIC_STRINGS);
 
+    s_shell_properties[SHELL_PROP_WINDOW_ID] =
+        g_param_spec_uint ("window-id",
+                           "Window identifier",
+                           "Window identifier when in single window mode",
+                           0, UINT32_MAX, 0,
+                           G_PARAM_READWRITE |
+                           G_PARAM_STATIC_STRINGS);
+
     g_object_class_install_properties (object_class,
-                                       N_PROPERTIES,
-                                       s_properties);
+                                       SHELL_N_PROPERTIES,
+                                       s_shell_properties);
 }
 
 
