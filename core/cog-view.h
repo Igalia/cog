@@ -23,6 +23,12 @@ struct _CogViewClass {
     WebKitWebViewClass parent_class;
 
     void     (*setup)     (CogView*);
+
+    void     (*padding_0) (void);
+    void     (*padding_1) (void);
+    void     (*padding_2) (void);
+    void     (*padding_3) (void);
+    void     (*padding_4) (void);
 };
 
 const char* cog_view_get_name      (CogView *view);

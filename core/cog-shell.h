@@ -24,6 +24,12 @@ struct _CogShellClass {
 
     gboolean (*is_supported)   (void);
     GType    (*get_view_class) (void);
+
+    void     (*padding_0)      (void);
+    void     (*padding_1)      (void);
+    void     (*padding_2)      (void);
+    void     (*padding_3)      (void);
+    void     (*padding_4)      (void);
 };
 
 CogShell*   cog_shell_new              (GError    **error,
