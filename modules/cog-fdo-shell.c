@@ -936,6 +936,20 @@ cog_fdo_view_constructed (GObject *self)
         g_signal_connect_after (self, "notify::focused",
                                 G_CALLBACK (cog_fdo_view_on_notify_focused),
                                 NULL);
+        /*
+         * Keep the "in-window" and "visible" synchronized with "focused":
+         * in single window mode the focused view is the only one visible.
+         */
+        g_object_bind_property (self, "focused", self, "in-window",
+                                G_BINDING_SYNC_CREATE | G_BINDING_DEFAULT);
+        g_object_bind_property (self, "focused", self, "visible",
+                                G_BINDING_SYNC_CREATE | G_BINDING_DEFAULT);
+    } else {
+        /* TODO: Provide a mechanism to update the "visible" property. */
+        cog_view_set_visible (COG_VIEW (self), TRUE);
+
+        /* The web view is always inside its own window. */
+        cog_view_set_in_window (COG_VIEW (self), TRUE);
     }
 }
 
