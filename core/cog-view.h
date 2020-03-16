@@ -21,6 +21,8 @@ G_DECLARE_DERIVABLE_TYPE (CogView, cog_view, COG, VIEW, WebKitWebView)
 struct _CogViewClass {
     /*< private >*/
     WebKitWebViewClass parent_class;
+
+    void     (*setup)     (CogView*);
 };
 
 const char* cog_view_get_name      (CogView *view);

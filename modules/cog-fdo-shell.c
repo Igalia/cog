@@ -837,25 +837,11 @@ cog_fdo_view_destroy_backend (void *userdata)
 }
 
 
-/*
- * Here be dragons.
- *
- * We want to use the CogFdoView as userdata for the FDO backend client,
- * but we need to create the WebKitWebViewBackend from it before the
- * WebKitWebView is constructed. While this seems like a chicken-and-egg
- * issue, in reality the backend is not used until the .constructed
- */
-static GObject*
-cog_fdo_view_constructor (GType                  type,
-                          unsigned               n_properties,
-                          GObjectConstructParam *properties)
+static void
+cog_fdo_view_setup (CogView *view)
 {
-    GObject *obj = G_OBJECT_CLASS (cog_fdo_view_parent_class)->constructor (type,
-                                                                            n_properties,
-                                                                            properties);
-
-    CogFdoShell *shell = (CogFdoShell*) cog_view_get_shell (COG_VIEW (obj));
-    CogFdoView *self = (CogFdoView*) obj;
+    CogFdoShell *shell = COG_FDO_SHELL (cog_view_get_shell (view));
+    CogFdoView *self = COG_FDO_VIEW (view);
 
     uint32_t width, height;
     if (shell->single_window) {
@@ -894,14 +880,12 @@ cog_fdo_view_constructor (GType                  type,
     g_value_take_boxed (g_value_init (&backend_value,
                                       WEBKIT_TYPE_WEB_VIEW_BACKEND),
                         backend);
-    g_object_set_property (obj, "backend", &backend_value);
+    g_object_set_property (G_OBJECT (self), "backend", &backend_value);
 
-    g_debug ("%s: created @ %p, backend @ %p (%" PRIu32 "x%" PRIu32 "), "
+    g_debug ("%s: view @ %p, backend @ %p (%" PRIu32 "x%" PRIu32 "), "
              "exportable @ %p, %s window.",
              G_STRFUNC, self, backend, width, height, self->exportable,
              shell->single_window ? "shared" : "own");
-
-    return obj;
 }
 
 
@@ -981,9 +965,11 @@ cog_fdo_view_class_init (CogFdoViewClass *klass)
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
     object_class->get_property = cog_fdo_view_get_property;
     object_class->set_property = cog_fdo_view_set_property;
-    object_class->constructor = cog_fdo_view_constructor;
     object_class->constructed = cog_fdo_view_constructed;
     object_class->dispose = cog_fdo_view_dispose;
+
+    CogViewClass *view_class = COG_VIEW_CLASS (klass);
+    view_class->setup = cog_fdo_view_setup;
 
     s_view_properties[VIEW_PROP_WINDOW_ID] =
         g_param_spec_uint ("window-id",

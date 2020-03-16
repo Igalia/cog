@@ -84,6 +84,21 @@ cog_view_set_property (GObject      *object,
     }
 }
 
+static GObject*
+cog_view_constructor (GType                  type,
+                      unsigned               n_properties,
+                      GObjectConstructParam *properties)
+{
+    GObject *obj = G_OBJECT_CLASS (cog_view_parent_class)->constructor (type,
+                                                                        n_properties,
+                                                                        properties);
+    CogViewClass *view_class = COG_VIEW_GET_CLASS (obj);
+    if (view_class->setup)
+        view_class->setup (COG_VIEW (obj));
+
+    return obj;
+}
+
 static void
 cog_view_constructed (GObject *object)
 {
@@ -110,6 +125,7 @@ cog_view_class_init (CogViewClass *klass)
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
     object_class->get_property = cog_view_get_property;
     object_class->set_property = cog_view_set_property;
+    object_class->constructor = cog_view_constructor;
     object_class->constructed = cog_view_constructed;
     object_class->dispose = cog_view_dispose;
 
