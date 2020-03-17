@@ -135,6 +135,11 @@ else ()
     else ()
         set(COG_IM_API_SUPPORTED OFF)
     endif ()
+    if (COG_PLATFORM_FDO AND "${WEB_ENGINE_VERSION}" VERSION_GREATER "2.27.3")
+        set(COG_FDO_WIDGETS_SUPPORTED ON)
+    else ()
+        set(COG_FDO_WIDGETS_SUPPORTED OFF)
+    endif ()
 endif ()
 
 include(CheckCCompilerFlag)
@@ -256,6 +261,29 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
         add_definitions(-DCOG_IM_API_SUPPORTED=1)
     else ()
         add_definitions(-DCOG_IM_API_SUPPORTED=0)
+    endif ()
+
+    if (COG_FDO_WIDGETS_SUPPORTED)
+        pkg_check_modules(CAIRO cairo)
+
+        list(APPEND COGPLATFORM_FDO_INCLUDE_DIRS
+            ${CAIRO_INCLUDE_DIRS}
+        )
+        list(APPEND COGPLATFORM_FDO_CFLAGS
+            ${CAIRO_CFLAGS_OTHER}
+        )
+        list(APPEND COGPLATFORM_FDO_LDFLAGS
+            ${CAIRO_LDFLAGS}
+        )
+
+        list(APPEND COGPLATFORM_FDO_SOURCES
+            platform/cog-popup-menu-fdo.c
+            platform/os-compatibility.c
+        )
+
+        add_definitions(-DCOG_FDO_WIDGETS_SUPPORTED=1)
+    else ()
+        add_definitions(-DCOG_FDO_WIDGETS_SUPPORTED=0)
     endif ()
 
     find_path(WPEBACKEND_FDO_HAS_VIDEO_PLANE_DISPLAY_DMABUF_EXT
