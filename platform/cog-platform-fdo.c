@@ -110,6 +110,7 @@ static struct {
     struct wl_shell *shell;
 
     struct wl_seat *seat;
+    uint32_t event_serial;
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     struct zwp_linux_dmabuf_v1 *dmabuf;
@@ -134,6 +135,7 @@ static struct {
 
     struct {
         struct wl_pointer *obj;
+        struct wl_surface *surface;
         int32_t x;
         int32_t y;
         uint32_t button;
@@ -161,12 +163,11 @@ static struct {
             uint32_t state;
             uint32_t event_source;
         } repeat_data;
-
-        uint32_t serial;
     } keyboard;
 
     struct {
         struct wl_touch *obj;
+        struct wl_surface *surface;
         struct wpe_input_touch_event_raw points[10];
     } touch;
 
@@ -603,6 +604,8 @@ pointer_on_enter (void* data,
                   wl_fixed_t fixed_x,
                   wl_fixed_t fixed_y)
 {
+    wl_data.event_serial = serial;
+    wl_data.pointer.surface = surface;
 }
 
 static void
@@ -611,6 +614,8 @@ pointer_on_leave (void* data,
                   uint32_t serial,
                   struct wl_surface* surface)
 {
+    wl_data.event_serial = serial;
+    wl_data.pointer.surface = NULL;
 }
 
 static void
@@ -643,6 +648,8 @@ pointer_on_button (void* data,
                    uint32_t button,
                    uint32_t state)
 {
+    wl_data.event_serial = serial;
+
     /* @FIXME: what is this for?
     if (button >= BTN_MOUSE)
         button = button - BTN_MOUSE + 1;
@@ -838,8 +845,7 @@ keyboard_on_enter (void *data,
                    struct wl_surface *surface,
                    struct wl_array *keys)
 {
-    g_assert (surface == win_data.wl_surface);
-    wl_data.keyboard.serial = serial;
+    wl_data.event_serial = serial;
 }
 
 static void
@@ -848,7 +854,7 @@ keyboard_on_leave (void *data,
                    uint32_t serial,
                    struct wl_surface *surface)
 {
-    wl_data.keyboard.serial = serial;
+    wl_data.event_serial = serial;
 }
 
 static bool
@@ -973,7 +979,7 @@ keyboard_on_key (void *data,
     // IDK.
     key += 8;
 
-    wl_data.keyboard.serial = serial;
+    wl_data.event_serial = serial;
     handle_key_event (key, state, time);
 
     if (wl_data.keyboard.repeat_info.rate == 0)
@@ -1012,6 +1018,7 @@ keyboard_on_modifiers (void *data,
 {
     if (xkb_data.state == NULL)
         return;
+    wl_data.event_serial = serial;
 
     xkb_state_update_mask (xkb_data.state,
                            mods_depressed,
@@ -1079,6 +1086,9 @@ touch_on_down (void *data,
                wl_fixed_t x,
                wl_fixed_t y)
 {
+    wl_data.touch.surface = surface;
+    wl_data.event_serial = serial;
+
     if (id < 0 || id >= 10)
         return;
 
@@ -1112,6 +1122,9 @@ touch_on_up (void *data,
              uint32_t time,
              int32_t id)
 {
+    wl_data.touch.surface = NULL;
+    wl_data.event_serial = serial;
+
     if (id < 0 || id >= 10)
         return;
 
