@@ -396,10 +396,14 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
 #endif
                                                       NULL);
 
-#if !COG_USE_WEBKITGTK && COG_IM_API_SUPPORTED
+#if !COG_USE_WEBKITGTK
     if (s_options.platform) {
+        cog_platform_init_web_view (s_options.platform, web_view);
+
+#if COG_IM_API_SUPPORTED
         g_autoptr(WebKitInputMethodContext) im_context = cog_platform_create_im_context (s_options.platform);
         webkit_web_view_set_input_method_context (web_view, im_context);
+#endif
     }
 #endif
 

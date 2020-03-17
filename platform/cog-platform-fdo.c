@@ -1947,6 +1947,12 @@ cog_platform_plugin_get_view_backend (CogPlatform   *platform,
     return wk_view_backend;
 }
 
+void
+cog_platform_plugin_init_web_view (CogPlatform   *platform,
+                                   WebKitWebView *view)
+{
+}
+
 #if COG_IM_API_SUPPORTED
 WebKitInputMethodContext*
 cog_platform_plugin_create_im_context (CogPlatform *platform)

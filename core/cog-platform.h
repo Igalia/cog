@@ -51,6 +51,9 @@ WebKitWebViewBackend     *cog_platform_get_view_backend  (CogPlatform   *platfor
                                                           WebKitWebView *related_view,
                                                           GError       **error);
 
+void                      cog_platform_init_web_view     (CogPlatform   *platform,
+                                                          WebKitWebView *view);
+
 WebKitInputMethodContext *cog_platform_create_im_context (CogPlatform   *platform);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (CogPlatform, cog_platform_free)
