@@ -384,6 +384,34 @@ static const struct wl_shell_surface_listener shell_surface_listener = {
 };
 
 static void
+shell_popup_surface_ping (void *data,
+                          struct wl_shell_surface *shell_surface,
+                          uint32_t serial)
+{
+    wl_shell_surface_pong (shell_surface, serial);
+}
+
+static void
+shell_popup_surface_configure (void *data,
+                               struct wl_shell_surface *shell_surface,
+                               uint32_t edges,
+                               int32_t width, int32_t height)
+{
+}
+
+static void
+shell_popup_surface_popup_done (void *data,
+                          struct wl_shell_surface *shell_surface)
+{
+}
+
+static const struct wl_shell_surface_listener shell_popup_surface_listener = {
+    .ping = shell_popup_surface_ping,
+    .configure = shell_popup_surface_configure,
+    .popup_done = shell_popup_surface_popup_done,
+};
+
+static void
 xdg_shell_ping (void *data, struct xdg_wm_base *shell, uint32_t serial)
 {
     xdg_wm_base_pong(shell, serial);
@@ -427,6 +455,26 @@ xdg_toplevel_on_close (void *data, struct xdg_toplevel *xdg_toplevel)
 static const struct xdg_toplevel_listener xdg_toplevel_listener = {
     .configure = xdg_toplevel_on_configure,
     .close = xdg_toplevel_on_close,
+};
+
+static void
+xdg_popup_on_configure (void *data,
+                        struct xdg_popup *xdg_popup,
+                        int32_t x,
+                        int32_t y,
+                        int32_t width,
+                        int32_t height)
+{
+}
+
+static void
+xdg_popup_on_popup_done (void *data, struct xdg_popup *xdg_popup)
+{
+}
+
+static const struct xdg_popup_listener xdg_popup_listener = {
+    .configure = xdg_popup_on_configure,
+    .popup_done = xdg_popup_on_popup_done,
 };
 
 
