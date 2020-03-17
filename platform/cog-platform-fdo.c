@@ -43,6 +43,8 @@
 #include "text-input-unstable-v3-client.h"
 #endif
 
+#include "cog-popup-menu-fdo.h"
+
 #include "linux-dmabuf-unstable-v1-client.h"
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
@@ -204,6 +206,25 @@ static struct {
     .is_maximized = false,
 };
 
+static struct {
+    struct wl_surface *wl_surface;
+
+    struct xdg_positioner *xdg_positioner;
+    struct xdg_surface *xdg_surface;
+    struct xdg_popup *xdg_popup;
+
+    struct wl_shell_surface *shell_surface;
+
+    uint32_t width;
+    uint32_t height;
+
+    CogPopupMenu *popup_menu;
+    WebKitOptionMenu *option_menu;
+    bool configured;
+} popup_data = {
+    .configured = false,
+};
+
 
 static struct {
     struct xkb_context* context;
@@ -321,6 +342,10 @@ setup_wayland_event_source (GMainContext *main_context,
     return &wl_source->source;
 }
 
+static void create_popup (WebKitOptionMenu *option_menu);
+static void update_popup (void);
+static void destroy_popup (void);
+
 static void
 configure_surface_geometry (int32_t width, int32_t height)
 {
@@ -401,7 +426,7 @@ shell_popup_surface_configure (void *data,
 
 static void
 shell_popup_surface_popup_done (void *data,
-                          struct wl_shell_surface *shell_surface)
+                                struct wl_shell_surface *shell_surface)
 {
 }
 
@@ -465,11 +490,23 @@ xdg_popup_on_configure (void *data,
                         int32_t width,
                         int32_t height)
 {
+    if (popup_data.popup_menu == NULL)
+        return;
+
+    if (!popup_data.configured) {
+        popup_data.configured = true;
+
+        struct wl_buffer *buffer = cog_popup_menu_get_buffer (popup_data.popup_menu);
+        wl_surface_attach (popup_data.wl_surface, buffer, 0, 0);
+        wl_surface_damage (popup_data.wl_surface, 0, 0, INT_MAX, INT_MAX);
+        wl_surface_commit (popup_data.wl_surface);
+    }
 }
 
 static void
 xdg_popup_on_popup_done (void *data, struct xdg_popup *xdg_popup)
 {
+    destroy_popup ();
 }
 
 static const struct xdg_popup_listener xdg_popup_listener = {
@@ -722,6 +759,18 @@ pointer_on_button (void* data,
         wl_data.pointer.button,
         wl_data.pointer.state,
     };
+
+    if (popup_data.wl_surface) {
+        if (wl_data.pointer.surface == popup_data.wl_surface) {
+            cog_popup_menu_handle_event (popup_data.popup_menu,
+                                         event.state, event.x, event.y);
+            update_popup ();
+            return;
+        } else {
+            if (!!state)
+                destroy_popup ();
+        }
+    }
 
     wpe_view_backend_dispatch_pointer_event (wpe_view_data.backend, &event);
 }
@@ -1158,6 +1207,16 @@ touch_on_down (void *data,
             &raw_event,
             sizeof (struct wpe_input_touch_event_raw));
 
+    if (popup_data.wl_surface) {
+        if (wl_data.touch.surface == popup_data.wl_surface) {
+            cog_popup_menu_handle_event (popup_data.popup_menu,
+                                         1, raw_event.x, raw_event.y);
+            update_popup ();
+            return;
+        } else
+            destroy_popup ();
+    }
+
     struct wpe_input_touch_event event = {
         wl_data.touch.points,
         10,
@@ -1176,6 +1235,7 @@ touch_on_up (void *data,
              uint32_t time,
              int32_t id)
 {
+    struct wl_surface *target_surface = wl_data.touch.surface;
     wl_data.touch.surface = NULL;
     wl_data.event_serial = serial;
 
@@ -1189,6 +1249,19 @@ touch_on_up (void *data,
         wl_data.touch.points[id].x,
         wl_data.touch.points[id].y,
     };
+
+    if (popup_data.wl_surface) {
+        if (target_surface == popup_data.wl_surface) {
+            cog_popup_menu_handle_event (popup_data.popup_menu,
+                                         0, raw_event.x, raw_event.y);
+            update_popup ();
+
+            memset (&wl_data.touch.points[id],
+                    0x00,
+                    sizeof (struct wpe_input_touch_event_raw));
+            return;
+        }
+    }
 
     memcpy (&wl_data.touch.points[id],
             &raw_event,
@@ -1819,6 +1892,103 @@ destroy_window (void)
 #endif
 }
 
+static void
+create_popup (WebKitOptionMenu *option_menu)
+{
+    popup_data.option_menu = option_menu;
+
+    popup_data.width = win_data.width;
+    popup_data.height = cog_popup_menu_get_height_for_option_menu (option_menu);
+
+    popup_data.popup_menu = cog_popup_menu_create (option_menu, wl_data.shm,
+                                                   popup_data.width,
+                                                   popup_data.height,
+                                                   wl_data.current_output.scale);
+
+    popup_data.wl_surface = wl_compositor_create_surface (wl_data.compositor);
+    g_assert (popup_data.wl_surface);
+    wl_surface_set_buffer_scale (popup_data.wl_surface, wl_data.current_output.scale);
+
+    if (wl_data.xdg_shell != NULL) {
+        popup_data.xdg_positioner = xdg_wm_base_create_positioner (wl_data.xdg_shell);
+        g_assert (popup_data.xdg_positioner);
+
+        xdg_positioner_set_size (popup_data.xdg_positioner,
+                                 popup_data.width,
+                                 popup_data.height);
+        xdg_positioner_set_anchor_rect (popup_data.xdg_positioner,
+                                        0, (win_data.height - popup_data.height),
+                                        popup_data.width,
+                                        popup_data.height);
+
+        popup_data.xdg_surface = xdg_wm_base_get_xdg_surface (wl_data.xdg_shell,
+                                                              popup_data.wl_surface);
+        g_assert (popup_data.xdg_surface);
+
+        xdg_surface_add_listener (popup_data.xdg_surface,
+                                  &xdg_surface_listener,
+                                  NULL);
+        popup_data.xdg_popup = xdg_surface_get_popup (popup_data.xdg_surface,
+                                                      win_data.xdg_surface,
+                                                      popup_data.xdg_positioner);
+        g_assert (popup_data.xdg_popup);
+
+        xdg_popup_add_listener (popup_data.xdg_popup,
+                                &xdg_popup_listener,
+                                NULL);
+        xdg_popup_grab (popup_data.xdg_popup, wl_data.seat, wl_data.event_serial);
+        wl_surface_commit (popup_data.wl_surface);
+    } else if (wl_data.shell != NULL) {
+        popup_data.shell_surface = wl_shell_get_shell_surface (wl_data.shell,
+                                                               popup_data.wl_surface);
+        g_assert (popup_data.shell_surface);
+
+        wl_shell_surface_add_listener (popup_data.shell_surface,
+                                       &shell_popup_surface_listener,
+                                       NULL);
+        wl_shell_surface_set_popup (popup_data.shell_surface,
+                                    wl_data.seat, wl_data.event_serial,
+                                    win_data.wl_surface,
+                                    0, (win_data.height - popup_data.height), 0);
+
+        update_popup ();
+    }
+}
+
+static void
+destroy_popup (void)
+{
+    webkit_option_menu_close (popup_data.option_menu);
+    g_clear_object (&popup_data.option_menu);
+
+    g_clear_pointer (&popup_data.xdg_popup, xdg_popup_destroy);
+    g_clear_pointer (&popup_data.xdg_surface, xdg_surface_destroy);
+    g_clear_pointer (&popup_data.xdg_positioner, xdg_positioner_destroy);
+    g_clear_pointer (&popup_data.shell_surface, wl_shell_surface_destroy);
+    g_clear_pointer (&popup_data.wl_surface, wl_surface_destroy);
+
+    popup_data.configured = false;
+}
+
+static void
+update_popup (void)
+{
+    int selected_index;
+    bool has_final_selection = cog_popup_menu_has_final_selection (popup_data.popup_menu,
+                                                                   &selected_index);
+    if (has_final_selection) {
+        if (selected_index != -1)
+            webkit_option_menu_activate_item (popup_data.option_menu, selected_index);
+        destroy_popup ();
+        return;
+    }
+
+    struct wl_buffer *buffer = cog_popup_menu_get_buffer (popup_data.popup_menu);
+    wl_surface_attach (popup_data.wl_surface, buffer, 0, 0);
+    wl_surface_damage (popup_data.wl_surface, 0, 0, INT_MAX, INT_MAX);
+    wl_surface_commit (popup_data.wl_surface);
+}
+
 static gboolean
 init_input (GError **error)
 {
@@ -1995,10 +2165,20 @@ cog_platform_plugin_get_view_backend (CogPlatform   *platform,
     return wk_view_backend;
 }
 
+static void
+on_show_option_menu (WebKitWebView *view,
+                     WebKitOptionMenu *menu,
+                     WebKitRectangle *rectangle,
+                     gpointer *data)
+{
+    create_popup (g_object_ref (menu));
+}
+
 void
 cog_platform_plugin_init_web_view (CogPlatform   *platform,
                                    WebKitWebView *view)
 {
+    g_signal_connect (view, "show-option-menu", G_CALLBACK (on_show_option_menu), NULL);
 }
 
 #if COG_IM_API_SUPPORTED
