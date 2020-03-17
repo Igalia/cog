@@ -104,6 +104,7 @@ static struct {
     struct wl_registry *registry;
     struct wl_compositor *compositor;
     struct wl_subcompositor *subcompositor;
+    struct wl_shm *shm;
 
     struct xdg_wm_base *xdg_shell;
     struct zwp_fullscreen_shell_v1 *fshell;
@@ -515,6 +516,11 @@ registry_global (void               *data,
                                           name,
                                           &wl_shell_interface,
                                           version);
+    } else if (strcmp (interface, wl_shm_interface.name) == 0) {
+        wl_data.shm = wl_registry_bind (registry,
+                                        name,
+                                        &wl_shm_interface,
+                                        version);
     } else if (strcmp (interface, xdg_wm_base_interface.name) == 0) {
         wl_data.xdg_shell = wl_registry_bind (registry,
                                               name,
@@ -1591,6 +1597,7 @@ clear_wayland (void)
     if (wl_data.shell != NULL)
         wl_shell_destroy (wl_data.shell);
 
+    g_clear_pointer (&wl_data.shm, wl_shm_destroy);
     g_clear_pointer (&wl_data.subcompositor, wl_subcompositor_destroy);
     g_clear_pointer (&wl_data.compositor, wl_compositor_destroy);
 
