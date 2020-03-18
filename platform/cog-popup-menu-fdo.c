@@ -36,10 +36,9 @@ typedef struct _CogPopupMenu {
     int menu_item_width;
 
     guint menu_num_items;
-    bool in_selection;
-    bool finalized_selection;
     int initial_selected_index;
-    int selected_index;
+    bool finalized_selection;
+    int finalized_selection_index;
     bool pending_changes;
 } CogPopupMenu;
 
@@ -76,7 +75,7 @@ cog_popup_menu_paint (CogPopupMenu *popup_menu)
 
             if (!webkit_option_menu_item_is_enabled (item)) {
                 cairo_set_source_rgba (popup_menu->cr, 0.6, 0.6, 0.6, 1);
-            } else if (i == popup_menu->selected_index) {
+            } else if (i == popup_menu->finalized_selection_index) {
                 cairo_set_source_rgba (popup_menu->cr, 0.3, 0.7, 1, 1);
             } else if (webkit_option_menu_item_is_selected (item)) {
                 cairo_set_source_rgba (popup_menu->cr, 0.6, 0.8, 1, 1);
@@ -156,9 +155,9 @@ cog_popup_menu_create (WebKitOptionMenu *option_menu, struct wl_shm *shm, int wi
     popup_menu->cr = cairo_create (popup_menu->cr_surface);
 
     popup_menu->menu_num_items = MIN(webkit_option_menu_get_n_items (option_menu), 7);
-    popup_menu->in_selection = false;
     popup_menu->initial_selected_index = -1;
-    popup_menu->selected_index = -1;
+    popup_menu->finalized_selection = false;
+    popup_menu->finalized_selection_index = -1;
     popup_menu->pending_changes = false;
 
     {
@@ -212,16 +211,14 @@ cog_popup_menu_handle_event (CogPopupMenu *popup_menu, int state, int x_coord, i
     }
 
     if (!!state) {
-        popup_menu->in_selection = true;
-        popup_menu->selected_index = index;
+        popup_menu->finalized_selection_index = index;
         popup_menu->pending_changes = true;
     } else {
-        popup_menu->in_selection = false;
-        if (index == popup_menu->selected_index) {
-            if (index == -1)
-                popup_menu->selected_index = popup_menu->initial_selected_index;
-            popup_menu->pending_changes = false;
+        if (index == popup_menu->finalized_selection_index) {
             popup_menu->finalized_selection = true;
+            if (index == -1)
+                popup_menu->finalized_selection_index = popup_menu->initial_selected_index;
+            popup_menu->pending_changes = false;
         } else
             popup_menu->pending_changes = true;
     }
@@ -231,7 +228,7 @@ gboolean
 cog_popup_menu_has_final_selection (CogPopupMenu *popup_menu, int *selected_index)
 {
     if (popup_menu->finalized_selection) {
-        *selected_index = popup_menu->selected_index;
+        *selected_index = popup_menu->finalized_selection_index;
         return true;
     }
 
