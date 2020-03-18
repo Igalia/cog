@@ -12,9 +12,17 @@
 #include <gio/gio.h>
 #include <sys/mman.h>
 
-#ifdef HAVE_IVI_SHELL
+#ifdef HAVE_XDG_SHELL
+#include "xdg-shell-client.h"
+#endif /* HAVE_XDG_SHELL */
+
+#ifdef HAVE_FULLSCREEN_SHELL_UNSTABLE_V1
+#include "fullscreen-shell-unstable-v1-client.h"
+#endif /* HAVE_FULLSCREEN_SHELL_UNSTABLE_V1 */
+
+#ifdef HAVE_IVI_APPLICATION
 #include "ivi-application-client.h"
-#endif /* HAVE_IVI_SHELL */
+#endif /* HAVE_IVI_APPLICATION */
 
 #if 0
 # define TRACE(fmt, ...) g_debug ("%s: " fmt, G_STRFUNC, __VA_ARGS__)
@@ -66,13 +74,19 @@ struct _PwlDisplay {
     uint32_t            keyboard_repeat_state;
     GSource            *keyboard_repeat_source;
 
-    struct xdg_wm_base *xdg_shell;
-    struct zwp_fullscreen_shell_v1 *fshell;
     struct wl_shell *shell;
 
-#ifdef HAVE_IVI_SHELL
+#ifdef HAVE_XDG_SHELL
+    struct xdg_wm_base *xdg_shell;
+#endif /* HAVE_XDG_SHELL */
+
+#ifdef HAVE_FULLSCREEN_SHELL_UNSTABLE_V1
+    struct zwp_fullscreen_shell_v1 *fshell;
+#endif /* HAVE_FULLSCREEN_SHELL_UNSTABLE_V1 */
+
+#ifdef HAVE_IVI_APPLICATION
     struct ivi_application *ivi_application;
-#endif /* HAVE_IVI_SHELL */
+#endif /* HAVE_IVI_APPLICATION */
 
     struct wl_list outputs; /* wl_list<PwlOutput> */
 
@@ -91,14 +105,17 @@ struct _PwlWindow {
     struct wl_surface *wl_surface;
     struct wl_surface_listener surface_listener;
 
-    struct xdg_surface *xdg_surface;
-    struct xdg_toplevel *xdg_toplevel;
     struct wl_shell_surface *shell_surface;
 
-#ifdef HAVE_IVI_SHELL
+#ifdef HAVE_XDG_SHELL
+    struct xdg_surface *xdg_surface;
+    struct xdg_toplevel *xdg_toplevel;
+#endif /* HAVE_XDG_SHELL */
+
+#ifdef HAVE_IVI_APPLICATION
     struct ivi_surface *ivi_surface;
     uint32_t surface_id;
-#endif /* HAVE_IVI_SHELL */
+#endif /* HAVE_IVI_APPLICATION */
 
     uint32_t width;
     uint32_t height;
@@ -998,11 +1015,13 @@ display_on_seat_name (void           *data G_GNUC_UNUSED,
 }
 
 
+#ifdef HAVE_XDG_SHELL
 static void
 xdg_shell_ping (void *data, struct xdg_wm_base *shell, uint32_t serial)
 {
     xdg_wm_base_pong (shell, serial);
 }
+#endif /* HAVE_XDG_SHELL */
 
 
 static void
@@ -1015,14 +1034,36 @@ registry_global (void               *data,
     PwlDisplay *display = data;
     gboolean interface_used = TRUE;
 
-#if HAVE_IVI_SHELL
+#ifdef HAVE_XDG_SHELL
+    if (strcmp (interface, xdg_wm_base_interface.name) == 0) {
+        display->xdg_shell = wl_registry_bind (registry,
+                                               name,
+                                               &xdg_wm_base_interface,
+                                               version);
+        g_assert (display->xdg_shell);
+        static const struct xdg_wm_base_listener xdg_shell_listener = {
+            .ping = xdg_shell_ping,
+        };
+        xdg_wm_base_add_listener (display->xdg_shell, &xdg_shell_listener, NULL);
+    } else
+#endif /* HAVE_XDG_SHELL */
+#ifdef HAVE_FULLSCREEN_SHELL_UNSTABLE_V1
+    if (strcmp (interface,
+                zwp_fullscreen_shell_v1_interface.name) == 0) {
+        display->fshell = wl_registry_bind (registry,
+                                            name,
+                                            &zwp_fullscreen_shell_v1_interface,
+                                            version);
+    } else 
+#endif /* HAVE_FULLSCREEN_SHELL_UNSTABLE_V1 */
+#ifdef HAVE_IVI_APPLICATION
     if (strcmp (interface, ivi_application_interface.name) == 0) {
         display->ivi_application = wl_registry_bind (registry,
                                                      name,
                                                      &ivi_application_interface,
                                                      version);
     } else
-#endif /* HAVE_IVI_SHELL */
+#endif /* HAVE_IVI_APPLICATION */
     if (strcmp (interface, wl_compositor_interface.name) == 0) {
         display->compositor = wl_registry_bind (registry,
                                                 name,
@@ -1033,22 +1074,6 @@ registry_global (void               *data,
                                            name,
                                            &wl_shell_interface,
                                            version);
-    } else if (strcmp (interface, xdg_wm_base_interface.name) == 0) {
-        display->xdg_shell = wl_registry_bind (registry,
-                                               name,
-                                               &xdg_wm_base_interface,
-                                               version);
-        g_assert (display->xdg_shell);
-        static const struct xdg_wm_base_listener xdg_shell_listener = {
-            .ping = xdg_shell_ping,
-        };
-        xdg_wm_base_add_listener (display->xdg_shell, &xdg_shell_listener, NULL);
-    } else if (strcmp (interface,
-                       zwp_fullscreen_shell_v1_interface.name) == 0) {
-        display->fshell = wl_registry_bind (registry,
-                                            name,
-                                            &zwp_fullscreen_shell_v1_interface,
-                                            version);
     } else if (strcmp (interface, wl_seat_interface.name) == 0) {
         if (display->seat) {
             g_warning ("%s: Multiple seats are not supported, ignoring "
@@ -1188,25 +1213,31 @@ pwl_display_connect (const char *name, GError **error)
         return NULL;
     }
 
-    if (!self->xdg_shell && !self->shell && !self->fshell
-#ifdef HAVE_IVI_SHELL
+    if (!self->shell
+#ifdef HAVE_XDG_SHELL
+        && !self->xdg_shell
+#endif /* HAVE_XDG_SHELL */
+#ifdef HAVE_FULLSCREEN_SHELL_UNSTABLE_V1
+        && !self->fshell
+#endif /* HAVE_FULLSCREEN_SHELL_UNSTABLE_V1 */
+#ifdef HAVE_IVI_APPLICATION
         && !self->ivi_application
-#endif /* HAVE_IVI_SHELL */
+#endif /* HAVE_IVI_APPLICATION */
         )
     {
-        g_set_error (error, PWL_ERROR, PWL_ERROR_WAYLAND,
-                     "Wayland display does not support a shell "
-                     "interface (%s, %s, "
-#ifdef HAVE_IVI_SHELL
-                     "%s, "
-#endif /* HAVE_IVI_SHELL */
-                     "or %s)",
-                     xdg_wm_base_interface.name,
-                     wl_shell_interface.name,
-#ifdef HAVE_IVI_SHELL
-                     ivi_application_interface.name,
-#endif /* HAVE_IVI_SHELL */
-                     zwp_fullscreen_shell_v1_interface.name);
+        g_set_error_literal (error, PWL_ERROR, PWL_ERROR_WAYLAND,
+                             "Wayland display does not support a shell "
+                             "interface (supported: "
+#ifdef HAVE_XDG_SHELL
+                             "xdg_wm_base, "
+#endif /* HAVE_XDG_SHELL */
+#ifdef HAVE_FULLSCREEN_SHELL_UNSTABLE_V1
+                             "fullscreen_shell, "
+#endif /* HAVE_FULLSCREEN_SHELL_UNSTABLE_V1 */
+#ifdef HAVE_IVI_APPLICATION
+                             "ivi_application, "
+#endif /* HAVE_IVI_APPLICATION */
+                             "wl_shell)");
         return NULL;
     }
 
@@ -1228,12 +1259,19 @@ pwl_display_destroy (PwlDisplay *self)
         display_stop_keyboard_repeat (self);
 
         g_clear_pointer (&self->event_src, g_source_destroy);
-        g_clear_pointer (&self->xdg_shell, xdg_wm_base_destroy);
-        g_clear_pointer (&self->fshell, zwp_fullscreen_shell_v1_destroy);
         g_clear_pointer (&self->shell, wl_shell_destroy);
-#ifdef HAVE_IVI_SHELL
+
+#ifdef HAVE_XDG_SHELL
+        g_clear_pointer (&self->xdg_shell, xdg_wm_base_destroy);
+#endif /* HAVE_XDG_SHELL */
+
+#ifdef HAVE_FULLSCREEN_SHELL_UNSTABLE_V1
+        g_clear_pointer (&self->fshell, zwp_fullscreen_shell_v1_destroy);
+#endif /* HAVE_FULLSCREEN_SHELL_UNSTABLE_V1 */
+
+#ifdef HAVE_IVI_APPLICATION
         g_clear_pointer (&self->ivi_application, ivi_application_destroy);
-#endif /* HAVE_IVI_SHELL */
+#endif /* HAVE_IVI_APPLICATION */
 
         g_clear_pointer (&self->pointer, wl_pointer_destroy);
         g_clear_pointer (&self->keyboard, wl_keyboard_destroy);
@@ -1648,6 +1686,7 @@ pwl_display_xkb_get_data (PwlDisplay *self)
 }
 
 
+#ifdef HAVE_XDG_SHELL
 static void
 xdg_surface_on_configure (void *data,
                           struct xdg_surface *surface,
@@ -1675,6 +1714,7 @@ xdg_toplevel_on_close (void *data, struct xdg_toplevel *xdg_toplevel)
 {
     // TODO g_application_quit (g_application_get_default ());
 }
+#endif /* HAVE_XDG_SHELL */
 
 /*
  * TODO: Library code must not use environment variables. This needs to be
@@ -1719,12 +1759,13 @@ pwl_window_create (PwlDisplay *display)
     };
     wl_surface_add_listener (self->wl_surface, &surface_listener, self);
 
-#ifdef HAVE_IVI_SHELL
+#ifdef HAVE_IVI_APPLICATION
     if (display->ivi_application) {
         /* Do nothing, .ivi_surface is created when setting an ID. */
         configure_surface_geometry (self, 0, 0);
     } else
-#endif /* HAVE_IVI_SHELL */
+#endif /* HAVE_IVI_APPLICATION */
+#ifdef HAVE_XDG_SHELL
     if (display->xdg_shell) {
         self->xdg_surface = xdg_wm_base_get_xdg_surface (display->xdg_shell,
                                                          self->wl_surface);
@@ -1743,13 +1784,18 @@ pwl_window_create (PwlDisplay *display)
         xdg_toplevel_add_listener (self->xdg_toplevel,
                                    &xdg_toplevel_listener,
                                    self);
-    } else if (display->fshell) {
+    } else
+#endif /* HAVE_XDG_SHELL */
+#ifdef HAVE_FULLSCREEN_SHELL_UNSTABLE_V1
+    if (display->fshell) {
         zwp_fullscreen_shell_v1_present_surface (display->fshell,
                                                  self->wl_surface,
                                                  ZWP_FULLSCREEN_SHELL_V1_PRESENT_METHOD_DEFAULT,
                                                  NULL);
         self->is_fullscreen = true;
-    } else if (display->shell) {
+    } else
+#endif /* HAVE_FULLSCREEN_SHELL_UNSTABLE_V1 */
+    if (display->shell) {
         self->shell_surface = wl_shell_get_shell_surface (display->shell,
                                                           self->wl_surface);
         static const struct wl_shell_surface_listener shell_surface_listener = {
@@ -1789,11 +1835,13 @@ pwl_window_destroy (PwlWindow *self)
 {
     g_return_if_fail (self);
 
-#ifdef HAVE_IVI_SHELL
+#ifdef HAVE_IVI_APPLICATION
     g_clear_pointer (&self->ivi_surface, ivi_surface_destroy);
-#endif /* HAVE_IVI_SHELL */
+#endif /* HAVE_IVI_APPLICATION */
+#ifdef HAVE_XDG_SHELL
     g_clear_pointer (&self->xdg_toplevel, xdg_toplevel_destroy);
     g_clear_pointer (&self->xdg_surface, xdg_surface_destroy);
+#endif /* HAVE_XDG_SHELL */
     g_clear_pointer (&self->shell_surface, wl_shell_surface_destroy);
     g_clear_pointer (&self->wl_surface, wl_surface_destroy);
 
@@ -1808,15 +1856,18 @@ pwl_window_set_application_id (PwlWindow *self, const char *application_id)
     g_return_if_fail (application_id);
     g_return_if_fail (*application_id != '\0');
 
+#ifdef HAVE_XDG_SHELL
     if (self->display->xdg_shell) {
         xdg_toplevel_set_app_id (self->xdg_toplevel, application_id);
-    } else if (self->display->shell) {
+    } else
+#endif /* HAVE_XDG_SHELL */
+    if (self->display->shell) {
         wl_shell_surface_set_class (self->shell_surface, application_id);
     }
 }
 
 
-#ifdef HAVE_IVI_SHELL
+#ifdef HAVE_IVI_APPLICATION
 static void
 window_ivi_surface_on_configure (void               *data,
                                  struct ivi_surface *surface G_GNUC_UNUSED,
@@ -1833,7 +1884,7 @@ window_ivi_surface_on_configure (void               *data,
 
     resize_window (self);
 }
-#endif /* HAVE_IVI_SHELL */
+#endif /* HAVE_IVI_APPLICATION */
 
 
 void
@@ -1842,7 +1893,7 @@ pwl_window_set_id (PwlWindow *self,
 {
     g_return_if_fail (self);
 
-#ifdef HAVE_IVI_SHELL
+#ifdef HAVE_IVI_APPLICATION
     if (self->display->ivi_application) {
         if (self->surface_id == id)
             return;
@@ -1869,7 +1920,7 @@ pwl_window_set_id (PwlWindow *self,
 
         return;
     }
-#endif /* HAVE_IVI_SHELL */
+#endif /* HAVE_IVI_APPLICATION */
 
     static bool warned = false;
     if (!warned) {
@@ -1884,10 +1935,10 @@ pwl_window_get_id (const PwlWindow *self)
 {
     g_return_val_if_fail (self, 0);
 
-#ifdef HAVE_IVI_SHELL
+#ifdef HAVE_IVI_APPLICATION
     if (self->display->ivi_application)
         return self->surface_id;
-#endif /* HAVE_IVI_SHELL */
+#endif /* HAVE_IVI_APPLICATION */
 
     static bool warned = false;
     if (!warned) {
@@ -1905,9 +1956,12 @@ pwl_window_set_title (PwlWindow *self, const char *title)
     g_return_if_fail (title);
     g_return_if_fail (*title != '\0');
 
+#ifdef HAVE_XDG_SHELL
     if (self->display->xdg_shell) {
         xdg_toplevel_set_title (self->xdg_toplevel, title);
-    } else if (self->display->shell) {
+    } else
+#endif /* HAVE_XDG_SHELL */
+    if (self->display->shell) {
         wl_shell_surface_set_title (self->shell_surface, title);
     }
 }
@@ -1957,13 +2011,16 @@ pwl_window_set_fullscreen (PwlWindow *self, bool fullscreen)
     if (self->is_fullscreen == fullscreen)
         return;
 
+#ifdef HAVE_XDG_SHELL
     if (self->display->xdg_shell) {
         if ((self->is_fullscreen = fullscreen)) {
             xdg_toplevel_set_fullscreen (self->xdg_toplevel, NULL);
         } else {
             xdg_toplevel_unset_fullscreen (self->xdg_toplevel);
         }
-    } else if (self->display->shell) {
+    } else
+#endif /* HAVE_XDG_SHELL */
+    if (self->display->shell) {
         if ((self->is_fullscreen = fullscreen)) {
             wl_shell_surface_set_fullscreen (self->shell_surface,
                                              WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE,
@@ -1994,13 +2051,16 @@ pwl_window_set_maximized (PwlWindow *self, bool maximized)
     if (self->is_maximized == maximized)
         return;
 
+#ifdef HAVE_XDG_SHELL
     if (self->display->xdg_shell) {
         if ((self->is_maximized = maximized)) {
             xdg_toplevel_set_maximized (self->xdg_toplevel);
         } else {
             xdg_toplevel_unset_maximized (self->xdg_toplevel);
         }
-    } else if (self->display->shell) {
+    } else
+#endif /* HAVE_XDG_SHELL */
+    if (self->display->shell) {
         if ((self->is_maximized = maximized)) {
             wl_shell_surface_set_maximized (self->shell_surface, NULL);
         } else {

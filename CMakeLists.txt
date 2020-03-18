@@ -217,13 +217,20 @@ if (COG_MODULE_FDO_SHELL)
         PkgConfig::PlatformWlOptional
     )
 
+    # For every supported Wayland "shell-ish" protocol, check whether
+    # there is an XML protocol definition around, and enable accordingly
+    # defining a HAVE_PROTOCOL_NAME macro when present.
     find_package (WaylandProtocols REQUIRED)
-    add_wayland_protocol (platform-wl CLIENT xdg-shell)
-    add_wayland_protocol (platform-wl CLIENT fullscreen-shell-unstable-v1)
-    if (COG_ENABLE_IVI_SHELL)
-        add_wayland_protocol (platform-wl CLIENT ivi-application.xml)
-        target_compile_definitions (platform-wl PRIVATE HAVE_IVI_SHELL)
-    endif ()
+    foreach (protocol xdg-shell fullscreen-shell-unstable-v1 ivi-application)
+        get_filename_component (have_var "${protocol}" NAME_WE)
+        string (TOUPPER "HAVE_${have_var}" have_var)
+        string (REPLACE "-" "_" have_var "${have_var}")
+        has_wayland_protocol_xml ("${protocol}" "${have_var}")
+        if (${${have_var}}) # So meta, much indirection, wow!
+            add_wayland_protocol (platform-wl CLIENT "${protocol}")
+            target_compile_definitions (platform-wl PRIVATE "${have_var}")
+        endif ()
+    endforeach ()
 endif ()
 
 # FDO shell module
@@ -241,9 +248,6 @@ if (COG_MODULE_FDO_SHELL)
         cogcore platform-wl PkgConfig::ModuleFdoShell)
     target_compile_options (fdo-shell PRIVATE
         -DG_LOG_DOMAIN=\"Cog-FDO\" ${EXTRA_CFLAGS})
-    find_package (WaylandProtocols REQUIRED)
-    add_wayland_protocol (fdo-shell CLIENT xdg-shell)
-    add_wayland_protocol (fdo-shell CLIENT fullscreen-shell-unstable-v1)
 
     install (TARGETS fdo-shell
         DESTINATION ${COG_MODULEDIR}
