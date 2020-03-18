@@ -1959,6 +1959,7 @@ static void
 destroy_popup (void)
 {
     webkit_option_menu_close (popup_data.option_menu);
+    g_clear_pointer (&popup_data.popup_menu, cog_popup_menu_destroy);
     g_clear_object (&popup_data.option_menu);
 
     g_clear_pointer (&popup_data.xdg_popup, xdg_popup_destroy);
