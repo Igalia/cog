@@ -36,8 +36,14 @@ typedef struct _CogPopupMenu {
     int menu_item_width;
 
     guint menu_num_items;
-    int initial_selected_index;
+
+    bool menu_has_paging;
+    unsigned menu_current_page;
+    unsigned menu_max_page;
+
+    int initial_selection_index;
     bool finalized_selection;
+    int finalized_local_index;
     int finalized_selection_index;
     bool pending_changes;
 } CogPopupMenu;
@@ -66,7 +72,35 @@ cog_popup_menu_paint (CogPopupMenu *popup_menu)
         cairo_set_line_width (popup_menu->cr, 1);
         cairo_set_font_size (popup_menu->cr, ITEM_TEXT_SIZE);
 
-        for (guint i = 0; i < popup_menu->menu_num_items; ++i) {
+        guint num_items = popup_menu->menu_num_items;
+
+        if (popup_menu->menu_has_paging) {
+            num_items = 5;
+
+            cairo_rectangle (popup_menu->cr, 0, 0,
+                             (popup_menu->menu_item_width / popup_menu->scale),
+                             ITEM_HEIGHT);
+
+            cairo_set_source_rgba (popup_menu->cr, 0.8, 0.8, 0.8, 1);
+            cairo_fill_preserve (popup_menu->cr);
+            cairo_set_source_rgba (popup_menu->cr, 0, 0, 0, 1);
+            cairo_stroke (popup_menu->cr);
+
+            cairo_move_to (popup_menu->cr, (popup_menu->menu_item_width / popup_menu->scale) / 2, 10);
+            cairo_line_to (popup_menu->cr, (popup_menu->menu_item_width / popup_menu->scale) / 2 - 20, 30);
+            cairo_line_to (popup_menu->cr, (popup_menu->menu_item_width / popup_menu->scale) / 2 + 20, 30);
+            cairo_close_path (popup_menu->cr);
+
+            cairo_set_source_rgba (popup_menu->cr, 0, 0, 0, 1);
+            cairo_fill (popup_menu->cr);
+
+            cairo_translate (popup_menu->cr, 0, ITEM_HEIGHT);
+        }
+
+        guint i = popup_menu->menu_current_page * 5;
+        guint i_max = i + 5;
+        guint i_end = MIN (i_max, webkit_option_menu_get_n_items (popup_menu->option_menu));
+        for (; i < i_end; ++i) {
             WebKitOptionMenuItem *item = webkit_option_menu_get_item (popup_menu->option_menu, i);
 
             cairo_rectangle (popup_menu->cr, 0, 0,
@@ -100,6 +134,29 @@ cog_popup_menu_paint (CogPopupMenu *popup_menu)
             }
 
             cairo_translate (popup_menu->cr, 0, ITEM_HEIGHT);
+        }
+
+        for (; i < i_max; ++i) {
+            cairo_translate (popup_menu->cr, 0, ITEM_HEIGHT);
+        }
+
+        if (popup_menu->menu_has_paging) {
+            cairo_rectangle (popup_menu->cr, 0, 0,
+                             (popup_menu->menu_item_width / popup_menu->scale),
+                             ITEM_HEIGHT);
+            cairo_set_source_rgba (popup_menu->cr, 0.8, 0.8, 0.8, 1);
+
+            cairo_fill_preserve (popup_menu->cr);
+            cairo_set_source_rgba (popup_menu->cr, 0, 0, 0, 1);
+            cairo_stroke (popup_menu->cr);
+
+            cairo_move_to (popup_menu->cr, (popup_menu->menu_item_width / popup_menu->scale) / 2, 30);
+            cairo_line_to (popup_menu->cr, (popup_menu->menu_item_width / popup_menu->scale) / 2 - 20, 10);
+            cairo_line_to (popup_menu->cr, (popup_menu->menu_item_width / popup_menu->scale) / 2 + 20, 10);
+            cairo_close_path (popup_menu->cr);
+
+            cairo_set_source_rgba (popup_menu->cr, 0, 0, 0, 1);
+            cairo_fill (popup_menu->cr);
         }
 
         cairo_restore (popup_menu->cr);
@@ -154,18 +211,23 @@ cog_popup_menu_create (WebKitOptionMenu *option_menu, struct wl_shm *shm, int wi
                                                                   popup_menu->stride);
     popup_menu->cr = cairo_create (popup_menu->cr_surface);
 
-    popup_menu->menu_num_items = MIN(webkit_option_menu_get_n_items (option_menu), 7);
-    popup_menu->initial_selected_index = -1;
+    guint n_items = webkit_option_menu_get_n_items (option_menu);
+    popup_menu->menu_num_items = MIN(n_items, 7);
+    popup_menu->menu_has_paging = n_items > 7;
+    popup_menu->menu_current_page = 0;
+    popup_menu->menu_max_page = MAX(0, ((gint)n_items - 1) / 5);
+
+    popup_menu->initial_selection_index = -1;
     popup_menu->finalized_selection = false;
+    popup_menu->finalized_local_index = -1;
     popup_menu->finalized_selection_index = -1;
     popup_menu->pending_changes = false;
 
     {
-        guint n_items = webkit_option_menu_get_n_items (option_menu);
         for (guint i = 0; i < n_items; ++i) {
             WebKitOptionMenuItem *item = webkit_option_menu_get_item (option_menu, i);
             if (webkit_option_menu_item_is_selected (item)) {
-                popup_menu->initial_selected_index = i;
+                popup_menu->initial_selection_index = i;
                 break;
             }
         }
@@ -194,9 +256,8 @@ cog_popup_menu_destroy (CogPopupMenu *popup_menu)
 void
 cog_popup_menu_handle_event (CogPopupMenu *popup_menu, int state, int x_coord, int y_coord)
 {
-    int index = -1;
+    int local_index = -1;
     {
-        int descaled_x = x_coord / popup_menu->scale;
         int descaled_y = y_coord / popup_menu->scale;
 
         for (guint i = 0; i < popup_menu->menu_num_items; ++i) {
@@ -204,21 +265,49 @@ cog_popup_menu_handle_event (CogPopupMenu *popup_menu, int state, int x_coord, i
                 && x_coord < (popup_menu->width - HORIZONTAL_PADDING * popup_menu->scale)
                 && descaled_y > (VERTICAL_PADDING + i * ITEM_HEIGHT)
                 && descaled_y < (VERTICAL_PADDING + (i + 1) * ITEM_HEIGHT)) {
-                index = i;
+                local_index = i;
                 break;
             }
         }
     }
 
+    int selection_index = popup_menu->menu_current_page * 5 + local_index;
+    if (popup_menu->menu_has_paging) {
+        if (local_index == 0 || local_index == 6)
+            selection_index = -1;
+        else
+            selection_index = selection_index - 1;
+    }
+    if (selection_index >= webkit_option_menu_get_n_items (popup_menu->option_menu))
+        selection_index = -1;
+    if (local_index != -1 && selection_index != -1) {
+        WebKitOptionMenuItem *item = webkit_option_menu_get_item (popup_menu->option_menu, selection_index);
+        if (!item || !webkit_option_menu_item_is_enabled (item))
+            return;
+    }
+
     if (!!state) {
-        popup_menu->finalized_selection_index = index;
+        popup_menu->finalized_local_index = local_index;
+        if (local_index == -1)
+            popup_menu->finalized_selection_index = -1;
+        else
+            popup_menu->finalized_selection_index = selection_index;
+
         popup_menu->pending_changes = true;
     } else {
-        if (index == popup_menu->finalized_selection_index) {
-            popup_menu->finalized_selection = true;
-            if (index == -1)
-                popup_menu->finalized_selection_index = popup_menu->initial_selected_index;
-            popup_menu->pending_changes = false;
+        if (local_index == popup_menu->finalized_local_index) {
+            if (popup_menu->menu_has_paging && local_index == 0) {
+                popup_menu->menu_current_page = MAX((gint)popup_menu->menu_current_page - 1, 0);
+                popup_menu->pending_changes = true;
+            } else if (popup_menu->menu_has_paging && local_index == 6) {
+                popup_menu->menu_current_page = MIN(popup_menu->menu_current_page + 1, popup_menu->menu_max_page);
+                popup_menu->pending_changes = true;
+            } else {
+                popup_menu->finalized_selection = true;
+                if (selection_index == -1)
+                    popup_menu->finalized_selection_index = popup_menu->initial_selection_index;
+                popup_menu->pending_changes = false;
+            }
         } else
             popup_menu->pending_changes = true;
     }
@@ -232,7 +321,7 @@ cog_popup_menu_has_final_selection (CogPopupMenu *popup_menu, int *selected_inde
         return true;
     }
 
-    *selected_index = popup_menu->initial_selected_index;
+    *selected_index = popup_menu->initial_selection_index;
     return false;
 }
 
