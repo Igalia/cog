@@ -169,7 +169,7 @@ cog_handle_web_view_web_process_terminated_exit (WebKitWebView                  
             g_assert_not_reached ();
     }
 
-    g_critical ("The rendered process %s, exiting...", reason_string);
+    g_critical ("The renderer process %s, exiting...", reason_string);
     exit (GPOINTER_TO_INT (userdata));
 }
 
