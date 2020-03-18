@@ -16,6 +16,10 @@
 #include "xdg-shell-client.h"
 #endif /* HAVE_XDG_SHELL */
 
+#ifdef HAVE_XDG_SHELL_UNSTABLE_V6
+#include "xdg-shell-unstable-v6-client.h"
+#endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
+
 #ifdef HAVE_FULLSCREEN_SHELL_UNSTABLE_V1
 #include "fullscreen-shell-unstable-v1-client.h"
 #endif /* HAVE_FULLSCREEN_SHELL_UNSTABLE_V1 */
@@ -80,6 +84,10 @@ struct _PwlDisplay {
     struct xdg_wm_base *xdg_shell;
 #endif /* HAVE_XDG_SHELL */
 
+#ifdef HAVE_XDG_SHELL_UNSTABLE_V6
+    struct zxdg_shell_v6 *zxdg_shell_v6;
+#endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
+
 #ifdef HAVE_FULLSCREEN_SHELL_UNSTABLE_V1
     struct zwp_fullscreen_shell_v1 *fshell;
 #endif /* HAVE_FULLSCREEN_SHELL_UNSTABLE_V1 */
@@ -111,6 +119,11 @@ struct _PwlWindow {
     struct xdg_surface *xdg_surface;
     struct xdg_toplevel *xdg_toplevel;
 #endif /* HAVE_XDG_SHELL */
+
+#ifdef HAVE_XDG_SHELL_UNSTABLE_V6
+    struct zxdg_surface_v6 *zxdg_surface_v6;
+    struct zxdg_toplevel_v6 *zxdg_toplevel_v6;
+#endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
 
 #ifdef HAVE_IVI_APPLICATION
     struct ivi_surface *ivi_surface;
@@ -1024,6 +1037,17 @@ xdg_shell_ping (void *data, struct xdg_wm_base *shell, uint32_t serial)
 #endif /* HAVE_XDG_SHELL */
 
 
+#ifdef HAVE_XDG_SHELL_UNSTABLE_V6
+static void
+zxdg_shell_v6_ping (void                 *data G_GNUC_UNUSED,
+                    struct zxdg_shell_v6 *shell,
+                    uint32_t              serial)
+{
+    zxdg_shell_v6_pong (shell, serial);
+}
+#endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
+
+
 static void
 registry_global (void               *data,
                  struct wl_registry *registry,
@@ -1047,6 +1071,20 @@ registry_global (void               *data,
         xdg_wm_base_add_listener (display->xdg_shell, &xdg_shell_listener, NULL);
     } else
 #endif /* HAVE_XDG_SHELL */
+#if HAVE_XDG_SHELL_UNSTABLE_V6
+    if (strcmp (interface, zxdg_shell_v6_interface.name) == 0) {
+        display->zxdg_shell_v6 = wl_registry_bind (registry,
+                                                   name,
+                                                   &zxdg_shell_v6_interface,
+                                                   version);
+        static const struct zxdg_shell_v6_listener zxdg_shell_v6_listener = {
+            .ping = zxdg_shell_v6_ping,
+        };
+        zxdg_shell_v6_add_listener (display->zxdg_shell_v6,
+                                    &zxdg_shell_v6_listener,
+                                    NULL);
+    } else
+#endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
 #ifdef HAVE_FULLSCREEN_SHELL_UNSTABLE_V1
     if (strcmp (interface,
                 zwp_fullscreen_shell_v1_interface.name) == 0) {
@@ -1217,6 +1255,9 @@ pwl_display_connect (const char *name, GError **error)
 #ifdef HAVE_XDG_SHELL
         && !self->xdg_shell
 #endif /* HAVE_XDG_SHELL */
+#ifdef HAVE_XDG_SHELL_UNSTABLE_V6
+        && !self->zxdg_shell_v6
+#endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
 #ifdef HAVE_FULLSCREEN_SHELL_UNSTABLE_V1
         && !self->fshell
 #endif /* HAVE_FULLSCREEN_SHELL_UNSTABLE_V1 */
@@ -1231,6 +1272,9 @@ pwl_display_connect (const char *name, GError **error)
 #ifdef HAVE_XDG_SHELL
                              "xdg_wm_base, "
 #endif /* HAVE_XDG_SHELL */
+#ifdef HAVE_XDG_SHELL_UNSTABLE_V6
+                             "zxdg_shell_v6, "
+#endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
 #ifdef HAVE_FULLSCREEN_SHELL_UNSTABLE_V1
                              "fullscreen_shell, "
 #endif /* HAVE_FULLSCREEN_SHELL_UNSTABLE_V1 */
@@ -1264,6 +1308,10 @@ pwl_display_destroy (PwlDisplay *self)
 #ifdef HAVE_XDG_SHELL
         g_clear_pointer (&self->xdg_shell, xdg_wm_base_destroy);
 #endif /* HAVE_XDG_SHELL */
+
+#ifdef HAVE_XDG_SHELL_UNSTABLE_V6
+        g_clear_pointer (&self->zxdg_shell_v6, zxdg_shell_v6_destroy);
+#endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
 
 #ifdef HAVE_FULLSCREEN_SHELL_UNSTABLE_V1
         g_clear_pointer (&self->fshell, zwp_fullscreen_shell_v1_destroy);
@@ -1716,6 +1764,46 @@ xdg_toplevel_on_close (void *data, struct xdg_toplevel *xdg_toplevel)
 }
 #endif /* HAVE_XDG_SHELL */
 
+
+#ifdef HAVE_XDG_SHELL_UNSTABLE_V6
+static void
+zxdg_surface_v6_on_configure (void                   *data G_GNUC_UNUSED,
+                              struct zxdg_surface_v6 *surface,
+                              uint32_t                serial)
+{
+    zxdg_surface_v6_ack_configure (surface, serial);
+}
+
+static void
+zxdg_toplevel_v6_on_configure (void                    *data,
+                               struct zxdg_toplevel_v6 *toplevel G_GNUC_UNUSED,
+                               int32_t                  width,
+                               int32_t                  height,
+                               struct wl_array         *states G_GNUC_UNUSED)
+{
+    PwlWindow *window = data;
+    g_assert (window->zxdg_toplevel_v6 == toplevel);
+
+    configure_surface_geometry (window, width, height);
+
+    g_debug ("New ZXDGv6 toplevel configuration: (%" PRIi32 ", %" PRIi32 ")",
+             width, height);
+
+    resize_window (window);
+}
+
+static void
+zxdg_toplevel_v6_on_close (void                    *data,
+                           struct zxdg_toplevel_v6 *toplevel G_GNUC_UNUSED)
+{
+    PwlWindow *window = data;
+    g_assert (window->zxdg_toplevel_v6 == toplevel);
+
+    g_warning ("%s: Unimplemented.", G_STRFUNC);
+}
+#endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
+
+
 /*
  * TODO: Library code must not use environment variables. This needs to be
  *       moved to cog.c, adding methods in CogShell which get overriden in
@@ -1786,6 +1874,29 @@ pwl_window_create (PwlDisplay *display)
                                    self);
     } else
 #endif /* HAVE_XDG_SHELL */
+#ifdef HAVE_XDG_SHELL_UNSTABLE_V6
+    if (display->zxdg_shell_v6) {
+        self->zxdg_surface_v6 =
+            zxdg_shell_v6_get_xdg_surface (display->zxdg_shell_v6,
+                                           self->wl_surface);
+        static const struct zxdg_surface_v6_listener surface_listener = {
+            .configure = zxdg_surface_v6_on_configure,
+        };
+        zxdg_surface_v6_add_listener (self->zxdg_surface_v6,
+                                      &surface_listener,
+                                      self);
+
+        self->zxdg_toplevel_v6 =
+            zxdg_surface_v6_get_toplevel (self->zxdg_surface_v6);
+        static const struct zxdg_toplevel_v6_listener toplevel_listener = {
+            .configure = zxdg_toplevel_v6_on_configure,
+            .close = zxdg_toplevel_v6_on_close,
+        };
+        zxdg_toplevel_v6_add_listener (self->zxdg_toplevel_v6,
+                                       &toplevel_listener,
+                                       self);
+    } else
+#endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
 #ifdef HAVE_FULLSCREEN_SHELL_UNSTABLE_V1
     if (display->fshell) {
         zwp_fullscreen_shell_v1_present_surface (display->fshell,
@@ -1838,10 +1949,17 @@ pwl_window_destroy (PwlWindow *self)
 #ifdef HAVE_IVI_APPLICATION
     g_clear_pointer (&self->ivi_surface, ivi_surface_destroy);
 #endif /* HAVE_IVI_APPLICATION */
+
 #ifdef HAVE_XDG_SHELL
     g_clear_pointer (&self->xdg_toplevel, xdg_toplevel_destroy);
     g_clear_pointer (&self->xdg_surface, xdg_surface_destroy);
 #endif /* HAVE_XDG_SHELL */
+
+#ifdef HAVE_XDG_SHELL_UNSTABLE_V6
+    g_clear_pointer (&self->zxdg_toplevel_v6, zxdg_toplevel_v6_destroy);
+    g_clear_pointer (&self->zxdg_surface_v6, zxdg_surface_v6_destroy);
+#endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
+
     g_clear_pointer (&self->shell_surface, wl_shell_surface_destroy);
     g_clear_pointer (&self->wl_surface, wl_surface_destroy);
 
@@ -1861,6 +1979,11 @@ pwl_window_set_application_id (PwlWindow *self, const char *application_id)
         xdg_toplevel_set_app_id (self->xdg_toplevel, application_id);
     } else
 #endif /* HAVE_XDG_SHELL */
+#ifdef HAVE_XDG_SHELL_UNSTABLE_V6
+    if (self->display->zxdg_shell_v6) {
+        zxdg_toplevel_v6_set_app_id (self->zxdg_toplevel_v6, application_id);
+    } else
+#endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
     if (self->display->shell) {
         wl_shell_surface_set_class (self->shell_surface, application_id);
     }
@@ -1961,6 +2084,11 @@ pwl_window_set_title (PwlWindow *self, const char *title)
         xdg_toplevel_set_title (self->xdg_toplevel, title);
     } else
 #endif /* HAVE_XDG_SHELL */
+#ifdef HAVE_XDG_SHELL_UNSTABLE_V6
+    if (self->display->zxdg_shell_v6) {
+        zxdg_toplevel_v6_set_title (self->zxdg_toplevel_v6, title);
+    } else
+#endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
     if (self->display->shell) {
         wl_shell_surface_set_title (self->shell_surface, title);
     }
@@ -2020,6 +2148,15 @@ pwl_window_set_fullscreen (PwlWindow *self, bool fullscreen)
         }
     } else
 #endif /* HAVE_XDG_SHELL */
+#ifdef HAVE_XDG_SHELL_UNSTABLE_V6
+    if (self->display->zxdg_shell_v6) {
+        if ((self->is_fullscreen = fullscreen)) {
+            zxdg_toplevel_v6_set_fullscreen (self->zxdg_toplevel_v6, NULL);
+        } else {
+            zxdg_toplevel_v6_unset_fullscreen (self->zxdg_toplevel_v6);
+        }
+    } else
+#endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
     if (self->display->shell) {
         if ((self->is_fullscreen = fullscreen)) {
             wl_shell_surface_set_fullscreen (self->shell_surface,
@@ -2060,6 +2197,15 @@ pwl_window_set_maximized (PwlWindow *self, bool maximized)
         }
     } else
 #endif /* HAVE_XDG_SHELL */
+#ifdef HAVE_XDG_SHELL_UNSTABLE_V6
+    if (self->display->zxdg_shell_v6) {
+        if ((self->is_maximized = maximized)) {
+            zxdg_toplevel_v6_set_maximized (self->zxdg_toplevel_v6);
+        } else {
+            zxdg_toplevel_v6_unset_maximized (self->zxdg_toplevel_v6);
+        }
+    } else
+#endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
     if (self->display->shell) {
         if ((self->is_maximized = maximized)) {
             wl_shell_surface_set_maximized (self->shell_surface, NULL);

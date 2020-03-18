@@ -221,7 +221,7 @@ if (COG_MODULE_FDO_SHELL)
     # there is an XML protocol definition around, and enable accordingly
     # defining a HAVE_PROTOCOL_NAME macro when present.
     find_package (WaylandProtocols REQUIRED)
-    foreach (protocol xdg-shell fullscreen-shell-unstable-v1 ivi-application)
+    foreach (protocol xdg-shell xdg-shell-unstable-v6 fullscreen-shell-unstable-v1 ivi-application)
         get_filename_component (have_var "${protocol}" NAME_WE)
         string (TOUPPER "HAVE_${have_var}" have_var)
         string (REPLACE "-" "_" have_var "${have_var}")
