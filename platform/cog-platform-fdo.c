@@ -1958,6 +1958,9 @@ create_popup (WebKitOptionMenu *option_menu)
 static void
 destroy_popup (void)
 {
+    if (popup_data.option_menu == NULL)
+        return;
+
     webkit_option_menu_close (popup_data.option_menu);
     g_clear_pointer (&popup_data.popup_menu, cog_popup_menu_destroy);
     g_clear_object (&popup_data.option_menu);
@@ -2120,6 +2123,7 @@ cog_platform_plugin_teardown (CogPlatform *platform)
     */
 
     clear_input ();
+    destroy_popup ();
     destroy_window ();
     clear_egl ();
     clear_wayland ();
