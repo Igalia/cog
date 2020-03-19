@@ -178,7 +178,7 @@ cog_fdo_shell_on_pointer_axis (PwlWindow        *window,
         .x_axis = wl_fixed_to_double (pointer->axis_x_delta) * device_scale,
         .y_axis = -wl_fixed_to_double (pointer->axis_y_delta) * device_scale,
     };
-    wpe_view_backend_dispatch_axis_event (backend, &event);
+    wpe_view_backend_dispatch_axis_event (backend, &event.base);
 #else /* !HAVE_2D_AXIS_EVENT */
     struct wpe_input_axis_event event = {
         .type = wpe_input_axis_event_type_motion,
@@ -494,7 +494,7 @@ cog_fdo_view_on_pointer_axis (PwlWindow        *window,
         .x_axis = wl_fixed_to_double (pointer->axis_x_delta) * device_scale,
         .y_axis = -wl_fixed_to_double (pointer->axis_y_delta) * device_scale,
     };
-    wpe_view_backend_dispatch_axis_event (backend, &event);
+    wpe_view_backend_dispatch_axis_event (backend, &event.base);
 #else /* !HAVE_2D_AXIS_EVENT */
     struct wpe_input_axis_event event = {
         .type = wpe_input_axis_event_type_motion,
