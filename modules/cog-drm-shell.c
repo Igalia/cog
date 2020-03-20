@@ -6,6 +6,7 @@
  */
 
 #include "../platform/pdrm.h"
+#include "../platform/pli.h"
 
 #include <cog.h>
 #include <inttypes.h>
@@ -45,7 +46,8 @@ struct _CogDrmShellClass {
 };
 
 struct _CogDrmShell {
-    CogShell parent;
+    CogShell    parent;
+    PliContext *input;
 };
 
 
@@ -67,11 +69,49 @@ struct _CogDrmView {
 };
 
 
+static void
+cog_drm_shell_on_key_input (PliContext                      *input,
+                            struct wpe_input_keyboard_event *event,
+                            void                            *self)
+{
+    g_assert (((CogDrmShell*) self)->input == input);
+
+    CogView *view = cog_shell_get_focused_view (self);
+    wpe_view_backend_dispatch_keyboard_event (cog_view_get_backend (view), event);
+}
+
+
+static void
+cog_drm_shell_on_touch_input (PliContext                   *input,
+                              struct wpe_input_touch_event *event,
+                              void                         *self)
+{
+    g_assert (((CogDrmShell*) self)->input == input);
+
+    CogView *view = cog_shell_get_focused_view (self);
+    wpe_view_backend_dispatch_touch_event (cog_view_get_backend (view), event);
+}
+
+
 static gboolean
 cog_drm_shell_initable_init (GInitable    *initable,
                              GCancellable *cancellable G_GNUC_UNUSED,
                              GError      **error)
 {
+    CogDrmShell *self = COG_DRM_SHELL (initable);
+
+    if (!(self->input = pli_context_create (error)))
+        return FALSE;
+
+    g_debug ("%s: input @ %p.", G_STRFUNC, self->input);
+
+    uint32_t width, height;
+    pdrm_display_get_size (s_display, &width, &height);
+    pli_context_set_touch_size (self->input, width, height);
+
+    pli_context_notify_key (self->input, cog_drm_shell_on_key_input, self);
+    pli_context_notify_touch (self->input, cog_drm_shell_on_touch_input, self);
+
     if (!wpe_loader_init ("libWPEBackend-fdo-1.0.so")) {
         g_set_error_literal (error,
                              G_IO_ERROR,
@@ -85,6 +125,7 @@ cog_drm_shell_initable_init (GInitable    *initable,
 
     GMainContext *context = g_main_context_get_thread_default ();
     pdrm_display_attach_sources (s_display, context);
+    pli_context_attach_sources (self->input, context);
 
     g_debug ("%s: Done.", G_STRFUNC);
 
@@ -105,6 +146,17 @@ G_DEFINE_DYNAMIC_TYPE_EXTENDED (CogDrmShell, cog_drm_shell, COG_TYPE_SHELL, 0,
     G_IMPLEMENT_INTERFACE_DYNAMIC (G_TYPE_INITABLE, cog_drm_shell_initable_iface_init))
 
 G_DEFINE_DYNAMIC_TYPE (CogDrmView, cog_drm_view, COG_TYPE_VIEW)
+
+
+static void
+cog_drm_shell_dispose (GObject *object)
+{
+    CogDrmShell *self = COG_DRM_SHELL (object);
+
+    g_clear_pointer (&self->input, pli_context_destroy);
+
+    G_OBJECT_CLASS (cog_drm_shell_parent_class)->dispose (object);
+}
 
 
 static gboolean
@@ -136,6 +188,9 @@ cog_drm_shell_is_supported (void)
 static void
 cog_drm_shell_class_init (CogDrmShellClass *klass)
 {
+    GObjectClass *object_class = G_OBJECT_CLASS (klass);
+    object_class->dispose = cog_drm_shell_dispose;
+
     CogShellClass *shell_class = COG_SHELL_CLASS (klass);
     shell_class->is_supported = cog_drm_shell_is_supported;
     shell_class->get_view_class = cog_drm_view_get_type;

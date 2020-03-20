@@ -286,11 +286,28 @@ if (COG_MODULE_DRM_SHELL)
         PkgConfig::WPEFDO
     )
 
+    # platform-libinput
+    pkg_check_modules (PlatformLibibput IMPORTED_TARGET REQUIRED udev libinput)
+
+    add_library (platform-libinput STATIC EXCLUDE_FROM_ALL
+        platform/pli.h
+        platform/pli.c
+    )
+    set_property (TARGET platform-libinput PROPERTY C_STANDARD 99)
+    set_property (TARGET platform-libinput PROPERTY POSITION_INDEPENDENT_CODE ON)
+    target_compile_options (platform-libinput PRIVATE
+        -DG_LOG_DOMAIN=\"Cog-PLI\" ${EXTRA_CFLAGS})
+    target_link_libraries (platform-libinput PUBLIC
+        PkgConfig::Gio
+        PkgConfig::PlatformLibibput
+        PkgConfig::WPE
+    )
+
     # Shell module
     add_library (drm-shell MODULE modules/cog-drm-shell.c)
     set_property (TARGET drm-shell PROPERTY C_STANDARD 99)
     target_link_libraries (drm-shell PRIVATE
-        cogcore platform-drm PkgConfig::WPEFDO)
+        cogcore platform-drm platform-libinput PkgConfig::WPEFDO)
     target_compile_options (drm-shell PRIVATE
         -DG_LOG_DOMAIN=\"Cog-DRM\" ${EXTRA_CFLAGS})
 
