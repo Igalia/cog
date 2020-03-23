@@ -48,6 +48,8 @@ struct _PdrmDisplay {
     char                           *path;
     uint32_t                        crtc_id;
     uint32_t                        connector_id;
+    uint32_t                        phys_width;
+    uint32_t                        phys_height;
     drmModeModeInfo                 mode;
     bool                            mode_set;
     PdrmSource                     *drm_source;
@@ -583,9 +585,12 @@ pdrm_display_open (const char *device_path,
         return NULL;
     }
     self->connector_id = connector->connector_id;
-    g_debug ("%s: Using connector %s (id=%" PRIu32 ").", G_STRFUNC,
+    self->phys_width = connector->mmWidth;
+    self->phys_height = connector->mmHeight;
+    g_debug ("%s: Using connector %" PRIu32 "(%s, %" PRIu32 "x%" PRIu32 "mm).",
+             G_STRFUNC, self->connector_id,
              connector_type_string (connector->connector_type),
-             self->connector_id);
+             self->phys_width, self->phys_height);
 
     drmModeModeInfo *mode = NULL;
     for (int i = 0, max_area = 0; i < connector->count_modes; i++) {
@@ -706,6 +711,19 @@ pdrm_display_get_size (const PdrmDisplay *self,
 
     if (width) *width = self->mode.hdisplay;
     if (height) *height = self->mode.vdisplay;
+}
+
+
+void
+pdrm_display_get_phys_size (const PdrmDisplay *self,
+                            uint32_t          *width,
+                            uint32_t          *height)
+{
+    g_return_if_fail (self);
+    g_return_if_fail (width || height);
+
+    if (width) *width = self->phys_width;
+    if (height) *height = self->phys_height;
 }
 
 

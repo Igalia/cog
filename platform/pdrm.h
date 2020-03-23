@@ -36,6 +36,7 @@ void         pdrm_display_destroy         (PdrmDisplay*);
 void         pdrm_display_attach_sources  (PdrmDisplay*, GMainContext*);
 void         pdrm_display_get_size        (const PdrmDisplay*, uint32_t *w, uint32_t *h);
 EGLDisplay   pdrm_display_get_egl_display (const PdrmDisplay*);
+void         pdrm_display_get_phys_size   (const PdrmDisplay*, uint32_t *w, uint32_t *h);
 PdrmBuffer*  pdrm_display_import_resource (PdrmDisplay*, struct wl_resource*);
 PdrmBuffer*  pdrm_display_import_dmabuf   (PdrmDisplay*, struct wpe_view_backend_exportable_fdo_dmabuf_resource*);
 

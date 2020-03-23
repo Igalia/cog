@@ -48,7 +48,16 @@ struct _CogDrmShellClass {
 struct _CogDrmShell {
     CogShell    parent;
     PliContext *input;
+    float       device_scale;
 };
+
+enum {
+    SHELL_PROP_0,
+    SHELL_PROP_DEVICE_SCALE,
+    SHELL_N_PROPERTIES,
+};
+
+static GParamSpec *s_shell_properties[SHELL_N_PROPERTIES] = { NULL, };
 
 
 struct _CogDrmViewClass {
@@ -107,7 +116,9 @@ cog_drm_shell_initable_init (GInitable    *initable,
 
     uint32_t width, height;
     pdrm_display_get_size (s_display, &width, &height);
-    pli_context_set_touch_size (self->input, width, height);
+    pli_context_set_touch_size (self->input,
+                                width / self->device_scale,
+                                height / self->device_scale);
 
     pli_context_notify_key (self->input, cog_drm_shell_on_key_input, self);
     pli_context_notify_touch (self->input, cog_drm_shell_on_touch_input, self);
@@ -186,14 +197,102 @@ cog_drm_shell_is_supported (void)
 
 
 static void
+cog_drm_shell_get_property (GObject    *object,
+                            unsigned    prop_id,
+                            GValue     *value,
+                            GParamSpec *pspec)
+{
+    CogDrmShell *self = COG_DRM_SHELL (object);
+    switch (prop_id) {
+        case SHELL_PROP_DEVICE_SCALE:
+            g_value_set_float (value, self->device_scale);
+            break;
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    }
+}
+
+
+static void
+cog_drm_shell_set_property (GObject      *object,
+                            unsigned      prop_id,
+                            const GValue *value,
+                            GParamSpec   *pspec)
+{
+    CogDrmShell *self = COG_DRM_SHELL (object);
+    switch (prop_id) {
+        case SHELL_PROP_DEVICE_SCALE:
+            self->device_scale = g_value_get_float (value);
+            break;
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    }
+}
+
+
+static float
+compute_default_scale (void)
+{
+    static const uint32_t hidpi_dpi_limit = 2 * 96;
+    static const uint32_t hidpi_min_height = 1200;
+    static const float mm_per_inch = 25.4f;
+
+    uint32_t w, h, pw, ph;
+    pdrm_display_get_size (s_display, &w, &h);
+    pdrm_display_get_phys_size (s_display, &pw, &ph);
+
+    if (h < hidpi_min_height)
+        return 1.0f;
+
+    if (!pw || !ph)
+        return 1.0f;
+
+    const float dpi_x = (float) w / (pw / mm_per_inch);
+    const float dpi_y = (float) h / (ph / mm_per_inch);
+
+    if (dpi_x <= hidpi_dpi_limit || dpi_y <= hidpi_dpi_limit)
+        return 1.0f;
+
+    return 2.0f;
+}
+
+
+static void
+cog_drm_shell_constructed (GObject *object)
+{
+    G_OBJECT_CLASS (cog_drm_shell_parent_class)->constructed (object);
+
+    CogDrmShell *self = COG_DRM_SHELL (object);
+    if (self->device_scale < 0.01)
+        self->device_scale = compute_default_scale ();
+}
+
+
+static void
 cog_drm_shell_class_init (CogDrmShellClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
+    object_class->get_property = cog_drm_shell_get_property;
+    object_class->set_property = cog_drm_shell_set_property;
+    object_class->constructed = cog_drm_shell_constructed;
     object_class->dispose = cog_drm_shell_dispose;
 
     CogShellClass *shell_class = COG_SHELL_CLASS (klass);
     shell_class->is_supported = cog_drm_shell_is_supported;
     shell_class->get_view_class = cog_drm_view_get_type;
+
+    s_shell_properties[SHELL_PROP_DEVICE_SCALE] =
+        g_param_spec_float ("device-scale",
+                            "Device scale",
+                            "Device scaling factor",
+                            0.0f, 5.0f, 0.0f,
+                            G_PARAM_READWRITE |
+                            G_PARAM_CONSTRUCT_ONLY |
+                            G_PARAM_STATIC_STRINGS);
+
+    g_object_class_install_properties (object_class,
+                                       SHELL_N_PROPERTIES,
+                                       s_shell_properties);
 }
 
 
@@ -356,6 +455,7 @@ static void
 cog_drm_view_setup (CogView *view)
 {
     CogDrmView *self = COG_DRM_VIEW (view);
+    CogDrmShell *shell = COG_DRM_SHELL (cog_view_get_shell (view));
 
     uint32_t width, height;
     pdrm_display_get_size (s_display, &width, &height);
@@ -366,8 +466,8 @@ cog_drm_view_setup (CogView *view)
     };
     self->exportable = wpe_view_backend_exportable_fdo_create (&exportable_client,
                                                                self,
-                                                               width,
-                                                               height);
+                                                               width / shell->device_scale,
+                                                               height / shell->device_scale);
     WebKitWebViewBackend *backend =
         webkit_web_view_backend_new (wpe_view_backend_exportable_fdo_get_view_backend (self->exportable),
                                      cog_drm_view_destroy_backend,
@@ -407,6 +507,11 @@ cog_drm_view_constructed (GObject *self)
     g_debug ("%s: Enter.", G_STRFUNC);
 
     G_OBJECT_CLASS (cog_drm_view_parent_class)->constructed (self);
+
+    struct wpe_view_backend *backend = cog_view_get_backend (COG_VIEW (self));
+    CogDrmShell *shell = COG_DRM_SHELL (cog_view_get_shell (COG_VIEW (self)));
+    wpe_view_backend_dispatch_set_device_scale_factor (backend,
+                                                       shell->device_scale);
 
     /* After a view has been focused, window contents must be updated. */
     g_signal_connect_after (self, "notify::focused",
