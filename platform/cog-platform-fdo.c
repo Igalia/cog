@@ -987,7 +987,8 @@ keyboard_on_key (void *data,
         memset (&wl_data.keyboard.repeat_data,
                 0x00,
                 sizeof (wl_data.keyboard.repeat_data));
-    } else if (state == WL_KEYBOARD_KEY_STATE_PRESSED
+    } else if (xkb_data.keymap != NULL
+               && state == WL_KEYBOARD_KEY_STATE_PRESSED
                && xkb_keymap_key_repeats (xkb_data.keymap, key)) {
         if (wl_data.keyboard.repeat_data.event_source)
             g_source_remove (wl_data.keyboard.repeat_data.event_source);
