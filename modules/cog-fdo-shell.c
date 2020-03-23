@@ -724,7 +724,14 @@ cog_fdo_view_update_window_contents (CogFdoView       *self,
     uint32_t width, height;
     pwl_window_get_size (window, &width, &height);
 
-    if (pwl_window_is_fullscreen (window))
+    /*
+     * If the web view background color does NOT have an alpha component, the
+     * background will never be transparent: always set the opaque region to
+     * hint to the compositor that it can skip blending the window surface.
+     */
+    WebKitColor bg_color;
+    webkit_web_view_get_background_color ((WebKitWebView*) self, &bg_color);
+    if (!bg_color.alpha || pwl_window_is_fullscreen (window))
         pwl_window_set_opaque_region (window, 0, 0, width, height);
     else
         pwl_window_unset_opaque_region (window);
