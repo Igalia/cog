@@ -919,6 +919,9 @@ capture_app_key_bindings (uint32_t keysym,
 static void
 handle_key_event (uint32_t key, uint32_t state, uint32_t time)
 {
+    if (xkb_data.state == NULL)
+        return;
+
     uint32_t keysym = xkb_state_key_get_one_sym (xkb_data.state, key);
     uint32_t unicode = xkb_state_key_get_utf32 (xkb_data.state, key);
 
