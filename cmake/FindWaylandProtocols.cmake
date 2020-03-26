@@ -34,6 +34,11 @@ find_package(WaylandScanner)
 
 set(WAYLAND_PROTOCOLS "" CACHE FILEPATH "Path to the wayland-protocols data directory")
 
+# Already detected included and directory found?
+if (WAYLAND_PROTOCOLS AND IS_DIRECTORY "${WAYLAND_PROTOCOLS}")
+    return ()
+endif ()
+
 #
 # Method 1: If -DWAYLAND_PROTOCOLS=... was passed in the command line,
 #           check whether the "stable" and "unstable" subdirectories
@@ -74,6 +79,62 @@ FIND_PACKAGE_HANDLE_STANDARD_ARGS(
     WAYLAND_SCANNER
 )
 
+function (find_wayland_protocol_xml _protocol _result)
+    # The find_file() calls below will set a cache variable with the path
+    # to the XML protocol file; so take advantage of it and avoid running
+    # all the logic if a cached value is found.
+    set (cachevar "WAYLAND_PROTOCOLS_${_protocol}_XML_PATH")
+    if (DEFINED "${cachevar}")
+        set ("${_result}" "${${cachevar}}" PARENT_SCOPE)
+        return ()
+    endif ()
+
+    # If the protocol name ends in .xml, assume that the XML file is part
+    # of the source tree, otherwise search in the WAYLAND_PROTOCOLS path.
+    string (REGEX MATCH "\.xml$" local_file "${_protocol}")
+    if (local_file)
+        get_filename_component(proto_dirname "${_protocol}" DIRECTORY)
+        get_filename_component(proto_filename "${_protocol}" NAME)
+        find_file ("${cachevar}" "${proto_filename}"
+            PATHS
+                "${proto_dirname}"
+                "${CMAKE_SOURCE_DIR}"
+                "${WAYLAND_PROTOCOLS}"
+            ENV WAYLAND_PROTOCOLS
+            NO_DEFAULT_PATH
+        )
+    else ()
+        set (main_subdir "stable")
+        set (other_subdir "unstable")
+        set (basename "${_protocol}")
+        string (FIND "${_protocol}" "-unstable-" _unstable_index REVERSE)
+        if (_unstable_index GREATER 1)
+            set (main_subdir "unstable")
+            set (other_subdir "stable")
+            string (SUBSTRING "${_protocol}" 0 ${_unstable_index} basename)
+        endif ()
+        find_file ("${cachevar}" "${_protocol}.xml"
+            PATHS
+                "${WAYLAND_PROTOCOLS}/${main_subdir}/${basename}"
+                "${WAYLAND_PROTOCOLS}/${other_subdir}/${basename}"
+                "${WAYLAND_PROTOCOLS}"
+            ENV WAYLAND_PROTOCOLS
+            NO_DEFAULT_PATH
+        )
+    endif ()
+
+    set ("${_result}" "${${cachevar}}" PARENT_SCOPE)
+endfunction ()
+
+function (has_wayland_protocol_xml _protocol _result)
+    find_wayland_protocol_xml ("${_protocol}" xml_path)
+    if (xml_path)
+        set ("${_result}" YES PARENT_SCOPE)
+    else ()
+        set ("${_result}" NO PARENT_SCOPE)
+    endif ()
+endfunction ()
+
 function(add_wayland_protocol _target _kind _protocol)
     if (NOT TARGET ${_target})
         message(FATAL_ERROR "No such target '${_target}'")
@@ -94,25 +155,16 @@ function(add_wayland_protocol _target _kind _protocol)
         message(FATAL_ERROR "Wrong argument '${_kind}', options: CLIENT, SERVER, BOTH.")
     endif ()
 
-    set(proto_subdir "stable")
-    set(proto_basename "${_protocol}")
-    string(FIND "${_protocol}" "-unstable-" _unstable_index REVERSE)
-    if (_unstable_index GREATER 1)
-        set(proto_subdir "unstable")
-        string(SUBSTRING "${_protocol}" 0 ${_unstable_index} proto_basename)
-    endif ()
+    find_wayland_protocol_xml ("${_protocol}" proto_file)
 
-    get_filename_component(proto_file
-        "${WAYLAND_PROTOCOLS}/${proto_subdir}/${proto_basename}/${_protocol}.xml"
-        REALPATH
-    )
-    if (NOT EXISTS "${proto_file}")
+    if (NOT proto_file)
         message(FATAL_ERROR "Cannot find Wayland protocol '${_protocol}'")
     endif ()
 
-    message(STATUS "Wayland protocol (${_target}): ${proto_file}")
+    message(STATUS "Wayland protocol (${_target}): ${_kind} ${proto_file}")
+    get_filename_component (proto_basename "${proto_file}" NAME_WE)
 
-    set(proto_code "${CMAKE_BINARY_DIR}/WaylandProtocols.dir/${_protocol}.c")
+    set(proto_code "${CMAKE_BINARY_DIR}/WaylandProtocols.dir/${proto_basename}.c")
     if (NOT TARGET "${proto_code}")
         add_custom_command(
             OUTPUT "${proto_code}"
@@ -127,7 +179,7 @@ function(add_wayland_protocol _target _kind _protocol)
     target_include_directories(${_target} PRIVATE "${CMAKE_BINARY_DIR}/WaylandProtocols.dir")
 
     if (do_client_header)
-        set(proto_client "${CMAKE_BINARY_DIR}/WaylandProtocols.dir/${_protocol}-client.h")
+        set(proto_client "${CMAKE_BINARY_DIR}/WaylandProtocols.dir/${proto_basename}-client.h")
         if (NOT TARGET "${proto_client}")
             add_custom_command(
                 OUTPUT "${proto_client}"
@@ -141,7 +193,7 @@ function(add_wayland_protocol _target _kind _protocol)
     endif ()
 
     if (do_server_header)
-        set(proto_server "${CMAKE_BINARY_DIR}/WaylandProtocols.dir/${_protocol}-server.h")
+        set(proto_server "${CMAKE_BINARY_DIR}/WaylandProtocols.dir/${proto_basename}-server.h")
         if (NOT TARGET "${proto_server}")
             add_custom_command(
                 OUTPUT "${proto_server}"
