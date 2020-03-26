@@ -285,6 +285,13 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
     else ()
         target_compile_definitions(cogplatform-fdo PRIVATE COG_ENABLE_WESTON_DIRECT_DISPLAY=0)
     endif ()
+
+    # Optional pointer support
+    pkg_check_modules(WaylandCursor IMPORTED_TARGET wayland-cursor)
+    if (TARGET PkgConfig::WaylandCursor)
+        target_compile_definitions(cogplatform-fdo PRIVATE COG_USE_WAYLAND_CURSOR)
+        target_link_libraries(cogplatform-fdo PRIVATE PkgConfig::WaylandCursor)
+    endif ()
 endif ()  # !COG_USE_WEBKITGTK
 
 # libcogplaform-drm
