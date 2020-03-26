@@ -52,6 +52,10 @@
 #include "weston-content-protection-client-protocol.h"
 #endif
 
+#ifdef COG_USE_WAYLAND_CURSOR
+#include <wayland-cursor.h>
+#endif
+
 #define DEFAULT_WIDTH  1024
 #define DEFAULT_HEIGHT  768
 
@@ -116,6 +120,13 @@ static struct {
     struct weston_direct_display_v1 *direct_display;
     struct weston_content_protection *protection;
 #endif
+
+#ifdef COG_USE_WAYLAND_CURSOR
+    struct wl_shm          *wl_shm;
+    struct wl_cursor_theme *cursor_theme;
+    struct wl_cursor       *cursor_left_ptr;
+    struct wl_surface      *cursor_left_ptr_surface;
+#endif /* COG_USE_WAYLAND_CURSOR */
 
 #if HAVE_DEVICE_SCALING
     struct output_metrics metrics[16];
@@ -583,6 +594,13 @@ registry_global (void               *data,
                                                           &zwp_text_input_manager_v1_interface,
                                                           version);
 #endif
+#ifdef COG_USE_WAYLAND_CURSOR
+    } else if (strcmp (interface, wl_shm_interface.name) == 0) {
+        wl_data.wl_shm = wl_registry_bind (registry,
+                                           name,
+                                           &wl_shm_interface,
+                                           version);
+#endif /* COG_USE_WAYLAND_CURSOR */
     } else if (strcmp (interface, wp_presentation_interface.name) == 0) {
         wl_data.presentation = wl_registry_bind (registry,
                                                  name,
@@ -603,6 +621,33 @@ pointer_on_enter (void* data,
                   wl_fixed_t fixed_x,
                   wl_fixed_t fixed_y)
 {
+#ifdef COG_USE_WAYLAND_CURSOR
+    if (wl_data.cursor_left_ptr) {
+        /*
+         * TODO: Take the output device scaling into account and load
+         *       a cursor image of the appropriate size, if possible.
+         */
+        if (!wl_data.cursor_left_ptr_surface) {
+            struct wl_buffer *buffer =
+                wl_cursor_image_get_buffer (wl_data.cursor_left_ptr->images[0]);
+            if (buffer) {
+                struct wl_surface *surface =
+                    wl_compositor_create_surface (wl_data.compositor);
+                wl_surface_attach (surface, buffer, 0, 0);
+                wl_surface_damage (surface, 0, 0,
+                                   wl_data.cursor_left_ptr->images[0]->width,
+                                   wl_data.cursor_left_ptr->images[0]->height);
+                wl_surface_commit (surface);
+                wl_data.cursor_left_ptr_surface = surface;
+            }
+        }
+        wl_pointer_set_cursor (wl_data.pointer.obj,
+                               serial,
+                               wl_data.cursor_left_ptr_surface,
+                               wl_data.cursor_left_ptr->images[0]->hotspot_x,
+                               wl_data.cursor_left_ptr->images[0]->hotspot_y);
+    }
+#endif /* COG_USE_WAYLAND_CURSOR */
 }
 
 static void
@@ -1562,6 +1607,19 @@ init_wayland (GError **error)
                               NULL);
     wl_display_roundtrip (wl_data.display);
 
+#if COG_USE_WAYLAND_CURSOR
+    if (wl_data.wl_shm) {
+        if (!(wl_data.cursor_theme = wl_cursor_theme_load (NULL,
+                                                           32,
+                                                           wl_data.wl_shm))) {
+            g_warning ("%s: Could not load cursor theme.", G_STRFUNC);
+        } else if (!(wl_data.cursor_left_ptr =
+                     wl_cursor_theme_get_cursor (wl_data.cursor_theme, "left_ptr"))) {
+            g_warning ("%s: Could not load left_ptr cursor.", G_STRFUNC);
+        }
+    }
+#endif /* COG_USE_WAYLAND_CURSOR */
+
     g_assert (wl_data.compositor);
     g_assert (wl_data.xdg_shell != NULL ||
               wl_data.shell != NULL ||
@@ -1589,6 +1647,12 @@ clear_wayland (void)
     g_clear_pointer (&wl_data.protection, weston_content_protection_destroy);
     g_clear_pointer (&wl_data.direct_display, weston_direct_display_v1_destroy);
 #endif
+
+#ifdef COG_USE_WAYLAND_CURSOR
+    g_clear_pointer (&wl_data.cursor_left_ptr_surface, wl_surface_destroy);
+    g_clear_pointer (&wl_data.cursor_theme, wl_cursor_theme_destroy);
+    g_clear_pointer (&wl_data.wl_shm, wl_shm_destroy);
+#endif /* COG_USE_WAYLAND_CURSOR */
 
     wl_registry_destroy (wl_data.registry);
     wl_display_flush (wl_data.display);
