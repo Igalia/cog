@@ -220,6 +220,7 @@ static struct {
 
     CogPopupMenu *popup_menu;
     WebKitOptionMenu *option_menu;
+
     bool configured;
 } popup_data = {
     .configured = false,
@@ -343,6 +344,7 @@ setup_wayland_event_source (GMainContext *main_context,
 }
 
 static void create_popup (WebKitOptionMenu *option_menu);
+static void display_popup (void);
 static void update_popup (void);
 static void destroy_popup (void);
 
@@ -452,6 +454,11 @@ xdg_surface_on_configure (void *data,
                           uint32_t serial)
 {
     xdg_surface_ack_configure (surface, serial);
+
+    if (popup_data.xdg_surface == surface && !popup_data.configured) {
+        popup_data.configured = true;
+        display_popup ();
+    }
 }
 
 static const struct xdg_surface_listener xdg_surface_listener = {
@@ -490,17 +497,6 @@ xdg_popup_on_configure (void *data,
                         int32_t width,
                         int32_t height)
 {
-    if (popup_data.popup_menu == NULL)
-        return;
-
-    if (!popup_data.configured) {
-        popup_data.configured = true;
-
-        struct wl_buffer *buffer = cog_popup_menu_get_buffer (popup_data.popup_menu);
-        wl_surface_attach (popup_data.wl_surface, buffer, 0, 0);
-        wl_surface_damage (popup_data.wl_surface, 0, 0, INT_MAX, INT_MAX);
-        wl_surface_commit (popup_data.wl_surface);
-    }
 }
 
 static void
@@ -1951,7 +1947,7 @@ create_popup (WebKitOptionMenu *option_menu)
                                     win_data.wl_surface,
                                     0, (win_data.height - popup_data.height), 0);
 
-        update_popup ();
+        display_popup();
     }
 }
 
@@ -1972,6 +1968,15 @@ destroy_popup (void)
     g_clear_pointer (&popup_data.wl_surface, wl_surface_destroy);
 
     popup_data.configured = false;
+}
+
+static void
+display_popup (void)
+{
+    struct wl_buffer *buffer = cog_popup_menu_get_buffer (popup_data.popup_menu);
+    wl_surface_attach (popup_data.wl_surface, buffer, 0, 0);
+    wl_surface_damage (popup_data.wl_surface, 0, 0, INT_MAX, INT_MAX);
+    wl_surface_commit (popup_data.wl_surface);
 }
 
 static void
