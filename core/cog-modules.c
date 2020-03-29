@@ -32,7 +32,8 @@ ensure_builtin_types (void *func)
     _cog_modules_ensure_extension_points ();
 
     /* Initialize types from built-in "modules". */
-    g_type_ensure (_cog_minimal_shell_get_type ());
+    g_type_ensure (cog_minimal_shell_get_type ());
+    g_type_ensure (cog_minimal_view_get_type ());
 
     g_debug ("%s: Built-in module types initialized.", (const char*) func);
     return NULL;

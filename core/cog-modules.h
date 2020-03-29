@@ -38,7 +38,8 @@ _cog_modules_get_shell_extension_point (void)
 }
 
 /* Type getters for built-in "modules", see _cog_modules_ensure_loaded(). */
-G_GNUC_INTERNAL GType _cog_minimal_shell_get_type (void);
+G_GNUC_INTERNAL GType cog_minimal_shell_get_type (void);
+G_GNUC_INTERNAL GType cog_minimal_view_get_type (void);
 #endif /* COG_INTERNAL_COG__ */
 
 GType cog_modules_get_preferred (const char *extension_point,
