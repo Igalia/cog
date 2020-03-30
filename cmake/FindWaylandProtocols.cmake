@@ -34,43 +34,6 @@ find_package(WaylandScanner)
 
 set(WAYLAND_PROTOCOLS "" CACHE FILEPATH "Path to the wayland-protocols data directory")
 
-# Already detected included and directory found?
-if (WAYLAND_PROTOCOLS AND IS_DIRECTORY "${WAYLAND_PROTOCOLS}")
-    return ()
-endif ()
-
-#
-# Method 1: If -DWAYLAND_PROTOCOLS=... was passed in the command line,
-#           check whether the "stable" and "unstable" subdirectories
-#           exist.
-#
-if (WAYLAND_PROTOCOLS)
-    get_filename_component(WAYLAND_PROTOCOLS "${WAYLAND_PROTOCOLS}" REALPATH)
-    if (NOT IS_DIRECTORY "${WAYLAND_PROTOCOLS}/stable")
-        set(WAYLAND_PROTOCOLS "")
-    endif ()
-    if (NOT IS_DIRECTORY "${WAYLAND_PROTOCOLS}/unstable")
-        set(WAYLAND_PROTOCOLS "")
-    endif ()
-endif ()
-
-#
-# Method 2: Try to find the directory using pkg-config.
-#
-if (NOT DEFINED WAYLAND_PROTOCOLS OR NOT WAYLAND_PROTOCOLS)
-    find_package(PkgConfig)
-    pkg_check_modules(WAYLAND_PROTOCOLS_PC wayland-protocols)
-    if (WAYLAND_PROTOCOLS_PC_FOUND)
-        pkg_get_variable(WAYLAND_PROTOCOLS_PC_DATADIR wayland-protocols pkgdatadir)
-        if (WAYLAND_PROTOCOLS_PC_DATADIR)
-            set(WAYLAND_PROTOCOLS "${WAYLAND_PROTOCOLS_PC_DATADIR}")
-        endif ()
-    endif ()
-    unset(WAYLAND_PROTOCOLS_PC)
-    unset(WAYLAND_PROTOCOLS_PC_DATADIR)
-endif ()
-
-
 include(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(
     WAYLAND_PROTOCOLS
@@ -206,3 +169,40 @@ function(add_wayland_protocol _target _kind _protocol)
         target_sources(${_target} PRIVATE "${proto_server}")
     endif ()
 endfunction()
+
+# Already detected included and directory found?
+if (WAYLAND_PROTOCOLS AND IS_DIRECTORY "${WAYLAND_PROTOCOLS}")
+    return ()
+endif ()
+
+#
+# Method 1: If -DWAYLAND_PROTOCOLS=... was passed in the command line,
+#           check whether the "stable" and "unstable" subdirectories
+#           exist.
+#
+if (WAYLAND_PROTOCOLS)
+    get_filename_component(WAYLAND_PROTOCOLS "${WAYLAND_PROTOCOLS}" REALPATH)
+    if (NOT IS_DIRECTORY "${WAYLAND_PROTOCOLS}/stable")
+        set(WAYLAND_PROTOCOLS "")
+    endif ()
+    if (NOT IS_DIRECTORY "${WAYLAND_PROTOCOLS}/unstable")
+        set(WAYLAND_PROTOCOLS "")
+    endif ()
+endif ()
+
+#
+# Method 2: Try to find the directory using pkg-config.
+#
+if (NOT DEFINED WAYLAND_PROTOCOLS OR NOT WAYLAND_PROTOCOLS)
+    find_package(PkgConfig)
+    pkg_check_modules(WAYLAND_PROTOCOLS_PC wayland-protocols)
+    if (WAYLAND_PROTOCOLS_PC_FOUND)
+        pkg_get_variable(WAYLAND_PROTOCOLS_PC_DATADIR wayland-protocols pkgdatadir)
+        if (WAYLAND_PROTOCOLS_PC_DATADIR)
+            set(WAYLAND_PROTOCOLS "${WAYLAND_PROTOCOLS_PC_DATADIR}")
+        endif ()
+    endif ()
+    unset(WAYLAND_PROTOCOLS_PC)
+    unset(WAYLAND_PROTOCOLS_PC_DATADIR)
+endif ()
+
