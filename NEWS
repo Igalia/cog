@@ -1,3 +1,11 @@
+======================
+0.6.0 - March 30, 2020
+======================
+
+- fdo: Use wayland-cursor if available to set a default pointer cursor.
+- fdo: Fix crashes due to unchecked usage of libxkbcommon structures.
+- fdo: Fix wrong offsets in input deletions done by input methods.
+
 =====================
 0.5.1 - March 2, 2020
 =====================
