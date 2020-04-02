@@ -505,6 +505,7 @@ option_entry_parse_cookie_add (const char          *option G_GNUC_UNUSED,
                                GError             **error G_GNUC_UNUSED)
 {
     g_autoptr(GMainLoop) loop = NULL;
+    g_autoptr(SoupCookie) cookie = NULL;
     g_autofree char *domain = g_strdup (value);
 
     char *flagstr = strchr (domain, ':');
@@ -528,7 +529,7 @@ option_entry_parse_cookie_add (const char          *option G_GNUC_UNUSED,
     if (!contents[0])
         goto bad_format;
 
-    g_autoptr(SoupCookie) cookie = soup_cookie_parse (contents, NULL);
+    cookie = soup_cookie_parse (contents, NULL);
     if (!cookie)
         goto bad_format;
 
