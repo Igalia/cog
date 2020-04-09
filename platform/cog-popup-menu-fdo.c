@@ -72,11 +72,7 @@ cog_popup_menu_paint (CogPopupMenu *popup_menu)
         cairo_set_line_width (popup_menu->cr, 1);
         cairo_set_font_size (popup_menu->cr, ITEM_TEXT_SIZE);
 
-        guint num_items = popup_menu->menu_num_items;
-
         if (popup_menu->menu_has_paging) {
-            num_items = 5;
-
             cairo_rectangle (popup_menu->cr, 0, 0,
                              (popup_menu->menu_item_width / popup_menu->scale),
                              ITEM_HEIGHT);
