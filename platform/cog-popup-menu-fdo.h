@@ -14,6 +14,11 @@ typedef struct _CogPopupMenu CogPopupMenu;
 typedef struct _WebKitOptionMenu WebKitOptionMenu;
 struct wpe_input_pointer_event;
 
+enum {
+    COG_POPUP_MENU_EVENT_STATE_RELEASED = 0,
+    COG_POPUP_MENU_EVENT_STATE_PRESSED = 1,
+};
+
 guint
 cog_popup_menu_get_height_for_option_menu (WebKitOptionMenu *option_menu);
 

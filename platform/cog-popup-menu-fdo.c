@@ -282,7 +282,7 @@ cog_popup_menu_handle_event (CogPopupMenu *popup_menu, int state, int x_coord, i
             return;
     }
 
-    if (!!state) {
+    if (state == COG_POPUP_MENU_EVENT_STATE_PRESSED) {
         popup_menu->finalized_local_index = local_index;
         if (local_index == -1)
             popup_menu->finalized_selection_index = -1;

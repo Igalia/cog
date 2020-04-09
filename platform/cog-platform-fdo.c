@@ -759,7 +759,8 @@ pointer_on_button (void* data,
     if (popup_data.wl_surface) {
         if (wl_data.pointer.surface == popup_data.wl_surface) {
             cog_popup_menu_handle_event (popup_data.popup_menu,
-                                         event.state, event.x, event.y);
+                                         !!state ? COG_POPUP_MENU_EVENT_STATE_PRESSED : COG_POPUP_MENU_EVENT_STATE_RELEASED,
+                                         event.x, event.y);
             update_popup ();
             return;
         } else {
@@ -1206,7 +1207,8 @@ touch_on_down (void *data,
     if (popup_data.wl_surface) {
         if (wl_data.touch.surface == popup_data.wl_surface) {
             cog_popup_menu_handle_event (popup_data.popup_menu,
-                                         1, raw_event.x, raw_event.y);
+                                         COG_POPUP_MENU_EVENT_STATE_PRESSED,
+                                         raw_event.x, raw_event.y);
             update_popup ();
             return;
         } else
@@ -1249,7 +1251,8 @@ touch_on_up (void *data,
     if (popup_data.wl_surface) {
         if (target_surface == popup_data.wl_surface) {
             cog_popup_menu_handle_event (popup_data.popup_menu,
-                                         0, raw_event.x, raw_event.y);
+                                         COG_POPUP_MENU_EVENT_STATE_RELEASED,
+                                         raw_event.x, raw_event.y);
             update_popup ();
 
             memset (&wl_data.touch.points[id],
