@@ -1975,7 +1975,7 @@ display_popup (void)
 {
     struct wl_buffer *buffer = cog_popup_menu_get_buffer (popup_data.popup_menu);
     wl_surface_attach (popup_data.wl_surface, buffer, 0, 0);
-    wl_surface_damage (popup_data.wl_surface, 0, 0, INT_MAX, INT_MAX);
+    wl_surface_damage (popup_data.wl_surface, 0, 0, INT32_MAX, INT32_MAX);
     wl_surface_commit (popup_data.wl_surface);
 }
 
@@ -1994,7 +1994,7 @@ update_popup (void)
 
     struct wl_buffer *buffer = cog_popup_menu_get_buffer (popup_data.popup_menu);
     wl_surface_attach (popup_data.wl_surface, buffer, 0, 0);
-    wl_surface_damage (popup_data.wl_surface, 0, 0, INT_MAX, INT_MAX);
+    wl_surface_damage (popup_data.wl_surface, 0, 0, INT32_MAX, INT32_MAX);
     wl_surface_commit (popup_data.wl_surface);
 }
 
