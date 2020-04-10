@@ -1,3 +1,14 @@
+======================
+0.7.1 - April 11, 2020
+======================
+
+- Support keeping a reference to the configuration file, which platform
+  plug-ins can use to obtain their own configuration options.
+- fdo: Added support for option menus.
+- fdo: Set a default pointer cursor.
+- fdo: Removed redundant EGL state.
+- fdo: Fix possible usage of uninitialized libxkbcommon structures.
+
 =====================
 0.3.1 - June 28, 2018
 =====================
