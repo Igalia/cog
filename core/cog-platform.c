@@ -29,6 +29,8 @@ struct _CogPlatform {
     WebKitWebViewBackend*     (*get_view_backend)  (CogPlatform   *platform,
                                                     WebKitWebView *related_view,
                                                     GError       **error);
+    void                      (*init_web_view)     (CogPlatform   *platform,
+                                                    WebKitWebView *view);
     WebKitInputMethodContext* (*create_im_context) (CogPlatform   *platform);
 };
 
@@ -78,6 +80,8 @@ cog_platform_try_load (CogPlatform *platform,
     if (!platform->get_view_backend)
         goto err_out;
 
+    platform->init_web_view = dlsym (platform->so,
+                                     "cog_platform_plugin_init_web_view");
     platform->create_im_context = dlsym (platform->so,
                                          "cog_platform_plugin_create_im_context");
 
@@ -108,6 +112,16 @@ cog_platform_get_view_backend (CogPlatform   *platform,
     g_return_val_if_fail (platform != NULL, NULL);
 
     return platform->get_view_backend (platform, related_view, error);
+}
+
+void
+cog_platform_init_web_view (CogPlatform   *platform,
+                            WebKitWebView *view)
+{
+    g_return_if_fail (platform != NULL);
+
+    if (platform->init_web_view)
+        platform->init_web_view (platform, view);
 }
 
 WebKitInputMethodContext*

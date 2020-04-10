@@ -135,6 +135,11 @@ else ()
     else ()
         set(COG_IM_API_SUPPORTED OFF)
     endif ()
+    if (COG_PLATFORM_FDO AND "${WEB_ENGINE_VERSION}" VERSION_GREATER "2.27.3")
+        set(COG_FDO_WIDGETS_SUPPORTED ON)
+    else ()
+        set(COG_FDO_WIDGETS_SUPPORTED OFF)
+    endif ()
 endif ()
 
 include(CheckCCompilerFlag)
@@ -267,6 +272,18 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
         target_compile_definitions(cogplatform-fdo PRIVATE COG_IM_API_SUPPORTED=1)
     else ()
         target_compile_definitions(cogplatform-fdo PRIVATE COG_IM_API_SUPPORTED=0)
+    endif ()
+
+    if (COG_FDO_WIDGETS_SUPPORTED)
+        pkg_check_modules(CAIRO IMPORTED_TARGET cairo)
+        target_link_libraries(cogplatform-fdo PRIVATE PkgConfig::CAIRO)
+        target_sources(cogplatform-fdo PRIVATE
+            platform/cog-popup-menu-fdo.c
+            platform/os-compatibility.c
+        )
+        target_compile_definitions(cogplatform-fdo PRIVATE COG_FDO_WIDGETS_SUPPORTED=1)
+    else ()
+        target_compile_definitions(cogplatform-fdo PRIVATE COG_FDO_WIDGETS_SUPPORTED=0)
     endif ()
 
     # Direct video display extension.
