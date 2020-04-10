@@ -35,6 +35,7 @@ const char       *cog_shell_get_name            (CogShell          *shell);
 WebKitWebContext *cog_shell_get_web_context     (CogShell          *shell);
 WebKitSettings   *cog_shell_get_web_settings    (CogShell          *shell);
 WebKitWebView    *cog_shell_get_web_view        (CogShell          *shell);
+GKeyFile         *cog_shell_get_config_file     (CogShell          *shell);
 void              cog_shell_set_request_handler (CogShell          *shell,
                                                  const char        *scheme,
                                                  CogRequestHandler *handler);

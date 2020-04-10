@@ -277,6 +277,8 @@ on_handle_local_options (GApplication *application,
                         g_get_prgname (), error->message);
             return EXIT_FAILURE;
         }
+
+        g_object_set (shell, "config-file", g_key_file_ref (key_file), NULL);
     }
 
     if (s_options.web_extensions_dir != NULL) {
