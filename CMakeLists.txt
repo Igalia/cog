@@ -275,26 +275,15 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
     endif ()
 
     if (COG_FDO_WIDGETS_SUPPORTED)
-        pkg_check_modules(CAIRO cairo)
-
-        list(APPEND COGPLATFORM_FDO_INCLUDE_DIRS
-            ${CAIRO_INCLUDE_DIRS}
-        )
-        list(APPEND COGPLATFORM_FDO_CFLAGS
-            ${CAIRO_CFLAGS_OTHER}
-        )
-        list(APPEND COGPLATFORM_FDO_LDFLAGS
-            ${CAIRO_LDFLAGS}
-        )
-
-        list(APPEND COGPLATFORM_FDO_SOURCES
+        pkg_check_modules(CAIRO IMPORTED_TARGET cairo)
+        target_link_libraries(cogplatform-fdo PRIVATE PkgConfig::CAIRO)
+        target_sources(cogplatform-fdo PRIVATE
             platform/cog-popup-menu-fdo.c
             platform/os-compatibility.c
         )
-
-        add_definitions(-DCOG_FDO_WIDGETS_SUPPORTED=1)
+        target_compile_definitions(cogplatform-fdo PRIVATE COG_FDO_WIDGETS_SUPPORTED=1)
     else ()
-        add_definitions(-DCOG_FDO_WIDGETS_SUPPORTED=0)
+        target_compile_definitions(cogplatform-fdo PRIVATE COG_FDO_WIDGETS_SUPPORTED=0)
     endif ()
 
     # Direct video display extension.
