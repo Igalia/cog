@@ -112,6 +112,7 @@ struct _PwlWindow {
 
     struct wl_surface *wl_surface;
     struct wl_surface_listener surface_listener;
+    struct { int32_t x, y, w, h; } opaque_region;
 
     struct wl_shell_surface *shell_surface;
 
@@ -2218,24 +2219,50 @@ pwl_window_set_maximized (PwlWindow *self, bool maximized)
 }
 
 
+static inline bool
+pwl_window_opaque_region_matches (const PwlWindow *self,
+                                  uint32_t x, uint32_t y, uint32_t w, uint32_t h)
+{
+    return (self->opaque_region.x == x &&
+            self->opaque_region.y == y &&
+            self->opaque_region.w == w &&
+            self->opaque_region.h == h);
+}
+
+
 void
-pwl_window_set_opaque_region (const PwlWindow *self,
+pwl_window_set_opaque_region (PwlWindow *self,
                               uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 {
     g_return_if_fail (self);
+
+    if (G_LIKELY (pwl_window_opaque_region_matches (self, x, y, w, h)))
+        return;
 
     struct wl_region *region = wl_compositor_create_region (self->display->compositor);
     wl_region_add (region, x, y, w, h);
     wl_surface_set_opaque_region (self->wl_surface, region);
     wl_region_destroy (region);
+
+    self->opaque_region.x = x;
+    self->opaque_region.y = y;
+    self->opaque_region.w = w;
+    self->opaque_region.h = h;
 }
 
 
 void
-pwl_window_unset_opaque_region (const PwlWindow *self)
+pwl_window_unset_opaque_region (PwlWindow *self)
 {
     g_return_if_fail (self);
+
+    if (G_LIKELY (pwl_window_opaque_region_matches (self, 0, 0, 0, 0)))
+        return;
+
     wl_surface_set_opaque_region (self->wl_surface, NULL);
+
+    self->opaque_region.x = self->opaque_region.y =
+        self->opaque_region.w = self->opaque_region.h = 0;
 }
 
 

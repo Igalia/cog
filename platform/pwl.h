@@ -141,10 +141,10 @@ void pwl_window_set_fullscreen (PwlWindow*, bool fullscreen);
 bool pwl_window_is_maximized (const PwlWindow*);
 void pwl_window_set_maximized (PwlWindow*, bool maximized);
 
-void pwl_window_set_opaque_region (const PwlWindow*,
+void pwl_window_set_opaque_region (PwlWindow*,
                                    uint32_t x, uint32_t y,
                                    uint32_t w, uint32_t h);
-void pwl_window_unset_opaque_region (const PwlWindow*);
+void pwl_window_unset_opaque_region (PwlWindow*);
 
 void pwl_window_notify_resize (PwlWindow*,
                                void (*callback) (PwlWindow*, uint32_t w, uint32_t h, void*),
