@@ -263,7 +263,10 @@ static struct {
     struct wpe_fdo_egl_exported_image *image;
     struct wl_buffer *buffer;
     struct wl_callback *frame_callback;
-} wpe_view_data = {NULL, };
+    bool should_update_opaque_region;
+} wpe_view_data = {
+    .should_update_opaque_region = true, /* Force initial update. */
+};
 
 
 struct wl_event_source {
@@ -378,8 +381,11 @@ configure_surface_geometry (int32_t width, int32_t height)
             height = DEFAULT_HEIGHT;
     }
 
-    win_data.width = width;
-    win_data.height = height;
+    if (win_data.width != width || win_data.height != height) {
+        win_data.width = width;
+        win_data.height = height;
+        wpe_view_data.should_update_opaque_region = true;
+    }
 }
 
 static void
@@ -1021,6 +1027,7 @@ capture_app_key_bindings (uint32_t keysym,
             else
                 xdg_toplevel_unset_fullscreen (win_data.xdg_toplevel);
             win_data.is_fullscreen = ! win_data.is_fullscreen;
+            wpe_view_data.should_update_opaque_region = true;
             return true;
         }
         /* Ctrl+W, exit the application */
@@ -1572,14 +1579,17 @@ on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 {
     wpe_view_data.image = image;
 
-    if (win_data.is_fullscreen) {
-      struct wl_region *region;
-      region = wl_compositor_create_region (wl_data.compositor);
-      wl_region_add (region, 0, 0, win_data.width, win_data.height);
-      wl_surface_set_opaque_region (win_data.wl_surface, region);
-      wl_region_destroy (region);
-    } else {
-      wl_surface_set_opaque_region (win_data.wl_surface, NULL);
+    if (wpe_view_data.should_update_opaque_region) {
+        wpe_view_data.should_update_opaque_region = false;
+        if (win_data.is_fullscreen) {
+          struct wl_region *region =
+              wl_compositor_create_region (wl_data.compositor);
+          wl_region_add (region, 0, 0, win_data.width, win_data.height);
+          wl_surface_set_opaque_region (win_data.wl_surface, region);
+          wl_region_destroy (region);
+        } else {
+          wl_surface_set_opaque_region (win_data.wl_surface, NULL);
+        }
     }
 
     static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
