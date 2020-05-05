@@ -129,6 +129,12 @@ static struct {
 };
 
 static struct {
+    bool use_raw_touch_event_coordinates;
+} config_data = {
+    .use_raw_touch_event_coordinates = 0,
+};
+
+static struct {
     struct udev *udev;
     struct libinput *libinput;
 
@@ -713,15 +719,21 @@ input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_e
 
     if (touch_type == LIBINPUT_EVENT_TOUCH_DOWN
         || touch_type == LIBINPUT_EVENT_TOUCH_MOTION) {
-        //touch_point->x = libinput_event_touch_get_x_transformed (touch_event,
-        //                                                         input_data.input_width);
-        //touch_point->y = libinput_event_touch_get_y_transformed (touch_event,
-        //                                                         input_data.input_height);
+        double event_x, event_y;
+
+        if (config_data.use_raw_touch_event_coordinates) {
+            event_x = libinput_event_touch_get_x (touch_event);
+            event_y = libinput_event_touch_get_y (touch_event);
+            fprintf(stderr, "touch: raw x/y (%.4f,%.4f)\n", event_x, event_y);
+        } else {
+            event_x = libinput_event_touch_get_x_transformed (touch_event, input_data.input_width);
+            event_y = libinput_event_touch_get_y_transformed (touch_event, input_data.input_height);
+            fprintf(stderr, "touch: input dimensions (%u,%u) transformed (%.4f,%.4f)\n",
+                input_data.input_width, input_data.input_height, event_x, event_y);
+        }
 
         float x, y;
-        input_transform_event_coords (libinput_event_touch_get_x (touch_event),
-                                      libinput_event_touch_get_y (touch_event),
-                                      &x, &y);
+        input_transform_event_coords (event_x, event_y, &x, &y);
         touch_point->x = x;
         touch_point->y = y;
     }
@@ -926,13 +938,24 @@ init_glib (void)
 }
 
 
+static gboolean
+init_config (CogShell *shell)
+{
+    GKeyFile* key_file = cog_shell_get_config_file (shell);
+    if (!key_file)
+        return TRUE;
+
+    config_data.use_raw_touch_event_coordinates = g_key_file_get_boolean (key_file,
+                                                                          "input",
+                                                                          "raw-touch-event-coordinates",
+                                                                          NULL);
+    return TRUE;
+}
+
+
 static void
 render_resource (struct wl_resource *buffer_resource, EGLImageKHR image)
 {
-    //fprintf(stderr, "render_resource(): (%d,%d), format %x, fd %d offset %u pitch %u\n",
-    //    dmabuf_resource->width, dmabuf_resource->height, dmabuf_resource->format,
-    //    dmabuf_resource->fds[0], dmabuf_resource->offsets[0], dmabuf_resource->strides[0]);
-
     eglMakeCurrent (egl_data.display, egl_data.surface, egl_data.surface, egl_data.context);
 
     glViewport (0, 0, drm_data.width, drm_data.height);
@@ -1012,11 +1035,6 @@ render_resource (struct wl_resource *buffer_resource, EGLImageKHR image)
 static void
 on_export_buffer_resource(void *data, struct wl_resource *buffer_resource)
 {
-    fprintf(stderr, "on_export_buffer_resource(): buffer_resource %p\n", buffer_resource);
-
-    EGLint image_attributes[] = {
-        EGL_NONE,
-    };
     EGLImageKHR image = egl_data.create_image (egl_data.display, EGL_NO_CONTEXT, EGL_WAYLAND_BUFFER_WL,
                                                (EGLClientBuffer) buffer_resource, NULL);
 
@@ -1049,6 +1067,14 @@ cog_platform_plugin_setup (CogPlatform *platform,
 {
     g_assert (platform);
     g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
+
+    if (!init_config (shell)) {
+        g_set_error_literal (error,
+                             COG_PLATFORM_WPE_ERROR,
+                             COG_PLATFORM_WPE_ERROR_INIT,
+                             "Failed to initialize configuration");
+        return FALSE;
+    }
 
     if (!wpe_loader_init ("libWPEBackend-fdo-1.0.so")) {
         g_set_error_literal (error,
