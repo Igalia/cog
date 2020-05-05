@@ -724,12 +724,9 @@ input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_e
         if (config_data.use_raw_touch_event_coordinates) {
             event_x = libinput_event_touch_get_x (touch_event);
             event_y = libinput_event_touch_get_y (touch_event);
-            fprintf(stderr, "touch: raw x/y (%.4f,%.4f)\n", event_x, event_y);
         } else {
             event_x = libinput_event_touch_get_x_transformed (touch_event, input_data.input_width);
             event_y = libinput_event_touch_get_y_transformed (touch_event, input_data.input_height);
-            fprintf(stderr, "touch: input dimensions (%u,%u) transformed (%.4f,%.4f)\n",
-                input_data.input_width, input_data.input_height, event_x, event_y);
         }
 
         float x, y;
