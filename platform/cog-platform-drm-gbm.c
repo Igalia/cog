@@ -9,7 +9,7 @@
 #include <string.h>
 #include <wayland-server.h>
 #include <wpe/fdo.h>
-#include <wpe/fdo-gbm.h>
+#include <wpe/fdo-egl.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
@@ -927,22 +927,11 @@ init_glib (void)
 
 
 static void
-render_resource (struct wpe_view_backend_exportable_fdo_dmabuf_resource *dmabuf_resource)
+render_resource (struct wl_resource *buffer_resource, EGLImageKHR image)
 {
     //fprintf(stderr, "render_resource(): (%d,%d), format %x, fd %d offset %u pitch %u\n",
     //    dmabuf_resource->width, dmabuf_resource->height, dmabuf_resource->format,
     //    dmabuf_resource->fds[0], dmabuf_resource->offsets[0], dmabuf_resource->strides[0]);
-    EGLint image_attributes[] = {
-        EGL_WIDTH, dmabuf_resource->width,
-        EGL_HEIGHT, dmabuf_resource->height,
-        EGL_LINUX_DRM_FOURCC_EXT, dmabuf_resource->format,
-        EGL_DMA_BUF_PLANE0_FD_EXT, dmabuf_resource->fds[0],
-        EGL_DMA_BUF_PLANE0_OFFSET_EXT, dmabuf_resource->offsets[0],
-        EGL_DMA_BUF_PLANE0_PITCH_EXT, dmabuf_resource->strides[0],
-        EGL_NONE,
-    };
-    EGLImageKHR image = egl_data.create_image (egl_data.display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
-                                               (EGLClientBuffer) NULL, image_attributes);
 
     eglMakeCurrent (egl_data.display, egl_data.surface, egl_data.surface, egl_data.context);
 
@@ -1009,7 +998,7 @@ render_resource (struct wpe_view_backend_exportable_fdo_dmabuf_resource *dmabuf_
 
     struct buffer_object *buffer = g_new0 (struct buffer_object, 1);
     buffer->image = image;
-    buffer->buffer_resource = dmabuf_resource->buffer_resource;
+    buffer->buffer_resource = buffer_resource;
     buffer->bo = bo;
 
     cached->current_buffer = buffer;
@@ -1021,9 +1010,35 @@ render_resource (struct wpe_view_backend_exportable_fdo_dmabuf_resource *dmabuf_
 }
 
 static void
+on_export_buffer_resource(void *data, struct wl_resource *buffer_resource)
+{
+    fprintf(stderr, "on_export_buffer_resource(): buffer_resource %p\n", buffer_resource);
+
+    EGLint image_attributes[] = {
+        EGL_NONE,
+    };
+    EGLImageKHR image = egl_data.create_image (egl_data.display, EGL_NO_CONTEXT, EGL_WAYLAND_BUFFER_WL,
+                                               (EGLClientBuffer) buffer_resource, NULL);
+
+    render_resource (buffer_resource, image);
+}
+
+static void
 on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dmabuf_resource *dmabuf_resource)
 {
-    render_resource (dmabuf_resource);
+    EGLint image_attributes[] = {
+        EGL_WIDTH, dmabuf_resource->width,
+        EGL_HEIGHT, dmabuf_resource->height,
+        EGL_LINUX_DRM_FOURCC_EXT, dmabuf_resource->format,
+        EGL_DMA_BUF_PLANE0_FD_EXT, dmabuf_resource->fds[0],
+        EGL_DMA_BUF_PLANE0_OFFSET_EXT, dmabuf_resource->offsets[0],
+        EGL_DMA_BUF_PLANE0_PITCH_EXT, dmabuf_resource->strides[0],
+        EGL_NONE,
+    };
+    EGLImageKHR image = egl_data.create_image (egl_data.display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
+                                               (EGLClientBuffer) NULL, image_attributes);
+
+    render_resource (dmabuf_resource->buffer_resource, image);
 }
 
 gboolean
@@ -1099,7 +1114,7 @@ cog_platform_setup (CogPlatform *platform,
         return FALSE;
     }
 
-    wpe_fdo_initialize_for_gbm_device (gbm_data.device);
+    wpe_fdo_initialize_for_egl_display (egl_data.display);
 
     return TRUE;
 }
@@ -1125,6 +1140,7 @@ cog_platform_get_view_backend (CogPlatform   *platform,
                                GError       **error)
 {
     static struct wpe_view_backend_exportable_fdo_client exportable_client = {
+        .export_buffer_resource = on_export_buffer_resource,
         .export_dmabuf_resource = on_export_dmabuf_resource,
     };
 
