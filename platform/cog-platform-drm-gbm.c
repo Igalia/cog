@@ -80,6 +80,10 @@ static struct {
     uint32_t width;
     uint32_t height;
 
+    int rotation_value;
+    bool pending_rotation_value_application;
+    int pending_rotation_value;
+
     float input_coords_transform[6];
 
     float position_coords[4][2];
@@ -87,6 +91,9 @@ static struct {
 } geometry_data = {
     .width = 0,
     .height = 0,
+    .rotation_value = 0,
+    .pending_rotation_value_application = false,
+    .pending_rotation_value = 0,
 };
 
 static struct {
@@ -130,8 +137,10 @@ static struct {
 
 static struct {
     bool use_raw_touch_event_coordinates;
+    int output_rotation;
 } config_data = {
     .use_raw_touch_event_coordinates = 0,
+    .output_rotation = 0,
 };
 
 static struct {
@@ -335,86 +344,107 @@ drm_page_flip_handler (int fd, unsigned int frame, unsigned int sec, unsigned in
 }
 
 
-static gboolean
-init_geometry (void)
+static void
+geometry_size_for_rotation_value (int rotation_value, uint32_t *width, uint32_t *height)
 {
-    geometry_data.width = drm_data.width;
-    geometry_data.height = drm_data.height;
+    if (rotation_value == 0 || rotation_value == 180) {
+        *width = drm_data.width;
+        *height = drm_data.height;
+    } else if (rotation_value == 90 || rotation_value == 270) {
+        *width = drm_data.height;
+        *height = drm_data.width;
+    } else
+        g_error ("unsupported rotation value %d", rotation_value);
+}
 
-    float input_coords_transform[6] = {
-        1, 0,
-        0, 1,
-        0, 0,
-    };
-
+static void
+apply_geometry_for_rotation_value (int rotation_value)
+{
+    float input_coords_transform[6];
+    float texture_coords[4][2];
     float position_coords[4][2] = {
         { -1,  1 }, {  1,  1 },
         { -1, -1 }, {  1, -1 },
     };
-    float texture_coords[4][2] = {
-        { 0, 0 }, { 1, 0 },
-        { 0, 1 }, { 1, 1 },
-    };
+    fprintf(stderr, "apply_geometry_for_rotation_value() %d\n", rotation_value);
 
-    const char* rotation_mode = getenv("COG_DRM_ROTATION");
-    if (rotation_mode) {
-        if (!strcmp(rotation_mode, "0")) {
-            // Everything is already default-initialized for 0-degrees rotation.
-        } else if (!strcmp(rotation_mode, "90")) {
-            geometry_data.width = drm_data.height;
-            geometry_data.height = drm_data.width;
+    geometry_size_for_rotation_value (0, &geometry_data.width, &geometry_data.height);
 
-            float rot_input[6] = {
-                0, 1,
-                -1, 0,
-                drm_data.height, 0,
-            };
-            memcpy (input_coords_transform, rot_input, 6 * sizeof(float));
+    if (rotation_value == 0) {
+        float rot_input[6] = {
+            1, 0,
+            0, 1,
+            0, 0,
+        };
+        memcpy (input_coords_transform, rot_input, 6 * sizeof(float));
 
-            float rot_coords[4][2] = {
-                { 1, 0 }, { 1, 1 },
-                { 0, 0 }, { 0, 1 },
-            };
-            memcpy (texture_coords, rot_coords, 8 * sizeof(float));
-        } else if (!strcmp(rotation_mode, "180")) {
-            float rot_input[6] = {
-                -1, 0,
-                0, -1,
-                drm_data.width, drm_data.height,
-            };
-            memcpy (input_coords_transform, rot_input, 6 * sizeof(float));
+        float rot_coords[4][2] = {
+            { 0, 0 }, { 1, 0 },
+            { 0, 1 }, { 1, 1 },
+        };
+        memcpy (texture_coords, rot_coords, 8 * sizeof(float));
+    } else if (rotation_value == 90) {
+        float rot_input[6] = {
+            0, 1,
+            -1, 0,
+            drm_data.height, 0,
+        };
+        memcpy (input_coords_transform, rot_input, 6 * sizeof(float));
 
-            float rot_coords[4][2] = {
-                { 1, 1 }, { 0, 1 },
-                { 1, 0 }, { 0, 0 },
-            };
-            memcpy (texture_coords, rot_coords, 8 * sizeof(float));
-        } else if (!strcmp(rotation_mode, "270")) {
-            geometry_data.width = drm_data.height;
-            geometry_data.height = drm_data.width;
+        float rot_coords[4][2] = {
+            { 1, 0 }, { 1, 1 },
+            { 0, 0 }, { 0, 1 },
+        };
+        memcpy (texture_coords, rot_coords, 8 * sizeof(float));
+    } else if (rotation_value == 180) {
+        float rot_input[6] = {
+            -1, 0,
+            0, -1,
+            drm_data.width, drm_data.height,
+        };
+        memcpy (input_coords_transform, rot_input, 6 * sizeof(float));
 
-            float rot_input[6] = {
-                0, -1,
-                1, 0,
-                0, drm_data.width,
-            };
-            memcpy (input_coords_transform, rot_input, 6 * sizeof(float));
+        float rot_coords[4][2] = {
+            { 1, 1 }, { 0, 1 },
+            { 1, 0 }, { 0, 0 },
+        };
+        memcpy (texture_coords, rot_coords, 8 * sizeof(float));
+    } else if (rotation_value == 270) {
+        float rot_input[6] = {
+            0, -1,
+            1, 0,
+            0, drm_data.width,
+        };
+        memcpy (input_coords_transform, rot_input, 6 * sizeof(float));
 
-            float rot_coords[4][2] = {
-                { 0, 1 }, { 0, 0 },
-                { 1, 1 }, { 1, 0 },
-            };
-            memcpy (texture_coords, rot_coords, 8 * sizeof(float));
-        } else {
-            fprintf(stderr, "unknown COG_DRM_ROTATION value '%s' (supporting 0, 90, 180, 270\n",
-                rotation_mode);
-        }
-    }
+        float rot_coords[4][2] = {
+            { 0, 1 }, { 0, 0 },
+            { 1, 1 }, { 1, 0 },
+        };
+        memcpy (texture_coords, rot_coords, 8 * sizeof(float));
+    } else
+        g_error ("unsupported rotation value %d", rotation_value);
 
     memcpy(geometry_data.input_coords_transform, input_coords_transform, 6 * sizeof(float));
     memcpy(geometry_data.position_coords, position_coords, 8 * sizeof(float));
     memcpy(geometry_data.texture_coords, texture_coords, 8 * sizeof(float));
+}
 
+static gboolean
+init_geometry (void)
+{
+    fprintf(stderr, "init_geometry() rotation %d\n",
+        config_data.output_rotation);
+    if (config_data.output_rotation == 0 || config_data.output_rotation == 90
+        || config_data.output_rotation == 180 || config_data.output_rotation == 270)
+        geometry_data.rotation_value = config_data.output_rotation;
+    else {
+        g_warning ("unknown output rotation value '%d' (supporting 0, 90, 180, 270)\n",
+                   config_data.output_rotation);
+        geometry_data.rotation_value = 0;
+    }
+
+    apply_geometry_for_rotation_value (geometry_data.rotation_value);
     return TRUE;
 }
 
@@ -946,6 +976,10 @@ init_config (CogShell *shell)
                                                                           "input",
                                                                           "raw-touch-event-coordinates",
                                                                           NULL);
+    config_data.output_rotation = g_key_file_get_integer (key_file,
+                                                          "output",
+                                                          "rotation",
+                                                          NULL);
     return TRUE;
 }
 
@@ -955,12 +989,50 @@ on_notify_shell_rotation (CogShell *shell, GParamSpec * arg G_GNUC_UNUSED, gpoin
 {
     fprintf(stderr, "on_notify_shell_rotation() -> shell %p rotation %s\n",
         shell, cog_shell_get_rotation (shell));
+
+    uint32_t resize_width = geometry_data.width;
+    uint32_t resize_height = geometry_data.height;
+
+    const char *rotation_string = cog_shell_get_rotation (shell);
+    if (!strcmp(rotation_string, "0")) {
+        geometry_data.pending_rotation_value_application = true;
+        geometry_data.pending_rotation_value = 0;
+    } else if (!strcmp(rotation_string, "90")) {
+        geometry_data.pending_rotation_value_application = true;
+        geometry_data.pending_rotation_value = 90;
+    } else if (!strcmp(rotation_string, "180")) {
+        geometry_data.pending_rotation_value_application = true;
+        geometry_data.pending_rotation_value = 180;
+    } else if (!strcmp(rotation_string, "270")) {
+        geometry_data.pending_rotation_value_application = true;
+        geometry_data.pending_rotation_value = 270;
+    } else {
+        g_warning ("unsupported rotation '%s' requested", rotation_string);
+        return;
+    }
+
+    geometry_size_for_rotation_value (geometry_data.pending_rotation_value, &resize_width, &resize_height);
+    fprintf(stderr, "on_notify_shell_rotation(): resizing view to (%u,%u)\n",
+        resize_width, resize_height);
+    wpe_view_backend_dispatch_set_size (wpe_view_data.backend, resize_width, resize_height);
 }
 
 
 static void
 render_resource (struct wl_resource *buffer_resource, EGLImageKHR image)
 {
+    fprintf(stderr, "render_resource(): pending rotation application %d\n",
+        geometry_data.pending_rotation_value_application);
+    if (geometry_data.pending_rotation_value_application) {
+        fprintf(stderr, "render_resource(): pending rotation application to %d, currently %d\n",
+            geometry_data.pending_rotation_value, geometry_data.rotation_value);
+        apply_geometry_for_rotation_value (geometry_data.pending_rotation_value);
+
+        geometry_data.rotation_value = geometry_data.pending_rotation_value;
+        geometry_data.pending_rotation_value_application = false;
+        geometry_data.pending_rotation_value = 0;
+    }
+
     eglMakeCurrent (egl_data.display, egl_data.surface, egl_data.surface, egl_data.context);
 
     glViewport (0, 0, drm_data.width, drm_data.height);
