@@ -951,6 +951,14 @@ init_config (CogShell *shell)
 
 
 static void
+on_notify_shell_rotation (CogShell *shell, GParamSpec * arg G_GNUC_UNUSED, gpointer *data G_GNUC_UNUSED)
+{
+    fprintf(stderr, "on_notify_shell_rotation() -> shell %p rotation %s\n",
+        shell, cog_shell_get_rotation (shell));
+}
+
+
+static void
 render_resource (struct wl_resource *buffer_resource, EGLImageKHR image)
 {
     eglMakeCurrent (egl_data.display, egl_data.surface, egl_data.surface, egl_data.context);
@@ -1064,6 +1072,8 @@ cog_platform_plugin_setup (CogPlatform *platform,
 {
     g_assert (platform);
     g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
+
+    g_signal_connect (shell, "notify::rotation", G_CALLBACK (on_notify_shell_rotation), NULL);
 
     if (!init_config (shell)) {
         g_set_error_literal (error,
