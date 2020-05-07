@@ -14,6 +14,7 @@ typedef struct {
     WebKitWebContext *web_context;
     WebKitWebView    *web_view;
     GKeyFile         *config_file;
+    char             *rotation;
     GHashTable       *request_handlers;  /* (string, RequestHandlerMapEntry) */
 } CogShellPrivate;
 
@@ -30,6 +31,7 @@ enum {
     PROP_WEB_CONTEXT,
     PROP_WEB_VIEW,
     PROP_CONFIG_FILE,
+    PROP_ROTATION,
     N_PROPERTIES,
 };
 
@@ -180,6 +182,9 @@ cog_shell_set_property (GObject      *object,
         case PROP_CONFIG_FILE:
             PRIV (shell)->config_file = g_value_get_boxed (value);
             break;
+        case PROP_ROTATION:
+            PRIV (shell)->rotation = g_value_dup_string (value);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
@@ -292,6 +297,14 @@ cog_shell_class_init (CogShellClass *klass)
                             G_PARAM_READWRITE |
                             G_PARAM_STATIC_STRINGS);
 
+    s_properties[PROP_ROTATION] =
+        g_param_spec_string ("rotation",
+                             "Rotation",
+                             "Rotation of the CogShell instance",
+                             NULL,
+                             G_PARAM_READWRITE |
+                             G_PARAM_STATIC_STRINGS);
+
     g_object_class_install_properties (object_class, N_PROPERTIES, s_properties);
 }
 
@@ -351,6 +364,14 @@ cog_shell_get_config_file (CogShell *shell)
 {
     g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
     return PRIV (shell)->config_file;
+}
+
+
+const char*
+cog_shell_get_rotation (CogShell *shell)
+{
+    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
+    return PRIV (shell)->rotation;
 }
 
 

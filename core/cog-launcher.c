@@ -97,6 +97,20 @@ on_action_open (G_GNUC_UNUSED GAction *action,
                               g_variant_get_string (param, NULL));
 }
 
+static void
+on_action_rotate (G_GNUC_UNUSED GAction *action,
+                  GVariant              *param,
+                  CogLauncher           *launcher)
+{
+    fprintf(stderr, "on_action_rotate() param %s\n", g_variant_print(param, TRUE));
+    g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
+
+    g_object_set (launcher->shell,
+                  "rotation",
+                  g_variant_get_string (param, NULL),
+                  NULL);
+}
+
 static gboolean
 on_signal_quit (CogLauncher *launcher)
 {
@@ -279,6 +293,7 @@ cog_launcher_constructed (GObject *object)
     cog_launcher_add_action (launcher, "next", on_action_next, NULL);
     cog_launcher_add_action (launcher, "reload", on_action_reload, NULL);
     cog_launcher_add_action (launcher, "open", on_action_open, G_VARIANT_TYPE_STRING);
+    cog_launcher_add_action (launcher, "rotate", on_action_rotate, G_VARIANT_TYPE_STRING);
 
     launcher->sigint_source = g_unix_signal_add (SIGINT,
                                                  G_SOURCE_FUNC (on_signal_quit),
