@@ -205,6 +205,34 @@ cmd_ping (const char               *name,
 
 
 static int
+cmd_rotate (const char *name,
+            G_GNUC_UNUSED const void *data,
+            int argc,
+            char **argv)
+{
+    cmd_check_simple_help ("rotate output", 1, &argc, &argv);
+
+    g_autoptr(GError) error = NULL;
+    g_autofree char *utf8_rotation_string = g_locale_to_utf8 (argv[1], -1, NULL, NULL, &error);
+    if (!utf8_rotation_string) {
+        g_printerr ("%s\n", error->message);
+        return EXIT_FAILURE;
+    }
+
+    g_autoptr(GVariantBuilder) param_rotation_string =
+        g_variant_builder_new (G_VARIANT_TYPE ("av"));
+    g_variant_builder_add (param_rotation_string, "v", g_variant_new_string (utf8_rotation_string));
+    GVariant *params = g_variant_new ("(sava{sv})", "rotate", param_rotation_string, NULL);
+
+    if (!call_method (GTK_ACTIONS_ACTIVATE, params, &error)) {
+        g_printerr ("%s\n", error->message);
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
+
+static int
 cmd_help (const char *name,
           const void *data,
           int         argc,
@@ -306,6 +334,11 @@ cmd_find_by_name (const char *name)
             .name = "reload",
             .desc = "Reload the current page",
             .handler = cmd_generic_no_args,
+        },
+        {
+            .name = "rotate",
+            .desc = "Rotate the output",
+            .handler = cmd_rotate,
         },
         {
             .name = NULL,
