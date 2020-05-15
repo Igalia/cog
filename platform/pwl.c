@@ -100,7 +100,7 @@ struct _PwlDisplay {
 
     char *application_id;
     char *window_title;
-    GSource *event_src;
+    GSource *source;
 
     bool (*on_capture_app_key) (PwlDisplay*, void *userdata);
     void *on_capture_app_key_userdata;
@@ -171,13 +171,6 @@ struct _PwlWindow {
 
     void (*on_keyboard) (PwlWindow*, const PwlKeyboard*, void *userdata);
     void *on_keyboard_userdata;
-};
-
-
-struct pwl_event_source {
-    GSource source;
-    GPollFD pfd;
-    struct wl_display* display;
 };
 
 
@@ -822,8 +815,20 @@ display_start_keyboard_repeat (PwlDisplay *self,
                            self,
                            NULL);
 
-    g_source_attach (self->keyboard_repeat_source,
-                     g_source_get_context (self->event_src));
+    GMainContext *context;
+    if (self->source) {
+        context = g_source_get_context (self->source);
+    } else {
+        static bool warned = false;
+        if (!warned) {
+            g_warning ("pwl_display_attach_sources() was never called for"
+                       " display @ %p, using the default GMainContext as"
+                       " fall-back for handling key repeat.", self);
+            warned = true;
+        }
+        context = g_main_context_default ();
+    }
+    g_source_attach (self->keyboard_repeat_source, context);
 }
 
 
@@ -1303,7 +1308,10 @@ pwl_display_destroy (PwlDisplay *self)
     if (self->display) {
         display_stop_keyboard_repeat (self);
 
-        g_clear_pointer (&self->event_src, g_source_destroy);
+        if (self->source) {
+            g_source_destroy (self->source);
+            g_clear_pointer (&self->source, g_source_unref);
+        }
         g_clear_pointer (&self->shell, wl_shell_destroy);
 
 #ifdef HAVE_XDG_SHELL
@@ -1453,88 +1461,133 @@ pwl_window_notify_keyboard (PwlWindow *self,
 }
 
 
+typedef struct {
+    GSource            base;
+    struct wl_display *display;
+    void              *fd_tag;
+    bool               reading;
+    int                error;
+} PwlSource;
+
+
 static gboolean
-wl_src_prepare (GSource *base, gint *timeout)
+pwl_source_prepare (GSource *source,
+                    int     *timeout)
 {
-    struct pwl_event_source *src = (struct pwl_event_source *) base;
+    PwlSource *self = (PwlSource*) source;
 
     *timeout = -1;
 
-    while (wl_display_prepare_read (src->display) != 0) {
-        if (wl_display_dispatch_pending (src->display) < 0)
-            return false;
-    }
-    wl_display_flush (src->display);
+    if (self->reading)
+        return FALSE;
 
-    return false;
+    if (wl_display_prepare_read (self->display) != 0)
+        return TRUE;
+
+    if (wl_display_flush (self->display) < 0) {
+        g_warning ("%s: wl_display_flush: %s",
+                   G_STRFUNC, strerror (self->error = errno));
+        return TRUE;
+    }
+
+    self->reading = true;
+    return FALSE;
 }
 
 static gboolean
-wl_src_check (GSource *base)
+pwl_source_check (GSource *source)
 {
-    struct pwl_event_source *src = (struct pwl_event_source *) base;
+    PwlSource *self = (PwlSource*) source;
 
-    if (src->pfd.revents & G_IO_IN) {
-        if (wl_display_read_events(src->display) < 0)
-            return false;
-        return true;
-    } else {
-        wl_display_cancel_read(src->display);
-        return false;
+    if (self->error) {
+        TRACE ("has error, returning early.");
+        return TRUE;
     }
-}
 
+    const GIOCondition events = g_source_query_unix_fd (source, self->fd_tag);
+
+    if (self->reading) {
+        if (events & G_IO_IN) {
+            if (wl_display_read_events (self->display) < 0)
+                g_warning ("%s: wl_display_read_events: %s",
+                           G_STRFUNC, strerror (self->error = errno));
+        } else {
+            wl_display_cancel_read (self->display);
+        }
+        self->reading = false;
+    }
+
+    return events;
+}
 
 static gboolean
-wl_src_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
+pwl_source_dispatch (GSource    *source,
+                     GSourceFunc callback G_GNUC_UNUSED,
+                     void       *userdata G_GNUC_UNUSED)
 {
-    struct pwl_event_source *src = (struct pwl_event_source *) base;
+    PwlSource *self = (PwlSource*) source;
 
-    if (src->pfd.revents & G_IO_IN) {
-        if (wl_display_dispatch_pending(src->display) < 0)
-            return false;
+    const GIOCondition events = g_source_query_unix_fd (source, self->fd_tag);
+
+    if (self->error || (events & G_IO_ERR)) {
+        if (self->error) {
+            g_critical ("%s: removing source due to error: %s",
+                        G_STRFUNC, strerror (self->error));
+        } else {
+            g_critical ("%s: removing source due to unknown error.", G_STRFUNC);
+        }
+        return G_SOURCE_REMOVE;
     }
 
-    if (src->pfd.revents & (G_IO_ERR | G_IO_HUP))
-        return false;
+    if (events & G_IO_HUP) {
+        TRACE ("removing source due to hangup");
+        return G_SOURCE_REMOVE;
+    }
 
-    src->pfd.revents = 0;
+    if (wl_display_dispatch_pending (self->display) < 0) {
+        g_critical ("%s: wl_display_dispatch_pending: %s", G_STRFUNC, strerror (errno));
+        return G_SOURCE_REMOVE;
+    }
 
-    return true;
+    return G_SOURCE_CONTINUE;
 }
 
-void
-wl_src_finalize (GSource *base)
+static GSource*
+pwl_source_new (struct wl_display *display)
 {
-}
+    g_assert (display);
 
-
-void
-setup_wayland_event_source (GMainContext *main_context,
-                            PwlDisplay *display)
-{
-    static GSourceFuncs wl_src_funcs = {
-        .prepare = wl_src_prepare,
-        .check = wl_src_check,
-        .dispatch = wl_src_dispatch,
-        .finalize = wl_src_finalize,
+    static GSourceFuncs funcs = {
+        .prepare  = pwl_source_prepare,
+        .check    = pwl_source_check,
+        .dispatch = pwl_source_dispatch,
     };
+    PwlSource *self = (PwlSource*) g_source_new (&funcs, sizeof (PwlSource));
+    self->reading = false;
+    self->display = display;
+    self->fd_tag = g_source_add_unix_fd (&self->base,
+                                         wl_display_get_fd (display),
+                                         G_IO_IN | G_IO_ERR | G_IO_HUP);
+    g_source_set_can_recurse (&self->base, TRUE);
+    g_source_set_name (&self->base, "PwlSource");
 
-    struct pwl_event_source *wl_source =
-        (struct pwl_event_source *) g_source_new (&wl_src_funcs,
-                                                  sizeof (struct pwl_event_source));
-    wl_source->display = display->display;
-    wl_source->pfd.fd = wl_display_get_fd (display->display);
-    wl_source->pfd.events = G_IO_IN | G_IO_ERR | G_IO_HUP;
-    wl_source->pfd.revents = 0;
-    g_source_add_poll (&wl_source->source, &wl_source->pfd);
+    g_debug ("%s: Created PwlSource @ %p, fd#%d.",
+             G_STRFUNC, self, wl_display_get_fd (display));
+    return &self->base;
+}
 
-    g_source_set_can_recurse (&wl_source->source, TRUE);
-    g_source_attach (&wl_source->source, main_context);
+void
+pwl_display_attach_sources (PwlDisplay   *self,
+                            GMainContext *context)
+{
+    g_return_if_fail (self);
 
-    g_source_unref (&wl_source->source);
-
-    display->event_src = &wl_source->source;
+    if (!self->source) {
+        self->source = pwl_source_new (self->display);
+        g_source_attach (self->source, context);
+        TRACE ("display @ %p, attached source @ %p to context @ %p.",
+               self, self->source, context);
+    }
 }
 
 

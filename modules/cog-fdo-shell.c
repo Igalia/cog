@@ -360,8 +360,7 @@ cog_fdo_shell_initable_init (GInitable    *initable,
     if (COG_DEFAULT_APPNAME && *COG_DEFAULT_APPNAME)
         pwl_display_set_default_window_title (s_display, COG_DEFAULT_APPNAME);
 
-    setup_wayland_event_source (g_main_context_get_thread_default (), s_display);
-
+    pwl_display_attach_sources (s_display, g_main_context_get_thread_default ());
     wpe_fdo_initialize_for_egl_display (pwl_display_egl_get_display (s_display));
 
     CogFdoShell *self = COG_FDO_SHELL (initable);
