@@ -29,7 +29,7 @@
 #endif /* HAVE_IVI_APPLICATION */
 
 #if 0
-# define TRACE(fmt, ...) g_debug ("%s: " fmt, G_STRFUNC, __VA_ARGS__)
+# define TRACE(fmt, ...) g_debug ("%s: " fmt, G_STRFUNC, ##__VA_ARGS__)
 #else
 # define TRACE(fmt, ...) ((void) 0)
 #endif
