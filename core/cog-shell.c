@@ -151,7 +151,7 @@ is_construct_property (const char  *func,
         return FALSE;
     }
 
-    if (G_UNLIKELY (~pspec->flags & G_PARAM_READWRITE)) {
+    if (G_UNLIKELY (!(pspec->flags & G_PARAM_READWRITE))) {
         g_critical ("%s: property '%s' of object class '%s' is not writable",
                     func, pspec->name, g_type_name (object_type));
         return FALSE;
