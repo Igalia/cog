@@ -1581,7 +1581,24 @@ on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 
     if (wpe_view_data.should_update_opaque_region) {
         wpe_view_data.should_update_opaque_region = false;
-        if (win_data.is_fullscreen) {
+        bool setOpaque = true;
+#if COG_BG_COLOR_API_SUPPORTED
+        if (!win_data.is_fullscreen) {
+#if !COG_USE_WEBKITGTK
+          WebKitColor bg_color;
+#else
+          GdkRGBA bg_color;
+#endif
+          CogLauncher *launcher = cog_launcher_get_default ();
+          WebKitWebView *web_view =
+            cog_shell_get_web_view (cog_launcher_get_shell (launcher));
+
+          webkit_web_view_get_background_color (web_view, &bg_color);
+          if (bg_color.alpha < 1.0)
+            setOpaque = false;
+        }
+#endif
+        if (setOpaque) {
           struct wl_region *region =
               wl_compositor_create_region (wl_data.compositor);
           wl_region_add (region, 0, 0, win_data.width, win_data.height);
