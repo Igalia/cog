@@ -343,6 +343,13 @@ on_shutdown (CogLauncher *launcher G_GNUC_UNUSED, void *user_data G_GNUC_UNUSED)
 }
 #endif // !COG_USE_WEBKITGTK
 
+static void*
+on_web_view_create (WebKitWebView          *web_view,
+                    WebKitNavigationAction *action)
+{
+    webkit_web_view_load_request (web_view, webkit_navigation_action_get_request (action));
+    return NULL;
+}
 
 static WebKitWebView*
 on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
@@ -395,6 +402,8 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
                                                       "backend", view_backend,
 #endif
                                                       NULL);
+
+    g_signal_connect (web_view, "create", G_CALLBACK (on_web_view_create), NULL);
 
 #if !COG_USE_WEBKITGTK && COG_IM_API_SUPPORTED
     if (s_options.platform) {
