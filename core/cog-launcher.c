@@ -102,7 +102,6 @@ on_action_rotate (G_GNUC_UNUSED GAction *action,
                   GVariant              *param,
                   CogLauncher           *launcher)
 {
-    fprintf(stderr, "on_action_rotate() param %s\n", g_variant_print(param, TRUE));
     g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
 
     g_object_set (launcher->shell,
