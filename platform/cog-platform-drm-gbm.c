@@ -1249,10 +1249,15 @@ cog_platform_plugin_get_view_backend (CogPlatform   *platform,
         .export_dmabuf_resource = on_export_dmabuf_resource,
     };
 
+    uint32_t initial_width = geometry_data.width;
+    uint32_t initial_height = geometry_data.height;
+    geometry_size_for_rotation_value (geometry_data.rotation_value,
+                                      &initial_width, &initial_height);
+
     wpe_host_data.exportable = wpe_view_backend_exportable_fdo_create (&exportable_client,
                                                                        NULL,
-                                                                       geometry_data.width,
-                                                                       geometry_data.height);
+                                                                       initial_width,
+                                                                       initial_height);
     g_assert (wpe_host_data.exportable);
 
     wpe_view_data.backend = wpe_view_backend_exportable_fdo_get_view_backend (wpe_host_data.exportable);
