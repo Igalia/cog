@@ -1568,6 +1568,7 @@ pwl_source_new (struct wl_display *display)
     self->fd_tag = g_source_add_unix_fd (&self->base,
                                          wl_display_get_fd (display),
                                          G_IO_IN | G_IO_ERR | G_IO_HUP);
+    g_source_set_priority (&self->base, G_PRIORITY_HIGH + 30);
     g_source_set_can_recurse (&self->base, TRUE);
     g_source_set_name (&self->base, "PwlSource");
 
