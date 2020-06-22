@@ -44,10 +44,9 @@ struct _CogFdoShellClass {
 struct _CogFdoShell {
     CogShell    parent;
 
-    gboolean            single_window;
-    struct wl_callback *frame_callback;
-    PwlWindow          *window; /* Non-NULL in single window mode. */
-    uint32_t            window_id;
+    gboolean    single_window;
+    PwlWindow  *window; /* Non-NULL in single window mode. */
+    uint32_t    window_id;
 
     struct wpe_view_backend_exportable_fdo_egl_client exportable_client;
 };
@@ -72,9 +71,8 @@ struct _CogFdoView {
     struct wpe_view_backend_exportable_fdo *exportable;
     struct wpe_input_touch_event_raw touchpoints[PWL_N_TOUCH_POINTS];
 
-    struct wl_callback *frame_callback;
-    struct wl_buffer   *last_buffer;
-    GHashTable         *buffer_images; /* (wl_buffer, wpe_fdo_egl_exported_image) */
+    struct wpe_fdo_egl_exported_image *last_image;
+    struct wl_buffer                  *last_buffer;
 
     PwlWindow *window; /* Non-NULL in multiple window mode. */
     uint32_t   window_id;
@@ -635,90 +633,65 @@ cog_fdo_view_on_window_resize (PwlWindow *window G_GNUC_UNUSED,
     wpe_view_backend_dispatch_set_size (backend, width, height);
 }
 
+typedef struct {
+    CogFdoView *view;
+    struct wpe_fdo_egl_exported_image *image;
+} CogFdoBufferData;
 
 static void
 cog_fdo_view_on_buffer_release (void             *data,
                                 struct wl_buffer *buffer)
 {
-    CogFdoView *self = data;
+    CogFdoBufferData *buffer_data = data;
 
-    struct wpe_fdo_egl_exported_image *image;
-    struct wl_buffer *lookup_buffer;
-
-    if (g_hash_table_steal_extended (self->buffer_images,
-                                     buffer,
-                                     (void**) &lookup_buffer,
-                                     (void**) &image))
-    {
-        g_assert (buffer == lookup_buffer);
-        TRACE ("wl_buffer @ %p, image @ %p", buffer, image);
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (self->exportable, image);
-    } else {
-        g_critical ("%s: Image not found for buffer %p.", G_STRFUNC, buffer);
-    }
+    if (buffer_data->view->last_buffer == buffer)
+        buffer_data->view->last_buffer = NULL;
 
     wl_buffer_destroy (buffer);
+    TRACE ("view @ %p, buffer @ %p destroyed", buffer_data->view, buffer);
 
-    if (self->last_buffer == buffer)
-        self->last_buffer = NULL;
-}
-
-
-static void
-cog_fdo_view_on_surface_frame (void               *data,
-                               struct wl_callback *callback,
-                               uint32_t            timestamp G_GNUC_UNUSED)
-{
-    CogFdoShell *shell = (CogFdoShell*) cog_view_get_shell (data);
-    CogFdoView *self = data;
-
-    if (shell->single_window) {
-        g_assert (shell->frame_callback == callback);
-        g_clear_pointer (&shell->frame_callback, wl_callback_destroy);
+    if (!buffer_data->view->last_image) {
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (buffer_data->view->exportable,
+                                                                             buffer_data->image);
+        TRACE ("view @ %p, image @ %p destroyed",
+               buffer_data->view, buffer_data->image);
     } else {
-        g_assert (self->frame_callback == callback);
-        g_clear_pointer (&self->frame_callback, wl_callback_destroy);
+        TRACE ("view @ %p, image @ %p kept",
+               buffer_data->view, buffer_data->image);
     }
 
-    wpe_view_backend_exportable_fdo_dispatch_frame_complete (self->exportable);
+    g_slice_free (CogFdoBufferData, buffer_data);
 }
 
 
 static void
-cog_fdo_view_request_frame (CogFdoView        *self,
-                            struct wl_surface *window_surface)
+cog_fdo_view_schedule_buffer_release (CogFdoView                        *self,
+                                      struct wl_buffer                  *buffer,
+                                      struct wpe_fdo_egl_exported_image *image)
 {
-    static const struct wl_callback_listener frame_listener = {
-        .done = cog_fdo_view_on_surface_frame,
+    static const struct wl_buffer_listener listener = {
+        .release = cog_fdo_view_on_buffer_release,
     };
 
-    CogFdoShell *shell = (CogFdoShell*) cog_view_get_shell ((CogView*) self);
-    if (shell->single_window) {
-        if (!shell->frame_callback) {
-            shell->frame_callback = wl_surface_frame (window_surface);
-            wl_callback_add_listener (shell->frame_callback, &frame_listener, self);
-        }
-    } else {
-        if (!self->frame_callback) {
-            self->frame_callback = wl_surface_frame (window_surface);
-            wl_callback_add_listener (self->frame_callback, &frame_listener, self);
-        }
-    }
+    CogFdoBufferData *data = g_slice_new0 (CogFdoBufferData);
+    data->view = self;
+    data->image = image;
+    wl_buffer_add_listener (buffer, &listener, data);
+
+    TRACE ("view @ %p, buffer @ %p listener added", self, buffer);
 }
 
 
 static void
-cog_fdo_view_update_window_contents (CogFdoView       *self,
-                                     PwlWindow        *window,
-                                     struct wl_buffer *buffer,
-                                     gboolean          autorelease)
+cog_fdo_view_update_window_contents (CogFdoView                        *self,
+                                     PwlWindow                         *window,
+                                     struct wpe_fdo_egl_exported_image *image)
 {
-    if (autorelease) {
-        static const struct wl_buffer_listener buffer_listener = {
-            .release = cog_fdo_view_on_buffer_release,
-        };
-        wl_buffer_add_listener (buffer, &buffer_listener, self);
-    }
+    struct wl_buffer *buffer =
+        pwl_display_egl_create_buffer_from_image (s_display,
+                                                  wpe_fdo_egl_exported_image_get_egl_image (image));
+
+    cog_fdo_view_schedule_buffer_release (self, buffer, image);
 
     uint32_t width, height;
     pwl_window_get_size (window, &width, &height);
@@ -735,15 +708,10 @@ cog_fdo_view_update_window_contents (CogFdoView       *self,
     else
         pwl_window_unset_opaque_region (window);
 
-    const uint32_t device_scale = pwl_window_get_device_scale (window);
     struct wl_surface *window_surface = pwl_window_get_surface (window);
 
     wl_surface_attach (window_surface, buffer, 0, 0);
-    wl_surface_damage (window_surface, 0, 0,
-                       width * device_scale,
-                       height * device_scale);
-
-    cog_fdo_view_request_frame (self, window_surface);
+    wl_surface_damage (window_surface, 0, 0, INT32_MAX, INT32_MAX);
     wl_surface_commit (window_surface);
 }
 
@@ -754,24 +722,20 @@ cog_fdo_view_on_export_fdo_egl_image_single_window (void                        
 {
     CogFdoView *self = data;
 
-    struct wl_buffer *buffer =
-        pwl_display_egl_create_buffer_from_image (s_display,
-                                                  wpe_fdo_egl_exported_image_get_egl_image (image));
-    g_hash_table_insert (self->buffer_images, buffer, image);
-    TRACE ("wl_buffer @ %p, image @ %p", buffer, image);
+    if (self->last_image) {
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (self->exportable,
+                                                                             self->last_image);
+        TRACE ("view @ %p, image @ %p destroyed", self, self->last_image);
+    }
 
-    /* Release the last buffer and image before saving the new one. */
-    if (self->last_buffer)
-        cog_fdo_view_on_buffer_release (self, self->last_buffer);
-
-    self->last_buffer = buffer;
-    g_hash_table_insert (self->buffer_images, buffer, image);
+    self->last_image = image;
+    TRACE ("view @ %p, image @ %p saved", self, self->last_image);
 
     if (cog_shell_get_focused_view (cog_view_get_shell (data)) == (CogView*) self) {
         /* This view is currently being shown: attach buffer right away. */
         TRACE ("view %p focused, updating window.", data);
         CogFdoShell *shell = (CogFdoShell*) cog_view_get_shell (data);
-        cog_fdo_view_update_window_contents (self, shell->window, buffer, FALSE);
+        cog_fdo_view_update_window_contents (self, shell->window, self->last_image);
     } else {
         TRACE ("view %p not focused, skipping window update.", data);
     }
@@ -786,14 +750,7 @@ cog_fdo_view_on_export_fdo_egl_image_multi_window (void                         
 {
     CogFdoView *self = data;
 
-    struct wl_buffer *buffer =
-        pwl_display_egl_create_buffer_from_image (s_display,
-                                                  wpe_fdo_egl_exported_image_get_egl_image (image));
-    g_hash_table_insert (self->buffer_images, buffer, image);
-    TRACE ("wl_buffer @ %p, image @ %p", buffer, image);
-
-    cog_fdo_view_update_window_contents (self, self->window, buffer, TRUE);
-
+    cog_fdo_view_update_window_contents (self, self->window, image);
     wpe_view_backend_exportable_fdo_dispatch_frame_complete (self->exportable);
 }
 
@@ -902,16 +859,15 @@ cog_fdo_view_on_notify_focused (CogFdoView *self,
     if (!cog_view_get_focused ((CogView*) self))
         return;
 
-    if (!self->last_buffer) {
-        g_debug ("%s: No last buffer to show, skipping update.", G_STRFUNC);
+    if (!self->last_image) {
+        g_debug ("%s: No last image to show, skipping update.", G_STRFUNC);
         return;
     }
 
     CogFdoShell *shell = (CogFdoShell*) cog_view_get_shell ((CogView*) self);
     cog_fdo_view_update_window_contents (self,
                                          shell->window,
-                                         self->last_buffer,
-                                         FALSE);
+                                         self->last_image);
 }
 
 
@@ -949,17 +905,12 @@ cog_fdo_view_dispose (GObject *object)
 {
     CogFdoView *self = (CogFdoView*) object;
 
-    struct wpe_fdo_egl_exported_image *image;
-    struct wl_buffer *buffer;
-    GHashTableIter iter;
-
-    g_hash_table_iter_init (&iter, self->buffer_images);
-    while (g_hash_table_iter_next (&iter, (void**) &buffer, (void**) &image)) {
+    g_clear_pointer (&self->last_buffer, wl_buffer_destroy);
+    if (self->last_image) {
         wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (self->exportable,
-                                                                             image);
-        wl_buffer_destroy (buffer);
+                                                                             self->last_image);
+        self->last_image = NULL;
     }
-    g_clear_pointer (&self->buffer_images, g_hash_table_destroy);
 
     G_OBJECT_CLASS (cog_fdo_view_parent_class)->dispose (object);
 }
@@ -1000,7 +951,6 @@ cog_fdo_view_class_finalize (CogFdoViewClass *klass)
 static void
 cog_fdo_view_init (CogFdoView *self)
 {
-    self->buffer_images = g_hash_table_new (NULL, NULL);
 }
 
 
