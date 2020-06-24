@@ -288,6 +288,7 @@ cog_launcher_constructed (GObject *object)
     launcher->shell = g_object_ref_sink (cog_shell_new (&error,
                                                         g_get_prgname (),
                                                         "single-window", TRUE,
+                                                        "render-mode", "gles-v2-paint",
                                                         NULL));
     if (!launcher->shell)
         g_error ("Cannot instantiate shell: %s.", error->message);

@@ -245,6 +245,7 @@ if (COG_MODULE_FDO_SHELL)
         wpe-webkit-1.0>=2.24.0
         wpebackend-fdo-1.0>=1.3.1
         egl
+        glesv2
         xkbcommon
     )
 

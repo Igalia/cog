@@ -9,6 +9,10 @@
  */
 
 #include "../platform/pwl.h"
+#include <wayland-egl.h>
+#include <EGL/egl.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <cog.h>
 #include <wpe/fdo.h>
 #include <wpe/fdo-egl.h>
@@ -37,6 +41,13 @@ G_DECLARE_FINAL_TYPE (CogFdoShell, cog_fdo_shell, COG, FDO_SHELL, CogShell)
 G_DECLARE_FINAL_TYPE (CogFdoView, cog_fdo_view, COG, FDO_VIEW, CogView)
 
 
+enum RenderMode {
+    RENDER_MODE_AUTO = 0,
+    RENDER_MODE_ATTACH_BUFFER,
+    RENDER_MODE_GLES_V2_PAINT,
+};
+
+
 struct _CogFdoShellClass {
     CogShellClass parent_class;
 };
@@ -44,18 +55,28 @@ struct _CogFdoShellClass {
 struct _CogFdoShell {
     CogShell    parent;
 
+    enum RenderMode     render_mode;
     gboolean            single_window;
     struct wl_callback *frame_callback;
     PwlWindow          *window; /* Non-NULL in single window mode. */
     uint32_t            window_id;
 
     struct wpe_view_backend_exportable_fdo_egl_client exportable_client;
+
+    /* Used with RENDER_MODE_GLES_V2_PAINT */
+    GLint egl_swap_interval;
+    GLuint gl_program;
+    GLuint gl_texture; /* Used in single window mode. */
+    GLuint gl_texture_uniform;
+    PFNGLEGLIMAGETARGETTEXTURE2DOESPROC gl_eglImageTargetTexture2DOES;
 };
 
 enum {
     SHELL_PROP_0,
     SHELL_PROP_SINGLE_WINDOW,
     SHELL_PROP_WINDOW_ID,
+    SHELL_PROP_RENDER_MODE,
+    SHELL_PROP_SWAP_INTERVAL,
     SHELL_N_PROPERTIES,
 };
 
@@ -78,6 +99,10 @@ struct _CogFdoView {
 
     PwlWindow *window; /* Non-NULL in multiple window mode. */
     uint32_t   window_id;
+
+    /* Used with RENDER_MODE_GLES_V2_PAINT */
+    struct wpe_fdo_egl_exported_image *last_image;
+    GLuint gl_texture; /* Used in multiple window mode. */
 };
 
 enum {
@@ -88,6 +113,38 @@ enum {
 
 static GParamSpec *s_view_properties[VIEW_N_PROPERTIES] = { NULL, };
 
+
+static void
+cog_fdo_gles_create_texture (GLuint  *texture,
+                             uint32_t width,
+                             uint32_t height)
+{
+    g_assert (texture);
+    g_assert (*texture == 0);
+
+    glGenTextures (1, texture);
+    TRACE ("creating texture #%d, size %" PRIu32 "x%" PRIu32, *texture, width, height);
+
+    glBindTexture (GL_TEXTURE_2D, *texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+static inline void
+cog_fdo_gles_destroy_texture (GLuint *texture)
+{
+    g_assert (texture);
+    g_assert (*texture != 0);
+
+    TRACE ("destroying texture #%d", *texture);
+
+    glDeleteTextures (1, texture);
+    *texture = 0;
+}
 
 static void
 cog_fdo_shell_on_keyboard (PwlWindow         *window G_GNUC_UNUSED,
@@ -317,7 +374,8 @@ cog_fdo_shell_on_window_resize (PwlWindow *window G_GNUC_UNUSED,
                                 uint32_t   height,
                                 void      *shell)
 {
-    g_assert (((CogFdoShell*) shell)->window == window);
+    CogFdoShell *self = shell;
+    g_assert (self->window == window);
 
     TRACE ("shell @ %p, new size %" PRIu32 "x%" PRIu32, shell, width, height);
 
@@ -326,15 +384,178 @@ cog_fdo_shell_on_window_resize (PwlWindow *window G_GNUC_UNUSED,
         struct wpe_view_backend *backend = cog_view_get_backend (item->data);
         wpe_view_backend_dispatch_set_size (backend, width, height);
     }
+
+    if (self->gl_texture) {
+        cog_fdo_gles_destroy_texture (&self->gl_texture);
+        cog_fdo_gles_create_texture (&self->gl_texture, width, height);
+    }
+}
+
+
+static inline bool
+cog_fdo_shell_has_gles_setup (const CogFdoShell *self)
+{
+    g_assert (self);
+
+    return self->render_mode == RENDER_MODE_GLES_V2_PAINT && self->gl_program;
+}
+
+static void
+cog_fdo_shell_gles_cleanup (CogFdoShell *self)
+{
+    g_assert (self);
+
+    if (!cog_fdo_shell_has_gles_setup (self))
+        return;
+
+    if (self->gl_texture) cog_fdo_gles_destroy_texture (&self->gl_texture);
+    self->gl_texture_uniform = 0;
+    g_clear_handle_id (&self->gl_program, glDeleteProgram);
+
+    g_assert (!cog_fdo_shell_has_gles_setup (self));
+}
+
+
+static bool
+cog_fdo_shell_gles_setup (CogFdoShell *self,
+                          PwlWindow   *window,
+                          GError     **error)
+{
+    g_assert (self);
+    g_assert (window);
+
+    if (cog_fdo_shell_has_gles_setup (self))
+        return true;
+
+    /*
+     * We need an active context with a target surface to be able to create
+     * a shader program and obtain th glEGLImageTargetTexture2DOES pointer.
+     */
+    if (!pwl_window_egl_make_current (window, error))
+        return false;
+
+    if (!eglSwapInterval (pwl_display_egl_get_display (s_display),
+                          self->egl_swap_interval))
+        g_warning ("Could not set EGL swap interval to %d (%#06x)",
+                   self->egl_swap_interval, eglGetError ());
+
+    self->gl_eglImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)
+        eglGetProcAddress ("glEGLImageTargetTexture2DOES");
+    if (!self->gl_eglImageTargetTexture2DOES) {
+        g_set_error (error, PWL_ERROR, PWL_ERROR_EGL,
+                     "No glEGLImageTargetTexture2DOES pointer (%#06x)",
+                     eglGetError ());
+        return false;
+    }
+
+    static const char *vertex_shader_source =
+        "attribute vec2 pos;\n"
+        "attribute vec2 texture;\n"
+        "varying vec2 v_texture;\n"
+        "void main() {\n"
+        "  v_texture = texture;\n"
+        "  gl_Position = vec4(pos, 0, 1);\n"
+        "}\n";
+
+    static const char* fragment_shader_source =
+        "precision mediump float;\n"
+        "uniform sampler2D u_texture;\n"
+        "varying vec2 v_texture;\n"
+        "void main() {\n"
+        "  gl_FragColor = texture2D(u_texture, v_texture);\n"
+        "}\n";
+
+    GLuint vertex_shader = glCreateShader (GL_VERTEX_SHADER);
+    if (!vertex_shader) {
+        g_set_error (error,
+                     PWL_ERROR,
+                     PWL_ERROR_GL,
+                     "Cannot create vertex shader (%#06x)",
+                     glGetError ());
+        return false;
+    }
+
+    glShaderSource (vertex_shader, 1, &vertex_shader_source, NULL);
+    glCompileShader (vertex_shader);
+
+    GLuint fragment_shader = glCreateShader (GL_FRAGMENT_SHADER);
+    if (!fragment_shader) {
+        g_set_error (error,
+                     PWL_ERROR,
+                     PWL_ERROR_GL,
+                     "Cannot create fragment shader (%#06x)",
+                     glGetError ());
+        glDeleteShader (vertex_shader);
+        return false;
+    }
+
+    glShaderSource (fragment_shader, 1, &fragment_shader_source, NULL);
+    glCompileShader (fragment_shader);
+
+    GLuint program = glCreateProgram ();
+    if (!program) {
+        g_set_error (error,
+                     PWL_ERROR,
+                     PWL_ERROR_GL,
+                     "Cannot create shader program (%#06x)",
+                     glGetError ());
+        glDeleteShader (vertex_shader);
+        glDeleteShader (fragment_shader);
+        return false;
+    }
+
+    glAttachShader (program, vertex_shader);
+    glAttachShader (program, fragment_shader);
+
+    glBindAttribLocation (program, 0, "pos");
+    glBindAttribLocation (program, 1, "texture");
+
+    glLinkProgram (program);
+
+    /* Not needed anymore after the program has been linked. */
+    glDeleteShader (vertex_shader);
+    glDeleteShader (fragment_shader);
+
+    GLint log_length;
+    glGetProgramiv (program, GL_INFO_LOG_LENGTH, &log_length);
+
+    char buffer[log_length + 1];
+    glGetProgramInfoLog (program, log_length + 1, NULL, buffer);
+
+    GLint succeeded = GL_FALSE;
+    glGetProgramiv (program, GL_LINK_STATUS, &succeeded);
+    if (succeeded == GL_FALSE) {
+        g_set_error (error,
+                     PWL_ERROR,
+                     PWL_ERROR_GL,
+                     "Cannot link shader program: %s",
+                     buffer);
+        return false;
+    } else if (log_length) {
+        g_info ("Shader program: %s.", buffer);
+    }
+
+    self->gl_texture_uniform = glGetUniformLocation (program, "u_texture");
+    self->gl_program = program;
+
+    return true;
 }
 
 
 static void
-cog_fdo_view_on_export_fdo_egl_image_single_window (void*, struct wpe_fdo_egl_exported_image*);
+cog_fdo_view_on_export_fdo_egl_image_single_window_attach_buffer (void*, struct wpe_fdo_egl_exported_image*);
 
 static void
-cog_fdo_view_on_export_fdo_egl_image_multi_window (void*, struct wpe_fdo_egl_exported_image*);
+cog_fdo_view_on_export_fdo_egl_image_single_window_gles_paint (void*, struct wpe_fdo_egl_exported_image*);
 
+static void
+cog_fdo_view_on_export_fdo_egl_image_multi_window_attach_buffer (void*, struct wpe_fdo_egl_exported_image*);
+
+static void
+cog_fdo_view_on_export_fdo_egl_image_multi_window_gles_paint (void*, struct wpe_fdo_egl_exported_image*);
+
+static void
+cog_fdo_shell_gles_paint (CogFdoShell*, GLuint, PwlWindow*, struct wpe_fdo_egl_exported_image*);
 
 static gboolean
 cog_fdo_shell_initable_init (GInitable    *initable,
@@ -349,7 +570,23 @@ cog_fdo_shell_initable_init (GInitable    *initable,
         return FALSE;
     }
 
-    if (!pwl_display_egl_init (s_display, error))
+    CogFdoShell *self = COG_FDO_SHELL (initable);
+
+    /*
+     * Prefer using wl_surface_attach(), but fall-back to using GLESv2
+     * when a driver/compositor/etc. is known to have problems with it.
+     */
+    if (self->render_mode == RENDER_MODE_AUTO)
+        self->render_mode =
+            pwl_display_egl_has_broken_buffer_from_image (s_display)
+                ? RENDER_MODE_GLES_V2_PAINT
+                : RENDER_MODE_ATTACH_BUFFER;
+
+    if (!pwl_display_egl_init (s_display,
+                               self->render_mode == RENDER_MODE_GLES_V2_PAINT
+                                ? PWL_EGL_CONFIG_FULL
+                                : PWL_EGL_CONFIG_MINIMAL,
+                               error))
         return FALSE;
 
     /* TODO: Make the application identifier a CogShell property. */
@@ -362,8 +599,6 @@ cog_fdo_shell_initable_init (GInitable    *initable,
 
     pwl_display_attach_sources (s_display, g_main_context_get_thread_default ());
     wpe_fdo_initialize_for_egl_display (pwl_display_egl_get_display (s_display));
-
-    CogFdoShell *self = COG_FDO_SHELL (initable);
 
     if (self->single_window) {
         self->window = pwl_window_create (s_display);
@@ -382,11 +617,24 @@ cog_fdo_shell_initable_init (GInitable    *initable,
         pwl_window_notify_device_scale (self->window, cog_fdo_shell_on_device_scale, self);
         pwl_window_notify_resize (self->window, cog_fdo_shell_on_window_resize, self);
 
-        self->exportable_client.export_fdo_egl_image =
-            cog_fdo_view_on_export_fdo_egl_image_single_window;
+        if (self->render_mode == RENDER_MODE_GLES_V2_PAINT) {
+            if (!cog_fdo_shell_gles_setup (self, self->window, error))
+                return FALSE;
+
+            uint32_t width, height;
+            pwl_window_get_size (self->window, &width, &height);
+            cog_fdo_gles_create_texture (&self->gl_texture, width, height);
+            self->exportable_client.export_fdo_egl_image =
+                cog_fdo_view_on_export_fdo_egl_image_single_window_gles_paint;
+        } else {
+            self->exportable_client.export_fdo_egl_image =
+                cog_fdo_view_on_export_fdo_egl_image_single_window_attach_buffer;
+        }
     } else {
         self->exportable_client.export_fdo_egl_image =
-            cog_fdo_view_on_export_fdo_egl_image_multi_window;
+            self->render_mode == RENDER_MODE_ATTACH_BUFFER
+                ? cog_fdo_view_on_export_fdo_egl_image_multi_window_attach_buffer
+                : cog_fdo_view_on_export_fdo_egl_image_multi_window_gles_paint;
     }
 
     return TRUE;
@@ -627,12 +875,18 @@ cog_fdo_view_on_window_resize (PwlWindow *window G_GNUC_UNUSED,
                                uint32_t   height,
                                void      *view)
 {
-    g_assert (((CogFdoView*) view)->window == window);
+    CogFdoView *self = view;
+    g_assert (self->window == window);
 
     TRACE ("view @ %p, new size %" PRIu32 "x%" PRIu32, view, width, height);
 
     struct wpe_view_backend *backend = cog_view_get_backend (view);
     wpe_view_backend_dispatch_set_size (backend, width, height);
+
+    if (self->gl_texture) {
+        cog_fdo_gles_destroy_texture (&self->gl_texture);
+        cog_fdo_gles_create_texture (&self->gl_texture, width, height);
+    }
 }
 
 
@@ -749,8 +1003,8 @@ cog_fdo_view_update_window_contents (CogFdoView       *self,
 
 
 static void
-cog_fdo_view_on_export_fdo_egl_image_single_window (void                              *data,
-                                                    struct wpe_fdo_egl_exported_image *image)
+cog_fdo_view_on_export_fdo_egl_image_single_window_attach_buffer (void                              *data,
+                                                                  struct wpe_fdo_egl_exported_image *image)
 {
     CogFdoView *self = data;
 
@@ -781,8 +1035,8 @@ cog_fdo_view_on_export_fdo_egl_image_single_window (void                        
 
 
 static void
-cog_fdo_view_on_export_fdo_egl_image_multi_window (void                              *data,
-                                                   struct wpe_fdo_egl_exported_image *image)
+cog_fdo_view_on_export_fdo_egl_image_multi_window_attach_buffer (void                              *data,
+                                                                 struct wpe_fdo_egl_exported_image *image)
 {
     CogFdoView *self = data;
 
@@ -793,6 +1047,110 @@ cog_fdo_view_on_export_fdo_egl_image_multi_window (void                         
     TRACE ("wl_buffer @ %p, image @ %p", buffer, image);
 
     cog_fdo_view_update_window_contents (self, self->window, buffer, TRUE);
+
+    wpe_view_backend_exportable_fdo_dispatch_frame_complete (self->exportable);
+}
+
+static void
+cog_fdo_shell_gles_paint (CogFdoShell                       *self,
+                          GLuint                             texture,
+                          PwlWindow                         *window,
+                          struct wpe_fdo_egl_exported_image *image)
+{
+    TRACE ("shell @ %p, texture #%d, window @ %p, image @ %p",
+           self, texture, window, image);
+
+    uint32_t width, height;
+    pwl_window_get_size (window, &width, &height);
+
+    g_autoptr(GError) error = NULL;
+    if (!pwl_window_egl_make_current (window, &error)) {
+        g_critical ("Cannot activate EGL context: %s", error->message);
+        return;
+    }
+
+    glViewport (0, 0, width, height);
+    if (!image) {
+        glClearColor (1, 1, 1, 1);  /* White. */
+        glClear (GL_COLOR_BUFFER_BIT);
+    } else {
+        g_assert (texture != 0);
+
+        glUseProgram (self->gl_program);
+        glActiveTexture (GL_TEXTURE0);
+        glBindTexture (GL_TEXTURE_2D, texture);
+        self->gl_eglImageTargetTexture2DOES (GL_TEXTURE_2D,
+            wpe_fdo_egl_exported_image_get_egl_image (image));
+        glUniform1i (self->gl_texture_uniform, 0);
+
+        static const GLfloat vertices[4][2] = {
+            { -1.0,  1.0 },
+            {  1.0,  1.0 },
+            { -1.0, -1.0 },
+            {  1.0, -1.0 },
+        };
+        static const GLfloat texture_pos[4][2] = {
+            { 0, 0 },
+            { 1, 0 },
+            { 0, 1 },
+            { 1, 1 },
+        };
+
+        glVertexAttribPointer (0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+        glVertexAttribPointer (1, 2, GL_FLOAT, GL_FALSE, 0, texture_pos);
+
+        glEnableVertexAttribArray (0);
+        glEnableVertexAttribArray (1);
+
+        glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+
+        glDisableVertexAttribArray (0);
+        glDisableVertexAttribArray (1);
+    }
+
+    if (!pwl_window_egl_swap_buffers (window, &error))
+        g_warning ("Could not swap EGL buffers: %s", error->message);
+}
+
+static void
+cog_fdo_view_on_export_fdo_egl_image_single_window_gles_paint (void                              *data,
+                                                               struct wpe_fdo_egl_exported_image *image)
+{
+    CogFdoView *self = data;
+
+    TRACE ("view @ %p, image @ %p", self, image);
+
+    if (self->last_image)
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (self->exportable,
+                                                                             self->last_image);
+
+    self->last_image = image;
+
+    CogFdoShell *shell = (CogFdoShell*) cog_view_get_shell (data);
+    if (cog_shell_get_focused_view ((CogShell*) shell) == (CogView*) self) {
+        /* This view is currently being shown: attach buffer right away. */
+        TRACE ("view %p focused, repainting window.", data);
+        cog_fdo_shell_gles_paint (shell,
+                                  shell->gl_texture,
+                                  shell->window,
+                                  self->last_image);
+    } else {
+        TRACE ("view %p not focused, skipping window update.", self);
+    }
+
+    wpe_view_backend_exportable_fdo_dispatch_frame_complete (self->exportable);
+}
+
+
+static void
+cog_fdo_view_on_export_fdo_egl_image_multi_window_gles_paint (void                              *data,
+                                                              struct wpe_fdo_egl_exported_image *image)
+{
+    CogFdoView *self = data;
+    cog_fdo_shell_gles_paint ((CogFdoShell*) cog_view_get_shell (data),
+                              self->gl_texture,
+                              self->window,
+                              image);
 
     wpe_view_backend_exportable_fdo_dispatch_frame_complete (self->exportable);
 }
@@ -871,6 +1229,15 @@ cog_fdo_view_setup (CogView *view)
         pwl_window_notify_resize (self->window, cog_fdo_view_on_window_resize, self);
 
         pwl_window_get_size (self->window, &width, &height);
+
+        if (shell->render_mode == RENDER_MODE_GLES_V2_PAINT) {
+            if (!cog_fdo_shell_has_gles_setup (shell)) {
+                g_autoptr(GError) error = NULL;
+                if (!cog_fdo_shell_gles_setup (shell, self->window, &error))
+                    g_error ("Could not setup GLES: %s", error->message);
+            }
+            cog_fdo_gles_create_texture (&self->gl_texture, width, height);
+        }
     }
 
     self->exportable = wpe_view_backend_exportable_fdo_egl_create (&shell->exportable_client,
@@ -948,6 +1315,9 @@ static void
 cog_fdo_view_dispose (GObject *object)
 {
     CogFdoView *self = (CogFdoView*) object;
+
+    if (self->gl_texture)
+        cog_fdo_gles_destroy_texture (&self->gl_texture);
 
     struct wpe_fdo_egl_exported_image *image;
     struct wl_buffer *buffer;
@@ -1044,6 +1414,22 @@ cog_fdo_shell_get_property (GObject    *object,
         case SHELL_PROP_WINDOW_ID:
             g_value_set_uint (value, shell->window_id);
             break;
+        case SHELL_PROP_RENDER_MODE:
+            switch (shell->render_mode) {
+                case RENDER_MODE_AUTO:
+                    g_value_set_static_string (value, "auto");
+                    break;
+                case RENDER_MODE_ATTACH_BUFFER:
+                    g_value_set_static_string (value, "attach-buffer");
+                    break;
+                case RENDER_MODE_GLES_V2_PAINT:
+                    g_value_set_static_string (value, "gles-v2-paint");
+                    break;
+            }
+            break;
+        case SHELL_PROP_SWAP_INTERVAL:
+            g_value_set_int (value, shell->egl_swap_interval);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
@@ -1069,9 +1455,42 @@ cog_fdo_shell_set_property (GObject      *object,
             if (shell->window)
                 pwl_window_set_id (shell->window, shell->window_id);
             break;
+        case SHELL_PROP_RENDER_MODE:
+            if (g_strcmp0 (g_value_get_string (value), "auto") == 0) {
+                shell->render_mode = RENDER_MODE_AUTO;
+            } else if (g_strcmp0 (g_value_get_string (value), "attach-buffer") == 0) {
+                shell->render_mode = RENDER_MODE_ATTACH_BUFFER;
+            } else if (g_strcmp0 (g_value_get_string (value), "gles-v2-paint") == 0) {
+                shell->render_mode = RENDER_MODE_GLES_V2_PAINT;
+            } else {
+                g_warning ("%s:%d: invalid value '%s' for property \"%s\" in '%s'",
+                           __FILE__,
+                           __LINE__,
+                           g_value_get_string (value),
+                           pspec->name,
+                           G_OBJECT_TYPE_NAME (object));
+            }
+            break;
+        case SHELL_PROP_SWAP_INTERVAL:
+            shell->egl_swap_interval = g_value_get_int (value);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
+}
+
+
+static void
+cog_fdo_shell_dispose (GObject *object)
+{
+    CogFdoShell *self = (CogFdoShell*) object;
+
+    if (cog_fdo_shell_has_gles_setup (self))
+        cog_fdo_shell_gles_cleanup (self);
+
+    g_clear_pointer (&self->window, pwl_window_destroy);
+
+    G_OBJECT_CLASS (cog_fdo_shell_parent_class)->dispose (object);
 }
 
 
@@ -1081,6 +1500,7 @@ cog_fdo_shell_class_init (CogFdoShellClass *klass)
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
     object_class->get_property = cog_fdo_shell_get_property;
     object_class->set_property = cog_fdo_shell_set_property;
+    object_class->dispose = cog_fdo_shell_dispose;
 
     CogShellClass *shell_class = COG_SHELL_CLASS (klass);
     shell_class->is_supported = cog_fdo_shell_is_supported;
@@ -1102,6 +1522,24 @@ cog_fdo_shell_class_init (CogFdoShellClass *klass)
                            0, UINT32_MAX, 0,
                            G_PARAM_READWRITE |
                            G_PARAM_STATIC_STRINGS);
+
+    s_shell_properties[SHELL_PROP_RENDER_MODE] =
+        g_param_spec_string ("render-mode",
+                             "Rendering mode",
+                             "Determines how to render view contents",
+                             "auto",
+                             G_PARAM_READWRITE |
+                             G_PARAM_CONSTRUCT_ONLY |
+                             G_PARAM_STATIC_STRINGS);
+
+    s_shell_properties[SHELL_PROP_SWAP_INTERVAL] =
+        g_param_spec_int ("swap-interval",
+                          "Swap interval",
+                          "EGL buffers swap interval, used in gles-v2-paint mode",
+                          0, 2, 1,
+                          G_PARAM_READWRITE |
+                          G_PARAM_CONSTRUCT_ONLY |
+                          G_PARAM_STATIC_STRINGS);
 
     g_object_class_install_properties (object_class,
                                        SHELL_N_PROPERTIES,
