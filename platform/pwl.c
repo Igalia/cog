@@ -8,6 +8,9 @@
  */
 
 #include "pwl.h"
+#include <wayland-egl.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <errno.h>
 #include <gio/gio.h>
 #include <sys/mman.h>
@@ -35,6 +38,10 @@
 #endif
 
 
+#ifndef EGL_CAST
+#define EGL_CAST(type, value) ((type) (value))
+#endif /* !EGL_CAST */
+
 #ifndef EGL_WL_create_wayland_buffer_from_image
 typedef struct wl_buffer * (EGLAPIENTRYP PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL) (EGLDisplay dpy, EGLImageKHR image);
 #endif
@@ -59,8 +66,10 @@ struct _PwlDisplay {
     struct wl_seat *seat;
     uint32_t        seat_version;
 
-    struct egl_display *egl_display;
-    PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL egl_createWaylandBufferFromImageWL;
+    EGLDisplay                               egl_display;
+    PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL     egl_createWaylandBufferFromImageWL;
+    EGLConfig                                egl_config;               /* Lazy init. */
+    EGLContext                               egl_context;              /* Lazy init. */
 
     struct wl_pointer *pointer;
     PwlWindow *pointer_target;  /* Current target of pointer events. */
@@ -102,13 +111,17 @@ struct _PwlDisplay {
     char *window_title;
     GSource *source;
 
+    bool wl_viv_present;
+
     bool (*on_capture_app_key) (PwlDisplay*, void *userdata);
     void *on_capture_app_key_userdata;
 };
 
-
 struct _PwlWindow {
     PwlDisplay *display;
+
+    EGLNativeWindowType egl_window;
+    EGLSurface          egl_window_surface;
 
     struct wl_surface *wl_surface;
     struct wl_surface_listener surface_listener;
@@ -1191,6 +1204,9 @@ registry_global (void               *data,
         g_debug ("Output #%"PRIi32" @ %p: Added with scaling factor 1x",
                  item->output_name, item->output);
     } else {
+        if (strcmp (interface, "wl_viv") == 0)
+            display->wl_viv_present = true;
+
         interface_used = FALSE;
     }
     g_debug ("%s '%s' interface obtained from the Wayland registry.",
@@ -1660,6 +1676,14 @@ capture_app_key_bindings (PwlDisplay *display,
 static inline void
 resize_window (PwlWindow *window)
 {
+    if (window->egl_window) {
+        wl_egl_window_resize (window->egl_window,
+                              window->width,
+                              window->height,
+                              0,
+                              0);
+    }
+
     if (window->on_window_resize) {
         (*window->on_window_resize) (window,
                                      window->width,
@@ -1748,22 +1772,28 @@ set_egl_error (GError **error, EGLint code, const char *message)
 }
 
 
-gboolean
-pwl_display_egl_init (PwlDisplay *display, GError **error)
+bool
+pwl_display_egl_init (PwlDisplay  *display,
+                      PwlEglConfig config,
+                      GError     **error)
 {
+    g_return_val_if_fail (config == PWL_EGL_CONFIG_MINIMAL ||
+                          config == PWL_EGL_CONFIG_FULL,
+                          false);
+
     g_debug ("Initializing EGL...");
 
     display->egl_display = eglGetDisplay ((EGLNativeDisplayType) display->display);
     if (display->egl_display == EGL_NO_DISPLAY) {
         set_egl_error (error, eglGetError (), "Could not get display");
-        return FALSE;
+        return false;
     }
 
     EGLint major, minor;
     if (!eglInitialize (display->egl_display, &major, &minor)) {
         set_egl_error (error, eglGetError (), "Initialization failed");
         pwl_display_egl_deinit (display);
-        return FALSE;
+        return false;
     }
     g_info ("EGL version %d.%d initialized.", major, minor);
 
@@ -1779,10 +1809,59 @@ pwl_display_egl_init (PwlDisplay *display, GError **error)
         set_egl_error (error, eglGetError (),
                        "eglCreateWaylandBufferFromImageWL unsupported");
         pwl_display_egl_deinit (display);
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    if (config == PWL_EGL_CONFIG_FULL) {
+        if (!eglBindAPI (EGL_OPENGL_ES_API)) {
+            set_egl_error (error, eglGetError (), "Cannot bind OpenGL ES API");
+            pwl_display_egl_deinit (display);
+            return false;
+        }
+
+        static const EGLint config_attrs[] = {
+            EGL_SURFACE_TYPE,    EGL_WINDOW_BIT,
+            EGL_RED_SIZE,        8,
+            EGL_GREEN_SIZE,      8,
+            EGL_BLUE_SIZE,       8,
+            EGL_ALPHA_SIZE,      8,
+            EGL_DEPTH_SIZE,      0,
+            EGL_STENCIL_SIZE,    0,
+            EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+            EGL_SAMPLES,         0,
+            EGL_NONE,
+        };
+
+        EGLint count = 0;
+        if (!eglChooseConfig (display->egl_display,
+                              config_attrs,
+                              &display->egl_config,
+                              1,
+                              &count) || count == 0) {
+            set_egl_error (error, eglGetError (),
+                           "Could not choose a suitable  configuration");
+            pwl_display_egl_deinit (display);
+            return false;
+        }
+
+        static const EGLint context_attrs[] = {
+            EGL_CONTEXT_CLIENT_VERSION, 2,
+            EGL_NONE,
+        };
+
+        display->egl_context = eglCreateContext (display->egl_display,
+                                                 display->egl_config,
+                                                 EGL_NO_CONTEXT,
+                                                 context_attrs);
+        if (display->egl_context == EGL_NO_CONTEXT) {
+            set_egl_error (error, eglGetError (),
+                           "Could not create EGL context");
+            pwl_display_egl_deinit (display);
+            return false;
+        }
+    }
+
+    return true;
 }
 
 
@@ -1796,11 +1875,74 @@ void pwl_display_egl_deinit (PwlDisplay *display)
 }
 
 
+static bool
+pwl_window_egl_create_surface (PwlWindow *self,
+                               GError   **error)
+{
+    g_return_val_if_fail (self, false);
+    g_return_val_if_fail (self->egl_window_surface == EGL_NO_SURFACE, false);
+
+    self->egl_window_surface = eglCreateWindowSurface (self->display->egl_display,
+                                                       self->display->egl_config,
+                                                       self->egl_window,
+                                                       NULL);
+    if (self->egl_window_surface == EGL_NO_SURFACE) {
+        set_egl_error (error, eglGetError (),
+                       "Cannot create EGL window surface");
+        return false;
+    }
+
+    return true;
+}
+
+
+bool
+pwl_window_egl_make_current (PwlWindow *self,
+                             GError   **error)
+{
+    g_return_val_if_fail (self, false);
+    g_return_val_if_fail (self->egl_window_surface != EGL_NO_SURFACE, false);
+
+    if (eglMakeCurrent (self->display->egl_display,
+                        self->egl_window_surface,
+                        self->egl_window_surface,
+                        self->display->egl_context))
+        return true;
+
+    set_egl_error (error, eglGetError (), "Cannot enable EGL context");
+    return false;
+}
+
+
+bool
+pwl_window_egl_swap_buffers (PwlWindow *self,
+                             GError   **error)
+{
+    g_return_val_if_fail (self, false);
+    g_return_val_if_fail (self->egl_window_surface != EGL_NO_SURFACE, false);
+
+    if (eglSwapBuffers (self->display->egl_display,
+                        self->egl_window_surface))
+        return true;
+
+    set_egl_error (error, eglGetError (), "Cannot swap EGL buffers");
+    return false;
+}
+
+
 EGLDisplay
 pwl_display_egl_get_display (const PwlDisplay *self)
 {
     g_return_val_if_fail (self, EGL_NO_DISPLAY);
     return self->egl_display;
+}
+
+
+EGLContext
+pwl_display_egl_get_context (const PwlDisplay *self)
+{
+    g_return_val_if_fail (self, EGL_NO_CONTEXT);
+    return self->egl_context;
 }
 
 
@@ -1821,6 +1963,20 @@ pwl_display_xkb_get_data (PwlDisplay *self)
 {
     g_return_val_if_fail (self, NULL);
     return &self->xkb_data;
+}
+
+
+bool
+pwl_display_egl_has_broken_buffer_from_image (const PwlDisplay *self)
+{
+    g_return_val_if_fail (self, false);
+
+    /*
+     * The Vivante proprietary driver has a bug that causes file
+     * descriptors for buffers backing EGLImages to be leaked after
+     * using eglCreateWaylandBufferFromImageWL().
+     */
+    return self->wl_viv_present;
 }
 
 
@@ -2019,7 +2175,21 @@ pwl_window_create (PwlDisplay *display)
     if (display->application_id) {
         pwl_window_set_application_id (self, display->application_id);
     }
+
     wl_surface_commit(self->wl_surface);
+
+    if (display->egl_context != EGL_NO_CONTEXT) {
+        self->egl_window = wl_egl_window_create (self->wl_surface,
+                                                 self->width,
+                                                 self->height);
+
+        g_autoptr(GError) error = NULL;
+        if (!self->egl_window) {
+            g_error ("Cannot create Wayland-EGL window");
+        } else if (!pwl_window_egl_create_surface (self, &error)) {
+            g_error ("Cannot create EGL window surface: %s", error->message);
+        }
+    }
 
     /*
      * TODO: Remove this call to create_window() and instead have proper
@@ -2035,6 +2205,14 @@ void
 pwl_window_destroy (PwlWindow *self)
 {
     g_return_if_fail (self);
+
+    if (self->egl_window_surface != EGL_NO_SURFACE) {
+        eglDestroySurface (self->display->egl_display,
+                           self->egl_window_surface);
+        self->egl_window_surface = EGL_NO_SURFACE;
+    }
+
+    g_clear_pointer (&self->egl_window, wl_egl_window_destroy);
 
 #ifdef HAVE_IVI_APPLICATION
     g_clear_pointer (&self->ivi_surface, ivi_surface_destroy);

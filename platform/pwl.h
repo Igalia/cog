@@ -13,9 +13,6 @@
 
 #include <glib.h>
 #include <wayland-client.h>
-#include <wayland-egl.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-compose.h>
@@ -26,15 +23,29 @@
 
 G_BEGIN_DECLS
 
+typedef void* EGLConfig;
+typedef void* EGLContext;
+typedef void* EGLDisplay;
+typedef void* EGLImage;
+typedef void* EGLSurface;
+
+struct wl_egl_window;
+typedef struct wl_egl_window* EGLNativeWindowType;
+
 #define PWL_ERROR  (pwl_error_quark ())
-GQuark pwl_error_get_quark (void);
+GQuark pwl_error_quark (void);
 
 typedef enum {
     PWL_ERROR_WAYLAND,
     PWL_ERROR_EGL,
+    PWL_ERROR_GL,
     PWL_ERROR_UNAVAILABLE,
 } PwlError;
 
+typedef enum {
+    PWL_EGL_CONFIG_MINIMAL = 0,
+    PWL_EGL_CONFIG_FULL,
+} PwlEglConfig;
 
 enum {
     PWL_N_TOUCH_POINTS = 10,
@@ -104,11 +115,15 @@ void        pwl_display_set_default_application_id (PwlDisplay*,
 void        pwl_display_set_default_window_title (PwlDisplay*,
                                                   const char *title);
 
-gboolean    pwl_display_egl_init (PwlDisplay*, GError **error);
+bool        pwl_display_egl_init (PwlDisplay*,
+                                  PwlEglConfig,
+                                  GError **error);
 void        pwl_display_egl_deinit (PwlDisplay*);
 EGLDisplay  pwl_display_egl_get_display (const PwlDisplay*);
+EGLContext  pwl_display_egl_get_context (const PwlDisplay*);
 struct wl_buffer*
             pwl_display_egl_create_buffer_from_image (const PwlDisplay*, EGLImage);
+bool        pwl_display_egl_has_broken_buffer_from_image (const PwlDisplay*);
 
 PwlXKBData* pwl_display_xkb_get_data (PwlDisplay*);
 
@@ -123,6 +138,9 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC (PwlWindow, pwl_window_destroy)
 
 void pwl_window_set_application_id (PwlWindow*, const char *application_id);
 void pwl_window_set_title (PwlWindow*, const char *title);
+
+bool pwl_window_egl_make_current (PwlWindow*, GError**);
+bool pwl_window_egl_swap_buffers (PwlWindow*, GError**);
 
 void pwl_window_set_id (PwlWindow*, uint32_t);
 uint32_t pwl_window_get_id (const PwlWindow*);
