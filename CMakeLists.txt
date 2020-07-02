@@ -115,6 +115,7 @@ set(COGCORE_SOURCES
 pkg_check_modules(Gio IMPORTED_TARGET REQUIRED gio-2.0>=2.44)
 pkg_check_modules(Soup IMPORTED_TARGET REQUIRED libsoup-2.4)
 pkg_check_modules(WebKit IMPORTED_TARGET REQUIRED wpe-webkit-1.0>=2.23.91)
+pkg_check_modules(WPE IMPORTED_TARGET REQUIRED wpe-1.0>=1.2.0)
 
 if (WebKit_VERSION VERSION_GREATER 2.23)
     add_definitions(-DCOG_BG_COLOR_API_SUPPORTED=1)
@@ -168,7 +169,7 @@ if (COG_BUILD_PROGRAMS)
     add_executable(cogctl cogctl.c core/cog-utils.c)
     set_property(TARGET cogctl PROPERTY C_STANDARD 99)
     target_compile_options(cogctl PUBLIC ${EXTRA_CFLAGS})
-    target_link_libraries(cogctl PkgConfig::Gio PkgConfig::Soup)
+    target_link_libraries(cogctl PkgConfig::Gio PkgConfig::Soup PkgConfig::WPE)
 
     install(TARGETS cog cogctl
         DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -212,6 +213,7 @@ if (COG_MODULE_FDO_SHELL)
     pkg_check_modules (PlatformWl IMPORTED_TARGET REQUIRED wayland-client egl)
     pkg_check_modules (PlatformWlOptional IMPORTED_TARGET wayland-egl)
     target_link_libraries (platform-wl PUBLIC
+        PkgConfig::WPE
         PkgConfig::Gio
         PkgConfig::PlatformWl
         PkgConfig::PlatformWlOptional
@@ -243,7 +245,7 @@ endif ()
 if (COG_MODULE_FDO_SHELL)
     pkg_check_modules (ModuleFdoShell IMPORTED_TARGET REQUIRED
         wpe-webkit-1.0>=2.24.0
-        wpebackend-fdo-1.0>=1.3.1
+        wpebackend-fdo-1.0>=1.2.0
         egl
         glesv2
         xkbcommon

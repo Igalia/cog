@@ -20,9 +20,17 @@
 
 #if defined(WPE_CHECK_VERSION)
 # define HAVE_2D_AXIS_EVENT (WPE_CHECK_VERSION (1, 5, 0) && (WEBKIT_CHECK_VERSION (2, 27, 4)))
+# define HAVE_DEVICE_SCALE_SUPPORT (WPE_CHECK_VERSION (1, 3, 0))
 #else /* !WPE_CHECK_VERSION */
 # define HAVE_2D_AXIS_EVENT 0
+# define HAVE_DEVICE_SCALE_SUPPORT 0
 #endif /* WPE_CHECK_VERSION */
+
+#if defined(WPE_FDO_CHECK_VERSION)
+# define HAVE_EXPORT_FDO_EGL_IMAGE (WPE_FDO_CHECK_VERSION (1, 3, 0))
+#else /* !WPE_FDO_CHECK_VERSION */
+# define HAVE_EXPORT_FDO_EGL_IMAGE 0
+#endif /* WPE_FDO_CHECK_VERSION */
 
 
 #if 0
@@ -30,6 +38,78 @@
 #else
 # define TRACE(fmt, ...) ((void) 0)
 #endif
+
+
+#if HAVE_EXPORT_FDO_EGL_IMAGE
+typedef struct wpe_fdo_egl_exported_image *ExportedImage;
+
+static inline void
+exportable_client_set_callback (struct wpe_view_backend_exportable_fdo_egl_client *client,
+                                void (*callback) (void*, struct wpe_fdo_egl_exported_image*))
+{
+    client->export_fdo_egl_image = callback;
+}
+
+static inline void
+exported_image_release (struct wpe_view_backend_exportable_fdo *exportable,
+                        struct wpe_fdo_egl_exported_image     **image)
+{
+    wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (exportable,
+                                                                         *image);
+    *image = NULL;
+}
+
+static inline bool
+exported_image_is_valid (struct wpe_fdo_egl_exported_image *image)
+{
+    return image != NULL;
+}
+
+static inline EGLImageKHR
+exported_image_egl_image (struct wpe_fdo_egl_exported_image *image)
+{
+    return wpe_fdo_egl_exported_image_get_egl_image (image);
+}
+#else /* !HAVE_EXPORT_FDO_EGL_IMAGE */
+typedef EGLImageKHR ExportedImage;
+
+static inline void
+exportable_client_set_callback (struct wpe_view_backend_exportable_fdo_egl_client *client,
+                                void (*callback) (void*, EGLImageKHR))
+{
+    client->export_egl_image = callback;
+}
+
+static inline void
+exported_image_release (struct wpe_view_backend_exportable_fdo *exportable,
+                        EGLImageKHR                            *image)
+{
+    wpe_view_backend_exportable_fdo_egl_dispatch_release_image (exportable,
+                                                                *image);
+    *image = EGL_NO_IMAGE;
+}
+
+static inline bool
+exported_image_is_valid (EGLImageKHR image)
+{
+    return image != EGL_NO_IMAGE;
+}
+
+static inline EGLImageKHR
+exported_image_egl_image (EGLImageKHR image)
+{
+    return image;
+}
+#endif /* HAVE_EXPORT_FDO_EGL_IMAGE */
+
+
+#if !HAVE_DEVICE_SCALE_SUPPORT
+#define wpe_view_backend_dispatch_set_device_scale_factor(backend, scale) \
+    do {                  \
+        (void) (backend); \
+        (void) (scale);   \
+    } while (false)
+#endif /* !HAVE_DEVICE_SCALE_SUPPORT */
 
 
 static PwlDisplay *s_display = NULL;
@@ -92,8 +172,8 @@ struct _CogFdoView {
     struct wpe_view_backend_exportable_fdo *exportable;
     struct wpe_input_touch_event_raw touchpoints[PWL_N_TOUCH_POINTS];
 
-    struct wpe_fdo_egl_exported_image *last_image;
-    struct wl_buffer                  *last_buffer;
+    ExportedImage     last_image;
+    struct wl_buffer *last_buffer;
 
     PwlWindow *window; /* Non-NULL in multiple window mode. */
     uint32_t   window_id;
@@ -553,19 +633,19 @@ cog_fdo_shell_gles_setup (CogFdoShell *self,
 
 
 static void
-cog_fdo_view_on_export_fdo_egl_image_single_window_attach_buffer (void*, struct wpe_fdo_egl_exported_image*);
+cog_fdo_view_on_export_fdo_egl_image_single_window_attach_buffer (void*, ExportedImage);
 
 static void
-cog_fdo_view_on_export_fdo_egl_image_single_window_gles_paint (void*, struct wpe_fdo_egl_exported_image*);
+cog_fdo_view_on_export_fdo_egl_image_single_window_gles_paint (void*, ExportedImage);
 
 static void
-cog_fdo_view_on_export_fdo_egl_image_multi_window_attach_buffer (void*, struct wpe_fdo_egl_exported_image*);
+cog_fdo_view_on_export_fdo_egl_image_multi_window_attach_buffer (void*, ExportedImage);
 
 static void
-cog_fdo_view_on_export_fdo_egl_image_multi_window_gles_paint (void*, struct wpe_fdo_egl_exported_image*);
+cog_fdo_view_on_export_fdo_egl_image_multi_window_gles_paint (void*, ExportedImage);
 
 static void
-cog_fdo_shell_gles_paint (CogFdoShell*, GLuint, PwlWindow*, struct wpe_fdo_egl_exported_image*);
+cog_fdo_shell_gles_paint (CogFdoShell*, GLuint, PwlWindow*, ExportedImage);
 
 static gboolean
 cog_fdo_shell_initable_init (GInitable    *initable,
@@ -634,17 +714,17 @@ cog_fdo_shell_initable_init (GInitable    *initable,
             uint32_t width, height;
             pwl_window_get_size (self->window, &width, &height);
             cog_fdo_gles_create_texture (&self->gl_texture, width, height);
-            self->exportable_client.export_fdo_egl_image =
-                cog_fdo_view_on_export_fdo_egl_image_single_window_gles_paint;
+            exportable_client_set_callback (&self->exportable_client,
+                cog_fdo_view_on_export_fdo_egl_image_single_window_gles_paint);
         } else {
-            self->exportable_client.export_fdo_egl_image =
-                cog_fdo_view_on_export_fdo_egl_image_single_window_attach_buffer;
+            exportable_client_set_callback (&self->exportable_client,
+                cog_fdo_view_on_export_fdo_egl_image_single_window_attach_buffer);
         }
     } else {
-        self->exportable_client.export_fdo_egl_image =
+        exportable_client_set_callback (&self->exportable_client,
             self->render_mode == RENDER_MODE_ATTACH_BUFFER
                 ? cog_fdo_view_on_export_fdo_egl_image_multi_window_attach_buffer
-                : cog_fdo_view_on_export_fdo_egl_image_multi_window_gles_paint;
+                : cog_fdo_view_on_export_fdo_egl_image_multi_window_gles_paint);
     }
 
     return TRUE;
@@ -900,8 +980,8 @@ cog_fdo_view_on_window_resize (PwlWindow *window G_GNUC_UNUSED,
 }
 
 typedef struct {
-    CogFdoView *view;
-    struct wpe_fdo_egl_exported_image *image;
+    CogFdoView   *view;
+    ExportedImage image;
 } CogFdoBufferData;
 
 static void
@@ -916,11 +996,11 @@ cog_fdo_view_on_buffer_release (void             *data,
     wl_buffer_destroy (buffer);
     TRACE ("view @ %p, buffer @ %p destroyed", buffer_data->view, buffer);
 
-    if (!buffer_data->view->last_image) {
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (buffer_data->view->exportable,
-                                                                             buffer_data->image);
+    if (buffer_data->view->last_image != buffer_data->image) {
         TRACE ("view @ %p, image @ %p destroyed",
                buffer_data->view, buffer_data->image);
+        exported_image_release (buffer_data->view->exportable,
+                                &buffer_data->image);
     } else {
         TRACE ("view @ %p, image @ %p kept",
                buffer_data->view, buffer_data->image);
@@ -931,9 +1011,9 @@ cog_fdo_view_on_buffer_release (void             *data,
 
 
 static void
-cog_fdo_view_schedule_buffer_release (CogFdoView                        *self,
-                                      struct wl_buffer                  *buffer,
-                                      struct wpe_fdo_egl_exported_image *image)
+cog_fdo_view_schedule_buffer_release (CogFdoView       *self,
+                                      struct wl_buffer *buffer,
+                                      ExportedImage     image)
 {
     static const struct wl_buffer_listener listener = {
         .release = cog_fdo_view_on_buffer_release,
@@ -949,13 +1029,13 @@ cog_fdo_view_schedule_buffer_release (CogFdoView                        *self,
 
 
 static void
-cog_fdo_view_update_window_contents (CogFdoView                        *self,
-                                     PwlWindow                         *window,
-                                     struct wpe_fdo_egl_exported_image *image)
+cog_fdo_view_update_window_contents (CogFdoView   *self,
+                                     PwlWindow    *window,
+                                     ExportedImage image)
 {
     struct wl_buffer *buffer =
         pwl_display_egl_create_buffer_from_image (s_display,
-                                                  wpe_fdo_egl_exported_image_get_egl_image (image));
+                                                  exported_image_egl_image (image));
 
     cog_fdo_view_schedule_buffer_release (self, buffer, image);
 
@@ -983,15 +1063,14 @@ cog_fdo_view_update_window_contents (CogFdoView                        *self,
 
 
 static void
-cog_fdo_view_on_export_fdo_egl_image_single_window_attach_buffer (void                              *data,
-                                                                  struct wpe_fdo_egl_exported_image *image)
+cog_fdo_view_on_export_fdo_egl_image_single_window_attach_buffer (void         *data,
+                                                                  ExportedImage image)
 {
     CogFdoView *self = data;
 
-    if (self->last_image) {
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (self->exportable,
-                                                                             self->last_image);
+    if (exported_image_is_valid (self->last_image)) {
         TRACE ("view @ %p, image @ %p destroyed", self, self->last_image);
+        exported_image_release (self->exportable, &self->last_image);
     }
 
     self->last_image = image;
@@ -1011,8 +1090,8 @@ cog_fdo_view_on_export_fdo_egl_image_single_window_attach_buffer (void          
 
 
 static void
-cog_fdo_view_on_export_fdo_egl_image_multi_window_attach_buffer (void                              *data,
-                                                                 struct wpe_fdo_egl_exported_image *image)
+cog_fdo_view_on_export_fdo_egl_image_multi_window_attach_buffer (void         *data,
+                                                                 ExportedImage image)
 {
     CogFdoView *self = data;
 
@@ -1021,10 +1100,10 @@ cog_fdo_view_on_export_fdo_egl_image_multi_window_attach_buffer (void           
 }
 
 static void
-cog_fdo_shell_gles_paint (CogFdoShell                       *self,
-                          GLuint                             texture,
-                          PwlWindow                         *window,
-                          struct wpe_fdo_egl_exported_image *image)
+cog_fdo_shell_gles_paint (CogFdoShell  *self,
+                          GLuint        texture,
+                          PwlWindow    *window,
+                          ExportedImage image)
 {
     TRACE ("shell @ %p, texture #%d, window @ %p, image @ %p",
            self, texture, window, image);
@@ -1049,7 +1128,7 @@ cog_fdo_shell_gles_paint (CogFdoShell                       *self,
         glActiveTexture (GL_TEXTURE0);
         glBindTexture (GL_TEXTURE_2D, texture);
         self->gl_eglImageTargetTexture2DOES (GL_TEXTURE_2D,
-            wpe_fdo_egl_exported_image_get_egl_image (image));
+                                             exported_image_egl_image (image));
         glUniform1i (self->gl_texture_uniform, 0);
 
         static const GLfloat vertices[4][2] = {
@@ -1082,16 +1161,15 @@ cog_fdo_shell_gles_paint (CogFdoShell                       *self,
 }
 
 static void
-cog_fdo_view_on_export_fdo_egl_image_single_window_gles_paint (void                              *data,
-                                                               struct wpe_fdo_egl_exported_image *image)
+cog_fdo_view_on_export_fdo_egl_image_single_window_gles_paint (void         *data,
+                                                               ExportedImage image)
 {
     CogFdoView *self = data;
 
     TRACE ("view @ %p, image @ %p", self, image);
 
-    if (self->last_image)
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (self->exportable,
-                                                                             self->last_image);
+    if (exported_image_is_valid (self->last_image))
+        exported_image_release (self->exportable, &self->last_image);
 
     self->last_image = image;
 
@@ -1112,8 +1190,8 @@ cog_fdo_view_on_export_fdo_egl_image_single_window_gles_paint (void             
 
 
 static void
-cog_fdo_view_on_export_fdo_egl_image_multi_window_gles_paint (void                              *data,
-                                                              struct wpe_fdo_egl_exported_image *image)
+cog_fdo_view_on_export_fdo_egl_image_multi_window_gles_paint (void         *data,
+                                                              ExportedImage image)
 {
     CogFdoView *self = data;
     cog_fdo_shell_gles_paint ((CogFdoShell*) cog_view_get_shell (data),
@@ -1290,11 +1368,8 @@ cog_fdo_view_dispose (GObject *object)
         cog_fdo_gles_destroy_texture (&self->gl_texture);
 
     g_clear_pointer (&self->last_buffer, wl_buffer_destroy);
-    if (self->last_image) {
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (self->exportable,
-                                                                             self->last_image);
-        self->last_image = NULL;
-    }
+    if (exported_image_is_valid (self->last_image))
+        exported_image_release (self->exportable, &self->last_image);
 
     G_OBJECT_CLASS (cog_fdo_view_parent_class)->dispose (object);
 }
