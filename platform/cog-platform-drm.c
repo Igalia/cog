@@ -201,8 +201,14 @@ init_drm (void)
         return FALSE;
     }
 
+    const char* user_selected_mode = g_getenv("COG_PLATFORM_DRM_VIDEO_MODE");
+
     for (int i = 0, area = 0; i < drm_data.connector->count_modes; ++i) {
         drmModeModeInfo *current_mode = &drm_data.connector->modes[i];
+        if (user_selected_mode && strcmp(user_selected_mode, current_mode->name) != 0) {
+            continue;
+        }
+
         if (current_mode->type & DRM_MODE_TYPE_PREFERRED) {
             drm_data.mode = current_mode;
             break;
