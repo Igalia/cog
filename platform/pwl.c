@@ -138,6 +138,7 @@ struct _PwlWindow {
     PwlKeyboard keyboard;
     PwlPointer pointer;
     PwlTouch touch;
+    PwlFocus focus;
 
     /*
      * XXX: Should this be en enum? Can a window be maximized *and*
@@ -171,6 +172,9 @@ struct _PwlWindow {
 
     void (*on_keyboard) (PwlWindow*, const PwlKeyboard*, void *userdata);
     void *on_keyboard_userdata;
+
+    void (*focus_change_callback) (PwlWindow*, PwlFocus, void *userdata);
+    void *focus_change_userdata;
 };
 
 
@@ -268,6 +272,13 @@ pointer_on_enter (void* data,
     PwlWindow *window = wl_surface_get_user_data (surface);
     display->pointer_target = window;
 
+    window->focus |= PWL_FOCUS_MOUSE;
+    if (window->focus_change_callback) {
+        (*window->focus_change_callback) (window,
+                                          window->focus,
+                                          window->focus_change_userdata);
+    }
+
     g_debug ("%s: Target surface %p, window %p.", G_STRFUNC, surface, window);
 }
 
@@ -324,6 +335,15 @@ pointer_on_leave (void              *data,
         window_dispatch_axis_event (display->pointer_target);
     }
 #endif /* WL_POINTER_FRAME_SINCE_VERSION */
+
+    PwlWindow *window = display->pointer_target;
+
+    window->focus &= ~PWL_FOCUS_MOUSE;
+    if (window->focus_change_callback) {
+        (*window->focus_change_callback) (window,
+                                          window->focus,
+                                          window->focus_change_userdata);
+    }
 
     g_debug ("%s: Pointer left surface %p, window %p.",
              G_STRFUNC, surface, display->pointer_target);
@@ -700,6 +720,13 @@ keyboard_on_enter (void               *data,
 
     display->keyboard_target->keyboard.serial = serial;
 
+    window->focus |= PWL_FOCUS_KEYBOARD;
+    if (window->focus_change_callback) {
+        (*window->focus_change_callback) (window,
+                                          window->focus,
+                                          window->focus_change_userdata);
+    }
+
     g_debug ("%s: Target surface %p, window %p.", G_STRFUNC, surface, window);
 }
 
@@ -729,7 +756,15 @@ keyboard_on_leave (void               *data,
         return;
     }
 
-    display->keyboard_target->keyboard.serial = serial;
+    PwlWindow *window = display->keyboard_target;
+    window->keyboard.serial = serial;
+
+    window->focus &= ~PWL_FOCUS_KEYBOARD;
+    if (window->focus_change_callback) {
+        (*window->focus_change_callback) (window,
+                                          window->focus,
+                                          window->focus_change_userdata);
+    }
 
     g_debug ("%s: Keyboard left surface %p, window %p.",
              G_STRFUNC, surface, display->keyboard_target);
@@ -2341,4 +2376,16 @@ pwl_window_notify_device_scale (PwlWindow *self,
 
     self->device_scale_callback = callback;
     self->device_scale_userdata = userdata;
+}
+
+
+void
+pwl_window_notify_focus_change (PwlWindow *self,
+                                void (*callback) (PwlWindow*, PwlFocus, void*),
+                                void *userdata)
+{
+    g_return_if_fail (self);
+
+    self->focus_change_callback = callback;
+    self->focus_change_userdata = userdata;
 }

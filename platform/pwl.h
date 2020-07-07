@@ -171,4 +171,14 @@ void pwl_window_notify_keyboard (PwlWindow*,
                                  void (*callback) (PwlWindow*, const PwlKeyboard*, void*),
                                  void *userdata);
 
+typedef enum {
+    PWL_FOCUS_NONE     = 0,
+    PWL_FOCUS_KEYBOARD = 1 << 1,
+    PWL_FOCUS_MOUSE    = 1 << 2,
+} PwlFocus;
+
+void pwl_window_notify_focus_change (PwlWindow*,
+                                     void (*callback) (PwlWindow*, PwlFocus, void*),
+                                     void *userdata);
+
 G_END_DECLS

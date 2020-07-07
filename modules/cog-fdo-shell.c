@@ -328,6 +328,19 @@ cog_fdo_shell_on_window_resize (PwlWindow *window G_GNUC_UNUSED,
 
 
 static void
+cog_fdo_view_on_focus_change (PwlWindow *window,
+                              PwlFocus   focus,
+                              void      *view)
+{
+    TRACE ("view @ %p, new focus mask %#x", view, focus);
+    g_assert (((CogFdoView*) view)->window == window);
+
+    if (focus & PWL_FOCUS_KEYBOARD)
+        cog_view_set_focused (view, TRUE);
+}
+
+
+static void
 cog_fdo_view_on_export_fdo_egl_image_single_window (void*, struct wpe_fdo_egl_exported_image*);
 
 static void
@@ -826,6 +839,8 @@ cog_fdo_view_setup (CogView *view)
 
         pwl_window_notify_device_scale (self->window, cog_fdo_view_on_device_scale, self);
         pwl_window_notify_resize (self->window, cog_fdo_view_on_window_resize, self);
+
+        pwl_window_notify_focus_change (self->window, cog_fdo_view_on_focus_change, self);
 
         pwl_window_get_size (self->window, &width, &height);
     }
