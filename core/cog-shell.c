@@ -342,14 +342,14 @@ shell_on_notify_view_focused (CogView    *view,
 }
 
 
-static void
+static CogView*
 shell_connect_view (CogShell *shell,
                     CogView  *view)
 {
     CogShellPrivate *priv = cog_shell_get_instance_private (shell);
 
     const gboolean is_first_view = (!priv->views);
-    priv->views = g_list_prepend (priv->views, g_object_ref_sink (view));
+    priv->views = g_list_prepend (priv->views, view);
 
     if (is_first_view) {
         cog_view_set_focused (view, TRUE);
@@ -363,6 +363,8 @@ shell_connect_view (CogShell *shell,
                              G_CALLBACK (shell_on_notify_view_focused),
                              shell,
                              0);
+
+    return view;
 }
 
 
@@ -473,9 +475,7 @@ cog_shell_add_view (CogShell   *shell,
 
     va_end (varargs);
 
-    shell_connect_view (shell, view);
-
-    return g_steal_pointer (&view);
+    return shell_connect_view (shell, g_steal_pointer (&view));
 }
 
 
@@ -494,7 +494,7 @@ cog_shell_remove_view (CogShell   *shell,
     CogShellPrivate *priv = cog_shell_get_instance_private (shell);
     CogView *focused_view = cog_shell_get_focused_view (shell);
 
-    g_autoptr(CogView) view = NULL;
+    CogView *view = NULL;
     GList *item;
     for (item = g_list_first (priv->views); item; item = g_list_next (item)) {
         if (strcmp (name, cog_view_get_name (item->data)) == 0) {
@@ -513,7 +513,14 @@ cog_shell_remove_view (CogShell   *shell,
     if (view == focused_view && (item = g_list_first (priv->views)))
         cog_view_set_focused ((CogView*) item->data, TRUE);
 
+    void *weak_pointer = view;
+    g_object_add_weak_pointer (G_OBJECT (view), &weak_pointer);
+
     shell_disconnect_view (shell, view);
+    g_object_unref (view);  /* Drop the (hopefully last) ref. */
+
+    if (weak_pointer)
+        g_critical ("%s: User code has refs to CogView %p", G_STRFUNC, view);
 }
 
 
