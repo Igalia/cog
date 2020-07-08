@@ -54,6 +54,7 @@ static inline void
 exported_image_release (struct wpe_view_backend_exportable_fdo *exportable,
                         struct wpe_fdo_egl_exported_image     **image)
 {
+    TRACE ("image @ %p", *image);
     wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (exportable,
                                                                          *image);
     *image = NULL;
@@ -84,6 +85,7 @@ static inline void
 exported_image_release (struct wpe_view_backend_exportable_fdo *exportable,
                         EGLImageKHR                            *image)
 {
+    TRACE ("image @ %p", *image);
     wpe_view_backend_exportable_fdo_egl_dispatch_release_image (exportable,
                                                                 *image);
     *image = EGL_NO_IMAGE;
@@ -172,8 +174,7 @@ struct _CogFdoView {
     struct wpe_view_backend_exportable_fdo *exportable;
     struct wpe_input_touch_event_raw touchpoints[PWL_N_TOUCH_POINTS];
 
-    ExportedImage     last_image;
-    struct wl_buffer *last_buffer;
+    ExportedImage image;
 
     PwlWindow *window; /* Non-NULL in multiple window mode. */
     uint32_t   window_id;
@@ -482,8 +483,11 @@ cog_fdo_view_on_focus_change (PwlWindow *window,
                               PwlFocus   focus,
                               void      *view)
 {
-    TRACE ("view @ %p, new focus mask %#x", view, focus);
-    g_assert (((CogFdoView*) view)->window == window);
+    CogFdoView *self = view;
+
+    g_debug ("%s: view @ %p, view->window @ %p, window %p, new focus mask %#x",
+             G_STRFUNC, self, self->window, window, focus);
+    g_assert (self->window == window);
 
     if (focus & PWL_FOCUS_KEYBOARD)
         cog_view_set_focused (view, TRUE);
@@ -645,7 +649,7 @@ static void
 cog_fdo_view_on_export_fdo_egl_image_multi_window_gles_paint (void*, ExportedImage);
 
 static void
-cog_fdo_shell_gles_paint (CogFdoShell*, GLuint, PwlWindow*, ExportedImage);
+cog_fdo_shell_gles_paint (CogFdoShell*, CogFdoView*, GLuint, PwlWindow*, ExportedImage);
 
 static gboolean
 cog_fdo_shell_initable_init (GInitable    *initable,
@@ -979,54 +983,13 @@ cog_fdo_view_on_window_resize (PwlWindow *window G_GNUC_UNUSED,
     }
 }
 
-typedef struct {
-    CogFdoView   *view;
-    ExportedImage image;
-} CogFdoBufferData;
-
 static void
-cog_fdo_view_on_buffer_release (void             *data,
-                                struct wl_buffer *buffer)
+cog_fdo_on_buffer_release (void             *data G_GNUC_UNUSED,
+                           struct wl_buffer *buffer)
 {
-    CogFdoBufferData *buffer_data = data;
-
-    if (buffer_data->view->last_buffer == buffer)
-        buffer_data->view->last_buffer = NULL;
-
+    TRACE ("buffer @ %p", buffer);
     wl_buffer_destroy (buffer);
-    TRACE ("view @ %p, buffer @ %p destroyed", buffer_data->view, buffer);
-
-    if (buffer_data->view->last_image != buffer_data->image) {
-        TRACE ("view @ %p, image @ %p destroyed",
-               buffer_data->view, buffer_data->image);
-        exported_image_release (buffer_data->view->exportable,
-                                &buffer_data->image);
-    } else {
-        TRACE ("view @ %p, image @ %p kept",
-               buffer_data->view, buffer_data->image);
-    }
-
-    g_slice_free (CogFdoBufferData, buffer_data);
 }
-
-
-static void
-cog_fdo_view_schedule_buffer_release (CogFdoView       *self,
-                                      struct wl_buffer *buffer,
-                                      ExportedImage     image)
-{
-    static const struct wl_buffer_listener listener = {
-        .release = cog_fdo_view_on_buffer_release,
-    };
-
-    CogFdoBufferData *data = g_slice_new0 (CogFdoBufferData);
-    data->view = self;
-    data->image = image;
-    wl_buffer_add_listener (buffer, &listener, data);
-
-    TRACE ("view @ %p, buffer @ %p listener added", self, buffer);
-}
-
 
 static void
 cog_fdo_view_update_window_contents (CogFdoView   *self,
@@ -1037,10 +1000,10 @@ cog_fdo_view_update_window_contents (CogFdoView   *self,
         pwl_display_egl_create_buffer_from_image (s_display,
                                                   exported_image_egl_image (image));
 
-    cog_fdo_view_schedule_buffer_release (self, buffer, image);
-
-    uint32_t width, height;
-    pwl_window_get_size (window, &width, &height);
+    static const struct wl_buffer_listener buffer_listener = {
+        .release = cog_fdo_on_buffer_release,
+    };
+    wl_buffer_add_listener (buffer, &buffer_listener, NULL);
 
     /*
      * If the web view background color does NOT have an alpha component, the
@@ -1050,7 +1013,7 @@ cog_fdo_view_update_window_contents (CogFdoView   *self,
     WebKitColor bg_color;
     webkit_web_view_get_background_color ((WebKitWebView*) self, &bg_color);
     if (!bg_color.alpha || pwl_window_is_fullscreen (window))
-        pwl_window_set_opaque_region (window, 0, 0, width, height);
+        pwl_window_set_opaque_region (window, 0, 0, INT32_MAX, INT32_MAX);
     else
         pwl_window_unset_opaque_region (window);
 
@@ -1059,6 +1022,11 @@ cog_fdo_view_update_window_contents (CogFdoView   *self,
     wl_surface_attach (window_surface, buffer, 0, 0);
     wl_surface_damage (window_surface, 0, 0, INT32_MAX, INT32_MAX);
     wl_surface_commit (window_surface);
+
+    wpe_view_backend_exportable_fdo_dispatch_frame_complete (self->exportable);
+
+    TRACE ("view @ %p, window @ %p, attached image @ %p buffer @ %p",
+           self, window, image, buffer);
 }
 
 
@@ -1068,24 +1036,17 @@ cog_fdo_view_on_export_fdo_egl_image_single_window_attach_buffer (void         *
 {
     CogFdoView *self = data;
 
-    if (exported_image_is_valid (self->last_image)) {
-        TRACE ("view @ %p, image @ %p destroyed", self, self->last_image);
-        exported_image_release (self->exportable, &self->last_image);
-    }
+    if (exported_image_is_valid (self->image))
+        exported_image_release (self->exportable, &self->image);
 
-    self->last_image = image;
-    TRACE ("view @ %p, image @ %p saved", self, self->last_image);
+    self->image = image;
 
-    if (cog_shell_get_focused_view (cog_view_get_shell (data)) == (CogView*) self) {
-        /* This view is currently being shown: attach buffer right away. */
-        TRACE ("view %p focused, updating window.", data);
+    if (cog_view_get_focused ((CogView*) self)) {
         CogFdoShell *shell = (CogFdoShell*) cog_view_get_shell (data);
-        cog_fdo_view_update_window_contents (self, shell->window, self->last_image);
+        cog_fdo_view_update_window_contents (self, shell->window, image);
     } else {
-        TRACE ("view %p not focused, skipping window update.", data);
+        TRACE ("view @ %p not focused, image @ %p saved.", self, image);
     }
-
-    wpe_view_backend_exportable_fdo_dispatch_frame_complete (self->exportable);
 }
 
 
@@ -1095,12 +1056,17 @@ cog_fdo_view_on_export_fdo_egl_image_multi_window_attach_buffer (void         *d
 {
     CogFdoView *self = data;
 
+    if (exported_image_is_valid (self->image))
+        exported_image_release (self->exportable, &self->image);
+
+    self->image = image;
+
     cog_fdo_view_update_window_contents (self, self->window, image);
-    wpe_view_backend_exportable_fdo_dispatch_frame_complete (self->exportable);
 }
 
 static void
 cog_fdo_shell_gles_paint (CogFdoShell  *self,
+                          CogFdoView   *view,
                           GLuint        texture,
                           PwlWindow    *window,
                           ExportedImage image)
@@ -1108,20 +1074,18 @@ cog_fdo_shell_gles_paint (CogFdoShell  *self,
     TRACE ("shell @ %p, texture #%d, window @ %p, image @ %p",
            self, texture, window, image);
 
-    uint32_t width, height;
-    pwl_window_get_size (window, &width, &height);
-
     g_autoptr(GError) error = NULL;
     if (!pwl_window_egl_make_current (window, &error)) {
         g_critical ("Cannot activate EGL context: %s", error->message);
         return;
     }
 
+    uint32_t width, height;
+    pwl_window_get_size (window, &width, &height);
     glViewport (0, 0, width, height);
-    if (!image) {
-        glClearColor (1, 1, 1, 1);  /* White. */
-        glClear (GL_COLOR_BUFFER_BIT);
-    } else {
+
+    const bool valid_image = exported_image_is_valid (image);
+    if (G_LIKELY (valid_image)) {
         g_assert (texture != 0);
 
         glUseProgram (self->gl_program);
@@ -1154,10 +1118,16 @@ cog_fdo_shell_gles_paint (CogFdoShell  *self,
 
         glDisableVertexAttribArray (0);
         glDisableVertexAttribArray (1);
+    } else {
+        glClearColor (1, 1, 1, 1);  /* White. */
+        glClear (GL_COLOR_BUFFER_BIT);
     }
 
     if (!pwl_window_egl_swap_buffers (window, &error))
         g_warning ("Could not swap EGL buffers: %s", error->message);
+
+    if (G_LIKELY (valid_image))
+        wpe_view_backend_exportable_fdo_dispatch_frame_complete (view->exportable);
 }
 
 static void
@@ -1168,24 +1138,21 @@ cog_fdo_view_on_export_fdo_egl_image_single_window_gles_paint (void         *dat
 
     TRACE ("view @ %p, image @ %p", self, image);
 
-    if (exported_image_is_valid (self->last_image))
-        exported_image_release (self->exportable, &self->last_image);
+    if (exported_image_is_valid (self->image))
+        exported_image_release (self->exportable, &self->image);
 
-    self->last_image = image;
+    self->image = image;
 
-    CogFdoShell *shell = (CogFdoShell*) cog_view_get_shell (data);
-    if (cog_shell_get_focused_view ((CogShell*) shell) == (CogView*) self) {
-        /* This view is currently being shown: attach buffer right away. */
-        TRACE ("view %p focused, repainting window.", data);
+    if (cog_view_get_focused ((CogView*) self)) {
+        CogFdoShell *shell = (CogFdoShell*) cog_view_get_shell (data);
         cog_fdo_shell_gles_paint (shell,
+                                  self,
                                   shell->gl_texture,
                                   shell->window,
-                                  self->last_image);
+                                  image);
     } else {
-        TRACE ("view %p not focused, skipping window update.", self);
+        TRACE ("view %p not focused, image @ %p saved.", self, image);
     }
-
-    wpe_view_backend_exportable_fdo_dispatch_frame_complete (self->exportable);
 }
 
 
@@ -1194,12 +1161,17 @@ cog_fdo_view_on_export_fdo_egl_image_multi_window_gles_paint (void         *data
                                                               ExportedImage image)
 {
     CogFdoView *self = data;
+
+    if (exported_image_is_valid (self->image))
+        exported_image_release (self->exportable, &self->image);
+
+    self->image = image;
+
     cog_fdo_shell_gles_paint ((CogFdoShell*) cog_view_get_shell (data),
+                              self,
                               self->gl_texture,
                               self->window,
                               image);
-
-    wpe_view_backend_exportable_fdo_dispatch_frame_complete (self->exportable);
 }
 
 
@@ -1312,21 +1284,34 @@ cog_fdo_view_setup (CogView *view)
 
 
 static void
-cog_fdo_view_on_notify_focused (CogFdoView *self,
-                                GParamSpec *pspec)
+cog_fdo_view_on_notify_focused (CogFdoView *self)
 {
     if (!cog_view_get_focused ((CogView*) self))
         return;
 
-    if (!self->last_image) {
+    if (!exported_image_is_valid (self->image)) {
         g_debug ("%s: No last image to show, skipping update.", G_STRFUNC);
         return;
     }
 
     CogFdoShell *shell = (CogFdoShell*) cog_view_get_shell ((CogView*) self);
-    cog_fdo_view_update_window_contents (self,
-                                         shell->window,
-                                         self->last_image);
+
+    switch (shell->render_mode) {
+        case RENDER_MODE_ATTACH_BUFFER:
+            cog_fdo_view_update_window_contents (self,
+                                                 shell->window,
+                                                 self->image);
+            break;
+        case RENDER_MODE_GLES_V2_PAINT:
+            cog_fdo_shell_gles_paint (shell,
+                                      self,
+                                      shell->gl_texture,
+                                      shell->window,
+                                      self->image);
+            break;
+        case RENDER_MODE_AUTO:
+            g_assert_not_reached ();
+    }
 }
 
 
@@ -1364,12 +1349,15 @@ cog_fdo_view_dispose (GObject *object)
 {
     CogFdoView *self = (CogFdoView*) object;
 
+    g_debug ("%s: view @ %p, window @ %p", G_STRFUNC, self, self->window);
+
+    g_clear_pointer (&self->window, pwl_window_destroy);
+
     if (self->gl_texture)
         cog_fdo_gles_destroy_texture (&self->gl_texture);
 
-    g_clear_pointer (&self->last_buffer, wl_buffer_destroy);
-    if (exported_image_is_valid (self->last_image))
-        exported_image_release (self->exportable, &self->last_image);
+    if (exported_image_is_valid (self->image))
+        exported_image_release (self->exportable, &self->image);
 
     G_OBJECT_CLASS (cog_fdo_view_parent_class)->dispose (object);
 }
