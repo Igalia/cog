@@ -2207,6 +2207,12 @@ pwl_window_destroy (PwlWindow *self)
 {
     g_return_if_fail (self);
 
+    if (self->display->keyboard_target == self)
+        self->display->keyboard_target = NULL;
+
+    if (self->display->pointer_target == self)
+        self->display->pointer_target = NULL;
+
     if (self->egl_window_surface != EGL_NO_SURFACE) {
         eglDestroySurface (self->display->egl_display,
                            self->egl_window_surface);
