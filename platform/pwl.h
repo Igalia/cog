@@ -106,7 +106,6 @@ typedef struct {
 
 typedef struct _PwlDisplay PwlDisplay;
 
-
 PwlDisplay* pwl_display_connect (const char *name, GError**);
 void        pwl_display_destroy (PwlDisplay*);
 void        pwl_display_attach_sources (PwlDisplay*, GMainContext*);
@@ -124,8 +123,6 @@ EGLContext  pwl_display_egl_get_context (const PwlDisplay*);
 struct wl_buffer*
             pwl_display_egl_create_buffer_from_image (const PwlDisplay*, EGLImage);
 bool        pwl_display_egl_has_broken_buffer_from_image (const PwlDisplay*);
-
-PwlXKBData* pwl_display_xkb_get_data (PwlDisplay*);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (PwlDisplay, pwl_display_destroy)
 

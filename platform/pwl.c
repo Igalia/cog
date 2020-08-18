@@ -59,24 +59,18 @@ typedef struct {
 } PwlOutput;
 
 
-struct _PwlDisplay {
-    struct wl_display *display;
-    struct wl_registry *registry;
-    struct wl_compositor *compositor;
+typedef struct {
+    PwlDisplay         *display;  /* Reference to the PwlDisplay*/
 
-    struct wl_seat *seat;
-    uint32_t        seat_version;
+    struct wl_seat     *seat;
+    uint32_t            seat_name;
+    uint32_t            seat_version;
 
-    EGLDisplay                               egl_display;
-    PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL     egl_createWaylandBufferFromImageWL;
-    EGLConfig                                egl_config;               /* Lazy init. */
-    EGLContext                               egl_context;              /* Lazy init. */
+    struct wl_pointer  *pointer;
+    PwlWindow          *pointer_target;  /* Current target of pointer events. */
 
-    struct wl_pointer *pointer;
-    PwlWindow *pointer_target;  /* Current target of pointer events. */
-
-    struct wl_touch *touch;
-    PwlWindow *touch_target;  /* Current target of touch events. */
+    struct wl_touch    *touch;
+    PwlWindow          *touch_target;  /* Current target of touch events. */
 
     PwlXKBData          xkb_data;
     struct wl_keyboard *keyboard;
@@ -87,6 +81,20 @@ struct _PwlDisplay {
     uint32_t            keyboard_repeat_key;
     uint32_t            keyboard_repeat_state;
     GSource            *keyboard_repeat_source;
+
+    struct wl_list link;
+} PwlSeat;
+
+
+struct _PwlDisplay {
+    struct wl_display *display;
+    struct wl_registry *registry;
+    struct wl_compositor *compositor;
+
+    EGLDisplay                               egl_display;
+    PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL     egl_createWaylandBufferFromImageWL;
+    EGLConfig                                egl_config;               /* Lazy init. */
+    EGLContext                               egl_context;              /* Lazy init. */
 
     struct wl_shell *shell;
 
@@ -107,6 +115,7 @@ struct _PwlDisplay {
 #endif /* HAVE_IVI_APPLICATION */
 
     struct wl_list outputs; /* wl_list<PwlOutput> */
+    struct wl_list seats; /* wl_list<PwlSeat> */
 
     char *application_id;
     char *window_title;
@@ -276,15 +285,15 @@ pointer_on_enter (void* data,
                   wl_fixed_t fixed_x,
                   wl_fixed_t fixed_y)
 {
-    PwlDisplay *display = data;
-    if (pointer != display->pointer) {
+    PwlSeat *seat = data;
+    if (pointer != seat->pointer) {
         g_critical ("%s: Got pointer %p, expected %p.",
-                    G_STRFUNC, pointer, display->pointer);
+                    G_STRFUNC, pointer, seat->pointer);
         return;
     }
 
     PwlWindow *window = wl_surface_get_user_data (surface);
-    display->pointer_target = window;
+    seat->pointer_target = window;
 
     window->focus |= PWL_FOCUS_MOUSE;
     if (window->focus_change_callback) {
@@ -324,33 +333,33 @@ pointer_on_leave (void              *data,
                   uint32_t           serial,
                   struct wl_surface *surface)
 {
-    PwlDisplay *display = data;
-    if (pointer != display->pointer) {
+    PwlSeat *seat = data;
+    if (pointer != seat->pointer) {
         g_critical ("%s: Got pointer %p, expected %p.",
-                    G_STRFUNC, pointer, display->pointer);
+                    G_STRFUNC, pointer, seat->pointer);
         return;
     }
 
-    if (!display->pointer_target) {
+    if (!seat->pointer_target) {
         g_critical ("%s: No current pointer event target!", G_STRFUNC);
         return;
     }
 
-    if (surface != display->pointer_target->wl_surface) {
+    if (surface != seat->pointer_target->wl_surface) {
         g_critical ("%s: Got leave for surface %p, but current window %p "
                     "has surface %p.", G_STRFUNC, surface,
-                    display->pointer_target,
-                    display->pointer_target->wl_surface);
+                    seat->pointer_target,
+                    seat->pointer_target->wl_surface);
         return;
     }
 
 #ifdef WL_POINTER_FRAME_SINCE_VERSION
-    if (display->seat_version < WL_POINTER_FRAME_SINCE_VERSION) {
-        window_dispatch_axis_event (display->pointer_target);
+    if (seat->seat_version < WL_POINTER_FRAME_SINCE_VERSION) {
+        window_dispatch_axis_event (seat->pointer_target);
     }
 #endif /* WL_POINTER_FRAME_SINCE_VERSION */
 
-    PwlWindow *window = display->pointer_target;
+    PwlWindow *window = seat->pointer_target;
 
     window->focus &= ~PWL_FOCUS_MOUSE;
     if (window->focus_change_callback) {
@@ -360,7 +369,7 @@ pointer_on_leave (void              *data,
     }
 
     g_debug ("%s: Pointer left surface %p, window %p.",
-             G_STRFUNC, surface, display->pointer_target);
+             G_STRFUNC, surface, seat->pointer_target);
 }
 
 
@@ -371,14 +380,14 @@ pointer_on_motion (void              *data,
                    wl_fixed_t         x,
                    wl_fixed_t         y)
 {
-    PwlDisplay *display = data;
-    if (pointer != display->pointer) {
+    PwlSeat *seat = data;
+    if (pointer != seat->pointer) {
         g_critical ("%s: Got pointer %p, expected %p.",
-                    G_STRFUNC, pointer, display->pointer);
+                    G_STRFUNC, pointer, seat->pointer);
         return;
     }
 
-    PwlWindow *window = display->pointer_target;
+    PwlWindow *window = seat->pointer_target;
     if (!window) {
         g_critical ("%s: No current pointer event target!", G_STRFUNC);
         return;
@@ -403,14 +412,14 @@ pointer_on_button (void              *data,
                    uint32_t           button,
                    uint32_t           state)
 {
-    PwlDisplay *display = data;
-    if (pointer != display->pointer) {
+    PwlSeat *seat = data;
+    if (pointer != seat->pointer) {
         g_critical ("%s: Got pointer %p, expected %p.",
-                    G_STRFUNC, pointer, display->pointer);
+                    G_STRFUNC, pointer, seat->pointer);
         return;
     }
 
-    PwlWindow *window = display->pointer_target;
+    PwlWindow *window = seat->pointer_target;
     if (!window) {
         g_critical ("%s: No current pointer event target!", G_STRFUNC);
         return;
@@ -441,14 +450,14 @@ pointer_on_axis (void              *data,
     TRACE ("%s: pointer @ %p, axis=%" PRIu32 ", value=%g.",
            G_STRFUNC, pointer, axis, wl_fixed_to_double (value));
 
-    PwlDisplay *display = data;
-    if (pointer != display->pointer) {
+    PwlSeat *seat = data;
+    if (pointer != seat->pointer) {
         g_critical ("%s: Got pointer %p, expected %p.",
-                    G_STRFUNC, pointer, display->pointer);
+                    G_STRFUNC, pointer, seat->pointer);
         return;
     }
 
-    PwlWindow *window = display->pointer_target;
+    PwlWindow *window = seat->pointer_target;
     if (!window) {
         g_critical ("%s: No current pointer event target!", G_STRFUNC);
         return;
@@ -468,7 +477,7 @@ pointer_on_axis (void              *data,
     }
 
 #ifdef WL_POINTER_FRAME_SINCE_VERSION
-    if (display->seat_version < WL_POINTER_FRAME_SINCE_VERSION)
+    if (seat->seat_version < WL_POINTER_FRAME_SINCE_VERSION)
 #endif /* !WL_POINTER_FRAME_SINCE_VERSION */
         window_dispatch_axis_event (window);
 }
@@ -479,14 +488,14 @@ static void
 pointer_on_frame (void              *data,
                   struct wl_pointer *pointer)
 {
-    PwlDisplay *display = data;
-    if (pointer != display->pointer) {
+    PwlSeat *seat = data;
+    if (pointer != seat->pointer) {
         g_critical ("%s: Got pointer %p, expected %p.",
-                    G_STRFUNC, pointer, display->pointer);
+                    G_STRFUNC, pointer, seat->pointer);
         return;
     }
 
-    PwlWindow *window = display->pointer_target;
+    PwlWindow *window = seat->pointer_target;
     if (!window) {
         g_critical ("%s: No current pointer event target!", G_STRFUNC);
         return;
@@ -514,14 +523,14 @@ pointer_on_axis_stop (void              *data,
 {
     TRACE ("%s: pointer @ %p, axis=%" PRIu32 ".", G_STRFUNC, pointer, axis);
 
-    PwlDisplay *display = data;
-    if (pointer != display->pointer) {
+    PwlSeat *seat = data;
+    if (pointer != seat->pointer) {
         g_critical ("%s: Got pointer %p, expected %p.",
-                    G_STRFUNC, pointer, display->pointer);
+                    G_STRFUNC, pointer, seat->pointer);
         return;
     }
 
-    PwlWindow *window = display->pointer_target;
+    PwlWindow *window = seat->pointer_target;
     if (!window) {
         g_critical ("%s: No current pointer event target!", G_STRFUNC);
         return;
@@ -549,14 +558,14 @@ pointer_on_axis_discrete (void              *data,
     TRACE ("%s: pointer @ %p, axis=%" PRIu32 ", value=%" PRIi32 ".",
            G_STRFUNC, pointer, axis, value);
 
-    PwlDisplay *display = data;
-    if (pointer != display->pointer) {
+    PwlSeat *seat = data;
+    if (pointer != seat->pointer) {
         g_critical ("%s: Got pointer %p, expected %p.",
-                    G_STRFUNC, pointer, display->pointer);
+                    G_STRFUNC, pointer, seat->pointer);
         return;
     }
 
-    PwlWindow *window = display->pointer_target;
+    PwlWindow *window = seat->pointer_target;
     if (!window) {
         g_critical ("%s: No current pointer event target!", G_STRFUNC);
         return;
@@ -590,8 +599,8 @@ touch_on_down (void *data,
     PwlWindow *window = wl_surface_get_user_data (surface);
     window->touch = (PwlTouch) { .id = id, .time = time, .x = x, .y = y };
 
-    PwlDisplay *display = data;
-    display->touch_target = window;
+    PwlSeat *seat = data;
+    seat->touch_target = window;
 
     if (window->on_touch_down) {
         (*window->on_touch_down) (window,
@@ -610,8 +619,8 @@ touch_on_up (void *data,
     if (id < 0 || id >= PWL_N_TOUCH_POINTS)
         return;
 
-    PwlDisplay *display = data;
-    PwlWindow *window = display->touch_target;
+    PwlSeat *seat = data;
+    PwlWindow *window = seat->touch_target;
 
     window->touch.id = id;
     window->touch.time = time;
@@ -634,8 +643,8 @@ touch_on_motion (void *data,
     if (id < 0 || id >= PWL_N_TOUCH_POINTS)
         return;
 
-    PwlDisplay *display = data;
-    PwlWindow *window = display->touch_target;
+    PwlSeat *seat = data;
+    PwlWindow *window = seat->touch_target;
     window->touch = (PwlTouch) { .id = id, .time = time, .x = x, .y = y };
 
     if (window->on_touch_motion) {
@@ -664,14 +673,14 @@ keyboard_on_keymap (void *data,
                     int32_t fd,
                     uint32_t size)
 {
-    PwlDisplay *display = data;
+    PwlSeat *seat = data;
 
     if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1) {
         close (fd);
         return;
     }
 
-    const int map_mode = (display->seat_version > 6) ? MAP_PRIVATE : MAP_SHARED;
+    const int map_mode = (seat->seat_version > 6) ? MAP_PRIVATE : MAP_SHARED;
     void* mapping = mmap (NULL, size, PROT_READ, map_mode, fd, 0);
     close (fd);
 
@@ -682,7 +691,7 @@ keyboard_on_keymap (void *data,
     }
 
     struct xkb_keymap *keymap =
-        xkb_keymap_new_from_string (display->xkb_data.context,
+        xkb_keymap_new_from_string (seat->xkb_data.context,
                                     mapping,
                                     XKB_KEYMAP_FORMAT_TEXT_V1,
                                     XKB_KEYMAP_COMPILE_NO_FLAGS);
@@ -699,18 +708,18 @@ keyboard_on_keymap (void *data,
         return;
     }
 
-    g_clear_pointer (&display->xkb_data.state, xkb_state_unref);
-    g_clear_pointer (&display->xkb_data.keymap, xkb_keymap_unref);
+    g_clear_pointer (&seat->xkb_data.state, xkb_state_unref);
+    g_clear_pointer (&seat->xkb_data.keymap, xkb_keymap_unref);
 
-    display->xkb_data.keymap = g_steal_pointer (&keymap);
-    display->xkb_data.state = g_steal_pointer (&state);
+    seat->xkb_data.keymap = g_steal_pointer (&keymap);
+    seat->xkb_data.state = g_steal_pointer (&state);
 
-    display->xkb_data.indexes.control = xkb_keymap_mod_get_index (display->xkb_data.keymap,
-                                                                  XKB_MOD_NAME_CTRL);
-    display->xkb_data.indexes.alt = xkb_keymap_mod_get_index (display->xkb_data.keymap,
-                                                              XKB_MOD_NAME_ALT);
-    display->xkb_data.indexes.shift = xkb_keymap_mod_get_index (display->xkb_data.keymap,
-                                                                XKB_MOD_NAME_SHIFT);
+    seat->xkb_data.indexes.control = xkb_keymap_mod_get_index (seat->xkb_data.keymap,
+                                                               XKB_MOD_NAME_CTRL);
+    seat->xkb_data.indexes.alt = xkb_keymap_mod_get_index (seat->xkb_data.keymap,
+                                                           XKB_MOD_NAME_ALT);
+    seat->xkb_data.indexes.shift = xkb_keymap_mod_get_index (seat->xkb_data.keymap,
+                                                             XKB_MOD_NAME_SHIFT);
 
     g_debug ("%s: XKB keymap updated.", G_STRFUNC);
 }
@@ -722,17 +731,17 @@ keyboard_on_enter (void               *data,
                    struct wl_surface  *surface,
                    struct wl_array    *keys)
 {
-    PwlDisplay *display = data;
-    if (keyboard != display->keyboard) {
+    PwlSeat *seat = data;
+    if (keyboard != seat->keyboard) {
         g_critical ("%s: Got keyboard %p, expected %p.",
-                    G_STRFUNC, keyboard, display->keyboard);
+                    G_STRFUNC, keyboard, seat->keyboard);
         return;
     }
 
     PwlWindow *window = wl_surface_get_user_data (surface);
-    display->keyboard_target = window;
+    seat->keyboard_target = window;
 
-    display->keyboard_target->keyboard.serial = serial;
+    seat->keyboard_target->keyboard.serial = serial;
 
     window->focus |= PWL_FOCUS_KEYBOARD;
     if (window->focus_change_callback) {
@@ -750,27 +759,27 @@ keyboard_on_leave (void               *data,
                    uint32_t            serial,
                    struct wl_surface  *surface)
 {
-    PwlDisplay *display = data;
-    if (keyboard != display->keyboard) {
+    PwlSeat *seat = data;
+    if (keyboard != seat->keyboard) {
         g_critical ("%s: Got keyboard %p, expected %p.",
-                    G_STRFUNC, keyboard, display->keyboard);
+                    G_STRFUNC, keyboard, seat->keyboard);
         return;
     }
 
-    if (!display->keyboard_target) {
+    if (!seat->keyboard_target) {
         g_critical ("%s: No current keyboard event target!", G_STRFUNC);
         return;
     }
 
-    if (surface != display->keyboard_target->wl_surface) {
+    if (surface != seat->keyboard_target->wl_surface) {
         g_critical ("%s: Got leave for surface %p, but current window %p "
                     "has surface %p.", G_STRFUNC, surface,
-                    display->keyboard_target,
-                    display->keyboard_target->wl_surface);
+                    seat->keyboard_target,
+                    seat->keyboard_target->wl_surface);
         return;
     }
 
-    PwlWindow *window = display->keyboard_target;
+    PwlWindow *window = seat->keyboard_target;
     window->keyboard.serial = serial;
 
     window->focus &= ~PWL_FOCUS_KEYBOARD;
@@ -781,7 +790,7 @@ keyboard_on_leave (void               *data,
     }
 
     g_debug ("%s: Keyboard left surface %p, window %p.",
-             G_STRFUNC, surface, display->keyboard_target);
+             G_STRFUNC, surface, seat->keyboard_target);
 }
 
 
@@ -816,12 +825,12 @@ window_dispatch_key_event (PwlWindow  *self,
 
 
 static gboolean
-display_on_keyboard_repeat_timeout (PwlDisplay *self)
+seat_on_keyboard_repeat_timeout (PwlSeat *self)
 {
     if (!self->keyboard_target) {
         g_critical ("%s: No keyboard event target window!", G_STRFUNC);
         /*
-         * We cannot use display_stop_keyboard_repeat() here because it
+         * We cannot use seat_stop_keyboard_repeat() here because it
          * would destroy the GSource while it is still being dispatched.
          */
         g_clear_pointer (&self->keyboard_repeat_source, g_source_unref);
@@ -838,8 +847,11 @@ display_on_keyboard_repeat_timeout (PwlDisplay *self)
 
 
 static void
-display_stop_keyboard_repeat (PwlDisplay *self)
+seat_stop_keyboard_repeat (PwlSeat *self)
 {
+    g_debug ("Seat @ %p: Stopping the keyboard repeat timer.",
+             self->seat);
+
     if (!self->keyboard_repeat_source)
         return;
 
@@ -849,30 +861,30 @@ display_stop_keyboard_repeat (PwlDisplay *self)
 
 
 static void
-display_start_keyboard_repeat (PwlDisplay *self,
-                               uint32_t    timestamp,
-                               uint32_t    key,
-                               uint32_t    state)
+seat_start_keyboard_repeat (PwlSeat    *self,
+                            uint32_t    timestamp,
+                            uint32_t    key,
+                            uint32_t    state)
 {
-    display_stop_keyboard_repeat (self);
+    seat_stop_keyboard_repeat (self);
 
     self->keyboard_repeat_source =
         g_timeout_source_new (self->keyboard_repeat_delay);
 
     g_source_set_callback (self->keyboard_repeat_source,
-                           (GSourceFunc) display_on_keyboard_repeat_timeout,
+                           (GSourceFunc) seat_on_keyboard_repeat_timeout,
                            self,
                            NULL);
 
     GMainContext *context;
-    if (self->source) {
-        context = g_source_get_context (self->source);
+    if (self->display->source) {
+        context = g_source_get_context (self->display->source);
     } else {
         static bool warned = false;
         if (!warned) {
             g_warning ("pwl_display_attach_sources() was never called for"
                        " display @ %p, using the default GMainContext as"
-                       " fall-back for handling key repeat.", self);
+                       " fall-back for handling key repeat.", self->display);
             warned = true;
         }
         context = g_main_context_default ();
@@ -889,14 +901,14 @@ keyboard_on_key (void               *data,
                  uint32_t            key,
                  uint32_t            state)
 {
-    PwlDisplay *display = data;
-    if (keyboard != display->keyboard) {
+    PwlSeat *seat = data;
+    if (keyboard != seat->keyboard) {
         g_critical ("%s: Got keyboard %p, expected %p.",
-                    G_STRFUNC, keyboard, display->keyboard);
+                    G_STRFUNC, keyboard, seat->keyboard);
         return;
     }
 
-    PwlWindow *window = display->keyboard_target;
+    PwlWindow *window = seat->keyboard_target;
     if (!window) {
         g_critical ("%s: No current keyboard event target!", G_STRFUNC);
         return;
@@ -907,21 +919,21 @@ keyboard_on_key (void               *data,
 
     window->keyboard.serial = serial;
     window_dispatch_key_event (window,
-                               &display->xkb_data,
+                               &seat->xkb_data,
                                timestamp,
                                key,
                                state);
 
     if (state == WL_KEYBOARD_KEY_STATE_RELEASED) {
-        display_stop_keyboard_repeat (display);
+        seat_stop_keyboard_repeat (seat);
         return;
     }
 
     if (state == WL_KEYBOARD_KEY_STATE_PRESSED &&
-        display->keyboard_repeat_rate &&
-        xkb_keymap_key_repeats (display->xkb_data.keymap, key))
+        seat->keyboard_repeat_rate &&
+        xkb_keymap_key_repeats (seat->xkb_data.keymap, key))
     {
-        display_start_keyboard_repeat (display, timestamp, key, state);
+        seat_start_keyboard_repeat (seat, timestamp, key, state);
     }
 }
 
@@ -935,14 +947,14 @@ keyboard_on_modifiers (void *data,
                        uint32_t mods_locked,
                        uint32_t group)
 {
-    PwlDisplay *display = data;
+    PwlSeat *seat = data;
 
-    if (!display->xkb_data.state) {
+    if (!seat->xkb_data.state) {
         g_warning ("%s: XKB state not yet configured!", G_STRFUNC);
         return;
     }
 
-    xkb_state_update_mask (display->xkb_data.state,
+    xkb_state_update_mask (seat->xkb_data.state,
                            mods_depressed,
                            mods_latched,
                            mods_locked,
@@ -950,24 +962,24 @@ keyboard_on_modifiers (void *data,
                            0,
                            group);
 
-    display->xkb_data.modifiers = 0;
+    seat->xkb_data.modifiers = 0;
     uint32_t component
         = (XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_LATCHED);
 
-    if (xkb_state_mod_index_is_active (display->xkb_data.state,
-                                       display->xkb_data.indexes.control,
+    if (xkb_state_mod_index_is_active (seat->xkb_data.state,
+                                       seat->xkb_data.indexes.control,
                                        component)) {
-        display->xkb_data.modifiers |= display->xkb_data.modifier.control;
+        seat->xkb_data.modifiers |= seat->xkb_data.modifier.control;
     }
-    if (xkb_state_mod_index_is_active (display->xkb_data.state,
-                                       display->xkb_data.indexes.alt,
+    if (xkb_state_mod_index_is_active (seat->xkb_data.state,
+                                       seat->xkb_data.indexes.alt,
                                        component)) {
-        display->xkb_data.modifiers |= display->xkb_data.modifier.alt;
+        seat->xkb_data.modifiers |= seat->xkb_data.modifier.alt;
     }
-    if (xkb_state_mod_index_is_active (display->xkb_data.state,
-                                       display->xkb_data.indexes.shift,
+    if (xkb_state_mod_index_is_active (seat->xkb_data.state,
+                                       seat->xkb_data.indexes.shift,
                                        component)) {
-        display->xkb_data.modifiers |= display->xkb_data.modifier.shift;
+        seat->xkb_data.modifiers |= seat->xkb_data.modifier.shift;
     }
 }
 
@@ -977,16 +989,16 @@ keyboard_on_repeat_info (void               *data,
                          int32_t             rate,
                          int32_t             delay)
 {
-    PwlDisplay *display = data;
-    if (keyboard != display->keyboard) {
+    PwlSeat *seat = data;
+    if (keyboard != seat->keyboard) {
         return;
     }
 
-    display->keyboard_repeat_rate = rate;
-    display->keyboard_repeat_delay = delay;
+    seat->keyboard_repeat_rate = rate;
+    seat->keyboard_repeat_delay = delay;
 
     if (!rate)
-        display_stop_keyboard_repeat (display);
+        seat_stop_keyboard_repeat (seat);
 
     g_debug ("%s: Set keyboard repeat rate=%" PRIi32 ", delay=%" PRIi32 ".",
              G_STRFUNC, rate, delay);
@@ -995,13 +1007,13 @@ keyboard_on_repeat_info (void               *data,
 
 static void
 display_on_seat_capabilities (void           *data,
-                              struct wl_seat *seat,
+                              struct wl_seat *wl_seat,
                               uint32_t        capabilities)
 {
-    PwlDisplay *display = data;
+    PwlSeat *seat = data;
 
-    g_assert (display);
-    g_assert (display->seat == seat);
+    g_assert (seat);
+    g_assert (seat->seat == wl_seat);
 
     g_debug ("Enumerating seat capabilities:");
 
@@ -1021,22 +1033,22 @@ display_on_seat_capabilities (void           *data,
     };
 
     if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
-        if (!display->pointer) {
-            display->pointer = wl_seat_get_pointer (display->seat);
-            wl_pointer_add_listener (display->pointer, &pointer_listener, display);
-            g_debug ("  - New pointer %p.", display->pointer);
+        if (!seat->pointer) {
+            seat->pointer = wl_seat_get_pointer (wl_seat);
+            wl_pointer_add_listener (seat->pointer, &pointer_listener, seat);
+            g_debug ("  - New pointer %p.", seat->pointer);
         } else {
             g_warning ("Multiple pointers per seat are currently unsupported.");
         }
-    } else if (display->pointer) {
-        g_debug ("  - Pointer %p gone.", display->pointer);
-        g_clear_pointer (&display->pointer, wl_pointer_release);
+    } else if (seat->pointer) {
+        g_debug ("  - Pointer %p gone.", seat->pointer);
+        g_clear_pointer (&seat->pointer, wl_pointer_release);
     }
 
     /* Keyboard */
     const bool has_keyboard = capabilities & WL_SEAT_CAPABILITY_KEYBOARD;
-    if (has_keyboard && !display->keyboard) {
-        display->keyboard = wl_seat_get_keyboard (display->seat);
+    if (has_keyboard) {
+        seat->keyboard = wl_seat_get_keyboard (wl_seat);
         static const struct wl_keyboard_listener keyboard_listener = {
             .keymap = keyboard_on_keymap,
             .enter = keyboard_on_enter,
@@ -1045,17 +1057,17 @@ display_on_seat_capabilities (void           *data,
             .modifiers = keyboard_on_modifiers,
             .repeat_info = keyboard_on_repeat_info,
         };
-        wl_keyboard_add_listener (display->keyboard, &keyboard_listener, display);
-        g_debug ("  - New keyboard %p.", display->keyboard);
-    } else if (!has_keyboard && display->keyboard) {
-        g_debug ("  - Keyboard %p gone.", display->keyboard);
-        g_clear_pointer (&display->keyboard, wl_keyboard_release);
+        wl_keyboard_add_listener (seat->keyboard, &keyboard_listener, seat);
+        g_debug ("  - New keyboard %p.", seat->keyboard);
+    } else if (!has_keyboard && seat->keyboard) {
+        g_debug ("  - Keyboard %p gone.", seat->keyboard);
+        g_clear_pointer (&seat->keyboard, wl_keyboard_release);
     }
 
     /* Touch */
     const bool has_touch = capabilities & WL_SEAT_CAPABILITY_TOUCH;
-    if (has_touch && !display->touch) {
-        display->touch = wl_seat_get_touch (display->seat);
+    if (has_touch) {
+        seat->touch = wl_seat_get_touch (wl_seat);
         static const struct wl_touch_listener touch_listener = {
             .down = touch_on_down,
             .up = touch_on_up,
@@ -1063,11 +1075,11 @@ display_on_seat_capabilities (void           *data,
             .frame = touch_on_frame,
             .cancel = touch_on_cancel,
         };
-        wl_touch_add_listener (display->touch, &touch_listener, data);
-        g_debug ("  - New touch input %p.", display->touch);
-    } else if (!has_touch && display->touch) {
-        g_debug ("  - Touch input %p gone.", display->touch);
-        g_clear_pointer (&display->touch, wl_touch_release);
+        wl_touch_add_listener (seat->touch, &touch_listener, seat);
+        g_debug ("  - New touch input %p.", seat->touch);
+    } else if (!has_touch && seat->touch) {
+        g_debug ("  - Touch input %p gone.", seat->touch);
+        g_clear_pointer (&seat->touch, wl_touch_release);
     }
 
     g_debug ("Done enumerating seat capabilities.");
@@ -1102,6 +1114,94 @@ zxdg_shell_v6_ping (void                 *data G_GNUC_UNUSED,
 }
 #endif /* HAVE_XDG_SHELL_UNSTABLE_V6 */
 
+
+static void
+display_add_seat (PwlDisplay *display,
+                  struct wl_seat *wl_seat,
+                  uint32_t name,
+                  uint32_t version)
+{
+    g_assert (display);
+
+    PwlSeat *seat = g_slice_new0 (PwlSeat);
+    seat->seat = wl_seat;
+    seat->seat_name = name;
+    seat->seat_version = version;
+    seat->display = display;
+    wl_list_init (&seat->link);
+    wl_list_insert (&display->seats, &seat->link);
+
+    static const struct wl_seat_listener seat_listener = {
+        .capabilities = display_on_seat_capabilities,
+        .name = display_on_seat_name,
+    };
+    wl_seat_add_listener (wl_seat, &seat_listener, seat);
+
+    if (!(seat->xkb_data.context = xkb_context_new (XKB_CONTEXT_NO_FLAGS))) {
+        g_error ("Could not initialize XKB context");
+        return seat;
+    }
+
+    struct xkb_compose_table* compose_table =
+        xkb_compose_table_new_from_locale (seat->xkb_data.context,
+                                           setlocale (LC_CTYPE, NULL),
+                                           XKB_COMPOSE_COMPILE_NO_FLAGS);
+    if (compose_table) {
+        seat->xkb_data.compose_state =
+            xkb_compose_state_new (compose_table,
+                                   XKB_COMPOSE_STATE_NO_FLAGS);
+        g_clear_pointer (&compose_table, xkb_compose_table_unref);
+
+        if (!seat->xkb_data.compose_state) {
+            g_error ("Could not initialize XKB compose state");
+            return seat;
+        }
+    }
+
+    /* Always have a default keymap, in case we never receive .keymap. */
+    seat->xkb_data.keymap =
+        xkb_keymap_new_from_names (seat->xkb_data.context,
+                                   &((struct xkb_rule_names) { }),
+                                   XKB_KEYMAP_COMPILE_NO_FLAGS);
+    if (!seat->xkb_data.keymap) {
+        g_error ("Could not initialize XKB keymap");
+        return seat;
+    }
+
+    if (!(seat->xkb_data.state = xkb_state_new (seat->xkb_data.keymap))) {
+        g_error ("Could not initialize XKB state");
+        return seat;
+    }
+
+    seat->xkb_data.indexes.control = xkb_keymap_mod_get_index (seat->xkb_data.keymap,
+                                                               XKB_MOD_NAME_CTRL);
+    seat->xkb_data.indexes.alt = xkb_keymap_mod_get_index (seat->xkb_data.keymap,
+                                                           XKB_MOD_NAME_ALT);
+    seat->xkb_data.indexes.shift = xkb_keymap_mod_get_index (seat->xkb_data.keymap,
+                                                             XKB_MOD_NAME_SHIFT);
+    return seat;
+}
+
+static void
+pwl_seat_destroy (PwlSeat *self)
+{
+    g_assert (self != NULL);
+
+    seat_stop_keyboard_repeat (self);
+
+    g_debug ("%s: Destroying @ %p", G_STRFUNC, self);
+    g_clear_pointer (&self->pointer, wl_pointer_destroy);
+    g_clear_pointer (&self->keyboard, wl_keyboard_destroy);
+    g_clear_pointer (&self->seat, wl_seat_destroy);
+
+    g_clear_pointer (&self->xkb_data.state, xkb_state_unref);
+    g_clear_pointer (&self->xkb_data.compose_state, xkb_compose_state_unref);
+    g_clear_pointer (&self->xkb_data.keymap, xkb_keymap_unref);
+    g_clear_pointer (&self->xkb_data.context, xkb_context_unref);
+
+    wl_list_remove (&self->link);
+    g_slice_free (PwlSeat, self);
+}
 
 static void
 registry_global (void               *data,
@@ -1168,22 +1268,13 @@ registry_global (void               *data,
                                            &wl_shell_interface,
                                            version);
     } else if (strcmp (interface, wl_seat_interface.name) == 0) {
-        if (display->seat) {
-            g_warning ("%s: Multiple seats are not supported, ignoring "
-                       "wl_seat#%" PRIu32 ".", G_STRFUNC, name); 
-            interface_used = FALSE;
-        } else {
-            display->seat_version = MIN (version, WL_POINTER_FRAME_SINCE_VERSION);
-            display->seat = wl_registry_bind (registry,
-                                              name,
-                                              &wl_seat_interface,
-                                              display->seat_version);
-            static const struct wl_seat_listener seat_listener = {
-                .capabilities = display_on_seat_capabilities,
-                .name = display_on_seat_name,
-            };
-            wl_seat_add_listener (display->seat, &seat_listener, display);
-        }
+        uint32_t seat_version = MIN (version, WL_POINTER_FRAME_SINCE_VERSION);
+        struct wl_seat *wl_seat = wl_registry_bind (registry,
+                                                    name,
+                                                    &wl_seat_interface,
+                                                    seat_version);
+
+        display_add_seat(display, wl_seat, name, seat_version);
     } else if (strcmp (interface, wl_output_interface.name) == 0) {
         PwlOutput *item = g_slice_new0 (PwlOutput);
         item->output = wl_registry_bind (registry, name,
@@ -1218,19 +1309,25 @@ static void
 registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
 {
     PwlDisplay *display = data;
-    PwlOutput *item, *tmp;
-    wl_list_for_each_safe (item, tmp, &display->outputs, link) {
-        if (item->output_name == name) {
+    PwlOutput *output, *tmp_output;
+    wl_list_for_each_safe (output, tmp_output, &display->outputs, link) {
+        if (output->output_name == name) {
             g_debug ("Output #%"PRIi32" @ %p: Removed.",
-                     item->output_name, item->output);
-            g_clear_pointer (&item->output, wl_output_release);
-            wl_list_remove (&item->link);
-            g_slice_free (PwlOutput, item);
+                     output->output_name, output->output);
+            g_clear_pointer (&output->output, wl_output_release);
+            wl_list_remove (&output->link);
+            g_slice_free (PwlOutput, output);
+            break;
+        }
+    }
+    PwlSeat *seat, *tmp_seat;
+    wl_list_for_each_safe (seat, tmp_seat, &display->seats, link) {
+        if (seat->seat_name == name) {
+            pwl_seat_destroy(seat);
             break;
         }
     }
 }
-
 
 
 PwlDisplay*
@@ -1239,53 +1336,7 @@ pwl_display_connect (const char *name, GError **error)
     g_autoptr(PwlDisplay) self = g_slice_new0 (PwlDisplay);
 
     wl_list_init (&self->outputs);
-
-    if (!(self->xkb_data.context = xkb_context_new (XKB_CONTEXT_NO_FLAGS))) {
-        g_set_error_literal (error, PWL_ERROR, PWL_ERROR_UNAVAILABLE,
-                             "Could not initialize XKB context");
-        return NULL;
-    }
-
-    struct xkb_compose_table* compose_table =
-        xkb_compose_table_new_from_locale (self->xkb_data.context,
-                                           setlocale (LC_CTYPE, NULL),
-                                           XKB_COMPOSE_COMPILE_NO_FLAGS);
-    if (compose_table) {
-        self->xkb_data.compose_state =
-            xkb_compose_state_new (compose_table,
-                                   XKB_COMPOSE_STATE_NO_FLAGS);
-        g_clear_pointer (&compose_table, xkb_compose_table_unref);
-
-        if (!self->xkb_data.compose_state) {
-            g_set_error_literal (error, PWL_ERROR, PWL_ERROR_UNAVAILABLE,
-                                 "Could not initialize XKB compose state");
-            return NULL;
-        }
-    }
-
-    /* Always have a default keymap, in case we never receive .keymap. */
-    self->xkb_data.keymap =
-        xkb_keymap_new_from_names (self->xkb_data.context,
-                                   &((struct xkb_rule_names) { }),
-                                   XKB_KEYMAP_COMPILE_NO_FLAGS);
-    if (!self->xkb_data.keymap) {
-        g_set_error_literal (error, PWL_ERROR, PWL_ERROR_UNAVAILABLE,
-                             "Could not initialize XKB keymap");
-        return NULL;
-    }
-
-    if (!(self->xkb_data.state = xkb_state_new (self->xkb_data.keymap))) {
-        g_set_error_literal (error, PWL_ERROR, PWL_ERROR_UNAVAILABLE,
-                             "Could not initialize XKB state");
-        return NULL;
-    }
-
-    self->xkb_data.indexes.control = xkb_keymap_mod_get_index (self->xkb_data.keymap,
-                                                               XKB_MOD_NAME_CTRL);
-    self->xkb_data.indexes.alt = xkb_keymap_mod_get_index (self->xkb_data.keymap,
-                                                           XKB_MOD_NAME_ALT);
-    self->xkb_data.indexes.shift = xkb_keymap_mod_get_index (self->xkb_data.keymap,
-                                                             XKB_MOD_NAME_SHIFT);
+    wl_list_init (&self->seats);
 
     if (!(self->display = wl_display_connect (name))) {
         g_set_error_literal (error, G_FILE_ERROR,
@@ -1358,8 +1409,6 @@ pwl_display_destroy (PwlDisplay *self)
     pwl_display_egl_deinit (self);
 
     if (self->display) {
-        display_stop_keyboard_repeat (self);
-
         if (self->source) {
             g_source_destroy (self->source);
             g_clear_pointer (&self->source, g_source_unref);
@@ -1382,9 +1431,11 @@ pwl_display_destroy (PwlDisplay *self)
         g_clear_pointer (&self->ivi_application, ivi_application_destroy);
 #endif /* HAVE_IVI_APPLICATION */
 
-        g_clear_pointer (&self->pointer, wl_pointer_destroy);
-        g_clear_pointer (&self->keyboard, wl_keyboard_destroy);
-        g_clear_pointer (&self->seat, wl_seat_destroy);
+        PwlSeat *item, *tmp;
+        wl_list_for_each_safe (item, tmp, &self->seats, link) {
+            pwl_seat_destroy(item);
+        }
+
         g_clear_pointer (&self->compositor, wl_compositor_destroy);
         g_clear_pointer (&self->registry, wl_registry_destroy);
 
@@ -1392,11 +1443,6 @@ pwl_display_destroy (PwlDisplay *self)
         g_clear_pointer (&self->display, wl_display_disconnect);
         g_clear_pointer (&self->application_id, g_free);
         g_clear_pointer (&self->window_title, g_free);
-
-        g_clear_pointer (&self->xkb_data.state, xkb_state_unref);
-        g_clear_pointer (&self->xkb_data.compose_state, xkb_compose_state_unref);
-        g_clear_pointer (&self->xkb_data.keymap, xkb_keymap_unref);
-        g_clear_pointer (&self->xkb_data.context, xkb_context_unref);
     }
 
     g_slice_free (PwlDisplay, self);
@@ -1959,14 +2005,6 @@ pwl_display_egl_create_buffer_from_image (const PwlDisplay *self,
 }
 
 
-PwlXKBData*
-pwl_display_xkb_get_data (PwlDisplay *self)
-{
-    g_return_val_if_fail (self, NULL);
-    return &self->xkb_data;
-}
-
-
 bool
 pwl_display_egl_has_broken_buffer_from_image (const PwlDisplay *self)
 {
@@ -2206,13 +2244,16 @@ void
 pwl_window_destroy (PwlWindow *self)
 {
     g_return_if_fail (self);
+    PwlDisplay *display = self->display;
+    PwlSeat *seat, *tmp_seat;
+    wl_list_for_each_safe (seat, tmp_seat, &display->seats, link) {
+        if (seat->keyboard_target == self)
+            seat->keyboard_target = NULL;
 
-    if (self->display->keyboard_target == self)
-        self->display->keyboard_target = NULL;
+        if (seat->pointer_target == self)
+            seat->pointer_target = NULL;
 
-    if (self->display->pointer_target == self)
-        self->display->pointer_target = NULL;
-
+    }
     if (self->egl_window_surface != EGL_NO_SURFACE) {
         eglDestroySurface (self->display->egl_display,
                            self->egl_window_surface);
