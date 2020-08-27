@@ -1139,7 +1139,7 @@ display_add_seat (PwlDisplay *display,
 
     if (!(seat->xkb_data.context = xkb_context_new (XKB_CONTEXT_NO_FLAGS))) {
         g_error ("Could not initialize XKB context");
-        return seat;
+        return;
     }
 
     struct xkb_compose_table* compose_table =
@@ -1154,7 +1154,7 @@ display_add_seat (PwlDisplay *display,
 
         if (!seat->xkb_data.compose_state) {
             g_error ("Could not initialize XKB compose state");
-            return seat;
+            return;
         }
     }
 
@@ -1165,12 +1165,12 @@ display_add_seat (PwlDisplay *display,
                                    XKB_KEYMAP_COMPILE_NO_FLAGS);
     if (!seat->xkb_data.keymap) {
         g_error ("Could not initialize XKB keymap");
-        return seat;
+        return;
     }
 
     if (!(seat->xkb_data.state = xkb_state_new (seat->xkb_data.keymap))) {
         g_error ("Could not initialize XKB state");
-        return seat;
+        return;
     }
 
     seat->xkb_data.indexes.control = xkb_keymap_mod_get_index (seat->xkb_data.keymap,
@@ -1179,7 +1179,6 @@ display_add_seat (PwlDisplay *display,
                                                            XKB_MOD_NAME_ALT);
     seat->xkb_data.indexes.shift = xkb_keymap_mod_get_index (seat->xkb_data.keymap,
                                                              XKB_MOD_NAME_SHIFT);
-    return seat;
 }
 
 static void
