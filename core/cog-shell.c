@@ -449,7 +449,7 @@ cog_shell_add_view (CogShell   *shell,
             g_autofree char *error = NULL;
             G_VALUE_COLLECT_INIT (&property_values[n_properties],
                                   pspec->value_type, varargs,
-                                  G_VALUE_NOCOPY_CONTENTS, &error);
+                                  0, &error);
             if (error) {
                 g_critical ("%s: %s", G_STRFUNC, error);
                 g_value_unset (&property_values[n_properties]);
@@ -465,6 +465,8 @@ cog_shell_add_view (CogShell   *shell,
                                                         n_properties,
                                                         property_names,
                                                         property_values);
+        while (n_properties--)
+            g_value_unset(&property_values[n_properties]);
     } else {
         /* Fast case: No additional properties specified. */
         view = (CogView*) g_object_new (view_type,
