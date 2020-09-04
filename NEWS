@@ -1,3 +1,17 @@
+==========================
+0.7.90 - September 4, 2020
+==========================
+
+- cog: Added the --ignore-tls-errors command line option which allows ignoring
+  TLS certificate validation errors.
+- cog: Fixed navigation in some sites by following URI passed to window.open()
+  loading them in the active view.
+- fdo: Improve the logic to set the opaque region of the Wayland surface if it
+  could have changed between exported frames, which saves some CPU time.
+- drm: Support choosing the video mode to use using the
+  COG_PLATFORM_DRM_VIDEO_MODE environment variable.
+
+
 ======================
 0.7.1 - April 11, 2020
 ======================
