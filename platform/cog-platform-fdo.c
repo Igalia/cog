@@ -97,13 +97,13 @@ typedef struct wl_buffer * (EGLAPIENTRYP PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL) (
 #endif
 
 
-#if HAVE_DEVICE_SCALING
 typedef struct output_metrics {
   struct wl_output *output;
   int32_t name;
   int32_t scale;
+  int32_t width;
+  int32_t height;
 } output_metrics;
-#endif /* HAVE_DEVICE_SCALING */
 
 static struct {
     struct wl_display *display;
@@ -132,9 +132,7 @@ static struct {
     struct wl_surface      *cursor_left_ptr_surface;
 #endif /* COG_USE_WAYLAND_CURSOR */
 
-#if HAVE_DEVICE_SCALING
     struct output_metrics metrics[16];
-#endif /* HAVE_DEVICE_SCALING */
 
 #if COG_IM_API_SUPPORTED
     struct zwp_text_input_manager_v3 *text_input_manager;
@@ -210,11 +208,13 @@ static struct {
 
     bool is_fullscreen;
     bool is_maximized;
+    bool should_resize_to_largest_output;
 } win_data = {
     .width = DEFAULT_WIDTH,
     .height = DEFAULT_HEIGHT,
     .is_fullscreen = false,
     .is_maximized = false,
+    .should_resize_to_largest_output = false,
 };
 
 static struct {
@@ -382,6 +382,7 @@ configure_surface_geometry (int32_t width, int32_t height)
     }
 
     if (win_data.width != width || win_data.height != height) {
+        g_debug("Configuring new size: %" PRId32 "x%" PRId32, width, height);
         win_data.width = width;
         win_data.height = height;
         wpe_view_data.should_update_opaque_region = true;
@@ -527,11 +528,70 @@ static const struct xdg_popup_listener xdg_popup_listener = {
     .popup_done = xdg_popup_on_popup_done,
 };
 
+static void
+resize_to_largest_output ()
+{
+    /* Find the largest output and resize the surface to match */
+    int32_t width = 0;
+    int32_t height = 0;
+    for (int i = 0; i < G_N_ELEMENTS (wl_data.metrics); i++)
+    {
+        if (wl_data.metrics[i].output &&
+                wl_data.metrics[i].width * wl_data.metrics[i].height >= width * height) {
+            width = wl_data.metrics[i].width;
+            height = wl_data.metrics[i].height;
+        }
+    }
+    configure_surface_geometry (width, height);
 
-#if HAVE_DEVICE_SCALING
+    if (wpe_view_data.backend != NULL) {
+        resize_window();
+    }
+}
+
 static void
 noop()
 {
+}
+
+static struct output_metrics *find_output(struct wl_output *output)
+{
+    for (int i = 0; i < G_N_ELEMENTS (wl_data.metrics); i++)
+    {
+        if (wl_data.metrics[i].output == output) {
+            return &wl_data.metrics[i];
+        }
+    }
+    g_warning ("Unknown output %p\n", output);
+    return NULL;
+}
+
+static void
+output_handle_mode (void *data,
+                    struct wl_output *output,
+                    uint32_t flags,
+                    int32_t width,
+                    int32_t height,
+                    int32_t refresh)
+{
+    struct output_metrics *metrics = find_output (output);
+    if (!metrics) {
+        return;
+    }
+
+    if (flags & WL_OUTPUT_MODE_CURRENT) {
+        metrics->width = width;
+        metrics->height = height;
+        g_info ("Output %p is %" PRId32 "x%" PRId32, output, width, height);
+    }
+}
+
+static void
+output_handle_done (void *data, struct wl_output *output)
+{
+    if (win_data.should_resize_to_largest_output) {
+        resize_to_largest_output ();
+    }
 }
 
 static void
@@ -539,33 +599,26 @@ output_handle_scale (void *data,
                      struct wl_output *output,
                      int32_t factor)
 {
-    bool found = false;
-    for (int i = 0; i < G_N_ELEMENTS (wl_data.metrics); i++)
-    {
-        if (wl_data.metrics[i].output == output) {
-            found = true;
-            wl_data.metrics[i].scale = factor;
-            break;
-        }
-    }
-    if (!found)
-    {
-        g_warning ("Unknown output %p\n", output);
+    struct output_metrics *metrics = find_output (output);
+    if (!metrics) {
         return;
     }
+
+    metrics->scale = factor;
     g_info ("Got scale factor %i for output %p\n", factor, output);
 }
 
 static const struct wl_output_listener output_listener = {
         .geometry = noop,
-        .mode = noop,
-        .done = noop,
+        .mode = output_handle_mode,
+        .done = output_handle_done,
         .scale = output_handle_scale,
 };
 
 static void
 surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *output)
 {
+#if HAVE_DEVICE_SCALING
     int32_t scale_factor = -1;
 
     for (int i=0; i < G_N_ELEMENTS (wl_data.metrics); i++)
@@ -582,13 +635,13 @@ surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *
     wl_surface_set_buffer_scale (surface, scale_factor);
     wpe_view_backend_dispatch_set_device_scale_factor (wpe_view_data.backend, scale_factor);
     wl_data.current_output.scale = scale_factor;
+#endif /* HAVE_DEVICE_SCALING */
 }
 
 static const struct wl_surface_listener surface_listener = {
     .enter = surface_handle_enter,
     .leave = noop,
 };
-#endif /* HAVE_DEVICE_SCALING */
 
 static void
 registry_global (void               *data,
@@ -655,7 +708,6 @@ registry_global (void               *data,
                                                &weston_content_protection_interface,
                                                version);
 #endif /* COG_ENABLE_WESTON_DIRECT_DISPLAY */
-#if HAVE_DEVICE_SCALING
     } else if (strcmp (interface, wl_output_interface.name) == 0) {
         struct wl_output* output = wl_registry_bind (registry,
                                                      name,
@@ -675,7 +727,6 @@ registry_global (void               *data,
         if (!inserted) {
             g_warning ("Exceeded %" G_GSIZE_FORMAT " connected outputs(!)", G_N_ELEMENTS (wl_data.metrics));
         }
-#endif /* HAVE_DEVICE_SCALING */
 #if COG_IM_API_SUPPORTED
     } else if (strcmp (interface, zwp_text_input_manager_v3_interface.name) == 0) {
         wl_data.text_input_manager = wl_registry_bind (registry,
@@ -1446,7 +1497,6 @@ static const struct wl_seat_listener seat_listener = {
     .name = seat_on_name,
 };
 
-#if HAVE_DEVICE_SCALING
 static void
 registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
 {
@@ -1460,13 +1510,10 @@ registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
         }
     }
 }
-#endif /* HAVE_DEVICE_SCALING */
 
 static const struct wl_registry_listener registry_listener = {
     .global = registry_global,
-#if HAVE_DEVICE_SCALING
     .global_remove = registry_global_remove
-#endif /* HAVE_DEVICE_SCALING */
 };
 
 static void
@@ -1870,9 +1917,7 @@ create_window (GError **error)
     win_data.video_surfaces = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, destroy_video_surface);
 #endif
 
-#if HAVE_DEVICE_SCALING
     wl_surface_add_listener (win_data.wl_surface, &surface_listener, NULL);
-#endif /* HAVE_DEVICE_SCALING */
 
     if (wl_data.xdg_shell != NULL) {
         win_data.xdg_surface =
@@ -1905,6 +1950,10 @@ create_window (GError **error)
                                                  win_data.wl_surface,
                                                  ZWP_FULLSCREEN_SHELL_V1_PRESENT_METHOD_DEFAULT,
                                                  NULL);
+
+        /* Configure the surface so that it respects the width and height
+         * environment variables */
+        configure_surface_geometry (0, 0);
     } else if (wl_data.shell != NULL) {
         win_data.shell_surface = wl_shell_get_shell_surface (wl_data.shell,
                                                              win_data.wl_surface);
@@ -1928,6 +1977,9 @@ create_window (GError **error)
 
         if (wl_data.xdg_shell != NULL) {
             xdg_toplevel_set_fullscreen (win_data.xdg_toplevel, NULL);
+        } else if (wl_data.fshell != NULL) {
+            win_data.should_resize_to_largest_output = true;
+            resize_to_largest_output ();
         } else if (wl_data.shell != NULL) {
             wl_shell_surface_set_fullscreen (win_data.shell_surface,
                                              WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE,
@@ -2228,8 +2280,8 @@ cog_platform_plugin_get_view_backend (CogPlatform   *platform,
     wpe_host_data.exportable =
         wpe_view_backend_exportable_fdo_egl_create (&exportable_egl_client,
                                                     NULL,
-                                                    DEFAULT_WIDTH,
-                                                    DEFAULT_HEIGHT);
+                                                    win_data.width,
+                                                    win_data.height);
     g_assert (wpe_host_data.exportable);
 
     /* init WPE view backend */
