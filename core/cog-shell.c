@@ -186,8 +186,8 @@ cog_shell_new_internal (GError    **error,
                                              module_name,
                                              G_STRUCT_OFFSET (CogShellClass, is_supported));
     if (shell_type == G_TYPE_INVALID) {
-        g_critical ("%s: cannot find any '%s' implementation",
-                    G_STRFUNC, COG_MODULES_SHELL_EXTENSION_POINT);
+        g_warning ("%s: cannot find any '%s' implementation",
+                   G_STRFUNC, COG_MODULES_SHELL_EXTENSION_POINT);
         return NULL;
     }
 
