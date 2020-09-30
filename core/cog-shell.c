@@ -127,7 +127,7 @@ cog_shell_class_init (CogShellClass *klass)
 }
 
 static void
-cog_shell_init (CogShell *shell)
+cog_shell_init (CogShell *shell G_GNUC_UNUSED)
 {
 }
 
@@ -144,7 +144,7 @@ is_construct_property (const char  *func,
                        GType        object_type,
                        const char  *propname,
                        GParamSpec  *pspec,
-                       unsigned     n_properties)
+                       unsigned     n_properties G_GNUC_UNUSED)
 {
     if (G_UNLIKELY (pspec == NULL)) {
         g_critical ("%s: object class '%s' has no property named '%s'",
@@ -329,7 +329,7 @@ cog_shell_get_name (CogShell *shell)
 
 static void
 shell_on_notify_view_focused (CogView    *view,
-                              GParamSpec *pspec,
+                              GParamSpec *pspec G_GNUC_UNUSED,
                               CogShell   *shell)
 {
     CogShellPrivate *priv = cog_shell_get_instance_private (shell);
