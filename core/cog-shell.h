@@ -15,6 +15,12 @@
 
 G_BEGIN_DECLS
 
+#define COG_SHELL_ERROR (cog_shell_error_quark ())
+
+typedef enum {
+    COG_SHELL_ERROR_MODULE_NOT_FOUND,
+} CogShellError;
+
 #define COG_TYPE_SHELL  (cog_shell_get_type ())
 
 G_DECLARE_DERIVABLE_TYPE (CogShell, cog_shell, COG, SHELL, GObject)
@@ -31,6 +37,8 @@ struct _CogShellClass {
     void     (*padding_3)      (void);
     void     (*padding_4)      (void);
 };
+
+GQuark      cog_shell_error_quark      (void);
 
 CogShell*   cog_shell_new              (GError    **error,
                                         const char *name,

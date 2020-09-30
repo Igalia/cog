@@ -173,6 +173,8 @@ string_array_contains (const char *haystack[],
     return FALSE;
 }
 
+G_DEFINE_QUARK (cog-shell-error-quark, cog_shell_error)
+
 static CogShell*
 cog_shell_new_internal (GError    **error,
                         const char *shell_name,
@@ -188,6 +190,8 @@ cog_shell_new_internal (GError    **error,
     if (shell_type == G_TYPE_INVALID) {
         g_warning ("%s: cannot find any '%s' implementation",
                    G_STRFUNC, COG_MODULES_SHELL_EXTENSION_POINT);
+        g_set_error_literal (error, COG_SHELL_ERROR, COG_SHELL_ERROR_MODULE_NOT_FOUND,
+                             "Couldn't find any suitable loadable module to initialize a CogShell instance.");
         return NULL;
     }
 
