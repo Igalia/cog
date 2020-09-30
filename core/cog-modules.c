@@ -79,6 +79,10 @@ _cog_modules_get_preferred_internal (const char        *func,
             chosen = extension;
         else if (!extension)
             g_warning ("%s: cannot find module '%s'", func, preferred_module);
+        if (!chosen) {
+            g_warning ("%s: preferred module '%s' not supported", func, preferred_module);
+            return G_TYPE_INVALID;
+        }
     }
 
     for (GList *item = g_list_first (g_io_extension_point_get_extensions (ep));
