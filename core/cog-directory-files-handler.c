@@ -15,7 +15,6 @@ struct _CogDirectoryFilesHandler {
 };
 
 
-enum { MIME_PEEK_BYTES = 64 };
 
 static const char s_file_query_attributes[] =
     G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE ","
