@@ -14,7 +14,13 @@ struct _CogDirectoryFilesHandler {
     GFile  *base_path;
 };
 
+enum {
+    PROP_0,
+    PROP_BASE_PATH,
+    N_PROPERTIES,
+};
 
+static GParamSpec *s_properties[N_PROPERTIES] = { NULL, };
 
 static const char s_file_query_attributes[] =
     G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE ","
@@ -184,6 +190,52 @@ G_DEFINE_TYPE_WITH_CODE (CogDirectoryFilesHandler,
 
 
 static void
+cog_directory_files_handler_get_property (GObject    *object,
+                                          unsigned    prop_id,
+                                          GValue     *value,
+                                          GParamSpec *pspec)
+{
+    CogDirectoryFilesHandler *handler = COG_DIRECTORY_FILES_HANDLER (object);
+    switch (prop_id) {
+        case PROP_BASE_PATH:
+            g_value_set_object (value, handler->base_path);
+            break;
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    }
+}
+
+
+static void
+cog_directory_files_handler_set_property (GObject      *object,
+                                          unsigned      prop_id,
+                                          const GValue *value,
+                                          GParamSpec   *pspec)
+{
+    CogDirectoryFilesHandler *handler = COG_DIRECTORY_FILES_HANDLER (object);
+    switch (prop_id) {
+        case PROP_BASE_PATH:
+            g_clear_object (&handler->base_path);
+            handler->base_path = g_value_dup_object (value);
+            break;
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    }
+}
+
+
+static void
+cog_directory_files_handler_constructed (GObject *object)
+{
+    G_OBJECT_CLASS (cog_directory_files_handler_parent_class)->constructed (object);
+
+    CogDirectoryFilesHandler *handler = COG_DIRECTORY_FILES_HANDLER (object);
+
+    g_return_if_fail (cog_directory_files_handler_is_suitable_path (handler->base_path, NULL));
+}
+
+
+static void
 cog_directory_files_handler_dispose (GObject *object)
 {
     CogDirectoryFilesHandler *handler = COG_DIRECTORY_FILES_HANDLER (object);
@@ -198,7 +250,21 @@ static void
 cog_directory_files_handler_class_init (CogDirectoryFilesHandlerClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
+    object_class->get_property = cog_directory_files_handler_get_property;
+    object_class->set_property = cog_directory_files_handler_set_property;
+    object_class->constructed = cog_directory_files_handler_constructed;
     object_class->dispose = cog_directory_files_handler_dispose;
+
+    s_properties[PROP_BASE_PATH] =
+        g_param_spec_object ("base-path",
+                             "Base path",
+                             "Path where to load files from",
+                             G_TYPE_FILE,
+                             G_PARAM_READWRITE |
+                             G_PARAM_CONSTRUCT_ONLY |
+                             G_PARAM_STATIC_STRINGS);
+
+    g_object_class_install_properties (object_class, N_PROPERTIES, s_properties);
 }
 
 
@@ -245,7 +311,7 @@ CogRequestHandler*
 cog_directory_files_handler_new (GFile *base_path)
 {
     g_return_val_if_fail (cog_directory_files_handler_is_suitable_path (base_path, NULL), NULL);
-    CogDirectoryFilesHandler *handler = g_object_new (COG_TYPE_DIRECTORY_FILES_HANDLER, NULL);
-    handler->base_path = g_object_ref_sink (base_path);
-    return COG_REQUEST_HANDLER (handler);
+    return g_object_new (COG_TYPE_DIRECTORY_FILES_HANDLER,
+                         "base-path", base_path,
+                         NULL);
 }
