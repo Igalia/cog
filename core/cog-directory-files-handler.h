@@ -42,6 +42,9 @@ GQuark             cog_directory_files_handler_error_quark      (void);
 CogRequestHandler* cog_directory_files_handler_new              (GFile   *file);
 gboolean           cog_directory_files_handler_is_suitable_path (GFile   *file,
                                                                  GError **error);
+gboolean           cog_directory_files_handler_get_use_host     (CogDirectoryFilesHandler *self);
+void               cog_directory_files_handler_set_use_host     (CogDirectoryFilesHandler *self,
+                                                                 gboolean                  use_host);
 
 G_END_DECLS
 

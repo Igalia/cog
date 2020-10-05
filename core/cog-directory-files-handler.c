@@ -10,13 +10,15 @@
 
 
 struct _CogDirectoryFilesHandler {
-    GObject parent;
-    GFile  *base_path;
+    GObject  parent;
+    GFile   *base_path;
+    gboolean use_host;
 };
 
 enum {
     PROP_0,
     PROP_BASE_PATH,
+    PROP_USE_HOST,
     N_PROPERTIES,
 };
 
@@ -145,16 +147,36 @@ cog_directory_files_handler_run (CogRequestHandler      *request_handler,
 {
     CogDirectoryFilesHandler *handler = COG_DIRECTORY_FILES_HANDLER (request_handler);
 
+    g_autoptr(SoupURI) uri =
+        soup_uri_new (webkit_uri_scheme_request_get_uri (request));
+
     /*
      * If we get an empty path, redirect to the root resource "/", otherwise
      * subresources cannot load properly as there would be no base URI.
      */
-    const char *path = webkit_uri_scheme_request_get_path (request);
+    const char *path = soup_uri_get_path (uri);
     if (path[0] != '/') {
-        g_autofree char *uri =
-            g_strconcat (webkit_uri_scheme_request_get_scheme (request), ":/", path, NULL);
-        webkit_web_view_load_uri (webkit_uri_scheme_request_get_web_view (request), uri);
+        soup_uri_set_path (uri, "/");
+        g_autofree char *uri_string = soup_uri_to_string (uri, FALSE);
+        webkit_web_view_load_uri (webkit_uri_scheme_request_get_web_view (request), uri_string);
         return;
+    }
+
+    g_autoptr(GFile) base_path = NULL;
+    if (handler->use_host) {
+        const char *host = soup_uri_get_host (uri);
+        if (!host || host[0] == '\0') {
+            g_autofree char *uri_string = soup_uri_to_string (uri, FALSE);
+            g_autoptr(GError) error = g_error_new (G_FILE_ERROR,
+                                                   G_FILE_ERROR_INVAL,
+                                                   "No host in URI: %s",
+                                                   uri_string);
+            webkit_uri_scheme_request_finish_error (request, error);
+            return;
+        }
+        base_path = g_file_get_child (handler->base_path, host);
+    } else {
+        base_path = g_object_ref (handler->base_path);
     }
 
     /*
@@ -164,7 +186,7 @@ cog_directory_files_handler_run (CogRequestHandler      *request_handler,
     while (path[0] == '/')
         ++path;
 
-    g_autoptr(GFile) file = g_file_get_child (handler->base_path, path);
+    g_autoptr(GFile) file = g_file_get_child (base_path, path);
     g_file_query_info_async (file,
                              s_file_query_attributes,
                              G_FILE_QUERY_INFO_NONE,
@@ -200,6 +222,9 @@ cog_directory_files_handler_get_property (GObject    *object,
         case PROP_BASE_PATH:
             g_value_set_object (value, handler->base_path);
             break;
+        case PROP_USE_HOST:
+            g_value_set_boolean (value, cog_directory_files_handler_get_use_host (handler));
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
@@ -217,6 +242,10 @@ cog_directory_files_handler_set_property (GObject      *object,
         case PROP_BASE_PATH:
             g_clear_object (&handler->base_path);
             handler->base_path = g_value_dup_object (value);
+            break;
+        case PROP_USE_HOST:
+            cog_directory_files_handler_set_use_host (handler,
+                                                      g_value_get_boolean (value));
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -263,6 +292,14 @@ cog_directory_files_handler_class_init (CogDirectoryFilesHandlerClass *klass)
                              G_PARAM_READWRITE |
                              G_PARAM_CONSTRUCT_ONLY |
                              G_PARAM_STATIC_STRINGS);
+
+    s_properties[PROP_USE_HOST] =
+        g_param_spec_boolean ("use-host",
+                              "Use URI host",
+                              "Use the host from the URI authority part as top-level subdirectory",
+                              FALSE,
+                              G_PARAM_READWRITE |
+                              G_PARAM_STATIC_STRINGS);
 
     g_object_class_install_properties (object_class, N_PROPERTIES, s_properties);
 }
@@ -314,4 +351,25 @@ cog_directory_files_handler_new (GFile *base_path)
     return g_object_new (COG_TYPE_DIRECTORY_FILES_HANDLER,
                          "base-path", base_path,
                          NULL);
+}
+
+gboolean
+cog_directory_files_handler_get_use_host (CogDirectoryFilesHandler *self)
+{
+    g_return_val_if_fail (COG_IS_DIRECTORY_FILES_HANDLER (self), FALSE);
+    return self->use_host;
+}
+
+void
+cog_directory_files_handler_set_use_host (CogDirectoryFilesHandler *self,
+                                          gboolean                  use_host)
+{
+    g_return_if_fail (COG_IS_DIRECTORY_FILES_HANDLER (self));
+
+    use_host = use_host ? TRUE : FALSE;
+    if (self->use_host == use_host)
+        return;
+
+    self->use_host = use_host;
+    g_object_notify_by_pspec (G_OBJECT (self), s_properties[PROP_USE_HOST]);
 }
