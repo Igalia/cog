@@ -415,16 +415,22 @@ input_handle_key_event (struct libinput_event_keyboard *key_event)
     // Explanation for the offset-by-8, copied from Weston:
     //   evdev XKB rules reflect X's  broken keycode system, which starts at 8
     uint32_t key = libinput_event_keyboard_get_key (key_event) + 8;
-
-    uint32_t keysym = xkb_state_key_get_one_sym (state, key);
-    uint32_t unicode = xkb_state_key_get_utf32 (state, key);
-
     enum libinput_key_state key_state = libinput_event_keyboard_get_key_state (key_event);
+    uint32_t keysym = wpe_input_xkb_context_get_key_code(default_context, key, !!key_state);
+
+    xkb_state_update_key(state, key, !!key_state ? XKB_KEY_DOWN : XKB_KEY_UP);
+    uint32_t modifiers = wpe_input_xkb_context_get_modifiers(default_context,
+        xkb_state_serialize_mods(state, XKB_STATE_MODS_DEPRESSED),
+        xkb_state_serialize_mods(state, XKB_STATE_MODS_LATCHED),
+        xkb_state_serialize_mods(state, XKB_STATE_MODS_LOCKED),
+        xkb_state_serialize_layout(state, XKB_STATE_LAYOUT_EFFECTIVE));
+
     struct wpe_input_keyboard_event event = {
-        .time = libinput_event_keyboard_get_time (key_event),
-        .key_code = keysym,
-        .hardware_key_code = unicode,
-        .pressed = (key_state == LIBINPUT_KEY_STATE_PRESSED),
+            .time = libinput_event_keyboard_get_time (key_event),
+            .key_code = keysym,
+            .hardware_key_code = key,
+            .pressed = (!!key_state),
+            .modifiers = modifiers,
     };
 
     wpe_view_backend_dispatch_keyboard_event (wpe_view_data.backend, &event);
