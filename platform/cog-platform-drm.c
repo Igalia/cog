@@ -203,9 +203,21 @@ init_drm (void)
 
     const char* user_selected_mode = g_getenv("COG_PLATFORM_DRM_VIDEO_MODE");
 
+    const char* user_max_width_str = g_getenv("COG_PLATFORM_DRM_VIDEO_MAX_WIDTH");
+    const char* user_max_height_str = g_getenv("COG_PLATFORM_DRM_VIDEO_MAX_HEIGHT");
+    const int user_max_width = user_max_width_str ? atoi(user_max_width_str) : 0;
+    const int user_max_height = user_max_height_str ? atoi(user_max_height_str) : 0;
+
     for (int i = 0, area = 0; i < drm_data.connector->count_modes; ++i) {
         drmModeModeInfo *current_mode = &drm_data.connector->modes[i];
         if (user_selected_mode && strcmp(user_selected_mode, current_mode->name) != 0) {
+            continue;
+        }
+
+        if (user_max_width_str && current_mode->hdisplay > user_max_width) {
+            continue;
+        }
+        if (user_max_height_str && current_mode->vdisplay > user_max_height) {
             continue;
         }
 
