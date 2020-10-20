@@ -57,6 +57,7 @@ set(COG_DBUS_OWN_USER "" CACHE STRING
 option(COG_USE_WEBKITGTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
 option(COG_PLATFORM_FDO "Build the FDO platform module" ON)
 option(COG_PLATFORM_DRM "Build the DRM platform module" OFF)
+option(COG_PLATFORM_X11 "Build the DRM platform module" OFF)
 option(COG_BUILD_PROGRAMS "Build and install programs as well" ON)
 option(INSTALL_MAN_PAGES "Install the man(1) pages if COG_BUILD_PROGRAMS is enabled" ON)
 option(COG_WESTON_DIRECT_DISPLAY "Build direct display support for the FDO platform module" OFF)
@@ -345,5 +346,9 @@ if (COG_PLATFORM_DRM AND NOT COG_USE_WEBKITGTK)
         COMPONENT "runtime"
     )
 endif () # COG_PLATFORM_DRM AND NOT COG_USE_WEBKITGTK
+
+if (COG_PLATFORM_X11 AND NOT COG_USE_WEBKITGTK)
+    add_subdirectory(platform/x11)
+endif ()
 
 configure_file(core/cog-config.h.in cog-config.h @ONLY)
