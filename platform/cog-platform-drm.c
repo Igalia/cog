@@ -137,7 +137,7 @@ destroy_buffer_notify (struct wl_listener *listener, void *data)
 }
 
 static void
-clear_drm (void)
+clear_buffers (void)
 {
     drm_data.committed_buffer = NULL;
 
@@ -149,7 +149,11 @@ clear_drm (void)
         destroy_buffer (buffer);
     }
     wl_list_init (&drm_data.buffer_list);
+}
 
+static void
+clear_drm (void)
+{
     g_clear_pointer (&drm_data.encoder, drmModeFreeEncoder);
     g_clear_pointer (&drm_data.connector, drmModeFreeConnector);
     if (drm_data.fd != -1) {
@@ -845,6 +849,8 @@ void
 cog_platform_plugin_teardown (CogPlatform *platform)
 {
     g_assert (platform);
+
+    clear_buffers ();
 
     clear_glib ();
     clear_input ();
