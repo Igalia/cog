@@ -846,8 +846,6 @@ cog_platform_plugin_teardown (CogPlatform *platform)
 {
     g_assert (platform);
 
-    g_clear_pointer (&drm_data.committed_buffer, destroy_buffer);
-
     clear_glib ();
     clear_input ();
     clear_egl ();
