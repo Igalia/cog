@@ -37,6 +37,7 @@ struct buffer_object {
 
 static struct {
     int fd;
+    drmModeRes *resources;
 
     drmModeConnector *connector;
     drmModeModeInfo *mode;
@@ -54,6 +55,7 @@ static struct {
     struct buffer_object *committed_buffer;
 } drm_data = {
     .fd = -1,
+    .resources = NULL,
     .connector = NULL,
     .mode = NULL,
     .encoder = NULL,
@@ -156,6 +158,8 @@ clear_drm (void)
 {
     g_clear_pointer (&drm_data.encoder, drmModeFreeEncoder);
     g_clear_pointer (&drm_data.connector, drmModeFreeConnector);
+    g_clear_pointer (&drm_data.resources, drmModeFreeResources);
+
     if (drm_data.fd != -1) {
         close (drm_data.fd);
         drm_data.fd = -1;
@@ -172,7 +176,6 @@ init_drm (void)
     if (num_devices < 0)
         return FALSE;
 
-    drmModeRes *resources = NULL;
     for (int i = 0; i < num_devices; ++i) {
         drmDevicePtr device = devices[i];
         if (!(device->available_nodes & (1 << DRM_NODE_PRIMARY)))
@@ -182,28 +185,26 @@ init_drm (void)
         if (drm_data.fd < 0)
             continue;
 
-        resources = drmModeGetResources (drm_data.fd);
-        if (resources)
+        drm_data.resources = drmModeGetResources (drm_data.fd);
+        if (drm_data.resources)
             break;
 
         close (drm_data.fd);
         drm_data.fd = -1;
     }
 
-    if (!resources)
+    if (!drm_data.resources)
         return FALSE;
 
-    for (int i = 0; i < resources->count_connectors; ++i) {
-        drm_data.connector = drmModeGetConnector (drm_data.fd, resources->connectors[i]);
+    for (int i = 0; i < drm_data.resources->count_connectors; ++i) {
+        drm_data.connector = drmModeGetConnector (drm_data.fd, drm_data.resources->connectors[i]);
         if (drm_data.connector->connection == DRM_MODE_CONNECTED)
             break;
 
         g_clear_pointer (&drm_data.connector, drmModeFreeConnector);
     }
-    if (!drm_data.connector) {
-        g_clear_pointer (&resources, drmModeFreeResources);
+    if (!drm_data.connector)
         return FALSE;
-    }
 
     const char* user_selected_mode = g_getenv("COG_PLATFORM_DRM_VIDEO_MODE");
 
@@ -243,29 +244,23 @@ init_drm (void)
             area = current_area;
         }
     }
-    if (!drm_data.mode) {
-        g_clear_pointer (&drm_data.connector, drmModeFreeConnector);
-        g_clear_pointer (&resources, drmModeFreeResources);
+    if (!drm_data.mode)
         return FALSE;
-    }
 
-    for (int i = 0; i < resources->count_encoders; ++i) {
-        drm_data.encoder = drmModeGetEncoder (drm_data.fd, resources->encoders[i]);
+    for (int i = 0; i < drm_data.resources->count_encoders; ++i) {
+        drm_data.encoder = drmModeGetEncoder (drm_data.fd, drm_data.resources->encoders[i]);
         if (drm_data.encoder->encoder_id == drm_data.connector->encoder_id)
             break;
 
         g_clear_pointer (&drm_data.encoder, drmModeFreeEncoder);
     }
-    if (!drm_data.encoder) {
-        g_clear_pointer (&drm_data.connector, drmModeFreeConnector);
-        g_clear_pointer (&resources, drmModeFreeResources);
+    if (!drm_data.encoder)
         return FALSE;
-    }
 
     drm_data.connector_id = drm_data.connector->connector_id;
     drm_data.crtc_id = drm_data.encoder->crtc_id;
-    for (int i = 0; i < resources->count_crtcs; ++i) {
-        if (resources->crtcs[i] == drm_data.crtc_id) {
+    for (int i = 0; i < drm_data.resources->count_crtcs; ++i) {
+        if (drm_data.resources->crtcs[i] == drm_data.crtc_id) {
             drm_data.crtc_index = i;
             break;
         }
@@ -275,7 +270,7 @@ init_drm (void)
     drm_data.height = drm_data.mode->vdisplay;
     wl_list_init (&drm_data.buffer_list);
 
-    g_clear_pointer (&resources, drmModeFreeResources);
+    g_clear_pointer (&drm_data.resources, drmModeFreeResources);
     return TRUE;
 }
 
