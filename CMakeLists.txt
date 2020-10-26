@@ -174,10 +174,8 @@ set_target_properties(cogcore PROPERTIES
 )
 target_include_directories(cogcore PUBLIC core ${COGCORE_INCLUDE_DIRS})
 target_link_libraries(cogcore ${COGCORE_LDFLAGS})
-target_compile_options(cogcore
-    PUBLIC ${COGCORE_CFLAGS}
-    PRIVATE -DG_LOG_DOMAIN=\"Cog\"
-)
+target_compile_options(cogcore PUBLIC ${COGCORE_CFLAGS})
+target_compile_definitions(cogcore PRIVATE G_LOG_DOMAIN=\"Cog-Core\")
 
 if (COG_BUILD_PROGRAMS)
     add_executable(cog cog.c)
@@ -185,12 +183,14 @@ if (COG_BUILD_PROGRAMS)
     if (HAS_WALL)
       target_compile_options(cog PUBLIC "-Wall")
     endif ()
+    target_compile_definitions(cog PRIVATE G_LOG_DOMAIN=\"Cog\")
     target_link_libraries(cog cogcore -ldl)
 
     add_executable(cogctl cogctl.c core/cog-utils.c)
     set_property(TARGET cogctl PROPERTY C_STANDARD 99)
     target_include_directories(cogctl PUBLIC ${GIO_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
     target_compile_options(cogctl PUBLIC ${GIO_CFLAGS_OTHER} ${SOUP_CFLAGS_OTHER})
+    target_compile_definitions(cogctl PRIVATE G_LOG_DOMAIN=\"Cog-Control\")
     if (HAS_WALL)
       target_compile_options(cogctl PUBLIC "-Wall")
     endif ()
@@ -338,6 +338,8 @@ if (COG_PLATFORM_DRM AND NOT COG_USE_WEBKITGTK)
     set_property(TARGET cogplatform-drm PROPERTY C_STANDARD 99)
     target_include_directories(cogplatform-drm PUBLIC ${COGPLATFORM_DRM_INCLUDE_DIRS})
     target_compile_options(cogplatform-drm PUBLIC ${COGPLATFORM_DRM_CFLAGS})
+    target_compile_definitions(cogplatform-drm PRIVATE G_LOG_DOMAIN=\"Cog-DRM\")
+
     target_link_libraries(cogplatform-drm cogcore ${COGPLATFORM_DRM_LDFLAGS})
 
     install(TARGETS cogplatform-drm
