@@ -38,32 +38,52 @@ struct buffer_object {
 static struct {
     int fd;
     drmModeRes *base_resources;
+    drmModePlaneRes *plane_resources;
 
-    drmModeConnector *connector;
+    struct {
+        drmModeConnector *obj;
+        uint32_t obj_id;
+    } connector;
+    struct {
+        drmModeCrtc *obj;
+        uint32_t obj_id;
+        uint32_t index;
+    } crtc;
+    struct {
+        drmModePlane *obj;
+        uint32_t obj_id;
+    } plane;
+
+    struct {
+        drmModeObjectProperties *props;
+        drmModePropertyRes **props_info;
+    } connector_props, crtc_props, plane_props;
+
     drmModeModeInfo *mode;
     drmModeEncoder *encoder;
-
-    uint32_t connector_id;
-    uint32_t crtc_id;
-    int crtc_index;
 
     uint32_t width;
     uint32_t height;
 
+    bool atomic_modesetting;
     bool mode_set;
     struct wl_list buffer_list;
     struct buffer_object *committed_buffer;
 } drm_data = {
     .fd = -1,
     .base_resources = NULL,
-    .connector = NULL,
+    .plane_resources = NULL,
+    .connector = { NULL, 0, },
+    .crtc = { NULL, 0, 0, },
+    .plane = { NULL, 0, },
+    .connector_props = { NULL, NULL, },
+    .crtc_props = { NULL, NULL, },
+    .plane_props = { NULL, NULL, },
     .mode = NULL,
     .encoder = NULL,
-    .connector_id = 0,
-    .crtc_id = 0,
-    .crtc_index = -1,
     .width = 0,
     .height = 0,
+    .atomic_modesetting = true,
     .mode_set = false,
     .committed_buffer = NULL,
 };
@@ -117,6 +137,27 @@ static struct {
 
 
 static void
+init_config (CogShell *shell)
+{
+    GKeyFile *key_file = cog_shell_get_config_file (shell);
+    if (!key_file)
+        return;
+
+    {
+        g_autoptr(GError) lookup_error = NULL;
+        gboolean value = g_key_file_get_boolean (key_file,
+                                                 "drm", "disable-atomic-modesetting",
+                                                 &lookup_error);
+        if (!lookup_error) {
+            drm_data.atomic_modesetting = !value;
+            g_debug ("init_config: atomic modesetting reconfigured to value '%s'",
+                     drm_data.atomic_modesetting ? "true" : "false");
+        }
+    }
+}
+
+
+static void
 destroy_buffer (struct buffer_object *buffer)
 {
     drmModeRmFB (drm_data.fd, buffer->fb_id);
@@ -153,12 +194,42 @@ clear_buffers (void)
     wl_list_init (&drm_data.buffer_list);
 }
 
+
 static void
 clear_drm (void)
 {
-    g_clear_pointer (&drm_data.encoder, drmModeFreeEncoder);
-    g_clear_pointer (&drm_data.connector, drmModeFreeConnector);
+    if (drm_data.connector_props.props_info) {
+        for (int i = 0; i < drm_data.connector_props.props->count_props; ++i) {
+            drmModeFreeProperty (drm_data.connector_props.props_info[i]);
+        }
+    }
+    g_clear_pointer (&drm_data.connector_props.props, drmModeFreeObjectProperties);
+    g_clear_pointer (&drm_data.connector_props.props_info, free);
+
+    if (drm_data.crtc_props.props_info) {
+        for (int i = 0; i < drm_data.crtc_props.props->count_props; ++i) {
+            drmModeFreeProperty (drm_data.crtc_props.props_info[i]);
+        }
+    }
+    g_clear_pointer (&drm_data.crtc_props.props, drmModeFreeObjectProperties);
+    g_clear_pointer (&drm_data.crtc_props.props_info, free);
+
+    if (drm_data.plane_props.props_info) {
+        for (int i = 0; i < drm_data.plane_props.props->count_props; ++i) {
+            drmModeFreeProperty (drm_data.plane_props.props_info[i]);
+        }
+    }
+    g_clear_pointer (&drm_data.plane_props.props, drmModeFreeObjectProperties);
+    g_clear_pointer (&drm_data.plane_props.props_info, free);
+
     g_clear_pointer (&drm_data.base_resources, drmModeFreeResources);
+    g_clear_pointer (&drm_data.plane_resources, drmModeFreePlaneResources);
+
+    g_clear_pointer (&drm_data.encoder, drmModeFreeEncoder);
+
+    g_clear_pointer (&drm_data.plane.obj, drmModeFreePlane);
+    g_clear_pointer (&drm_data.crtc.obj, drmModeFreeCrtc);
+    g_clear_pointer (&drm_data.connector.obj, drmModeFreeConnector);
 
     if (drm_data.fd != -1) {
         close (drm_data.fd);
@@ -212,6 +283,14 @@ init_drm (void)
     if (!drm_data.base_resources)
         return FALSE;
 
+    if (drm_data.atomic_modesetting) {
+        int ret = drmSetClientCap (drm_data.fd, DRM_CLIENT_CAP_ATOMIC, 1);
+        if (ret) {
+            drm_data.atomic_modesetting = false;
+            g_debug ("init_drm: atomic mode not usable, falling back to non-atomic mode");
+        }
+    }
+
     g_debug ("init_drm: %d connectors available", drm_data.base_resources->count_connectors);
     for (int i = 0; i < drm_data.base_resources->count_connectors; ++i) {
         drmModeConnector *connector = drmModeGetConnector (drm_data.fd,
@@ -235,17 +314,17 @@ init_drm (void)
     }
 
     for (int i = 0; i < drm_data.base_resources->count_connectors; ++i) {
-        drm_data.connector = drmModeGetConnector (drm_data.fd, drm_data.base_resources->connectors[i]);
-        if (drm_data.connector->connection == DRM_MODE_CONNECTED)
+        drm_data.connector.obj = drmModeGetConnector (drm_data.fd, drm_data.base_resources->connectors[i]);
+        if (drm_data.connector.obj->connection == DRM_MODE_CONNECTED)
             break;
 
-        g_clear_pointer (&drm_data.connector, drmModeFreeConnector);
+        g_clear_pointer (&drm_data.connector.obj, drmModeFreeConnector);
     }
-    if (!drm_data.connector)
+    if (!drm_data.connector.obj)
         return FALSE;
 
     g_debug ("init_drm: using connector id %d, type %d",
-             drm_data.connector->connector_id, drm_data.connector->connector_type);
+             drm_data.connector.obj->connector_id, drm_data.connector.obj->connector_type);
 
     const char* user_selected_mode = g_getenv("COG_PLATFORM_DRM_VIDEO_MODE");
 
@@ -261,8 +340,8 @@ init_drm (void)
         }
     }
 
-    for (int i = 0, area = 0; i < drm_data.connector->count_modes; ++i) {
-        drmModeModeInfo *current_mode = &drm_data.connector->modes[i];
+    for (int i = 0, area = 0; i < drm_data.connector.obj->count_modes; ++i) {
+        drmModeModeInfo *current_mode = &drm_data.connector.obj->modes[i];
         if (user_selected_mode && strcmp(user_selected_mode, current_mode->name) != 0) {
             continue;
         }
@@ -289,12 +368,12 @@ init_drm (void)
         return FALSE;
 
     g_debug ("init_drm: using mode [%ld] '%s'",
-             (drm_data.mode - drm_data.connector->modes) / sizeof (drmModeModeInfo *),
+             (drm_data.mode - drm_data.connector.obj->modes) / sizeof (drmModeModeInfo *),
              drm_data.mode->name);
 
     for (int i = 0; i < drm_data.base_resources->count_encoders; ++i) {
         drm_data.encoder = drmModeGetEncoder (drm_data.fd, drm_data.base_resources->encoders[i]);
-        if (drm_data.encoder->encoder_id == drm_data.connector->encoder_id)
+        if (drm_data.encoder->encoder_id == drm_data.connector.obj->encoder_id)
             break;
 
         g_clear_pointer (&drm_data.encoder, drmModeFreeEncoder);
@@ -302,12 +381,90 @@ init_drm (void)
     if (!drm_data.encoder)
         return FALSE;
 
-    drm_data.connector_id = drm_data.connector->connector_id;
-    drm_data.crtc_id = drm_data.encoder->crtc_id;
+    drm_data.connector.obj_id = drm_data.connector.obj->connector_id;
+
+    drm_data.crtc.obj_id = drm_data.encoder->crtc_id;
+    drm_data.crtc.obj = drmModeGetCrtc (drm_data.fd, drm_data.crtc.obj_id);
     for (int i = 0; i < drm_data.base_resources->count_crtcs; ++i) {
-        if (drm_data.base_resources->crtcs[i] == drm_data.crtc_id) {
-            drm_data.crtc_index = i;
+        if (drm_data.base_resources->crtcs[i] == drm_data.crtc.obj_id) {
+            drm_data.crtc.index = i;
             break;
+        }
+    }
+
+    drm_data.plane_resources = drmModeGetPlaneResources (drm_data.fd);
+    if (!drm_data.plane_resources)
+        return FALSE;
+
+    for (int i = 0; i < drm_data.plane_resources->count_planes; ++i) {
+        uint32_t plane_id = drm_data.plane_resources->planes[i];
+        drmModePlane *plane = drmModeGetPlane (drm_data.fd, plane_id);
+        if (!plane)
+            continue;
+
+        if (!(plane->possible_crtcs & (1 << drm_data.crtc.index))) {
+            drmModeFreePlane (plane);
+            continue;
+        }
+
+        g_clear_pointer (&drm_data.plane.obj, drmModeFreePlane);
+        drm_data.plane.obj_id = 0;
+
+        drm_data.plane.obj = plane;
+        drm_data.plane.obj_id = plane_id;
+        bool is_primary = false;
+
+        drmModeObjectProperties *plane_props = drmModeObjectGetProperties (drm_data.fd, plane_id, DRM_MODE_OBJECT_PLANE);
+
+        for (int j = 0; j < plane_props->count_props; ++j) {
+            drmModePropertyRes *prop = drmModeGetProperty (drm_data.fd, plane_props->props[j]);
+            is_primary = !g_strcmp0 (prop->name, "type")
+                              && plane_props->prop_values[j] == DRM_PLANE_TYPE_PRIMARY;
+            drmModeFreeProperty (prop);
+
+            if (is_primary)
+                break;
+        }
+
+        drmModeFreeObjectProperties (plane_props);
+
+        if (is_primary)
+            break;
+    }
+
+    drm_data.connector_props.props = drmModeObjectGetProperties (drm_data.fd,
+                                                                 drm_data.connector.obj_id,
+                                                                 DRM_MODE_OBJECT_CONNECTOR);
+    if (drm_data.connector_props.props) {
+        drm_data.connector_props.props_info = calloc (drm_data.connector_props.props->count_props,
+                                                      sizeof (*drm_data.connector_props.props_info));
+        for (int i = 0; i < drm_data.connector_props.props->count_props; ++i) {
+            drm_data.connector_props.props_info[i] = drmModeGetProperty (drm_data.fd,
+                                                                         drm_data.connector_props.props->props[i]);
+        }
+    }
+
+    drm_data.crtc_props.props = drmModeObjectGetProperties (drm_data.fd,
+                                                            drm_data.crtc.obj_id,
+                                                            DRM_MODE_OBJECT_CRTC);
+    if (drm_data.crtc_props.props) {
+        drm_data.crtc_props.props_info = calloc (drm_data.crtc_props.props->count_props,
+                                                 sizeof (*drm_data.crtc_props.props_info));
+        for (int i = 0; i < drm_data.crtc_props.props->count_props; ++i) {
+            drm_data.crtc_props.props_info[i] = drmModeGetProperty (drm_data.fd,
+                                                                    drm_data.crtc_props.props->props[i]);
+        }
+    }
+
+    drm_data.plane_props.props = drmModeObjectGetProperties (drm_data.fd,
+                                                             drm_data.plane.obj_id,
+                                                             DRM_MODE_OBJECT_PLANE);
+    if (drm_data.plane_props.props) {
+        drm_data.plane_props.props_info = calloc (drm_data.plane_props.props->count_props,
+                                                  sizeof (*drm_data.plane_props.props_info));
+        for (int i = 0; i < drm_data.plane_props.props->count_props; ++i) {
+            drm_data.plane_props.props_info[i] = drmModeGetProperty (drm_data.fd,
+                                                                     drm_data.plane_props.props->props[i]);
         }
     }
 
@@ -316,6 +473,8 @@ init_drm (void)
     wl_list_init (&drm_data.buffer_list);
 
     g_clear_pointer (&drm_data.base_resources, drmModeFreeResources);
+    g_clear_pointer (&drm_data.plane_resources, drmModeFreePlaneResources);
+
     return TRUE;
 }
 
@@ -396,23 +555,132 @@ drm_create_buffer_for_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource
     return buffer;
 }
 
-static void
-drm_commit_buffer (struct buffer_object *buffer)
+static int
+add_property (drmModeObjectProperties *props, drmModePropertyRes **props_info, drmModeAtomicReq *req, uint32_t obj_id, const char *name, uint64_t value)
 {
-    int ret;
+    for (int i = 0; i < props->count_props; ++i) {
+        if (!g_strcmp0 (props_info[i]->name, name)) {
+            int ret = drmModeAtomicAddProperty (req, obj_id, props_info[i]->prop_id, value);
+            return (ret > 0) ? 0 : -1;
+        }
+    }
+
+    return -1;
+}
+
+static int
+add_connector_property (drmModeAtomicReq *req, uint32_t obj_id, const char *name, uint64_t value)
+{
+    return add_property (drm_data.connector_props.props,
+                         drm_data.connector_props.props_info,
+                         req, obj_id, name, value);
+}
+
+static int
+add_crtc_property (drmModeAtomicReq *req, uint32_t obj_id, const char *name, uint64_t value)
+{
+    return add_property (drm_data.crtc_props.props,
+                         drm_data.crtc_props.props_info,
+                         req, obj_id, name, value);
+}
+
+static int
+add_plane_property (drmModeAtomicReq *req, uint32_t obj_id, const char *name, uint64_t value)
+{
+    return add_property (drm_data.plane_props.props,
+                         drm_data.plane_props.props_info,
+                         req, obj_id, name, value);
+}
+
+static int
+drm_commit_buffer_nonatomic (struct buffer_object *buffer)
+{
     if (!drm_data.mode_set) {
-        ret = drmModeSetCrtc (drm_data.fd, drm_data.crtc_id, buffer->fb_id, 0, 0,
-                              &drm_data.connector_id, 1, drm_data.mode);
+        int ret = drmModeSetCrtc (drm_data.fd, drm_data.crtc.obj_id, buffer->fb_id, 0, 0,
+                                  &drm_data.connector.obj_id, 1, drm_data.mode);
+        if (ret)
+            return -1;
+
+        drm_data.mode_set = true;
+    }
+
+    return drmModePageFlip (drm_data.fd, drm_data.crtc.obj_id, buffer->fb_id,
+                            DRM_MODE_PAGE_FLIP_EVENT, buffer);
+}
+
+static int
+drm_commit_buffer_atomic (struct buffer_object *buffer)
+{
+    int ret = 0;
+    uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_ATOMIC_NONBLOCK;
+
+    drmModeAtomicReq *req = drmModeAtomicAlloc ();
+
+    if (!drm_data.mode_set) {
+        flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
+
+        uint32_t blob_id;
+        ret = drmModeCreatePropertyBlob (drm_data.fd, drm_data.mode, sizeof (*drm_data.mode), &blob_id);
         if (ret) {
-            g_warning ("failed to set mode: %s", strerror (errno));
-            return;
+            drmModeAtomicFree (req);
+            return -1;
+        }
+
+        ret |= add_connector_property (req, drm_data.connector.obj_id, "CRTC_ID", drm_data.crtc.obj_id);
+        ret |= add_crtc_property (req, drm_data.crtc.obj_id, "MODE_ID", blob_id);
+        ret |= add_crtc_property (req, drm_data.crtc.obj_id, "ACTIVE", 1);
+        if (ret) {
+            drmModeAtomicFree (req);
+            return -1;
         }
 
         drm_data.mode_set = true;
     }
 
-    ret = drmModePageFlip (drm_data.fd, drm_data.crtc_id, buffer->fb_id,
-                               DRM_MODE_PAGE_FLIP_EVENT, buffer);
+    ret |= add_plane_property (req, drm_data.plane.obj_id,
+                               "FB_ID", buffer->fb_id);
+    ret |= add_plane_property (req, drm_data.plane.obj_id,
+                               "CRTC_ID", drm_data.crtc.obj_id);
+    ret |= add_plane_property (req, drm_data.plane.obj_id,
+                               "SRC_X", 0);
+    ret |= add_plane_property (req, drm_data.plane.obj_id,
+                               "SRC_Y", 0);
+    ret |= add_plane_property (req, drm_data.plane.obj_id,
+                               "SRC_W", ((uint64_t) drm_data.width) << 16);
+    ret |= add_plane_property (req, drm_data.plane.obj_id,
+                               "SRC_H", ((uint64_t) drm_data.height) << 16);
+    ret |= add_plane_property (req, drm_data.plane.obj_id,
+                               "CRTC_X", 0);
+    ret |= add_plane_property (req, drm_data.plane.obj_id,
+                               "CRTC_Y", 0);
+    ret |= add_plane_property (req, drm_data.plane.obj_id,
+                               "CRTC_W", drm_data.width);
+    ret |= add_plane_property (req, drm_data.plane.obj_id,
+                               "CRTC_H", drm_data.height);
+    if (ret) {
+        drmModeAtomicFree (req);
+        return -1;
+    }
+
+    ret = drmModeAtomicCommit (drm_data.fd, req, flags, buffer);
+    if (ret) {
+        drmModeAtomicFree (req);
+        return -1;
+    }
+
+    drmModeAtomicFree (req);
+    return 0;
+}
+
+static void
+drm_commit_buffer (struct buffer_object *buffer)
+{
+    int ret;
+    if (drm_data.atomic_modesetting)
+        ret = drm_commit_buffer_atomic (buffer);
+    else
+        ret = drm_commit_buffer_nonatomic (buffer);
+
     if (ret)
         g_warning ("failed to schedule a page flip: %s", strerror (errno));
 }
@@ -825,12 +1093,14 @@ on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dm
 
 gboolean
 cog_platform_plugin_setup (CogPlatform *platform,
-                           CogShell    *shell G_GNUC_UNUSED,
+                           CogShell    *shell,
                            const char  *params,
                            GError     **error)
 {
     g_assert (platform);
     g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
+
+    init_config (shell);
 
     if (!wpe_loader_init ("libWPEBackend-fdo-1.0.so")) {
         g_set_error_literal (error,
