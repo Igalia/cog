@@ -169,15 +169,28 @@ clear_drm (void)
 static gboolean
 init_drm (void)
 {
-    drmDevicePtr devices[64];
-    memset (devices, 0, sizeof (drmDevicePtr) * 64);
+    drmDevice *devices[64];
+    memset (devices, 0, sizeof (*devices) * 64);
 
     int num_devices = drmGetDevices2 (0, devices, 64);
     if (num_devices < 0)
         return FALSE;
 
     for (int i = 0; i < num_devices; ++i) {
-        drmDevicePtr device = devices[i];
+        drmDevice* device = devices[i];
+        g_debug ("init_drm: enumerated device %p, available_nodes %d",
+                 device, device->available_nodes);
+
+        if (device->available_nodes & (1 << DRM_NODE_PRIMARY))
+            g_debug ("init_drm:   DRM_NODE_PRIMARY: %s", device->nodes[DRM_NODE_PRIMARY]);
+        if (device->available_nodes & (1 << DRM_NODE_CONTROL))
+            g_debug ("init_drm:   DRM_NODE_CONTROL: %s", device->nodes[DRM_NODE_CONTROL]);
+        if (device->available_nodes & (1 << DRM_NODE_RENDER))
+            g_debug ("init_drm:   DRM_NODE_RENDER: %s", device->nodes[DRM_NODE_RENDER]);
+    }
+
+    for (int i = 0; i < num_devices; ++i) {
+        drmDevice* device = devices[i];
         if (!(device->available_nodes & (1 << DRM_NODE_PRIMARY)))
             continue;
 
@@ -186,8 +199,11 @@ init_drm (void)
             continue;
 
         drm_data.resources = drmModeGetResources (drm_data.fd);
-        if (drm_data.resources)
+        if (drm_data.resources) {
+            g_debug ("init_drm: using device %p, DRM_NODE_PRIMARY %s",
+                     device, device->nodes[DRM_NODE_PRIMARY]);
             break;
+        }
 
         close (drm_data.fd);
         drm_data.fd = -1;
@@ -195,6 +211,28 @@ init_drm (void)
 
     if (!drm_data.resources)
         return FALSE;
+
+    g_debug ("init_drm: %d connectors available", drm_data.resources->count_connectors);
+    for (int i = 0; i < drm_data.resources->count_connectors; ++i) {
+        drmModeConnector *connector = drmModeGetConnector (drm_data.fd,
+                                                           drm_data.resources->connectors[i]);
+
+        g_debug ("init_drm:  connector id %u, type %u, %sconnected, %d usable modes",
+                 connector->connector_id, connector->connector_type,
+                 (connector->connection == DRM_MODE_CONNECTED) ? "" : "not ",
+                 connector->count_modes);
+
+        for (int j = 0; j < connector->count_modes; ++j) {
+            drmModeModeInfo *mode = &connector->modes[i];
+            g_debug ("init_drm:    [%d]: '%s', %ux%u@%u, flags %u, type %u %s%s",
+                     i, mode->name, mode->hdisplay, mode->vdisplay, mode->vrefresh,
+                     mode->flags, mode->type,
+                     (mode->type & DRM_MODE_TYPE_PREFERRED) ? "(preferred) " : "",
+                     (mode->type & DRM_MODE_TYPE_DEFAULT) ? "(default) " : "");
+        }
+
+        g_clear_pointer (&connector, drmModeFreeConnector);
+    }
 
     for (int i = 0; i < drm_data.resources->count_connectors; ++i) {
         drm_data.connector = drmModeGetConnector (drm_data.fd, drm_data.resources->connectors[i]);
@@ -205,6 +243,9 @@ init_drm (void)
     }
     if (!drm_data.connector)
         return FALSE;
+
+    g_debug ("init_drm: using connector id %d, type %d",
+             drm_data.connector->connector_id, drm_data.connector->connector_type);
 
     const char* user_selected_mode = g_getenv("COG_PLATFORM_DRM_VIDEO_MODE");
 
@@ -246,6 +287,10 @@ init_drm (void)
     }
     if (!drm_data.mode)
         return FALSE;
+
+    g_debug ("init_drm: using mode [%ld] '%s'",
+             (drm_data.mode - drm_data.connector->modes) / sizeof (drmModeModeInfo *),
+             drm_data.mode->name);
 
     for (int i = 0; i < drm_data.resources->count_encoders; ++i) {
         drm_data.encoder = drmModeGetEncoder (drm_data.fd, drm_data.resources->encoders[i]);
