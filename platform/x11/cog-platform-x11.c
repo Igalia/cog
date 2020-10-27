@@ -179,7 +179,7 @@ xcb_paint_image (struct wpe_fdo_egl_exported_image *image)
     glActiveTexture (GL_TEXTURE0);
     glBindTexture (GL_TEXTURE_2D, s_window->gl.texture);
     s_display->egl.image_target_texture (GL_TEXTURE_2D,
-                                          wpe_fdo_egl_exported_image_get_egl_image (image));
+                                         wpe_fdo_egl_exported_image_get_egl_image (image));
     glUniform1i (s_window->gl.uniform_texture, 0);
 
     glVertexAttribPointer (s_window->gl.attr_pos, 2, GL_FLOAT, GL_FALSE, 0, position_coords);
@@ -639,9 +639,9 @@ init_egl (void)
     }
 
     s_display->egl.context = eglCreateContext (s_display->egl.display,
-                                         s_display->egl.config,
-                                         EGL_NO_CONTEXT,
-                                         context_attribs);
+                                               s_display->egl.config,
+                                               EGL_NO_CONTEXT,
+                                               context_attribs);
     if (s_display->egl.context == EGL_NO_CONTEXT)
         return FALSE;
 
@@ -649,8 +649,8 @@ init_egl (void)
     s_display->egl.create_platform_window_surface = (void *) eglGetProcAddress ("eglCreatePlatformWindowSurfaceEXT");
     if (s_display->egl.create_platform_window_surface)
         s_window->egl.surface = s_display->egl.create_platform_window_surface (s_display->egl.display,
-                                                                    s_display->egl.config,
-                                                                    &win, NULL);
+                                                                               s_display->egl.config,
+                                                                               &win, NULL);
     if (s_window->egl.surface == EGL_NO_SURFACE)
         return FALSE;
 
@@ -700,7 +700,7 @@ init_gl (void)
         GLsizei vertex_shader_info_log_length = 0;
         char vertex_shader_info_log[1024];
         glGetShaderInfoLog (s_window->gl.vertex_shader, 1023,
-            &vertex_shader_info_log_length, vertex_shader_info_log);
+                            &vertex_shader_info_log_length, vertex_shader_info_log);
         vertex_shader_info_log[vertex_shader_info_log_length] = 0;
         g_warning ("Unable to compile vertex shader:\n%s", vertex_shader_info_log);
     }
@@ -715,7 +715,7 @@ init_gl (void)
         GLsizei fragment_shader_info_log_length = 0;
         char fragment_shader_info_log[1024];
         glGetShaderInfoLog (s_window->gl.fragment_shader, 1023,
-            &fragment_shader_info_log_length, fragment_shader_info_log);
+                            &fragment_shader_info_log_length, fragment_shader_info_log);
         fragment_shader_info_log[fragment_shader_info_log_length] = 0;
         g_warning ("Unable to compile fragment shader:\n%s", fragment_shader_info_log);
     }
@@ -731,7 +731,7 @@ init_gl (void)
         GLsizei program_info_log_length = 0;
         char program_info_log[1024];
         glGetProgramInfoLog (s_window->gl.program, 1023,
-            &program_info_log_length, program_info_log);
+                             &program_info_log_length, program_info_log);
         program_info_log[program_info_log_length] = 0;
         g_warning ("Unable to link program:\n%s", program_info_log);
         return FALSE;
