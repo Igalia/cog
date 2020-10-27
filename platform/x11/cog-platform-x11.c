@@ -460,18 +460,16 @@ xcb_source_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
 static xcb_atom_t
 get_atom (struct xcb_connection_t *connection, const char *name)
 {
-    xcb_intern_atom_cookie_t cookie;
-    xcb_intern_atom_reply_t *reply;
-    xcb_atom_t atom;
+    xcb_intern_atom_cookie_t cookie = xcb_intern_atom (connection, 0, strlen(name), name);
+    xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply (connection, cookie, NULL);
 
-    cookie = xcb_intern_atom (connection, 0, strlen(name), name);
-    reply = xcb_intern_atom_reply (connection, cookie, NULL);
-    if (reply)
+    xcb_atom_t atom;
+    if (reply) {
         atom = reply->atom;
-    else
+        free(reply);
+    } else
         atom = XCB_NONE;
 
-    free(reply);
     return atom;
 }
 
