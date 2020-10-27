@@ -3,7 +3,7 @@
 #
 # Once done, this will define
 #
-#   WAYLAND_PROTOCOLS_FOUND - the system has wayland-protocols
+#   WaylandProtocols_FOUND - the system has wayland-protocols
 #   WAYLAND_PROTOCOLS - path to the wayland-protocols directory
 #   add_wayland_protocol()
 #
@@ -34,13 +34,10 @@ find_package(WaylandScanner)
 
 set(WAYLAND_PROTOCOLS "" CACHE FILEPATH "Path to the wayland-protocols data directory")
 
-include(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(
-    WAYLAND_PROTOCOLS
-    DEFAULT_MSG
-    WAYLAND_PROTOCOLS
-    WAYLAND_SCANNER
-)
+# Already detected included and directory found?
+if (WaylandProtocols_FOUND AND WaylandProtocols AND IS_DIRECTORY "${WAYLAND_PROTOCOLS}")
+    return ()
+endif ()
 
 function (find_wayland_protocol_xml _protocol _result)
     # The find_file() calls below will set a cache variable with the path
@@ -170,11 +167,6 @@ function(add_wayland_protocol _target _kind _protocol)
     endif ()
 endfunction()
 
-# Already detected included and directory found?
-if (WAYLAND_PROTOCOLS AND IS_DIRECTORY "${WAYLAND_PROTOCOLS}")
-    return ()
-endif ()
-
 #
 # Method 1: If -DWAYLAND_PROTOCOLS=... was passed in the command line,
 #           check whether the "stable" and "unstable" subdirectories
@@ -206,3 +198,10 @@ if (NOT DEFINED WAYLAND_PROTOCOLS OR NOT WAYLAND_PROTOCOLS)
     unset(WAYLAND_PROTOCOLS_PC_DATADIR)
 endif ()
 
+include(FindPackageHandleStandardArgs)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(
+    WaylandProtocols
+    DEFAULT_MSG
+    WAYLAND_PROTOCOLS
+    WAYLAND_SCANNER
+)
