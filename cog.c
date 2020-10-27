@@ -12,7 +12,7 @@
 #include "core/cog.h"
 
 #if !COG_USE_WEBKITGTK
-# include "cog-platform.h"
+# include "core/cog-platform.h"
 #if defined(WPE_CHECK_VERSION) && WPE_CHECK_VERSION(1, 3, 0)
 # define HAVE_DEVICE_SCALING 1
 #else

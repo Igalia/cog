@@ -110,11 +110,11 @@ set(COGCORE_SOURCES
     core/cog-webkit-utils.c
 )
 
-pkg_check_modules(GIO REQUIRED gio-2.0>=2.44)
-pkg_check_modules(SOUP REQUIRED libsoup-2.4)
+pkg_check_modules(GIO IMPORTED_TARGET REQUIRED gio-2.0>=2.44)
+pkg_check_modules(SOUP IMPORTED_TARGET REQUIRED libsoup-2.4)
 if (COG_USE_WEBKITGTK)
     list(APPEND COGCORE_SOURCES core/cog-gtk-utils.c)
-    pkg_check_modules(WEB_ENGINE REQUIRED webkit2gtk-4.0)
+    pkg_check_modules(WEB_ENGINE IMPORTED_TARGET REQUIRED webkit2gtk-4.0)
     if (WEB_ENGINE_VERSION VERSION_LESS 2.20.0)
         message(FATAL_ERROR "webkit2gtk-4.0 >= 2.20.0 is required.")
     endif ()
@@ -124,7 +124,7 @@ else ()
     list(APPEND COGCORE_SOURCES core/cog-platform.c)
     # There is no need to explicitly check wpe-1.0 here because it's a
     # dependency already specified in the wpe-webkit.pc file.
-    pkg_check_modules(WEB_ENGINE REQUIRED wpe-webkit-1.0>=2.23.91)
+    pkg_check_modules(WEB_ENGINE IMPORTED_TARGET REQUIRED wpe-webkit-1.0>=2.23.91)
     if ("${WEB_ENGINE_VERSION}" VERSION_GREATER "2.23")
         add_definitions(-DCOG_BG_COLOR_API_SUPPORTED=1)
     else ()
@@ -144,12 +144,6 @@ endif ()
 
 include(CheckCCompilerFlag)
 check_c_compiler_flag(-Wall HAS_WALL)
-set(COGCORE_INCLUDE_DIRS ${WEB_ENGINE_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
-set(COGCORE_CFLAGS ${WEB_ENGINE_CFLAGS_OTHER} ${SOUP_CFLAGS_OTHER})
-if (HAS_WALL)
-  set(COGCORE_CFLAGS ${WEB_ENGINE_CFLAGS_OTHER} ${SOUP_CFLAGS_OTHER} "-Wall")
-endif ()
-set(COGCORE_LDFLAGS ${WEB_ENGINE_LDFLAGS} ${SOUP_LDFLAGS})
 
 
 if (COG_DBUS_SYSTEM_BUS)
@@ -172,10 +166,11 @@ set_target_properties(cogcore PROPERTIES
     VERSION ${COGCORE_VERSION}
     SOVERSION ${COGCORE_VERSION_MAJOR}
 )
-target_include_directories(cogcore PUBLIC core ${COGCORE_INCLUDE_DIRS})
-target_link_libraries(cogcore ${COGCORE_LDFLAGS})
-target_compile_options(cogcore PUBLIC ${COGCORE_CFLAGS})
+target_link_libraries(cogcore PkgConfig::WEB_ENGINE PkgConfig::SOUP)
 target_compile_definitions(cogcore PRIVATE G_LOG_DOMAIN=\"Cog-Core\")
+if (HAS_WALL)
+    target_compile_options(cogcore PUBLIC -Wall)
+endif ()
 
 if (COG_BUILD_PROGRAMS)
     add_executable(cog cog.c)
@@ -188,13 +183,11 @@ if (COG_BUILD_PROGRAMS)
 
     add_executable(cogctl cogctl.c core/cog-utils.c)
     set_property(TARGET cogctl PROPERTY C_STANDARD 99)
-    target_include_directories(cogctl PUBLIC ${GIO_INCLUDE_DIRS} ${SOUP_INCLUDE_DIRS})
-    target_compile_options(cogctl PUBLIC ${GIO_CFLAGS_OTHER} ${SOUP_CFLAGS_OTHER})
     target_compile_definitions(cogctl PRIVATE G_LOG_DOMAIN=\"Cog-Control\")
     if (HAS_WALL)
       target_compile_options(cogctl PUBLIC "-Wall")
     endif ()
-    target_link_libraries(cogctl ${GIO_LDFLAGS} ${SOUP_LDFLAGS})
+    target_link_libraries(cogctl PkgConfig::GIO PkgConfig::SOUP)
 
     install(TARGETS cog cogctl
         DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -245,11 +238,17 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
         set(WAYLAND_1_10_OR_GREATER ON)
     endif ()
 
-    pkg_check_modules(COGPLATFORM_FDO_DEPS IMPORTED_TARGET REQUIRED
-        wpe-webkit-1.0>=2.24.0 wpebackend-fdo-1.0>=1.3.1 egl xkbcommon)
+    pkg_check_modules(WpeFDO IMPORTED_TARGET REQUIRED wpebackend-fdo-1.0>=1.3.1)
+    pkg_check_modules(EGL IMPORTED_TARGET REQUIRED egl)
+    pkg_check_modules(XkbCommon IMPORTED_TARGET REQUIRED xkbcommon)
 
     target_link_libraries(cogplatform-fdo PRIVATE
-        cogcore PkgConfig::WAYLAND PkgConfig::COGPLATFORM_FDO_DEPS)
+        cogcore
+        PkgConfig::EGL
+        PkgConfig::WAYLAND
+        PkgConfig::WEB_ENGINE
+        PkgConfig::WpeFDO
+    )
 
     pkg_check_modules(WAYLAND_EGL IMPORTED_TARGET wayland-egl)
     if (TARGET PkgConfig::WAYLAND_EGL)
@@ -297,7 +296,7 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
     # Direct video display extension.
     find_path(WPEBACKEND_FDO_HAS_VIDEO_PLANE_DISPLAY_DMABUF_EXT
         NAMES wpe/extensions/video-plane-display-dmabuf.h
-        PATHS ${COGPLATFORM_FDO_DEPS_INCLUDE_DIRS}
+        PATHS ${WpeFDO_INCLUDE_DIRS}
         NO_DEFAULT_PATH
     )
 
@@ -322,25 +321,27 @@ endif ()  # !COG_USE_WEBKITGTK
 # libcogplaform-drm
 
 if (COG_PLATFORM_DRM AND NOT COG_USE_WEBKITGTK)
-    pkg_check_modules(COGPLATFORM_DRM_DEPS REQUIRED wpe-webkit-1.0>=2.24.0 wpebackend-fdo-1.0>=1.3.1 libdrm>=2.4.71 gbm>=13.0 egl libinput libudev wayland-server)
-
-    set(COGPLATFORM_DRM_INCLUDE_DIRS
-        ${COGPLATFORM_DRM_DEPS_INCLUDE_DIRS}
-    )
-    set(COGPLATFORM_DRM_CFLAGS
-        ${COGPLATFORM_DRM_DEPS_CFLAGS_OTHER}
-    )
-    set(COGPLATFORM_DRM_LDFLAGS
-        ${COGPLATFORM_DRM_DEPS_LDFLAGS}
-    )
+    pkg_check_modules(WpeFDO IMPORTED_TARGET REQUIRED wpebackend-fdo-1.0>=1.3.1)
+    pkg_check_modules(LibDRM IMPORTED_TARGET REQUIRED libdrm>=2.4.71)
+    pkg_check_modules(LibGBM IMPORTED_TARGET REQUIRED gbm>=13.0)
+    pkg_check_modules(LibInput IMPORTED_TARGET REQUIRED libinput)
+    pkg_check_modules(LibUdev IMPORTED_TARGET REQUIRED libudev)
+    pkg_check_modules(WaylandServer IMPORTED_TARGET REQUIRED wayland-server)
 
     add_library(cogplatform-drm MODULE platform/cog-platform-drm.c)
     set_property(TARGET cogplatform-drm PROPERTY C_STANDARD 99)
-    target_include_directories(cogplatform-drm PUBLIC ${COGPLATFORM_DRM_INCLUDE_DIRS})
-    target_compile_options(cogplatform-drm PUBLIC ${COGPLATFORM_DRM_CFLAGS})
     target_compile_definitions(cogplatform-drm PRIVATE G_LOG_DOMAIN=\"Cog-DRM\")
-
-    target_link_libraries(cogplatform-drm cogcore ${COGPLATFORM_DRM_LDFLAGS})
+    target_link_libraries(cogplatform-drm PRIVATE
+        cogcore
+        PkgConfig::EGL
+        PkgConfig::LibDRM
+        PkgConfig::LibGBM
+        PkgConfig::LibInput
+        PkgConfig::LibUdev
+        PkgConfig::WEB_ENGINE
+        PkgConfig::WaylandServer
+        PkgConfig::WpeFDO
+    )
 
     install(TARGETS cogplatform-drm
         DESTINATION ${CMAKE_INSTALL_LIBDIR}

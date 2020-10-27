@@ -1,4 +1,4 @@
-#include <cog.h>
+#include "../core/cog.h"
 
 #include <assert.h>
 #include <errno.h>
