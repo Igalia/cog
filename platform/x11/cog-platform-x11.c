@@ -130,11 +130,12 @@ static struct {
 static void
 xcb_schedule_repaint (void)
 {
-    xcb_client_message_event_t client_message;
-    client_message.response_type = XCB_CLIENT_MESSAGE;
-    client_message.format = 32;
-    client_message.window = xcb_data.window;
-    client_message.type = XCB_ATOM_NOTICE;
+    xcb_client_message_event_t client_message = {
+        .response_type = XCB_CLIENT_MESSAGE,
+        .format = 32,
+        .window = xcb_data.window,
+        .type = XCB_ATOM_NOTICE,
+    };
 
     xcb_send_event (xcb_data.connection, 0, xcb_data.window,
                     0, (char *) &client_message);
@@ -216,11 +217,11 @@ xcb_handle_key_press (xcb_key_press_event_t *event)
     uint32_t unicode = xkb_state_key_get_utf32 (xkb_data.state, event->detail);
 
     struct wpe_input_keyboard_event input_event = {
-        event->time,
-        keysym,
-        unicode,
-        true,
-        xkb_data.modifiers
+        .time = event->time,
+        .key_code = keysym,
+        .hardware_key_code = unicode,
+        .pressed = true,
+        .modifiers = xkb_data.modifiers,
     };
     wpe_view_backend_dispatch_keyboard_event (wpe_view_data.backend, &input_event);
 }
@@ -232,11 +233,11 @@ xcb_handle_key_release (xcb_key_press_event_t *event)
     uint32_t unicode = xkb_state_key_get_utf32 (xkb_data.state, event->detail);
 
     struct wpe_input_keyboard_event input_event = {
-        event->time,
-        keysym,
-        unicode,
-        false,
-        xkb_data.modifiers
+        .time = event->time,
+        .key_code = keysym,
+        .hardware_key_code = unicode,
+        .pressed = false,
+        .modifiers = xkb_data.modifiers,
     };
     wpe_view_backend_dispatch_keyboard_event (wpe_view_data.backend, &input_event);
 }
@@ -245,24 +246,26 @@ static void
 xcb_handle_axis (xcb_button_press_event_t *event, const int16_t axis_delta[2])
 {
 #if HAVE_2D_AXIS_EVENT
-    struct wpe_input_axis_2d_event input_event = { 0, };
-    input_event.base.type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion_smooth;
-    input_event.base.time = event->time;
-    input_event.base.x = xcb_data.pointer.x;
-    input_event.base.y = xcb_data.pointer.y;
-
-    input_event.x_axis = axis_delta[0];
-    input_event.y_axis = axis_delta[1];
+    struct wpe_input_axis_2d_event input_event = {
+        .base = {
+            .type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion_smooth,
+            .time = event->time,
+            .x = xcb_data.pointer.x,
+            .y = xcb_data.pointer.y,
+        },
+        .x_axis = axis_delta[0],
+        .y_axis = axis_delta[1],
+    };
 
     wpe_view_backend_dispatch_axis_event (wpe_view_data.backend, &input_event.base);
 #else
     assert (axis_delta[0] ^ axis_delta[1]);
 
     struct wpe_input_axis_event input_event = {
-        wpe_input_axis_event_type_motion,
-        event->time,
-        xcb_data.pointer.x, xcb_data.pointer.y,
-        0, 0, 0,
+        .type = wpe_input_axis_event_type_motion,
+        .time = event->time,
+        .x = xcb_data.pointer.x,
+        .y = xcb_data.pointer.y,
     };
 
     if (!!axis_delta[0]) {
@@ -305,11 +308,12 @@ xcb_handle_button_press (xcb_button_press_event_t *event)
     }
 
     struct wpe_input_pointer_event input_event = {
-        wpe_input_pointer_event_type_button,
-        event->time,
-        xcb_data.pointer.x, xcb_data.pointer.y,
-        xcb_data.pointer.button,
-        xcb_data.pointer.state
+        .type = wpe_input_pointer_event_type_button,
+        .time = event->time,
+        .x = xcb_data.pointer.x,
+        .y = xcb_data.pointer.y,
+        .button = xcb_data.pointer.button,
+        .state = xcb_data.pointer.state,
     };
 
     wpe_view_backend_dispatch_pointer_event (wpe_view_data.backend, &input_event);
@@ -330,11 +334,12 @@ xcb_handle_button_release (xcb_button_release_event_t *event)
     }
 
     struct wpe_input_pointer_event input_event = {
-        wpe_input_pointer_event_type_button,
-        event->time,
-        xcb_data.pointer.x, xcb_data.pointer.y,
-        xcb_data.pointer.button,
-        xcb_data.pointer.state
+        .type = wpe_input_pointer_event_type_button,
+        .time = event->time,
+        .x = xcb_data.pointer.x,
+        .y = xcb_data.pointer.y,
+        .button = xcb_data.pointer.button,
+        .state = xcb_data.pointer.state,
     };
 
     wpe_view_backend_dispatch_pointer_event (wpe_view_data.backend, &input_event);
@@ -347,11 +352,12 @@ xcb_handle_motion_event (xcb_motion_notify_event_t *event)
     xcb_data.pointer.y = event->event_y;
 
     struct wpe_input_pointer_event input_event = {
-        wpe_input_pointer_event_type_motion,
-        event->time,
-        xcb_data.pointer.x, xcb_data.pointer.y,
-        xcb_data.pointer.button,
-        xcb_data.pointer.state
+        .type = wpe_input_pointer_event_type_motion,
+        .time = event->time,
+        .x = xcb_data.pointer.x,
+        .y = xcb_data.pointer.y,
+        .button = xcb_data.pointer.button,
+        .state = xcb_data.pointer.state,
     };
 
     wpe_view_backend_dispatch_pointer_event (wpe_view_data.backend, &input_event);
