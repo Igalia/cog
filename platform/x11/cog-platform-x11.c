@@ -436,6 +436,7 @@ xcb_process_events (void)
 struct xcb_source {
     GSource source;
     GPollFD pfd;
+    xcb_connection_t *connection;
 };
 
 static gboolean
@@ -449,6 +450,9 @@ static gboolean
 xcb_source_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
 {
     struct xcb_source *source = (struct xcb_source *) base;
+    if (xcb_connection_has_error (source->connection))
+        return G_SOURCE_REMOVE;
+
     if (source->pfd.revents & (G_IO_ERR | G_IO_HUP))
         return G_SOURCE_REMOVE;
 
@@ -767,6 +771,8 @@ init_glib (void)
                                          sizeof (struct xcb_source));
     {
         struct xcb_source *source = (struct xcb_source *) glib_data.xcb_source;
+        source->connection = xcb_data.connection;
+
         source->pfd.fd = xcb_get_file_descriptor (xcb_data.connection);
         source->pfd.events = G_IO_IN | G_IO_ERR | G_IO_HUP;
         source->pfd.revents = 0;
