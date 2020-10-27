@@ -242,7 +242,7 @@ xcb_handle_key_release (xcb_key_press_event_t *event)
 }
 
 static void
-xcb_handle_axis (xcb_button_press_event_t *event, int16_t axis_delta[2])
+xcb_handle_axis (xcb_button_press_event_t *event, const int16_t axis_delta[2])
 {
 #if HAVE_2D_AXIS_EVENT
     struct wpe_input_axis_2d_event input_event = { 0, };
@@ -280,7 +280,7 @@ xcb_handle_axis (xcb_button_press_event_t *event, int16_t axis_delta[2])
 static void
 xcb_handle_button_press (xcb_button_press_event_t *event)
 {
-    int16_t axis_delta[4][2] = {
+    static const int16_t axis_delta[4][2] = {
         {   0, -20 },
         {   0,  20 },
         { -20,   0 },
@@ -489,7 +489,7 @@ init_xcb ()
     const struct xcb_setup_t *setup = xcb_get_setup (xcb_data.connection);
     xcb_data.screen = xcb_setup_roots_iterator (setup).data;
 
-    uint32_t window_values[] = {
+    static const uint32_t window_values[] = {
         XCB_EVENT_MASK_EXPOSURE |
         XCB_EVENT_MASK_STRUCTURE_NOTIFY |
         XCB_EVENT_MASK_KEY_PRESS |
