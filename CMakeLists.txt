@@ -2,7 +2,6 @@ cmake_minimum_required (VERSION 3.3)
 
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/cmake")
 include(VersioningUtils)
-include(GNUInstallDirs)
 
 set_project_version(0 7 1)
 
@@ -17,6 +16,7 @@ calculate_library_versions_from_libtool_triple(COGCORE 4 0 3)
 
 project(cog VERSION "${PROJECT_VERSION}" LANGUAGES C)
 include(DistTargets)
+include(GNUInstallDirs)
 
 set(COG_VERSION_EXTRA "")
 if (IS_DIRECTORY "${CMAKE_SOURCE_DIR}/.git")
