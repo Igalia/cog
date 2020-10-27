@@ -245,11 +245,27 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
         set(WAYLAND_1_10_OR_GREATER ON)
     endif ()
 
-    pkg_check_modules(COGPLATFORM_FDO_DEPS IMPORTED_TARGET REQUIRED
-        wpe-webkit-1.0>=2.24.0 wpebackend-fdo-1.0>=1.3.1 egl xkbcommon)
+    pkg_check_modules(COGPLATFORM_FDO_DEPS_WPEWEBKIT IMPORTED_TARGET REQUIRED
+        wpe-webkit-1.0>=2.24.0)
 
     target_link_libraries(cogplatform-fdo PRIVATE
-        cogcore PkgConfig::WAYLAND PkgConfig::COGPLATFORM_FDO_DEPS)
+        cogcore PkgConfig::WAYLAND PkgConfig::COGPLATFORM_FDO_DEPS_WPEWEBKIT)
+        
+    pkg_check_modules(COGPLATFORM_FDO_DEPS_WPEBACKEND_FDO IMPORTED_TARGET REQUIRED
+        wpebackend-fdo-1.0>=1.3.1)
+
+    target_link_libraries(cogplatform-fdo PRIVATE
+        cogcore PkgConfig::WAYLAND PkgConfig::COGPLATFORM_FDO_DEPS_WPEBACKEND_FDO)
+       
+    pkg_check_modules(COGPLATFORM_FDO_DEPS_EGL IMPORTED_TARGET REQUIRED egl)
+
+    target_link_libraries(cogplatform-fdo PRIVATE
+        cogcore PkgConfig::WAYLAND PkgConfig::COGPLATFORM_FDO_DEPS_EGL)
+        
+    pkg_check_modules(COGPLATFORM_FDO_DEPS_XKBCOMMON IMPORTED_TARGET REQUIRED xkbcommon)
+
+    target_link_libraries(cogplatform-fdo PRIVATE
+        cogcore PkgConfig::WAYLAND PkgConfig::COGPLATFORM_FDO_DEPS_XKBCOMMON)
 
     pkg_check_modules(WAYLAND_EGL IMPORTED_TARGET wayland-egl)
     if (TARGET PkgConfig::WAYLAND_EGL)
