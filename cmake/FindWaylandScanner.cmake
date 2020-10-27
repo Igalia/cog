@@ -109,7 +109,7 @@ endif ()
 
 include(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(
-    WAYLAND_SCANNER
+    WaylandScanner
     DEFAULT_MSG
     WAYLAND_SCANNER
     WAYLAND_SCANNER_VERSION
