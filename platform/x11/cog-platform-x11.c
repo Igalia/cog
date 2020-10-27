@@ -48,84 +48,86 @@ typedef void (GL_APIENTRYP PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC) (GLenu
 # define HAVE_2D_AXIS_EVENT 0
 #endif /* WPE_CHECK_VERSION */
 
-static struct {
+
+struct CogX11Display {
     Display *display;
-    xcb_connection_t *connection;
-    xcb_screen_t *screen;
-    xcb_window_t window;
-
-    xcb_atom_t atom_wm_protocols;
-    xcb_atom_t atom_wm_delete_window;
-    xcb_atom_t atom_net_wm_name;
-    xcb_atom_t atom_utf8_string;
-
-    bool needs_initial_paint;
-    bool needs_frame_completion;
-    unsigned width;
-    unsigned height;
 
     struct {
-        int32_t x;
-        int32_t y;
-        uint32_t button;
-        uint32_t state;
-    } pointer;
-} xcb_data = {
-    .needs_initial_paint = false,
-    .needs_frame_completion = false,
+        xcb_connection_t *connection;
+        xcb_screen_t *screen;
+
+        xcb_atom_t atom_wm_protocols;
+        xcb_atom_t atom_wm_delete_window;
+        xcb_atom_t atom_net_wm_name;
+        xcb_atom_t atom_utf8_string;
+
+        struct {
+            int32_t x;
+            int32_t y;
+            uint32_t button;
+            uint32_t state;
+        } pointer;
+
+        GSource *source;
+    } xcb;
+
+    struct {
+        int32_t device_id;
+        struct xkb_context *context;
+        struct xkb_keymap *keymap;
+        struct xkb_state *state;
+
+        uint8_t modifiers;
+    } xkb;
+
+    struct {
+        PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display;
+        PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC create_platform_window_surface;
+        PFNGLEGLIMAGETARGETTEXTURE2DOESPROC image_target_texture;
+
+        EGLDisplay display;
+        EGLConfig config;
+        EGLContext context;
+    } egl;
 };
 
-static struct {
-    int32_t device_id;
-    struct xkb_context *context;
-    struct xkb_keymap *keymap;
-    struct xkb_state *state;
+struct CogX11Window {
+    struct {
+        xcb_window_t window;
 
-    uint8_t modifiers;
-} xkb_data = {
-    .device_id = -1,
-    .modifiers = 0,
+        bool needs_initial_paint;
+        bool needs_frame_completion;
+        unsigned width;
+        unsigned height;
+    } xcb;
+
+    struct {
+        EGLSurface surface;
+    } egl;
+
+    struct {
+        GLint vertex_shader;
+        GLint fragment_shader;
+        GLint program;
+
+        GLuint texture;
+
+        GLint attr_pos;
+        GLint attr_texture;
+        GLint uniform_texture;
+    } gl;
+
+    struct {
+        struct wpe_view_backend_exportable_fdo *exportable;
+        struct wpe_view_backend *backend;
+
+        struct wpe_fdo_egl_exported_image *image;
+    } wpe;
 };
 
-static struct {
-    PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display;
-    PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC create_platform_window_surface;
+static struct CogX11Display *s_display = NULL;
+static struct CogX11Window *s_window = NULL;
 
-    PFNGLEGLIMAGETARGETTEXTURE2DOESPROC image_target_texture;
-
-    EGLDisplay display;
-    EGLConfig config;
-    EGLContext context;
-    EGLSurface surface;
-} egl_data = {
-    .display = EGL_NO_DISPLAY,
-};
-
-static struct {
-    GLint vertex_shader;
-    GLint fragment_shader;
-    GLint program;
-
-    GLuint texture;
-
-    GLint attr_pos;
-    GLint attr_texture;
-    GLint uniform_texture;
-} gl_data = {
-};
-
-static struct {
-    GSource *xcb_source;
-} glib_data;
-
-static struct {
-    struct wpe_view_backend *backend;
-    struct wpe_fdo_egl_exported_image *image;
-} wpe_view_data = {NULL, };
-
-static struct {
-    struct wpe_view_backend_exportable_fdo *exportable;
-} wpe_host_data;
 
 static void
 xcb_schedule_repaint (void)
@@ -133,25 +135,25 @@ xcb_schedule_repaint (void)
     xcb_client_message_event_t client_message = {
         .response_type = XCB_CLIENT_MESSAGE,
         .format = 32,
-        .window = xcb_data.window,
+        .window = s_window->xcb.window,
         .type = XCB_ATOM_NOTICE,
     };
 
-    xcb_send_event (xcb_data.connection, 0, xcb_data.window,
+    xcb_send_event (s_display->xcb.connection, 0, s_window->xcb.window,
                     0, (char *) &client_message);
-    xcb_flush (xcb_data.connection);
+    xcb_flush (s_display->xcb.connection);
 }
 
 static void
 xcb_initial_paint (void)
 {
-    eglMakeCurrent (egl_data.display, egl_data.surface, egl_data.surface, egl_data.context);
+    eglMakeCurrent (s_display->egl.display, s_window->egl.surface, s_window->egl.surface, s_display->egl.context);
 
-    glViewport (0, 0, xcb_data.width, xcb_data.height);
+    glViewport (0, 0, s_window->xcb.width, s_window->xcb.height);
     glClearColor (1, 1, 1, 1);
     glClear (GL_COLOR_BUFFER_BIT);
 
-    eglSwapBuffers (egl_data.display, egl_data.surface);
+    eglSwapBuffers (s_display->egl.display, s_window->egl.surface);
 }
 
 static void
@@ -166,80 +168,80 @@ xcb_paint_image (struct wpe_fdo_egl_exported_image *image)
         { 0, 1 }, { 1, 1 },
     };
 
-    eglMakeCurrent (egl_data.display, egl_data.surface, egl_data.surface, egl_data.context);
+    eglMakeCurrent (s_display->egl.display, s_window->egl.surface, s_window->egl.surface, s_display->egl.context);
 
-    glViewport (0, 0, xcb_data.width, xcb_data.height);
+    glViewport (0, 0, s_window->xcb.width, s_window->xcb.height);
     glClearColor (1, 1, 1, 1);
     glClear (GL_COLOR_BUFFER_BIT);
 
-    glUseProgram (gl_data.program);
+    glUseProgram (s_window->gl.program);
 
     glActiveTexture (GL_TEXTURE0);
-    glBindTexture (GL_TEXTURE_2D, gl_data.texture);
-    egl_data.image_target_texture (GL_TEXTURE_2D,
-                                   wpe_fdo_egl_exported_image_get_egl_image (image));
-    glUniform1i (gl_data.uniform_texture, 0);
+    glBindTexture (GL_TEXTURE_2D, s_window->gl.texture);
+    s_display->egl.image_target_texture (GL_TEXTURE_2D,
+                                          wpe_fdo_egl_exported_image_get_egl_image (image));
+    glUniform1i (s_window->gl.uniform_texture, 0);
 
-    glVertexAttribPointer (gl_data.attr_pos, 2, GL_FLOAT, GL_FALSE, 0, position_coords);
-    glVertexAttribPointer (gl_data.attr_texture, 2, GL_FLOAT, GL_FALSE, 0, texture_coords);
+    glVertexAttribPointer (s_window->gl.attr_pos, 2, GL_FLOAT, GL_FALSE, 0, position_coords);
+    glVertexAttribPointer (s_window->gl.attr_texture, 2, GL_FLOAT, GL_FALSE, 0, texture_coords);
 
-    glEnableVertexAttribArray (gl_data.attr_pos);
-    glEnableVertexAttribArray (gl_data.attr_texture);
+    glEnableVertexAttribArray (s_window->gl.attr_pos);
+    glEnableVertexAttribArray (s_window->gl.attr_texture);
 
     glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 
-    glDisableVertexAttribArray (gl_data.attr_pos);
-    glDisableVertexAttribArray (gl_data.attr_texture);
+    glDisableVertexAttribArray (s_window->gl.attr_pos);
+    glDisableVertexAttribArray (s_window->gl.attr_texture);
 
-    eglSwapBuffers (egl_data.display, egl_data.surface);
+    eglSwapBuffers (s_display->egl.display, s_window->egl.surface);
 
-    wpe_view_data.image = image;
-    xcb_data.needs_initial_paint = false;
-    xcb_data.needs_frame_completion = true;
+    s_window->wpe.image = image;
+    s_window->xcb.needs_initial_paint = false;
+    s_window->xcb.needs_frame_completion = true;
     xcb_schedule_repaint ();
 }
 
 static void
 xcb_frame_completion (void)
 {
-    if (wpe_view_data.image) {
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (wpe_host_data.exportable, wpe_view_data.image);
-        wpe_view_data.image = NULL;
+    if (s_window->wpe.image) {
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (s_window->wpe.exportable, s_window->wpe.image);
+        s_window->wpe.image = NULL;
     }
 
-    wpe_view_backend_exportable_fdo_dispatch_frame_complete (wpe_host_data.exportable);
+    wpe_view_backend_exportable_fdo_dispatch_frame_complete (s_window->wpe.exportable);
 }
 
 static void
 xcb_handle_key_press (xcb_key_press_event_t *event)
 {
-    uint32_t keysym = xkb_state_key_get_one_sym (xkb_data.state, event->detail);
-    uint32_t unicode = xkb_state_key_get_utf32 (xkb_data.state, event->detail);
+    uint32_t keysym = xkb_state_key_get_one_sym (s_display->xkb.state, event->detail);
+    uint32_t unicode = xkb_state_key_get_utf32 (s_display->xkb.state, event->detail);
 
     struct wpe_input_keyboard_event input_event = {
         .time = event->time,
         .key_code = keysym,
         .hardware_key_code = unicode,
         .pressed = true,
-        .modifiers = xkb_data.modifiers,
+        .modifiers = s_display->xkb.modifiers,
     };
-    wpe_view_backend_dispatch_keyboard_event (wpe_view_data.backend, &input_event);
+    wpe_view_backend_dispatch_keyboard_event (s_window->wpe.backend, &input_event);
 }
 
 static void
 xcb_handle_key_release (xcb_key_press_event_t *event)
 {
-    uint32_t keysym = xkb_state_key_get_one_sym (xkb_data.state, event->detail);
-    uint32_t unicode = xkb_state_key_get_utf32 (xkb_data.state, event->detail);
+    uint32_t keysym = xkb_state_key_get_one_sym (s_display->xkb.state, event->detail);
+    uint32_t unicode = xkb_state_key_get_utf32 (s_display->xkb.state, event->detail);
 
     struct wpe_input_keyboard_event input_event = {
         .time = event->time,
         .key_code = keysym,
         .hardware_key_code = unicode,
         .pressed = false,
-        .modifiers = xkb_data.modifiers,
+        .modifiers = s_display->xkb.modifiers,
     };
-    wpe_view_backend_dispatch_keyboard_event (wpe_view_data.backend, &input_event);
+    wpe_view_backend_dispatch_keyboard_event (s_window->wpe.backend, &input_event);
 }
 
 static void
@@ -250,22 +252,22 @@ xcb_handle_axis (xcb_button_press_event_t *event, const int16_t axis_delta[2])
         .base = {
             .type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion_smooth,
             .time = event->time,
-            .x = xcb_data.pointer.x,
-            .y = xcb_data.pointer.y,
+            .x = s_display->xcb.pointer.x,
+            .y = s_display->xcb.pointer.y,
         },
         .x_axis = axis_delta[0],
         .y_axis = axis_delta[1],
     };
 
-    wpe_view_backend_dispatch_axis_event (wpe_view_data.backend, &input_event.base);
+    wpe_view_backend_dispatch_axis_event (s_window->wpe.backend, &input_event.base);
 #else
     assert (axis_delta[0] ^ axis_delta[1]);
 
     struct wpe_input_axis_event input_event = {
         .type = wpe_input_axis_event_type_motion,
         .time = event->time,
-        .x = xcb_data.pointer.x,
-        .y = xcb_data.pointer.y,
+        .x = s_display->xcb.pointer.x,
+        .y = s_display->xcb.pointer.y,
     };
 
     if (!!axis_delta[0]) {
@@ -276,7 +278,7 @@ xcb_handle_axis (xcb_button_press_event_t *event, const int16_t axis_delta[2])
         input_event.value = axis_delta[1];
     }
 
-    wpe_view_backend_dispatch_axis_event (wpe_view_data.backend, &input_event);
+    wpe_view_backend_dispatch_axis_event (s_window->wpe.backend, &input_event);
 #endif
 }
 
@@ -294,8 +296,8 @@ xcb_handle_button_press (xcb_button_press_event_t *event)
     case 1:
     case 2:
     case 3:
-        xcb_data.pointer.button = event->detail;
-        xcb_data.pointer.state = 1;
+        s_display->xcb.pointer.button = event->detail;
+        s_display->xcb.pointer.state = 1;
         break;
     case 4:
     case 5:
@@ -310,13 +312,13 @@ xcb_handle_button_press (xcb_button_press_event_t *event)
     struct wpe_input_pointer_event input_event = {
         .type = wpe_input_pointer_event_type_button,
         .time = event->time,
-        .x = xcb_data.pointer.x,
-        .y = xcb_data.pointer.y,
-        .button = xcb_data.pointer.button,
-        .state = xcb_data.pointer.state,
+        .x = s_display->xcb.pointer.x,
+        .y = s_display->xcb.pointer.y,
+        .button = s_display->xcb.pointer.button,
+        .state = s_display->xcb.pointer.state,
     };
 
-    wpe_view_backend_dispatch_pointer_event (wpe_view_data.backend, &input_event);
+    wpe_view_backend_dispatch_pointer_event (s_window->wpe.backend, &input_event);
 }
 
 static void
@@ -326,8 +328,8 @@ xcb_handle_button_release (xcb_button_release_event_t *event)
     case 1:
     case 2:
     case 3:
-        xcb_data.pointer.button = event->detail;
-        xcb_data.pointer.state = 0;
+        s_display->xcb.pointer.button = event->detail;
+        s_display->xcb.pointer.state = 0;
         break;
     default:
         return;
@@ -336,31 +338,31 @@ xcb_handle_button_release (xcb_button_release_event_t *event)
     struct wpe_input_pointer_event input_event = {
         .type = wpe_input_pointer_event_type_button,
         .time = event->time,
-        .x = xcb_data.pointer.x,
-        .y = xcb_data.pointer.y,
-        .button = xcb_data.pointer.button,
-        .state = xcb_data.pointer.state,
+        .x = s_display->xcb.pointer.x,
+        .y = s_display->xcb.pointer.y,
+        .button = s_display->xcb.pointer.button,
+        .state = s_display->xcb.pointer.state,
     };
 
-    wpe_view_backend_dispatch_pointer_event (wpe_view_data.backend, &input_event);
+    wpe_view_backend_dispatch_pointer_event (s_window->wpe.backend, &input_event);
 }
 
 static void
 xcb_handle_motion_event (xcb_motion_notify_event_t *event)
 {
-    xcb_data.pointer.x = event->event_x;
-    xcb_data.pointer.y = event->event_y;
+    s_display->xcb.pointer.x = event->event_x;
+    s_display->xcb.pointer.y = event->event_y;
 
     struct wpe_input_pointer_event input_event = {
         .type = wpe_input_pointer_event_type_motion,
         .time = event->time,
-        .x = xcb_data.pointer.x,
-        .y = xcb_data.pointer.y,
-        .button = xcb_data.pointer.button,
-        .state = xcb_data.pointer.state,
+        .x = s_display->xcb.pointer.x,
+        .y = s_display->xcb.pointer.y,
+        .button = s_display->xcb.pointer.button,
+        .state = s_display->xcb.pointer.state,
     };
 
-    wpe_view_backend_dispatch_pointer_event (wpe_view_data.backend, &input_event);
+    wpe_view_backend_dispatch_pointer_event (s_window->wpe.backend, &input_event);
 }
 
 static void
@@ -374,45 +376,45 @@ xcb_process_events (void)
 {
     xcb_generic_event_t *event = NULL;
 
-    while ((event = xcb_poll_for_event (xcb_data.connection))) {
+    while ((event = xcb_poll_for_event (s_display->xcb.connection))) {
         switch (event->response_type & 0x7f) {
         case XCB_CONFIGURE_NOTIFY:
         {
             xcb_configure_notify_event_t *configure_notify = (xcb_configure_notify_event_t *) event;
-            if (configure_notify->width == xcb_data.width
-                && configure_notify->height == xcb_data.height)
+            if (configure_notify->width == s_window->xcb.width
+                && configure_notify->height == s_window->xcb.height)
                 break;
 
-            xcb_data.width = configure_notify->width;
-            xcb_data.height = configure_notify->height;
+            s_window->xcb.width = configure_notify->width;
+            s_window->xcb.height = configure_notify->height;
 
-            wpe_view_backend_dispatch_set_size (wpe_view_data.backend,
-                                                xcb_data.width,
-                                                xcb_data.height);
+            wpe_view_backend_dispatch_set_size (s_window->wpe.backend,
+                                                s_window->xcb.width,
+                                                s_window->xcb.height);
             xcb_schedule_repaint ();
             break;
         }
         case XCB_CLIENT_MESSAGE:
         {
             xcb_client_message_event_t *client_message = (xcb_client_message_event_t *) event;
-            if (client_message->window != xcb_data.window)
+            if (client_message->window != s_window->xcb.window)
                 break;
 
-            if (client_message->type == xcb_data.atom_wm_protocols
-                && client_message->data.data32[0] == xcb_data.atom_wm_delete_window) {
+            if (client_message->type == s_display->xcb.atom_wm_protocols
+                && client_message->data.data32[0] == s_display->xcb.atom_wm_delete_window) {
                 g_application_quit (g_application_get_default ());
                 break;
             }
 
             if (client_message->type == XCB_ATOM_NOTICE) {
-                if (xcb_data.needs_initial_paint) {
+                if (s_window->xcb.needs_initial_paint) {
                     xcb_initial_paint ();
-                    xcb_data.needs_initial_paint = false;
+                    s_window->xcb.needs_initial_paint = false;
                 }
 
-                if (xcb_data.needs_frame_completion) {
+                if (s_window->xcb.needs_frame_completion) {
                     xcb_frame_completion ();
-                    xcb_data.needs_frame_completion = false;
+                    s_window->xcb.needs_frame_completion = false;
                 }
                 break;
             }
@@ -486,18 +488,18 @@ get_atom (struct xcb_connection_t *connection, const char *name)
 static gboolean
 init_xcb ()
 {
-    xcb_data.width = DEFAULT_WIDTH;
-    xcb_data.height = DEFAULT_HEIGHT;
+    s_window->xcb.width = DEFAULT_WIDTH;
+    s_window->xcb.height = DEFAULT_HEIGHT;
 
-    xcb_data.display = XOpenDisplay (NULL);
-    xcb_data.connection = XGetXCBConnection (xcb_data.display);
-    if (xcb_connection_has_error (xcb_data.connection))
+    s_display->display = XOpenDisplay (NULL);
+    s_display->xcb.connection = XGetXCBConnection (s_display->display);
+    if (xcb_connection_has_error (s_display->xcb.connection))
         return FALSE;
 
-    xcb_data.window = xcb_generate_id (xcb_data.connection);
+    s_window->xcb.window = xcb_generate_id (s_display->xcb.connection);
 
-    const struct xcb_setup_t *setup = xcb_get_setup (xcb_data.connection);
-    xcb_data.screen = xcb_setup_roots_iterator (setup).data;
+    const struct xcb_setup_t *setup = xcb_get_setup (s_display->xcb.connection);
+    s_display->xcb.screen = xcb_setup_roots_iterator (setup).data;
 
     static const uint32_t window_values[] = {
         XCB_EVENT_MASK_EXPOSURE |
@@ -509,40 +511,40 @@ init_xcb ()
         XCB_EVENT_MASK_POINTER_MOTION
     };
 
-    xcb_create_window (xcb_data.connection,
+    xcb_create_window (s_display->xcb.connection,
                        XCB_COPY_FROM_PARENT,
-                       xcb_data.window,
-                       xcb_data.screen->root,
-                       0, 0, xcb_data.width, xcb_data.height,
+                       s_window->xcb.window,
+                       s_display->xcb.screen->root,
+                       0, 0, s_window->xcb.width, s_window->xcb.height,
                        0,
                        XCB_WINDOW_CLASS_INPUT_OUTPUT,
-                       xcb_data.screen->root_visual,
+                       s_display->xcb.screen->root_visual,
                        XCB_CW_EVENT_MASK, window_values);
 
-    xcb_data.atom_wm_protocols = get_atom (xcb_data.connection, "WM_PROTOCOLS");
-    xcb_data.atom_wm_delete_window = get_atom (xcb_data.connection, "WM_DELETE_WINDOW");
-    xcb_data.atom_net_wm_name = get_atom (xcb_data.connection, "_NET_WM_NAME");
-    xcb_data.atom_utf8_string = get_atom (xcb_data.connection, "UTF8_STRING");
-    xcb_change_property (xcb_data.connection,
+    s_display->xcb.atom_wm_protocols = get_atom (s_display->xcb.connection, "WM_PROTOCOLS");
+    s_display->xcb.atom_wm_delete_window = get_atom (s_display->xcb.connection, "WM_DELETE_WINDOW");
+    s_display->xcb.atom_net_wm_name = get_atom (s_display->xcb.connection, "_NET_WM_NAME");
+    s_display->xcb.atom_utf8_string = get_atom (s_display->xcb.connection, "UTF8_STRING");
+    xcb_change_property (s_display->xcb.connection,
                          XCB_PROP_MODE_REPLACE,
-                         xcb_data.window,
-                         xcb_data.atom_wm_protocols,
+                         s_window->xcb.window,
+                         s_display->xcb.atom_wm_protocols,
                          XCB_ATOM_ATOM,
                          32,
-                         1, &xcb_data.atom_wm_delete_window);
+                         1, &s_display->xcb.atom_wm_delete_window);
 
-    xcb_change_property (xcb_data.connection,
+    xcb_change_property (s_display->xcb.connection,
                          XCB_PROP_MODE_REPLACE,
-                         xcb_data.window,
-                         xcb_data.atom_net_wm_name,
-                         xcb_data.atom_utf8_string,
+                         s_window->xcb.window,
+                         s_display->xcb.atom_net_wm_name,
+                         s_display->xcb.atom_utf8_string,
                          8,
                          strlen("Cog"), "Cog");
 
-    xcb_map_window (xcb_data.connection, xcb_data.window);
-    xcb_flush (xcb_data.connection);
+    xcb_map_window (s_display->xcb.connection, s_window->xcb.window);
+    xcb_flush (s_display->xcb.connection);
 
-    xcb_data.needs_initial_paint = true;
+    s_window->xcb.needs_initial_paint = true;
     xcb_schedule_repaint ();
 
     return TRUE;
@@ -551,27 +553,27 @@ init_xcb ()
 static void
 clear_xcb (void)
 {
-    if (xcb_data.display)
-        XCloseDisplay (xcb_data.display);
+    if (s_display->display)
+        XCloseDisplay (s_display->display);
 }
 
 static gboolean
 init_xkb (void)
 {
-    xkb_data.device_id = xkb_x11_get_core_keyboard_device_id (xcb_data.connection);
-    if (xkb_data.device_id == -1)
+    s_display->xkb.device_id = xkb_x11_get_core_keyboard_device_id (s_display->xcb.connection);
+    if (s_display->xkb.device_id == -1)
         return FALSE;
 
-    xkb_data.context = xkb_context_new (0);
-    if (!xkb_data.context)
+    s_display->xkb.context = xkb_context_new (0);
+    if (!s_display->xkb.context)
         return FALSE;
 
-    xkb_data.keymap = xkb_x11_keymap_new_from_device (xkb_data.context, xcb_data.connection, xkb_data.device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
-    if (!xkb_data.keymap)
+    s_display->xkb.keymap = xkb_x11_keymap_new_from_device (s_display->xkb.context, s_display->xcb.connection, s_display->xkb.device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
+    if (!s_display->xkb.keymap)
         return FALSE;
 
-    xkb_data.state = xkb_x11_state_new_from_device (xkb_data.keymap, xcb_data.connection, xkb_data.device_id);
-    if (!xkb_data.state)
+    s_display->xkb.state = xkb_x11_state_new_from_device (s_display->xkb.keymap, s_display->xcb.connection, s_display->xkb.device_id);
+    if (!s_display->xkb.state)
         return FALSE;
 
     return TRUE;
@@ -580,23 +582,23 @@ init_xkb (void)
 static void
 clear_xkb (void)
 {
-    if (xkb_data.state)
-        xkb_state_unref (xkb_data.state);
-    if (xkb_data.keymap)
-        xkb_keymap_unref (xkb_data.keymap);
-    if (xkb_data.context)
-        xkb_context_unref (xkb_data.context);
+    if (s_display->xkb.state)
+        xkb_state_unref (s_display->xkb.state);
+    if (s_display->xkb.keymap)
+        xkb_keymap_unref (s_display->xkb.keymap);
+    if (s_display->xkb.context)
+        xkb_context_unref (s_display->xkb.context);
 }
 
 static gboolean
 init_egl (void)
 {
-    egl_data.get_platform_display = (void *) eglGetProcAddress ("eglGetPlatformDisplayEXT");
-    if (egl_data.get_platform_display) {
-        egl_data.display = egl_data.get_platform_display (EGL_PLATFORM_X11_KHR, xcb_data.display, NULL);
+    s_display->egl.get_platform_display = (void *) eglGetProcAddress ("eglGetPlatformDisplayEXT");
+    if (s_display->egl.get_platform_display) {
+        s_display->egl.display = s_display->egl.get_platform_display (EGL_PLATFORM_X11_KHR, s_display->display, NULL);
     }
 
-    if (!eglInitialize (egl_data.display, NULL, NULL))
+    if (!eglInitialize (s_display->egl.display, NULL, NULL))
         return FALSE;
     if (!eglBindAPI (EGL_OPENGL_ES_API))
         return FALSE;
@@ -621,49 +623,49 @@ init_egl (void)
         EGLint matched = 0;
         EGLConfig *configs;
 
-        if (!eglGetConfigs (egl_data.display, NULL, 0, &count) || count < 1)
+        if (!eglGetConfigs (s_display->egl.display, NULL, 0, &count) || count < 1)
             return FALSE;
 
         configs = g_new0 (EGLConfig, count);
-        if (!eglChooseConfig (egl_data.display, config_attribs, configs, count, &matched) || !matched) {
+        if (!eglChooseConfig (s_display->egl.display, config_attribs, configs, count, &matched) || !matched) {
             g_free (configs);
             return FALSE;
         }
 
-        egl_data.config = configs[0];
+        s_display->egl.config = configs[0];
         g_free (configs);
-        if (!egl_data.config)
+        if (!s_display->egl.config)
             return FALSE;
     }
 
-    egl_data.context = eglCreateContext (egl_data.display,
-                                         egl_data.config,
+    s_display->egl.context = eglCreateContext (s_display->egl.display,
+                                         s_display->egl.config,
                                          EGL_NO_CONTEXT,
                                          context_attribs);
-    if (egl_data.context == EGL_NO_CONTEXT)
+    if (s_display->egl.context == EGL_NO_CONTEXT)
         return FALSE;
 
-    Window win = (Window) xcb_data.window;
-    egl_data.create_platform_window_surface = (void *) eglGetProcAddress ("eglCreatePlatformWindowSurfaceEXT");
-    if (egl_data.create_platform_window_surface)
-        egl_data.surface = egl_data.create_platform_window_surface (egl_data.display,
-                                                                    egl_data.config,
+    Window win = (Window) s_window->xcb.window;
+    s_display->egl.create_platform_window_surface = (void *) eglGetProcAddress ("eglCreatePlatformWindowSurfaceEXT");
+    if (s_display->egl.create_platform_window_surface)
+        s_window->egl.surface = s_display->egl.create_platform_window_surface (s_display->egl.display,
+                                                                    s_display->egl.config,
                                                                     &win, NULL);
-    if (egl_data.surface == EGL_NO_SURFACE)
+    if (s_window->egl.surface == EGL_NO_SURFACE)
         return FALSE;
 
-    egl_data.image_target_texture = (void *) eglGetProcAddress ("glEGLImageTargetTexture2DOES");
+    s_display->egl.image_target_texture = (void *) eglGetProcAddress ("glEGLImageTargetTexture2DOES");
 
-    eglMakeCurrent (egl_data.display, egl_data.surface, egl_data.surface, egl_data.context);
+    eglMakeCurrent (s_display->egl.display, s_window->egl.surface, s_window->egl.surface, s_display->egl.context);
     return TRUE;
 }
 
 static void
 clear_egl (void)
 {
-    if (egl_data.display != EGL_NO_DISPLAY) {
-        eglTerminate (egl_data.display);
-        egl_data.display = EGL_NO_DISPLAY;
+    if (s_display->egl.display != EGL_NO_DISPLAY) {
+        eglTerminate (s_display->egl.display);
+        s_display->egl.display = EGL_NO_DISPLAY;
     }
 
     eglReleaseThread ();
@@ -688,64 +690,64 @@ init_gl (void)
         "  gl_FragColor = texture2D(u_texture, v_texture);\n"
         "}\n";
 
-    gl_data.vertex_shader = glCreateShader (GL_VERTEX_SHADER);
-    glShaderSource (gl_data.vertex_shader, 1, &vertex_shader_source, NULL);
-    glCompileShader (gl_data.vertex_shader);
+    s_window->gl.vertex_shader = glCreateShader (GL_VERTEX_SHADER);
+    glShaderSource (s_window->gl.vertex_shader, 1, &vertex_shader_source, NULL);
+    glCompileShader (s_window->gl.vertex_shader);
 
     GLint vertex_shader_compile_status = 0;
-    glGetShaderiv (gl_data.vertex_shader, GL_COMPILE_STATUS, &vertex_shader_compile_status);
+    glGetShaderiv (s_window->gl.vertex_shader, GL_COMPILE_STATUS, &vertex_shader_compile_status);
     if (!vertex_shader_compile_status) {
         GLsizei vertex_shader_info_log_length = 0;
         char vertex_shader_info_log[1024];
-        glGetShaderInfoLog (gl_data.vertex_shader, 1023,
+        glGetShaderInfoLog (s_window->gl.vertex_shader, 1023,
             &vertex_shader_info_log_length, vertex_shader_info_log);
         vertex_shader_info_log[vertex_shader_info_log_length] = 0;
         g_warning ("Unable to compile vertex shader:\n%s", vertex_shader_info_log);
     }
 
-    gl_data.fragment_shader = glCreateShader (GL_FRAGMENT_SHADER);
-    glShaderSource (gl_data.fragment_shader, 1, &fragment_shader_source, NULL);
-    glCompileShader (gl_data.fragment_shader);
+    s_window->gl.fragment_shader = glCreateShader (GL_FRAGMENT_SHADER);
+    glShaderSource (s_window->gl.fragment_shader, 1, &fragment_shader_source, NULL);
+    glCompileShader (s_window->gl.fragment_shader);
 
     GLint fragment_shader_compile_status = 0;
-    glGetShaderiv (gl_data.fragment_shader, GL_COMPILE_STATUS, &fragment_shader_compile_status);
+    glGetShaderiv (s_window->gl.fragment_shader, GL_COMPILE_STATUS, &fragment_shader_compile_status);
     if (!fragment_shader_compile_status) {
         GLsizei fragment_shader_info_log_length = 0;
         char fragment_shader_info_log[1024];
-        glGetShaderInfoLog (gl_data.fragment_shader, 1023,
+        glGetShaderInfoLog (s_window->gl.fragment_shader, 1023,
             &fragment_shader_info_log_length, fragment_shader_info_log);
         fragment_shader_info_log[fragment_shader_info_log_length] = 0;
         g_warning ("Unable to compile fragment shader:\n%s", fragment_shader_info_log);
     }
 
-    gl_data.program = glCreateProgram ();
-    glAttachShader (gl_data.program, gl_data.vertex_shader);
-    glAttachShader (gl_data.program, gl_data.fragment_shader);
-    glLinkProgram (gl_data.program);
+    s_window->gl.program = glCreateProgram ();
+    glAttachShader (s_window->gl.program, s_window->gl.vertex_shader);
+    glAttachShader (s_window->gl.program, s_window->gl.fragment_shader);
+    glLinkProgram (s_window->gl.program);
 
     GLint link_status = 0;
-    glGetProgramiv (gl_data.program, GL_LINK_STATUS, &link_status);
+    glGetProgramiv (s_window->gl.program, GL_LINK_STATUS, &link_status);
     if (!link_status) {
         GLsizei program_info_log_length = 0;
         char program_info_log[1024];
-        glGetProgramInfoLog (gl_data.program, 1023,
+        glGetProgramInfoLog (s_window->gl.program, 1023,
             &program_info_log_length, program_info_log);
         program_info_log[program_info_log_length] = 0;
         g_warning ("Unable to link program:\n%s", program_info_log);
         return FALSE;
     }
 
-    gl_data.attr_pos = glGetAttribLocation (gl_data.program, "pos");
-    gl_data.attr_texture = glGetAttribLocation (gl_data.program, "texture");
-    gl_data.uniform_texture = glGetUniformLocation (gl_data.program, "u_texture");
+    s_window->gl.attr_pos = glGetAttribLocation (s_window->gl.program, "pos");
+    s_window->gl.attr_texture = glGetAttribLocation (s_window->gl.program, "texture");
+    s_window->gl.uniform_texture = glGetUniformLocation (s_window->gl.program, "u_texture");
 
-    glGenTextures (1, &gl_data.texture);
-    glBindTexture (GL_TEXTURE_2D, gl_data.texture);
+    glGenTextures (1, &s_window->gl.texture);
+    glBindTexture (GL_TEXTURE_2D, s_window->gl.texture);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA, xcb_data.width, xcb_data.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA, s_window->xcb.width, s_window->xcb.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glBindTexture (GL_TEXTURE_2D, 0);
 
     return TRUE;
@@ -754,15 +756,15 @@ init_gl (void)
 static void
 clear_gl ()
 {
-    if (gl_data.texture)
-        glDeleteTextures (1, &gl_data.texture);
+    if (s_window->gl.texture)
+        glDeleteTextures (1, &s_window->gl.texture);
 
-    if (gl_data.vertex_shader)
-        glDeleteShader (gl_data.vertex_shader);
-    if (gl_data.fragment_shader)
-        glDeleteShader (gl_data.fragment_shader);
-    if (gl_data.program)
-        glDeleteProgram (gl_data.program);
+    if (s_window->gl.vertex_shader)
+        glDeleteShader (s_window->gl.vertex_shader);
+    if (s_window->gl.fragment_shader)
+        glDeleteShader (s_window->gl.fragment_shader);
+    if (s_window->gl.program)
+        glDeleteProgram (s_window->gl.program);
 }
 
 static gboolean
@@ -773,20 +775,20 @@ init_glib (void)
         .dispatch = xcb_source_dispatch,
     };
 
-    glib_data.xcb_source = g_source_new (&xcb_source_funcs,
-                                         sizeof (struct xcb_source));
+    s_display->xcb.source = g_source_new (&xcb_source_funcs,
+                                          sizeof (struct xcb_source));
     {
-        struct xcb_source *source = (struct xcb_source *) glib_data.xcb_source;
-        source->connection = xcb_data.connection;
+        struct xcb_source *source = (struct xcb_source *) s_display->xcb.source;
+        source->connection = s_display->xcb.connection;
 
-        source->pfd.fd = xcb_get_file_descriptor (xcb_data.connection);
+        source->pfd.fd = xcb_get_file_descriptor (s_display->xcb.connection);
         source->pfd.events = G_IO_IN | G_IO_ERR | G_IO_HUP;
         source->pfd.revents = 0;
-        g_source_add_poll (glib_data.xcb_source, &source->pfd);
+        g_source_add_poll (s_display->xcb.source, &source->pfd);
 
-        g_source_set_name (glib_data.xcb_source, "cog-x11: xcb");
-        g_source_set_can_recurse (glib_data.xcb_source, TRUE);
-        g_source_attach (glib_data.xcb_source, g_main_context_get_thread_default ());
+        g_source_set_name (s_display->xcb.source, "cog-x11: xcb");
+        g_source_set_can_recurse (s_display->xcb.source, TRUE);
+        g_source_attach (s_display->xcb.source, g_main_context_get_thread_default ());
     }
 
     return TRUE;
@@ -795,9 +797,9 @@ init_glib (void)
 static void
 clear_glib (void)
 {
-    if (glib_data.xcb_source)
-        g_source_destroy (glib_data.xcb_source);
-    g_clear_pointer (&glib_data.xcb_source, g_source_unref);
+    if (s_display->xcb.source)
+        g_source_destroy (s_display->xcb.source);
+    g_clear_pointer (&s_display->xcb.source, g_source_unref);
 }
 
 gboolean
@@ -808,6 +810,9 @@ cog_platform_plugin_setup (CogPlatform *platform,
 {
     g_assert (platform);
     g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
+
+    s_display = calloc (sizeof (struct CogX11Display), 1);
+    s_window = calloc (sizeof (struct CogX11Window), 1);
 
     if (!wpe_loader_init ("libWPEBackend-fdo-1.0.so")) {
         g_set_error_literal (error,
@@ -858,7 +863,7 @@ cog_platform_plugin_setup (CogPlatform *platform,
     }
 
     /* init WPE host data */
-    wpe_fdo_initialize_for_egl_display (egl_data.display);
+    wpe_fdo_initialize_for_egl_display (s_display->egl.display);
 
     return TRUE;
 }
@@ -873,6 +878,9 @@ cog_platform_plugin_teardown (CogPlatform *platform)
     clear_egl ();
     clear_xkb ();
     clear_xcb ();
+
+    g_clear_pointer (&s_window, free);
+    g_clear_pointer (&s_display, free);
 }
 
 WebKitWebViewBackend*
@@ -884,22 +892,22 @@ cog_platform_plugin_get_view_backend (CogPlatform   *platform,
         .export_fdo_egl_image = on_export_fdo_egl_image,
     };
 
-    wpe_host_data.exportable =
+    s_window->wpe.exportable =
         wpe_view_backend_exportable_fdo_egl_create (&exportable_egl_client,
                                                     NULL,
                                                     DEFAULT_WIDTH,
                                                     DEFAULT_HEIGHT);
-    g_assert (wpe_host_data.exportable);
+    g_assert (s_window->wpe.exportable);
 
     /* init WPE view backend */
-    wpe_view_data.backend =
-        wpe_view_backend_exportable_fdo_get_view_backend (wpe_host_data.exportable);
-    g_assert (wpe_view_data.backend);
+    s_window->wpe.backend =
+        wpe_view_backend_exportable_fdo_get_view_backend (s_window->wpe.exportable);
+    g_assert (s_window->wpe.backend);
 
     WebKitWebViewBackend *wk_view_backend =
-        webkit_web_view_backend_new (wpe_view_data.backend,
-                       (GDestroyNotify) wpe_view_backend_exportable_fdo_destroy,
-                                     wpe_host_data.exportable);
+        webkit_web_view_backend_new (s_window->wpe.backend,
+                                     (GDestroyNotify) wpe_view_backend_exportable_fdo_destroy,
+                                     s_window->wpe.exportable);
     g_assert (wk_view_backend);
 
     return wk_view_backend;
