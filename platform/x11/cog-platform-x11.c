@@ -450,11 +450,11 @@ xcb_source_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
 {
     struct xcb_source *source = (struct xcb_source *) base;
     if (source->pfd.revents & (G_IO_ERR | G_IO_HUP))
-        return FALSE;
+        return G_SOURCE_REMOVE;
 
     xcb_process_events ();
     source->pfd.revents = 0;
-    return TRUE;
+    return G_SOURCE_CONTINUE;
 }
 
 static xcb_atom_t
