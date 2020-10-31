@@ -1,5 +1,5 @@
 
-#include <cog.h>
+#include "../../core/cog.h"
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
