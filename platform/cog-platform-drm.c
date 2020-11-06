@@ -25,6 +25,12 @@ typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platf
 #define EGL_PLATFORM_GBM_KHR 0x31D7
 #endif
 
+#if defined(WPE_CHECK_VERSION)
+# define HAVE_DEVICE_SCALING WPE_CHECK_VERSION(1, 3, 0)
+#else
+# define HAVE_DEVICE_SCALING 0
+#endif
+
 
 struct buffer_object {
     struct wl_list link;
@@ -64,6 +70,7 @@ static struct {
 
     uint32_t width;
     uint32_t height;
+    double device_scale;
 
     bool atomic_modesetting;
     bool mode_set;
@@ -83,6 +90,7 @@ static struct {
     .encoder = NULL,
     .width = 0,
     .height = 0,
+    .device_scale = 1.0,
     .atomic_modesetting = true,
     .mode_set = false,
     .committed_buffer = NULL,
@@ -139,6 +147,10 @@ static struct {
 static void
 init_config (CogShell *shell)
 {
+    drm_data.device_scale = cog_shell_get_device_scale_factor (shell);
+    g_debug ("init_config: overriding device_scale value, using %.2f from shell",
+             drm_data.device_scale);
+
     GKeyFile *key_file = cog_shell_get_config_file (shell);
     if (!key_file)
         return;
@@ -152,6 +164,18 @@ init_config (CogShell *shell)
             drm_data.atomic_modesetting = !value;
             g_debug ("init_config: atomic modesetting reconfigured to value '%s'",
                      drm_data.atomic_modesetting ? "true" : "false");
+        }
+    }
+
+    {
+        g_autoptr(GError) lookup_error = NULL;
+        gdouble value = g_key_file_get_double (key_file,
+                                               "drm", "device-scale-factor",
+                                               &lookup_error);
+        if (!lookup_error) {
+            drm_data.device_scale = value;
+            g_debug ("init_config:overriding device_scale value, using %.2f from config",
+                     drm_data.device_scale);
         }
     }
 }
@@ -1181,8 +1205,8 @@ cog_platform_plugin_get_view_backend (CogPlatform   *platform,
 
     wpe_host_data.exportable = wpe_view_backend_exportable_fdo_create (&exportable_client,
                                                                        NULL,
-                                                                       drm_data.width,
-                                                                       drm_data.height);
+                                                                       drm_data.width / drm_data.device_scale,
+                                                                       drm_data.height / drm_data.device_scale);
     g_assert (wpe_host_data.exportable);
 
     wpe_view_data.backend = wpe_view_backend_exportable_fdo_get_view_backend (wpe_host_data.exportable);
@@ -1195,4 +1219,14 @@ cog_platform_plugin_get_view_backend (CogPlatform   *platform,
     g_assert (wk_view_backend);
 
     return wk_view_backend;
+}
+
+void
+cog_platform_plugin_init_web_view (CogPlatform   *platform,
+                                   WebKitWebView *view)
+{
+#ifdef HAVE_DEVICE_SCALING
+    wpe_view_backend_dispatch_set_device_scale_factor (wpe_view_data.backend,
+                                                       drm_data.device_scale);
+#endif
 }
