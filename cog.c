@@ -284,6 +284,8 @@ on_handle_local_options (GApplication *application,
         g_object_set (shell, "config-file", g_key_file_ref (key_file), NULL);
     }
 
+    g_object_set (shell, "device-scale-factor", s_options.device_scale_factor, NULL);
+
     if (s_options.web_extensions_dir != NULL) {
         webkit_web_context_set_web_extensions_directory (cog_shell_get_web_context (shell),
                                                          s_options.web_extensions_dir);
