@@ -36,6 +36,8 @@ typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platf
 # define HAVE_DEVICE_SCALING 0
 #endif
 
+#define KEY_STARTUP_DELAY 500000
+#define KEY_REPEAT_DELAY 100000
 
 struct buffer_object {
     struct wl_list link;
@@ -129,12 +131,19 @@ static struct {
     .display = EGL_NO_DISPLAY,
 };
 
+typedef struct keyboard_event {
+    uint32_t time;
+    uint32_t key;
+} keyboard_event;
+
 static struct {
     struct udev *udev;
     struct libinput *libinput;
 
     uint32_t input_width;
     uint32_t input_height;
+
+    struct keyboard_event repeating_key;
 
     struct wpe_input_touch_event_raw touch_points[10];
     enum wpe_input_touch_event_type last_touch_type;
@@ -144,6 +153,7 @@ static struct {
     .libinput = NULL,
     .input_width = 0,
     .input_height = 0,
+    .repeating_key = {0, 0},
     .last_touch_type = wpe_input_touch_event_type_null,
     .last_touch_id = 0,
 };
@@ -151,9 +161,11 @@ static struct {
 static struct {
     GSource *drm_source;
     GSource *input_source;
+    GSource *key_repeat_source;
 } glib_data = {
     .drm_source = NULL,
     .input_source = NULL,
+    .key_repeat_source = NULL,
 };
 
 static struct {
@@ -853,33 +865,69 @@ init_egl (void)
 
 
 static void
-input_handle_key_event (struct libinput_event_keyboard *key_event)
+input_dispatch_key_event (uint32_t time, uint32_t key, enum libinput_key_state state)
 {
     struct wpe_input_xkb_context *default_context = wpe_input_xkb_context_get_default ();
-    struct xkb_state *state = wpe_input_xkb_context_get_state (default_context);
+    struct xkb_state *context_state = wpe_input_xkb_context_get_state (default_context);
 
-    // Explanation for the offset-by-8, copied from Weston:
-    //   evdev XKB rules reflect X's  broken keycode system, which starts at 8
-    uint32_t key = libinput_event_keyboard_get_key (key_event) + 8;
-    enum libinput_key_state key_state = libinput_event_keyboard_get_key_state (key_event);
-    uint32_t keysym = wpe_input_xkb_context_get_key_code(default_context, key, !!key_state);
+    uint32_t keysym = wpe_input_xkb_context_get_key_code (default_context, key, !!state);
 
-    xkb_state_update_key(state, key, !!key_state ? XKB_KEY_DOWN : XKB_KEY_UP);
-    uint32_t modifiers = wpe_input_xkb_context_get_modifiers(default_context,
-        xkb_state_serialize_mods(state, XKB_STATE_MODS_DEPRESSED),
-        xkb_state_serialize_mods(state, XKB_STATE_MODS_LATCHED),
-        xkb_state_serialize_mods(state, XKB_STATE_MODS_LOCKED),
-        xkb_state_serialize_layout(state, XKB_STATE_LAYOUT_EFFECTIVE));
+    xkb_state_update_key (context_state, key, !!state ? XKB_KEY_DOWN : XKB_KEY_UP);
+    uint32_t modifiers = wpe_input_xkb_context_get_modifiers (default_context,
+        xkb_state_serialize_mods (context_state, XKB_STATE_MODS_DEPRESSED),
+        xkb_state_serialize_mods (context_state, XKB_STATE_MODS_LATCHED),
+        xkb_state_serialize_mods (context_state, XKB_STATE_MODS_LOCKED),
+        xkb_state_serialize_layout (context_state, XKB_STATE_LAYOUT_EFFECTIVE));
 
     struct wpe_input_keyboard_event event = {
-            .time = libinput_event_keyboard_get_time (key_event),
+            .time = time,
             .key_code = keysym,
             .hardware_key_code = key,
-            .pressed = (!!key_state),
+            .pressed = (!!state),
             .modifiers = modifiers,
     };
 
     wpe_view_backend_dispatch_keyboard_event (wpe_view_data.backend, &event);
+}
+
+static void
+start_repeating_key (uint32_t time, uint32_t key)
+{
+    if (!!input_data.repeating_key.time && input_data.repeating_key.time == time
+        && input_data.repeating_key.key == key) {
+        return;
+    }
+
+    input_data.repeating_key = (keyboard_event) {time, key};
+    g_source_set_ready_time (glib_data.key_repeat_source,
+                             g_get_monotonic_time() + KEY_STARTUP_DELAY);
+}
+
+static void
+stop_repeating_key (void)
+{
+    if (!!input_data.repeating_key.time) {
+        g_source_set_ready_time (glib_data.key_repeat_source, -1);
+    }
+    input_data.repeating_key = (keyboard_event) {0, 0};
+}
+
+static void
+input_handle_key_event (struct libinput_event_keyboard *key_event)
+{
+    // Explanation for the offset-by-8, copied from Weston:
+    //   evdev XKB rules reflect X's  broken keycode system, which starts at 8
+    uint32_t key = libinput_event_keyboard_get_key (key_event) + 8;
+    uint32_t time = libinput_event_keyboard_get_time (key_event);
+    enum libinput_key_state key_state = libinput_event_keyboard_get_key_state (key_event);
+
+    input_dispatch_key_event (time, key, key_state);
+
+    if (!!key_state) {
+        start_repeating_key (time, key);
+    } else {
+        stop_repeating_key ();
+    }
 }
 
 static void
@@ -1145,6 +1193,21 @@ input_source_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
     return TRUE;
 }
 
+static gboolean
+key_repeat_source_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
+{
+    if (!input_data.repeating_key.time) {
+        g_source_set_ready_time (base, -1);
+        return TRUE;
+    }
+
+    input_dispatch_key_event (input_data.repeating_key.time,
+                              input_data.repeating_key.key,
+                              LIBINPUT_KEY_STATE_PRESSED);
+    g_source_set_ready_time (base, g_get_monotonic_time() + KEY_REPEAT_DELAY);
+    return TRUE;
+}
+
 
 static void
 clear_glib (void)
@@ -1156,6 +1219,10 @@ clear_glib (void)
     if (glib_data.input_source)
         g_source_destroy (glib_data.input_source);
     g_clear_pointer (&glib_data.input_source, g_source_unref);
+
+    if (glib_data.key_repeat_source)
+        g_source_destroy (glib_data.key_repeat_source);
+    g_clear_pointer (&glib_data.key_repeat_source, g_source_unref);
 }
 
 static gboolean
@@ -1169,6 +1236,10 @@ init_glib (void)
     static GSourceFuncs input_source_funcs = {
         .check = input_source_check,
         .dispatch = input_source_dispatch,
+    };
+
+    static GSourceFuncs key_repeat_source_funcs = {
+        .dispatch = key_repeat_source_dispatch,
     };
 
     glib_data.drm_source = g_source_new (&drm_source_funcs,
@@ -1202,6 +1273,12 @@ init_glib (void)
         g_source_set_can_recurse (glib_data.input_source, TRUE);
         g_source_attach (glib_data.input_source, g_main_context_get_thread_default ());
     }
+
+    glib_data.key_repeat_source = g_source_new (&key_repeat_source_funcs, sizeof (GSource));
+    g_source_set_name (glib_data.key_repeat_source, "cog: key repeat");
+    g_source_set_can_recurse (glib_data.key_repeat_source, TRUE);
+    g_source_set_priority (glib_data.key_repeat_source, G_PRIORITY_DEFAULT_IDLE);
+    g_source_attach (glib_data.key_repeat_source, g_main_context_get_thread_default ());
 
     return TRUE;
 }
