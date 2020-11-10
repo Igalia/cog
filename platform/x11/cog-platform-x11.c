@@ -18,6 +18,8 @@
 #include <X11/Xlib.h>
 #include <X11/Xlib-xcb.h>
 
+#include "../common/egl-proc-address.h"
+
 
 #ifndef EGL_EXT_platform_base
 #define EGL_EXT_platform_base 1
@@ -593,7 +595,7 @@ clear_xkb (void)
 static gboolean
 init_egl (void)
 {
-    s_display->egl.get_platform_display = (void *) eglGetProcAddress ("eglGetPlatformDisplayEXT");
+    s_display->egl.get_platform_display = load_egl_proc_address ("eglGetPlatformDisplayEXT");
     if (s_display->egl.get_platform_display) {
         s_display->egl.display = s_display->egl.get_platform_display (EGL_PLATFORM_X11_KHR, s_display->display, NULL);
     }
@@ -646,7 +648,7 @@ init_egl (void)
         return FALSE;
 
     Window win = (Window) s_window->xcb.window;
-    s_display->egl.create_platform_window_surface = (void *) eglGetProcAddress ("eglCreatePlatformWindowSurfaceEXT");
+    s_display->egl.create_platform_window_surface = load_egl_proc_address ("eglCreatePlatformWindowSurfaceEXT");
     if (s_display->egl.create_platform_window_surface)
         s_window->egl.surface = s_display->egl.create_platform_window_surface (s_display->egl.display,
                                                                                s_display->egl.config,
@@ -654,7 +656,7 @@ init_egl (void)
     if (s_window->egl.surface == EGL_NO_SURFACE)
         return FALSE;
 
-    s_display->egl.image_target_texture = (void *) eglGetProcAddress ("glEGLImageTargetTexture2DOES");
+    s_display->egl.image_target_texture = load_egl_proc_address ("glEGLImageTargetTexture2DOES");
 
     eglMakeCurrent (s_display->egl.display, s_window->egl.surface, s_window->egl.surface, s_display->egl.context);
     return TRUE;
