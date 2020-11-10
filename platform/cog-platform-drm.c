@@ -16,6 +16,8 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
+#include "common/egl-proc-address.h"
+
 
 #if !defined(EGL_EXT_platform_base)
 typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platform, void *native_display, const EGLint *attrib_list);
@@ -385,7 +387,7 @@ init_egl (void)
 {
     static PFNEGLGETPLATFORMDISPLAYEXTPROC s_eglGetPlatformDisplay = NULL;
     if (!s_eglGetPlatformDisplay)
-        s_eglGetPlatformDisplay = (PFNEGLGETPLATFORMDISPLAYEXTPROC) eglGetProcAddress ("eglGetPlatformDisplayEXT");
+        s_eglGetPlatformDisplay = (PFNEGLGETPLATFORMDISPLAYEXTPROC) load_egl_proc_address ("eglGetPlatformDisplayEXT");
 
     if (s_eglGetPlatformDisplay)
         egl_data.display = s_eglGetPlatformDisplay (EGL_PLATFORM_GBM_KHR, gbm_data.device, NULL);

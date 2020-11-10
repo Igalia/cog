@@ -32,6 +32,8 @@
 #include <xkbcommon/xkbcommon-compose.h>
 #include <locale.h>
 
+#include "common/egl-proc-address.h"
+
 #include "xdg-shell-client.h"
 #include "fullscreen-shell-unstable-v1-client.h"
 #include "presentation-time-client.h"
@@ -1596,7 +1598,7 @@ on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
         s_eglCreateWaylandBufferFromImageWL;
     if (s_eglCreateWaylandBufferFromImageWL == NULL) {
         s_eglCreateWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
-            eglGetProcAddress ("eglCreateWaylandBufferFromImageWL");
+            load_egl_proc_address ("eglCreateWaylandBufferFromImageWL");
         g_assert (s_eglCreateWaylandBufferFromImageWL);
     }
 
