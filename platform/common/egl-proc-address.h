@@ -1,3 +1,10 @@
+/*
+ * egl-proc-address.h
+ * Copyright (C) 2020 Igalia S.L.
+ *
+ * Distributed under terms of the MIT license.
+ */
+
 #pragma once
 
 #define __USE_GNU
