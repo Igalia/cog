@@ -12,6 +12,9 @@
 #include <wpe/fdo-egl.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <drm_fourcc.h>
+#include "kms.h"
+#include "cursor-drm.h"
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -96,6 +99,22 @@ static struct {
     .atomic_modesetting = true,
     .mode_set = false,
     .committed_buffer = NULL,
+};
+
+static struct {
+    gboolean enabled;
+    struct kms_device *device;
+    struct kms_plane *plane;
+    struct kms_framebuffer *cursor;
+    unsigned int x;
+    unsigned int y;
+    unsigned int screen_width;
+    unsigned int screen_height;
+} cursor = {
+    .enabled = FALSE,
+    .device = NULL,
+    .plane = NULL,
+    .cursor = NULL,
 };
 
 static struct {
@@ -504,6 +523,76 @@ init_drm (void)
     return TRUE;
 }
 
+static const uint32_t formats[] = {
+    DRM_FORMAT_RGBA8888,
+    DRM_FORMAT_ARGB8888,
+};
+
+static uint32_t
+choose_format (struct kms_plane *plane)
+{
+    for (int i = 0; i < G_N_ELEMENTS(formats); i++) {
+        if (kms_plane_supports_format(plane, formats[i]))
+            return formats[i];
+    }
+
+    return 0;
+}
+
+static void
+clear_cursor (void) {
+    g_clear_pointer(&cursor.cursor, kms_framebuffer_free);
+    g_clear_pointer(&cursor.device, kms_device_free);
+    cursor.plane = NULL;
+}
+
+static gboolean
+init_cursor (void)
+{
+    bool cursor_supported = drmSetClientCap(drm_data.fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1) == 0;
+    if (!cursor_supported) {
+        g_warning("cursor not supported");
+        return FALSE;
+    }
+
+    cursor.device = kms_device_open(drm_data.fd);
+    if (!cursor.device)
+        return FALSE;
+
+    cursor.plane = kms_device_find_plane_by_type(cursor.device, DRM_PLANE_TYPE_CURSOR, 0);
+    if (!cursor.plane) {
+        g_clear_pointer(&cursor.device, kms_device_free);
+        return FALSE;
+    }
+
+    uint32_t format = choose_format(cursor.plane);
+    if (!format) {
+        g_clear_pointer(&cursor.device, kms_device_free);
+        return FALSE;
+    }
+
+    cursor.cursor = create_cursor_framebuffer(cursor.device, format);
+    if (!cursor.cursor) {
+        g_clear_pointer(&cursor.device, kms_device_free);
+        return FALSE;
+    }
+
+    cursor.x = (cursor.device->screens[0]->width - cursor.cursor->width) / 2;
+    cursor.y = (cursor.device->screens[0]->height - cursor.cursor->height) / 2;
+    cursor.screen_width = cursor.device->screens[0]->width;
+    cursor.screen_height = cursor.device->screens[0]->height;
+
+    if (kms_plane_set(cursor.plane, cursor.cursor, cursor.x, cursor.y)) {
+        g_clear_pointer(&cursor.device, kms_device_free);
+        g_clear_pointer(&cursor.cursor, kms_framebuffer_free);
+        return FALSE;
+    }
+
+    cursor.enabled = TRUE;
+
+    return TRUE;
+}
+
 static void
 drm_page_flip_handler (int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data)
 {
@@ -858,6 +947,62 @@ input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_e
 }
 
 static void
+input_handle_pointer_motion_event (struct libinput_event_pointer *pointer_event)
+{
+    if (!cursor.enabled)
+        return;
+
+    double dx = libinput_event_pointer_get_dx(pointer_event);
+    double dy = libinput_event_pointer_get_dy(pointer_event);
+
+    cursor.x = cursor.x + dx;
+    if (cursor.x < 0) {
+        cursor.x = 0;
+    } else if (cursor.x > cursor.screen_width - 1) {
+        cursor.x = cursor.screen_width - 1;
+    }
+
+    cursor.y = cursor.y + dy;
+    if (cursor.y < 0) {
+        cursor.y = 0;
+    } else if (cursor.y > cursor.screen_height - 1) {
+        cursor.y = cursor.screen_height - 1;
+    }
+
+    struct wpe_input_pointer_event event = {
+        .type = wpe_input_pointer_event_type_motion,
+        .time = libinput_event_pointer_get_time(pointer_event),
+        .x = cursor.x,
+        .y = cursor.y,
+        .button = 0,
+        .state = 0,
+        .modifiers = 0,
+    };
+
+    wpe_view_backend_dispatch_pointer_event(wpe_view_data.backend, &event);
+    kms_plane_set(cursor.plane, cursor.cursor, cursor.x, cursor.y);
+}
+
+static void
+input_handle_pointer_button_event (struct libinput_event_pointer *pointer_event)
+{
+    if (!cursor.enabled)
+        return;
+
+    struct wpe_input_pointer_event event = {
+        .type = wpe_input_pointer_event_type_button,
+        .time = libinput_event_pointer_get_time(pointer_event),
+        .x = cursor.x,
+        .y = cursor.y,
+        .button = libinput_event_pointer_get_button(pointer_event),
+        .state = libinput_event_pointer_get_button_state(pointer_event),
+        .modifiers = 0,
+    };
+
+    wpe_view_backend_dispatch_pointer_event(wpe_view_data.backend, &event);
+}
+
+static void
 input_process_events (void)
 {
     g_assert (input_data.libinput);
@@ -879,6 +1024,12 @@ input_process_events (void)
             case LIBINPUT_EVENT_TOUCH_FRAME:
                 input_handle_touch_event (event_type,
                                           libinput_event_get_touch_event (event));
+                break;
+            case LIBINPUT_EVENT_POINTER_MOTION:
+                input_handle_pointer_motion_event(libinput_event_get_pointer_event(event));
+                break;
+            case LIBINPUT_EVENT_POINTER_BUTTON:
+                input_handle_pointer_button_event(libinput_event_get_pointer_event(event));
                 break;
             default:
                 break;
@@ -1144,6 +1295,12 @@ cog_platform_plugin_setup (CogPlatform *platform,
         return FALSE;
     }
 
+    if (g_getenv ("COG_PLATFORM_DRM_CURSOR")) {
+        if (!init_cursor ()) {
+            g_warning ("Failed to initialize cursor");
+        }
+    }
+
     if (!init_gbm ()) {
         g_set_error_literal (error,
                              COG_PLATFORM_WPE_ERROR,
@@ -1192,6 +1349,7 @@ cog_platform_plugin_teardown (CogPlatform *platform)
     clear_input ();
     clear_egl ();
     clear_gbm ();
+    clear_cursor ();
     clear_drm ();
 }
 
