@@ -526,7 +526,7 @@ cog_shell_remove_view (CogShell   *shell,
     g_object_unref (view);  /* Drop the (hopefully last) ref. */
 
     if (weak_pointer)
-        g_critical ("%s: User code has refs to CogView %p", G_STRFUNC, view);
+        g_debug ("%s: User code has refs to CogView %p", G_STRFUNC, view);
 }
 
 
