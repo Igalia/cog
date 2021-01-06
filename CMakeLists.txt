@@ -294,14 +294,16 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
         target_compile_definitions(cogplatform-fdo PRIVATE COG_FDO_WIDGETS_SUPPORTED=0)
     endif ()
 
-    # Direct video display extension.
-    find_path(WPEBACKEND_FDO_HAS_VIDEO_PLANE_DISPLAY_DMABUF_EXT
-        NAMES wpe/extensions/video-plane-display-dmabuf.h
-        PATHS ${COGPLATFORM_FDO_DEPS_INCLUDE_DIRS}
-        NO_DEFAULT_PATH
-    )
+    if (COG_WESTON_DIRECT_DISPLAY)
 
-    if (COG_WESTON_DIRECT_DISPLAY AND WPEBACKEND_FDO_HAS_VIDEO_PLANE_DISPLAY_DMABUF_EXT)
+        # Direct video display extension.
+        find_path(WPEBACKEND_FDO_HAS_VIDEO_PLANE_DISPLAY_DMABUF_EXT
+            NAMES wpe/extensions/video-plane-display-dmabuf.h
+            PATHS ${WpeFDO_INCLUDE_DIRS}
+            NO_DEFAULT_PATH
+            REQUIRED
+        )
+
         pkg_check_modules(LIBWESTON REQUIRED libweston-9-protocols)
         pkg_get_variable(LIBWESTON_PKG_DATA_DIR libweston-9-protocols "pkgdatadir")
         add_wayland_protocol(cogplatform-fdo CLIENT "${LIBWESTON_PKG_DATA_DIR}/weston-direct-display.xml")
