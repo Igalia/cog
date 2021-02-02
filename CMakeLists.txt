@@ -54,7 +54,6 @@ option(COG_DBUS_SYSTEM_BUS "Expose remote control interface on system bus" OFF)
 set(COG_DBUS_OWN_USER "" CACHE STRING
     "Additional user allowed to own the well-known name on the system bus")
 
-option(COG_USE_WEBKITGTK "Use WebKitGTK+ instead of WPEWebKit" OFF)
 option(COG_PLATFORM_FDO "Build the FDO platform module" ON)
 option(COG_PLATFORM_DRM "Build the DRM platform module" OFF)
 option(COG_PLATFORM_X11 "Build the DRM platform module" OFF)
@@ -66,11 +65,7 @@ set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
 
 if (NOT COG_APPID OR COG_APPID STREQUAL "")
-    if (COG_USE_WEBKITGTK)
-        set(COG_DEFAULT_APPID com.igalia.CogGtk)
-    else ()
-        set(COG_DEFAULT_APPID com.igalia.Cog)
-    endif ()
+    set(COG_DEFAULT_APPID com.igalia.Cog)
 else ()
     set(COG_DEFAULT_APPID ${COG_APPID})
 endif ()
@@ -100,6 +95,7 @@ set(COGCORE_API_HEADERS
     core/cog-shell.h
     core/cog-utils.h
     core/cog-webkit-utils.h
+    core/cog-platform.h
     ${CMAKE_CURRENT_BINARY_DIR}/cog-config.h
 )
 set(COGCORE_SOURCES
@@ -109,38 +105,29 @@ set(COGCORE_SOURCES
     core/cog-utils.c
     core/cog-shell.c
     core/cog-webkit-utils.c
+    core/cog-platform.c
 )
 
 pkg_check_modules(GIO IMPORTED_TARGET REQUIRED gio-2.0>=2.44)
 pkg_check_modules(SOUP IMPORTED_TARGET REQUIRED libsoup-2.4)
-if (COG_USE_WEBKITGTK)
-    list(APPEND COGCORE_SOURCES core/cog-gtk-utils.c)
-    pkg_check_modules(WEB_ENGINE IMPORTED_TARGET REQUIRED webkit2gtk-4.0)
-    if (WEB_ENGINE_VERSION VERSION_LESS 2.20.0)
-        message(FATAL_ERROR "webkit2gtk-4.0 >= 2.20.0 is required.")
-    endif ()
+
+# There is no need to explicitly check wpe-1.0 here because it's a
+# dependency already specified in the wpe-webkit.pc file.
+pkg_check_modules(WEB_ENGINE IMPORTED_TARGET REQUIRED wpe-webkit-1.0>=2.23.91)
+if ("${WEB_ENGINE_VERSION}" VERSION_GREATER "2.23")
     add_definitions(-DCOG_BG_COLOR_API_SUPPORTED=1)
 else ()
-    list(APPEND COGCORE_API_HEADERS core/cog-platform.h)
-    list(APPEND COGCORE_SOURCES core/cog-platform.c)
-    # There is no need to explicitly check wpe-1.0 here because it's a
-    # dependency already specified in the wpe-webkit.pc file.
-    pkg_check_modules(WEB_ENGINE IMPORTED_TARGET REQUIRED wpe-webkit-1.0>=2.23.91)
-    if ("${WEB_ENGINE_VERSION}" VERSION_GREATER "2.23")
-        add_definitions(-DCOG_BG_COLOR_API_SUPPORTED=1)
-    else ()
-        add_definitions(-DCOG_BG_COLOR_API_SUPPORTED=0)
-    endif ()
-    if ("${WEB_ENGINE_VERSION}" VERSION_GREATER "2.27.3")
-        set(COG_IM_API_SUPPORTED ON)
-    else ()
-        set(COG_IM_API_SUPPORTED OFF)
-    endif ()
-    if (COG_PLATFORM_FDO AND "${WEB_ENGINE_VERSION}" VERSION_GREATER "2.27.3")
-        set(COG_FDO_WIDGETS_SUPPORTED ON)
-    else ()
-        set(COG_FDO_WIDGETS_SUPPORTED OFF)
-    endif ()
+    add_definitions(-DCOG_BG_COLOR_API_SUPPORTED=0)
+endif ()
+if ("${WEB_ENGINE_VERSION}" VERSION_GREATER "2.27.3")
+    set(COG_IM_API_SUPPORTED ON)
+else ()
+    set(COG_IM_API_SUPPORTED OFF)
+endif ()
+if (COG_PLATFORM_FDO AND "${WEB_ENGINE_VERSION}" VERSION_GREATER "2.27.3")
+    set(COG_FDO_WIDGETS_SUPPORTED ON)
+else ()
+    set(COG_FDO_WIDGETS_SUPPORTED OFF)
 endif ()
 
 include(CheckCCompilerFlag)
@@ -220,7 +207,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cogcore.pc
 
 # libcogplaform-fdo
 
-if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
+if (COG_PLATFORM_FDO)
     add_library(cogplatform-fdo MODULE platform/cog-platform-fdo.c)
 
     set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
@@ -319,11 +306,11 @@ if (COG_PLATFORM_FDO AND NOT COG_USE_WEBKITGTK)
         target_compile_definitions(cogplatform-fdo PRIVATE COG_USE_WAYLAND_CURSOR)
         target_link_libraries(cogplatform-fdo PRIVATE PkgConfig::WaylandCursor)
     endif ()
-endif ()  # !COG_USE_WEBKITGTK
+endif ()
 
 # libcogplaform-drm
 
-if (COG_PLATFORM_DRM AND NOT COG_USE_WEBKITGTK)
+if (COG_PLATFORM_DRM)
     pkg_check_modules(EGL IMPORTED_TARGET REQUIRED egl)
     pkg_check_modules(WpeFDO IMPORTED_TARGET REQUIRED wpebackend-fdo-1.0>=1.3.1)
     pkg_check_modules(LibDRM IMPORTED_TARGET REQUIRED libdrm>=2.4.71)
@@ -351,9 +338,9 @@ if (COG_PLATFORM_DRM AND NOT COG_USE_WEBKITGTK)
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
         COMPONENT "runtime"
     )
-endif () # COG_PLATFORM_DRM AND NOT COG_USE_WEBKITGTK
+endif () # COG_PLATFORM_DRM
 
-if (COG_PLATFORM_X11 AND NOT COG_USE_WEBKITGTK)
+if (COG_PLATFORM_X11)
     add_subdirectory(platform/x11)
 endif ()
 
