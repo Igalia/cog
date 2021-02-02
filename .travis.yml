@@ -16,14 +16,11 @@ addons:
 matrix:
   include:
     - env:
-        - BUILD_TYPE=Debug WEBKITGTK=false
+        - BUILD_TYPE=Debug
       addons: {apt: {packages: [*base-deps]}}
     - env:
-        - BUILD_TYPE=Release WEBKITGTK=false
+        - BUILD_TYPE=Release
       addons: {apt: {packages: [*base-deps]}}
-    - env:
-        - BUILD_TYPE=Release WEBKITGTK=true
-      addons: {apt: {packages: [*base-deps, cmake, libwebkit2gtk-4.0-dev]}}
 
 cache:
   apt: true
@@ -35,19 +32,13 @@ install:
   - |-
     : 'Downloading toolchain'
     set -e
-    if ${WEBKITGTK} ; then
-        echo 'Toolchain download not needed for WebKitGTK build'
-    else
-        curl --progress-bar --retry 3 \
-            --time-cond ~/toolchain/.installed -L -o ~/toolchain.sh \
-            "${TOOLCHAINS_URL}/${TOOLCHAIN_NAME}"
-    fi
+    curl --progress-bar --retry 3 \
+        --time-cond ~/toolchain/.installed -L -o ~/toolchain.sh \
+        "${TOOLCHAINS_URL}/${TOOLCHAIN_NAME}"
   - |-
     : 'Installing toolchain'
     set -e
-    if ${WEBKITGTK} ; then
-        echo 'Toolchain installation not needed for WebKitGTK build'
-    elif [[ -r ~/toolchain.sh ]] ; then
+    if [[ -r ~/toolchain.sh ]] ; then
         rm -rf ~/toolchain/
         chmod +x ~/toolchain.sh
         ~/toolchain.sh -d ~/toolchain/ -y
@@ -60,18 +51,13 @@ script:
   - |-
     : 'Configuring'
     set -e
-    CMAKEOPTS=(-DCMAKE_BUILD_TYPE=${BUILD_TYPE})
-    if ${WEBKITGTK} ; then \
-        CMAKEOPTS+=(-DCOG_USE_WEBKITGTK=ON)
-    else
-        CMAKEOPTS+=(-DCOG_USE_WEBKITGTK=OFF
-                    -DCOG_DBUS_SYSTEM_BUS=ON
-                    -DCOG_PLATFORM_FDO=ON)
-        source ~/toolchain/environment-setup-armv7at2hf-neon-poky-linux-gnueabi
-    fi
-    echo "CMake options: ${CMAKEOPTS[*]}"
+    source ~/toolchain/environment-setup-armv7at2hf-neon-poky-linux-gnueabi
     mkdir _build && cd _build
-    cmake -GNinja "${CMAKEOPTS[@]}" ..
+    cmake -GNinja \
+        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+        -DCOG_DBUS_SYSTEM_BUS=ON \
+        -DCOG_PLATFORM_FDO=ON \
+        ..
   - |-
     : 'Building'
     TERM=dumb ninja
