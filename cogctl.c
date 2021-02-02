@@ -1,5 +1,6 @@
 /*
  * cogctl.c
+ * Copyright (C) 2021 Igalia S.L.
  * Copyright (C) 2018 Adrian Perez <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
@@ -15,11 +16,7 @@
 #include <string.h>
 
 #ifndef COG_DEFAULT_APPID
-#  if COG_USE_WEBKITGTK
-#    define COG_DEFAULT_APPID "com.igalia.CogGtk"
-#  else
-#    define COG_DEFAULT_APPID "com.igalia.Cog"
-#  endif
+#define COG_DEFAULT_APPID    "com.igalia.Cog"
 #endif
 
 #define GTK_ACTIONS_ACTIVATE "org.gtk.Actions", "Activate"
