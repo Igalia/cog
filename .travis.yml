@@ -57,6 +57,7 @@ script:
         -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
         -DCOG_DBUS_SYSTEM_BUS=ON \
         -DCOG_PLATFORM_FDO=ON \
+        -DCOG_PLATFORM_DRM=ON \
         ..
   - |-
     : 'Building'
