@@ -1,5 +1,6 @@
 /*
  * cog.c
+ * Copyright (C) 2021 Igalia S.L.
  * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  * Copyright (C) 2017-2018 Adrian Perez <aperez@igalia.com>
  *
@@ -11,14 +12,11 @@
 #include <string.h>
 #include "core/cog.h"
 
-#if !COG_USE_WEBKITGTK
-# include "core/cog-platform.h"
 #if defined(WPE_CHECK_VERSION) && WPE_CHECK_VERSION(1, 3, 0)
 # define HAVE_DEVICE_SCALING 1
 #else
 # define HAVE_DEVICE_SCALING 0
 #endif /* WPE_CHECK_VERSION */
-#endif /* !COG_USE_WEBKITGTK */
 
 enum webprocess_fail_action {
     WEBPROCESS_FAIL_UNKNOWN = 0,
@@ -42,12 +40,10 @@ static struct {
     GStrv    dir_handlers;
     GStrv    arguments;
     char    *background_color;
-#if !COG_USE_WEBKITGTK
     union {
         char *platform_name;
         CogPlatform *platform;
     };
-#endif // !COG_USE_WEBKITGTK
     union {
         char *action_name;
         enum webprocess_fail_action action_id;
@@ -96,11 +92,9 @@ static GOptionEntry s_cli_options[] =
     { "bg-color", 'b', 0, G_OPTION_ARG_STRING, &s_options.background_color,
         "Background color, as a CSS name or in #RRGGBBAA hex syntax (default: white)",
         "BG_COLOR" },
-#if !COG_USE_WEBKITGTK
     { "platform", 'P', 0, G_OPTION_ARG_STRING, &s_options.platform_name,
         "Platform plug-in to use.",
         "NAME" },
-#endif // !COG_USE_WEBKITGTK
     { "web-extensions-dir", '\0', 0, G_OPTION_ARG_STRING, &s_options.web_extensions_dir,
       "Load Web Extensions from given directory.",
       "PATH"},
@@ -159,13 +153,8 @@ on_handle_local_options (GApplication *application,
                          void         *user_data)
 {
     if (s_options.version) {
-        g_print ("%s (%s %u.%u.%u)\n",
+        g_print ("%s (WPE WebKit %u.%u.%u)\n",
                  COG_VERSION_STRING COG_VERSION_EXTRA,
-#if COG_USE_WEBKITGTK
-                 "WebKitGTK",
-#else
-                 "WPE WebKit",
-#endif // COG_USE_WEBKITGTK
                  webkit_get_major_version (),
                  webkit_get_minor_version (),
                  webkit_get_micro_version ());
@@ -300,7 +289,6 @@ on_handle_local_options (GApplication *application,
 }
 
 
-#if !COG_USE_WEBKITGTK
 static gboolean
 platform_setup (CogShell *shell)
 {
@@ -353,7 +341,6 @@ on_shutdown (CogLauncher *launcher G_GNUC_UNUSED, void *user_data G_GNUC_UNUSED)
         g_debug ("%s: Platform teardown completed.", __func__);
     }
 }
-#endif // !COG_USE_WEBKITGTK
 
 static void*
 on_web_view_create (WebKitWebView          *web_view,
@@ -373,7 +360,6 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
                                             WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
     }
 
-#if !COG_USE_WEBKITGTK
     WebKitWebViewBackend *view_backend = NULL;
 
     // Try to load the platform plug-in specified in the command line.
@@ -397,20 +383,16 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
     // must have succeeded in providing a WebKitWebViewBackend* instance.
     if (!view_backend)
         g_error ("Could not instantiate any WPE backend.");
-#endif // !COG_USE_WEBKITGTK
 
     g_autoptr(WebKitWebView) web_view = g_object_new (WEBKIT_TYPE_WEB_VIEW,
                                                       "settings", cog_shell_get_web_settings (shell),
                                                       "web-context", web_context,
                                                       "zoom-level", s_options.scale_factor,
-#if !COG_USE_WEBKITGTK
                                                       "backend", view_backend,
-#endif
                                                       NULL);
 
     g_signal_connect (web_view, "create", G_CALLBACK (on_web_view_create), NULL);
 
-#if !COG_USE_WEBKITGTK
     if (s_options.platform) {
         cog_platform_init_web_view (s_options.platform, web_view);
 
@@ -419,26 +401,15 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
         webkit_web_view_set_input_method_context (web_view, im_context);
 #endif
     }
-#endif
 
     if (s_options.background_color != NULL) {
-#if COG_BG_COLOR_API_SUPPORTED
-        gboolean has_valid_color = FALSE;
-#if !COG_USE_WEBKITGTK
         WebKitColor color;
-        has_valid_color = webkit_color_parse (&color, s_options.background_color);
-#else
-        GdkRGBA color;
-        has_valid_color = gdk_rgba_parse (&color, s_options.background_color);
-#endif
+        gboolean has_valid_color = webkit_color_parse (&color, s_options.background_color);
 
         if (has_valid_color)
             webkit_web_view_set_background_color (web_view, &color);
         else
             g_error ("'%s' doesn't represent a valid #RRGGBBAA or CSS color format.", s_options.background_color);
-#else
-        g_error ("Could not configure the background color. Please rebuild with WebKitGTK support or upgrade to WPE 2.24 and rebuild Cog.");
-#endif
     }
 
     switch (s_options.on_failure.action_id) {
@@ -486,21 +457,13 @@ main (int argc, char *argv[])
         g_set_application_name ("Cog");
     }
 
-#if COG_USE_WEBKITGTK
-    // Workaround for https://bugs.webkit.org/show_bug.cgi?id=150303
-    gtk_init(NULL, NULL);
-#endif // COG_USE_WEBKITGTK
-
     g_autoptr(GApplication) app = G_APPLICATION (cog_launcher_get_default ());
     g_application_add_main_option_entries (app, s_cli_options);
     cog_launcher_add_web_settings_option_entries (COG_LAUNCHER (app));
     cog_launcher_add_web_cookies_option_entries (COG_LAUNCHER (app));
     cog_launcher_add_web_permissions_option_entries (COG_LAUNCHER (app));
 
-#if !COG_USE_WEBKITGTK
     g_signal_connect (app, "shutdown", G_CALLBACK (on_shutdown), NULL);
-#endif // !COG_USE_WEBKITGTK
-
     g_signal_connect (app, "handle-local-options",
                       G_CALLBACK (on_handle_local_options), NULL);
     g_signal_connect (cog_launcher_get_shell (COG_LAUNCHER (app)), "create-view",

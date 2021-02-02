@@ -1,5 +1,6 @@
 /*
  * cog-launcher.c
+ * Copyright (C) 2021 Igalia S.L.
  * Copyright (C) 2017-2018 Adrian Perez <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
@@ -10,10 +11,6 @@
 #include "cog-request-handler.h"
 #include "cog-webkit-utils.h"
 #include "cog-utils.h"
-
-#if COG_USE_WEBKITGTK
-# include "cog-gtk-utils.h"
-#endif
 
 #include <glib-unix.h>
 #include <stdlib.h>
@@ -44,15 +41,15 @@ g_clear_handle_id (guint            *tag_ptr,
 #endif
 
 struct _CogLauncher {
-    CogLauncherBase  parent;
-    CogShell        *shell;
-    gboolean         allow_all_requests;
+    GApplication parent;
+    CogShell    *shell;
+    gboolean     allow_all_requests;
 
-    guint            sigint_source;
-    guint            sigterm_source;
+    guint        sigint_source;
+    guint        sigterm_source;
 };
 
-G_DEFINE_TYPE (CogLauncher, cog_launcher, COG_LAUNCHER_BASE_TYPE)
+G_DEFINE_TYPE (CogLauncher, cog_launcher, G_TYPE_APPLICATION)
 
 
 static void
@@ -165,17 +162,10 @@ cog_launcher_startup (GApplication *application)
     cog_shell_startup (cog_launcher_get_shell (COG_LAUNCHER (application)));
 
     /*
-     * When building with GTK+ support, the GtkApplicationWindow will
-     * automatically "hold" the GApplication instance and release it when
-     * the window is closed. We have to manually call g_application_hold()
-     * ourselves when building against the WPE port.
+     * We have to manually call g_application_hold(), otherwise nothing will
+     * prevent GApplication from shutting down immediately after startup.
      */
-#if COG_USE_WEBKITGTK
-    GtkWidget *window = cog_gtk_create_window (COG_LAUNCHER (application));
-    g_object_ref_sink (window);  // Keep the window object alive.
-#else
     g_application_hold (application);
-#endif
 }
 
 
@@ -185,17 +175,6 @@ cog_launcher_shutdown (GApplication *application)
     cog_shell_shutdown (cog_launcher_get_shell (COG_LAUNCHER (application)));
 
     G_APPLICATION_CLASS (cog_launcher_parent_class)->shutdown (application);
-}
-
-
-static void
-cog_launcher_activate (GApplication *application)
-{
-#if COG_USE_WEBKITGTK
-    cog_gtk_present_window (COG_LAUNCHER (application));
-#else
-    (void) application;
-#endif
 }
 
 
@@ -256,12 +235,8 @@ on_system_bus_name_lost (GDBusConnection    *connection,
 
 
 #ifndef COG_DEFAULT_APPID
-#  if COG_USE_WEBKITGTK
-#    define COG_DEFAULT_APPID "com.igalia." COG_DEFAULT_APPNAME "Gtk"
-#  else
-#    define COG_DEFAULT_APPID "com.igalia." COG_DEFAULT_APPNAME
-#  endif
-#endif
+#define COG_DEFAULT_APPID "com.igalia." COG_DEFAULT_APPNAME
+#endif /* !COG_DEFAULT_APPID */
 
 
 static void
@@ -310,7 +285,6 @@ cog_launcher_class_init (CogLauncherClass *klass)
     GApplicationClass *application_class = G_APPLICATION_CLASS (klass);
     application_class->open = cog_launcher_open;
     application_class->startup = cog_launcher_startup;
-    application_class->activate = cog_launcher_activate;
     application_class->shutdown = cog_launcher_shutdown;
 }
 

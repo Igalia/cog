@@ -1,5 +1,6 @@
 /*
  * cog-webkit-utils.h
+ * Copyright (C) 2021 Igalia S.L.
  * Copyright (C) 2017-2018 Adrian Perez <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
@@ -13,11 +14,8 @@
 
 #include "cog-config.h"
 
-#if COG_USE_WEBKITGTK
-# include <webkit2/webkit2.h>
-#else
-# include <glib.h>
-# include <wpe/webkit.h>
+#include <glib.h>
+#include <wpe/webkit.h>
 
 G_BEGIN_DECLS
 
@@ -32,8 +30,6 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC (WebKitURISchemeRequest, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (WebKitWebsiteDataManager, g_object_unref)
 
 #endif /* WEBKIT_CHECK_VERSION */
-
-#endif /* COG_USE_WEBKITGTK */
 
 
 gboolean cog_handle_web_view_load_failed (WebKitWebView  *web_view,

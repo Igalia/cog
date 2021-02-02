@@ -13,7 +13,7 @@ interface, and is suitable to be used as a Web application container. The
 This project provides the following components:
 
 - `libcogcore` is a library with ready-to-use components typically needed
-  for implementing applications which use the WebKit WPE/GTK+ API.
+  for implementing applications which use the WPE WebKit API.
 
 - `cog` is the launcher itself, implemented using the `libcogcore`
   library.
@@ -28,34 +28,16 @@ It is possible to disable building the `cog` and `cogctl` programs by passing
 Dependencies
 ------------
 
-For the [cog-0.3 branch](https://github.com/Igalia/cog/commits/cog-0.3):
+Stable releases have the following dependencies:
 
-- WPE WebKit 2.24.x, or WebKitGTK 2.20.x when building with
-  `COG_USE_WEBKITGTK`.
-- [libwpe 1.2.0](https://wpewebkit.org/release/libwpe-1.2.0.html).
-- [WPEBackend-fdo 1.2.0](https://wpewebkit.org/release/wpebackend-fdo-1.2.0.html).
-  *(Optional, but recommended.)*
-- [GLib](https://gitlab.gnome.org/GNOME/glib/) 2.40 or newer.
-
-For the [cog-0.2 branch](https://github.com/Igalia/cog/commits/cog-0.2):
-
-- WPE WebKit 2.22.x, or WebKitGTK+ 2.18.x when building with
-  `COG_USE_WEBKITGTK`.
-- [libwpe 1.0.0](https://wpewebkit.org/release/libwpe-1.0.0.html).
-- [WPEBackend-fdo
-  1.0.0](https://wpewebkit.org/release/wpebackend-fdo-1.0.0.html). *(Optional,
-  but recommended.)*
-- [GLib](https://gitlab.gnome.org/GNOME/glib/) 2.40 or newer.
-
-For the [cog-0.1 branch](https://github.com/Igalia/cog/commits/cog-0.1):
-
-- WPE WebKit 2.20.x, or WebKitGTK+ 2.18.x when building with
-  `COG_USE_WEBKITGTK`.
-- [WPEBackend 0.2.0](https://wpewebkit.org/release/wpebackend-0.2.0.html).
-- [GLib](https://gitlab.gnome.org/GNOME/glib/) 2.40 or newer.
+- WPE WebKit 2.24.x
+- libwpe 1.8.x
+- WPEBackend-fdo 1.8.x *(optional, recommended)*
 
 Note that building from the `master` branch will often require development
-releases of WPE WebKit, `libwpe`, and `WPEBackend-fdo`.
+releases of WPE WebKit, libwpe, and WPEBackend-fdo; while older Cog releases
+may have different [version
+requirements](https://wpewebkit.org/release/schedule/#compatible-components).
 
 
 Using Cog

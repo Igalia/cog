@@ -20,14 +20,13 @@ From the point of view “what gets built”, Cog is split in three components:
 Most of the items described below are built as part of the latter.
 
 
-DyLauncher
-----------
+CogLauncher
+-----------
 
 > *Sources: [cog-launcher.h](core/cog-launcher.h), [cog-launcher.c](core/cog-launcher.c)*
 
 This is the main application object, and inherits from
-[GApplication](https://developer.gnome.org/gio/stable/GApplication.html)
-(either directly or indirectly, see [GTK+ support](#gtk-support) below).
+[GApplication](https://developer.gnome.org/gio/stable/GApplication.html).
 This class is responsible for:
 
 - Holding a
@@ -98,21 +97,3 @@ write a warning to the standard error output.
 
 The load progress handler will write load status messages to the standard
 error output.
-
-
-GTK+ Support
-------------
-
-> *Sources: [cog-gtk-utils.h](core/cog-gtk-utils.h),
-> [cog-gtk-utils.c](core/cog-gtk-utils.c)*
-
-It is possible to build Cog using WebKitGTK+ instead of the WPE WebKit
-port. This is mostly useful for developing features which are independent
-of the WebKit port being used. To enable this, pass `-DCOG_USE_WEBKITGTK=ON`
-to CMake when configuring your build.
-
-The main change when using WebKitGTK+ is that [CogLauncher](#coglauncher)
-will be a subclass of `GtkApplication` —instead of `GApplication`— and that
-after creation of the Web view, the `cog_gtk_create_window()` function is
-called to ensure that the `WebKitWebView` widget is inserted into a window.
-Other than that, the GTK+ specific code is mostly self-contained.

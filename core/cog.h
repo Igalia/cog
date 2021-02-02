@@ -1,5 +1,6 @@
 /*
  * cog.h
+ * Copyright (C) 2021 Igalia S.L.
  * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  * Copyright (C) 2017-2018 Adrian Perez <aperez@igalia.com>
  *
@@ -18,10 +19,7 @@
 #include "cog-launcher.h"
 #include "cog-shell.h"
 #include "cog-utils.h"
-
-#if !COG_USE_WEBKITGTK
-# include "cog-platform.h"
-#endif /* !COG_USE_WEBKITGTK */
+#include "cog-platform.h"
 
 #undef COG_INSIDE_COG__
 
