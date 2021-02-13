@@ -57,6 +57,8 @@ set(COG_DBUS_OWN_USER "" CACHE STRING
 option(COG_PLATFORM_FDO "Build the FDO platform module" ON)
 option(COG_PLATFORM_DRM "Build the DRM platform module" OFF)
 option(COG_PLATFORM_X11 "Build the DRM platform module" OFF)
+option(COG_PLATFORM_GTK4 "Build the GTK4 platform module" OFF)
+
 option(COG_BUILD_PROGRAMS "Build and install programs as well" ON)
 option(INSTALL_MAN_PAGES "Install the man(1) pages if COG_BUILD_PROGRAMS is enabled" ON)
 option(COG_WESTON_DIRECT_DISPLAY "Build direct display support for the FDO platform module" OFF)
@@ -215,6 +217,9 @@ if (COG_PLATFORM_DRM)
 endif ()
 if (COG_PLATFORM_X11)
     add_subdirectory(platform/x11)
+endif ()
+if (COG_PLATFORM_GTK4)
+    add_subdirectory(platform/gtk4)
 endif ()
 
 configure_file(core/cog-config.h.in cog-config.h @ONLY)
