@@ -1,3 +1,15 @@
+=========================
+0.8.1 - February 22, 2021
+=========================
+
+- core: Improved cog_web_view_connect_default_error_handlers() to avoid
+  accidentally overriding already connected signal handlers.
+- drm: Fixed keyboard input when using modifier keys (e.g. Shift).
+- drm: Fixed crashes during deinitialization.
+- drm, fdo: Improved reliability for drivers which do not expose all their
+  functionality via eglGetProcAddress().
+- Improved behaviour of the CMake build system at configuration time.
+
 ==========================
 0.8.0 - September 12, 2020
 ==========================
