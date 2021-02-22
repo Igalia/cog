@@ -268,8 +268,27 @@ cog_web_view_connect_default_error_handlers (WebKitWebView *web_view)
             cog_handle_web_view_web_process_terminated },
     };
     
-    for (unsigned i = 0; i < G_N_ELEMENTS (handlers); i++)
-        g_signal_connect (web_view, handlers[i].sig, handlers[i].hnd, NULL);
+    for (unsigned i = 0; i < G_N_ELEMENTS (handlers); i++) {
+        /*
+         * Check whether a handler has already been connected for the
+         * signal, and skip adding the default one here if found.
+         */
+        unsigned signal_id = g_signal_lookup (handlers[i].sig,
+                                              WEBKIT_TYPE_WEB_VIEW);
+        g_assert (signal_id != 0);
+
+        unsigned long handler_id =
+            g_signal_handler_find (web_view,
+                                   G_SIGNAL_MATCH_ID,
+                                   signal_id,
+                                   0,     /* detail */
+                                   NULL,  /* closure */
+                                   NULL,  /* func */
+                                   NULL   /* data */);
+
+        if (handler_id == 0)
+            g_signal_connect (web_view, handlers[i].sig, handlers[i].hnd, NULL);
+    }
 }
 
 
