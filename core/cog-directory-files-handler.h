@@ -46,6 +46,12 @@ gboolean           cog_directory_files_handler_get_use_host     (CogDirectoryFil
 void               cog_directory_files_handler_set_use_host     (CogDirectoryFilesHandler *self,
                                                                  gboolean                  use_host);
 
+unsigned           cog_directory_files_handler_get_strip_components
+                                                                (CogDirectoryFilesHandler *self);
+void               cog_directory_files_handler_set_strip_components
+                                                                (CogDirectoryFilesHandler *self,
+                                                                 unsigned                  count);
+
 G_END_DECLS
 
 #endif /* !COG_DIRECTORY_FILES_HANDLER_H */
