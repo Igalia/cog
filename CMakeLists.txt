@@ -92,6 +92,7 @@ set(COGCORE_API_HEADERS
     core/cog-launcher.h
     core/cog-request-handler.h
     core/cog-directory-files-handler.h
+    core/cog-prefix-routes-handler.h
     core/cog-shell.h
     core/cog-utils.h
     core/cog-webkit-utils.h
@@ -102,6 +103,7 @@ set(COGCORE_SOURCES
     core/cog-launcher.c
     core/cog-request-handler.c
     core/cog-directory-files-handler.c
+    core/cog-prefix-routes-handler.c
     core/cog-utils.c
     core/cog-shell.c
     core/cog-webkit-utils.c
