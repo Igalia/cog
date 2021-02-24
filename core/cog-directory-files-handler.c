@@ -13,12 +13,14 @@ struct _CogDirectoryFilesHandler {
     GObject  parent;
     GFile   *base_path;
     gboolean use_host;
+    unsigned strip_components;
 };
 
 enum {
     PROP_0,
     PROP_BASE_PATH,
     PROP_USE_HOST,
+    PROP_STRIP_COMPONENTS,
     N_PROPERTIES,
 };
 
@@ -186,6 +188,27 @@ cog_directory_files_handler_run (CogRequestHandler      *request_handler,
     while (path[0] == '/')
         ++path;
 
+    /*
+     * Discard non-empty leading path components, ignoring empty path
+     * components (empty component == two consecutive slashes). For
+     * example with "strip-components" being 2, paths would get munged
+     * as follows:
+     *
+     *   - /foo/bar/baz  -> /baz
+     *   - /foo//bar/baz -> /baz
+     *   - /foo/bar/     -> /
+     *   - /foo/bar      -> (empty)
+     *   - /foo          -> (empty)
+     */
+    for (unsigned i = 0; i < handler->strip_components && path[0] != '\0'; i++) {
+        /* Skip up to the next slash. */
+        while (path[0] != '/' && path[0] != '\0')
+            ++path;
+        /* Skip consecutive slashes. */
+        while (path[0] == '/')
+            ++path;
+    }
+
     g_autoptr(GFile) file = g_file_get_child (base_path, path);
 
     /*
@@ -246,6 +269,9 @@ cog_directory_files_handler_get_property (GObject    *object,
         case PROP_USE_HOST:
             g_value_set_boolean (value, cog_directory_files_handler_get_use_host (handler));
             break;
+        case PROP_STRIP_COMPONENTS:
+            g_value_set_uint (value, cog_directory_files_handler_get_strip_components (handler));
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
@@ -267,6 +293,10 @@ cog_directory_files_handler_set_property (GObject      *object,
         case PROP_USE_HOST:
             cog_directory_files_handler_set_use_host (handler,
                                                       g_value_get_boolean (value));
+            break;
+        case PROP_STRIP_COMPONENTS:
+            cog_directory_files_handler_set_strip_components (handler,
+                                                              g_value_get_uint (value));
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -321,6 +351,24 @@ cog_directory_files_handler_class_init (CogDirectoryFilesHandlerClass *klass)
                               FALSE,
                               G_PARAM_READWRITE |
                               G_PARAM_STATIC_STRINGS);
+
+    /**
+     * CogDirectoryFilesHandler:strip-components:
+     *
+     * Number of leading path components to strip (ignore) at the beginning
+     * of request URIs.
+     *
+     * For example, when set to `2`, a  request for an URI with path
+     * `/a/b/c/d.html` will ignore the `/a/b` prefix and search for `c/d.html`.
+     */
+    s_properties[PROP_STRIP_COMPONENTS] =
+        g_param_spec_uint ("strip-components",
+                           "Strip path components",
+                           "Number of leading URI path components to ignore",
+                           0, G_MAXUINT, 0,
+                           G_PARAM_READWRITE |
+                           G_PARAM_CONSTRUCT |
+                           G_PARAM_STATIC_STRINGS);
 
     g_object_class_install_properties (object_class, N_PROPERTIES, s_properties);
 }
@@ -393,4 +441,39 @@ cog_directory_files_handler_set_use_host (CogDirectoryFilesHandler *self,
 
     self->use_host = use_host;
     g_object_notify_by_pspec (G_OBJECT (self), s_properties[PROP_USE_HOST]);
+}
+
+/**
+ * cog_directory_files_handler_get_strip_components:
+ * @self: a #CogDirectoryFilesHandler
+ *
+ * Gets the value of the `strip-components` property.
+ *
+ * Returns: Number of leading URI path components to ignore.
+ */
+unsigned
+cog_directory_files_handler_get_strip_components (CogDirectoryFilesHandler *self)
+{
+    g_return_val_if_fail (COG_IS_DIRECTORY_FILES_HANDLER (self), 0);
+    return self->strip_components;
+}
+
+/**
+ * cog_directory_files_handler_set_strip_components:
+ * @self: a #CogDirectoryFilesHandler
+ * @count: Number of leading URI path components to ignore.
+ *
+ * Sets the value of the `strip-components` property.
+ */
+void
+cog_directory_files_handler_set_strip_components (CogDirectoryFilesHandler *self,
+                                                  unsigned                  count)
+{
+    g_return_if_fail (COG_IS_DIRECTORY_FILES_HANDLER (self));
+
+    if (self->strip_components == count)
+        return;
+
+    self->strip_components = count;
+    g_object_notify_by_pspec (G_OBJECT (self), s_properties[PROP_STRIP_COMPONENTS]);
 }
