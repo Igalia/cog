@@ -187,6 +187,24 @@ cog_directory_files_handler_run (CogRequestHandler      *request_handler,
         ++path;
 
     g_autoptr(GFile) file = g_file_get_child (base_path, path);
+
+    /*
+     * Check whether the resolved path is contained inside base_path,
+     * to prevent URIs with ".." components from accessing resources
+     * outside of base_path. The g_file_get_relative_path() method
+     * returns NULL when the file path is NOT descendant of base_path.
+     */
+    g_autofree char *relative_path = g_file_get_relative_path (base_path, file);
+    if (!relative_path) {
+        g_autoptr(GError) error = g_error_new (G_FILE_ERROR,
+                                               G_FILE_ERROR_PERM,
+                                               "Resolved path '%s' not "
+                                               "contained in base path '%s'",
+                                               g_file_peek_path (file),
+                                               g_file_peek_path (base_path));
+        return webkit_uri_scheme_request_finish_error (request, error);
+    }
+
     g_file_query_info_async (file,
                              s_file_query_attributes,
                              G_FILE_QUERY_INFO_NONE,
