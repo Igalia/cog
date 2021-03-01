@@ -165,17 +165,20 @@ cog_directory_files_handler_run (CogRequestHandler      *request_handler,
      * Check whether the resolved path is contained inside base_path,
      * to prevent URIs with ".." components from accessing resources
      * outside of base_path. The g_file_get_relative_path() method
-     * returns NULL when the file path is NOT descendant of base_path.
+     * returns NULL when the file path is NOT descendant of base_path,
+     * or when both paths are the same.
      */
-    g_autofree char *relative_path = g_file_get_relative_path (handler->base_path, file);
-    if (!relative_path) {
-        g_autoptr(GError) error = g_error_new (G_FILE_ERROR,
-                                               G_FILE_ERROR_PERM,
-                                               "Resolved path '%s' not "
-                                               "contained in base path '%s'",
-                                               g_file_peek_path (file),
-                                               g_file_peek_path (handler->base_path));
-        return webkit_uri_scheme_request_finish_error (request, error);
+    if (!g_file_equal (handler->base_path, file)) {
+        g_autofree char *relative_path = g_file_get_relative_path (handler->base_path, file);
+        if (!relative_path) {
+            g_autoptr(GError) error = g_error_new (G_FILE_ERROR,
+                                                   G_FILE_ERROR_PERM,
+                                                   "Resolved path '%s' not "
+                                                   "contained in base path '%s'",
+                                                   g_file_peek_path (file),
+                                                   g_file_peek_path (handler->base_path));
+            return webkit_uri_scheme_request_finish_error (request, error);
+        }
     }
 
     g_file_query_info_async (file,
