@@ -46,6 +46,11 @@ struct buffer_object {
     uint32_t fb_id;
     struct gbm_bo *bo;
     struct wl_resource *buffer_resource;
+
+    struct  {
+        struct wl_resource* resource;
+        struct wpe_fdo_shm_exported_buffer *shm_buffer;
+    } export;
 };
 
 static struct {
@@ -220,7 +225,16 @@ destroy_buffer (struct buffer_object *buffer)
     drmModeRmFB (drm_data.fd, buffer->fb_id);
     gbm_bo_destroy (buffer->bo);
 
-    wpe_view_backend_exportable_fdo_dispatch_release_buffer (wpe_host_data.exportable, buffer->buffer_resource);
+    if (buffer->export.resource) {
+        wpe_view_backend_exportable_fdo_dispatch_release_buffer (wpe_host_data.exportable,
+                                                                 buffer->export.resource);
+        buffer->export.resource = NULL;
+    }
+    if (buffer->export.shm_buffer) {
+        wpe_view_backend_exportable_fdo_dispatch_release_shm_exported_buffer (wpe_host_data.exportable,
+                                                                              buffer->export.shm_buffer);
+        buffer->export.shm_buffer = NULL;
+    }
     g_free (buffer);
 }
 
@@ -608,8 +622,20 @@ init_cursor (void)
 static void
 drm_page_flip_handler (int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data)
 {
-    if (drm_data.committed_buffer)
-        wpe_view_backend_exportable_fdo_dispatch_release_buffer (wpe_host_data.exportable, drm_data.committed_buffer->buffer_resource);
+    if (drm_data.committed_buffer) {
+        struct buffer_object* buffer = drm_data.committed_buffer;
+
+        if (buffer->export.resource) {
+            wpe_view_backend_exportable_fdo_dispatch_release_buffer (wpe_host_data.exportable,
+                                                                     buffer->export.resource);
+            buffer->export.resource = NULL;
+        }
+        if (buffer->export.shm_buffer) {
+            wpe_view_backend_exportable_fdo_dispatch_release_shm_exported_buffer (wpe_host_data.exportable,
+                                                                                  buffer->export.shm_buffer);
+            buffer->export.shm_buffer = NULL;
+        }
+    }
     drm_data.committed_buffer = (struct buffer_object *) data;
 
     wpe_view_backend_exportable_fdo_dispatch_frame_complete (wpe_host_data.exportable);
@@ -680,6 +706,91 @@ drm_create_buffer_for_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource
     buffer->buffer_resource = buffer_resource;
 
     return buffer;
+}
+
+static struct buffer_object *
+drm_create_buffer_for_shm_buffer (struct wl_resource *buffer_resource, struct wl_shm_buffer *shm_buffer)
+{
+    uint32_t format = wl_shm_buffer_get_format (shm_buffer);
+    if (format != WL_SHM_FORMAT_ARGB8888 && format != WL_SHM_FORMAT_XRGB8888) {
+        g_warning ("failed to handle non-32-bit ARGB/XRGB format");
+        return NULL;
+    }
+
+    int32_t width = wl_shm_buffer_get_width (shm_buffer);
+    int32_t height = wl_shm_buffer_get_height (shm_buffer);
+
+    // TODO: don't ignore the alpha channel in case of ARGB8888 SHM data
+    uint32_t gbm_format = GBM_FORMAT_XRGB8888;
+    struct gbm_bo *bo = gbm_bo_create (gbm_data.device, width, height, gbm_format,
+                                       GBM_BO_USE_SCANOUT | GBM_BO_USE_WRITE);
+    if (!bo) {
+        g_warning ("failed to create a gbm_bo object");
+        return NULL;
+    }
+
+    uint32_t in_handles[4] = { 0, };
+    uint32_t in_strides[4] = { 0, };
+    uint32_t in_offsets[4] = { 0, };
+    in_handles[0] = gbm_bo_get_handle (bo).u32;
+    in_strides[0] = gbm_bo_get_stride (bo);
+
+    uint32_t fb_id = 0;
+    int ret = drmModeAddFB2 (drm_data.fd, width, height, gbm_format,
+                             in_handles, in_strides, in_offsets,
+                             &fb_id, 0);
+    if (ret) {
+        gbm_bo_destroy (bo);
+        g_warning ("failed to create framebuffer: %s", strerror (errno));
+        return NULL;
+    }
+
+    struct buffer_object *buffer = g_new0 (struct buffer_object, 1);
+    wl_list_insert (&drm_data.buffer_list, &buffer->link);
+    buffer->destroy_listener.notify = destroy_buffer_notify;
+    wl_resource_add_destroy_listener (buffer_resource, &buffer->destroy_listener);
+
+    buffer->fb_id = fb_id;
+    buffer->bo = bo;
+    buffer->buffer_resource = buffer_resource;
+
+    return buffer;
+}
+
+static void
+drm_copy_shm_buffer_into_bo (struct wl_shm_buffer *shm_buffer, struct gbm_bo *bo)
+{
+    int32_t width = wl_shm_buffer_get_width (shm_buffer);
+    int32_t height = wl_shm_buffer_get_height (shm_buffer);
+    int32_t stride = wl_shm_buffer_get_stride (shm_buffer);
+
+    uint32_t bo_stride = 0;
+    void *map_data = NULL;
+    gbm_bo_map (bo, 0, 0, width, height, GBM_BO_TRANSFER_WRITE, &bo_stride, &map_data);
+    if (!map_data)
+        return;
+
+    wl_shm_buffer_begin_access (shm_buffer);
+
+    uint8_t *src = wl_shm_buffer_get_data (shm_buffer);
+    uint8_t *dst = map_data;
+
+    uint32_t bo_width = gbm_bo_get_width (bo);
+    uint32_t bo_height = gbm_bo_get_height (bo);
+    if (!(width == bo_width && height == bo_height && stride == bo_stride)) {
+        for (uint32_t y = 0; y < height; ++y) {
+            for (uint32_t x = 0; x < width; ++x) {
+                dst[bo_stride * y + 4 * x + 0] = src[stride * y + 4 * x + 0];
+                dst[bo_stride * y + 4 * x + 1] = src[stride * y + 4 * x + 1];
+                dst[bo_stride * y + 4 * x + 2] = src[stride * y + 4 * x + 2];
+                dst[bo_stride * y + 4 * x + 3] = src[stride * y + 4 * x + 3];
+            }
+        }
+    } else
+        memcpy(dst, src, stride * height);
+
+    wl_shm_buffer_end_access (shm_buffer);
+    gbm_bo_unmap (bo, map_data);
 }
 
 static int
@@ -1289,6 +1400,7 @@ on_export_buffer_resource (void *data, struct wl_resource *buffer_resource)
 {
     struct buffer_object *buffer = drm_buffer_for_resource (buffer_resource);
     if (buffer) {
+        buffer->export.resource = buffer_resource;
         drm_commit_buffer (buffer);
         return;
     }
@@ -1305,8 +1417,10 @@ on_export_buffer_resource (void *data, struct wl_resource *buffer_resource)
     uint32_t format = gbm_bo_get_format (bo);
 
     buffer = drm_create_buffer_for_bo (bo, buffer_resource, width, height, format);
-    if (buffer)
+    if (buffer) {
+        buffer->export.resource = buffer_resource;
         drm_commit_buffer (buffer);
+    }
 }
 
 static void
@@ -1314,6 +1428,7 @@ on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dm
 {
     struct buffer_object *buffer = drm_buffer_for_resource (dmabuf_resource->buffer_resource);
     if (buffer) {
+        buffer->export.resource = dmabuf_resource->buffer_resource;
         drm_commit_buffer (buffer);
         return;
     }
@@ -1341,8 +1456,34 @@ on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dm
     buffer = drm_create_buffer_for_bo (bo, dmabuf_resource->buffer_resource,
                                        dmabuf_resource->width, dmabuf_resource->height,
                                        dmabuf_resource->format);
-    if (buffer)
+    if (buffer) {
+        buffer->export.resource = dmabuf_resource->buffer_resource;
         drm_commit_buffer (buffer);
+    }
+}
+
+static void
+on_export_shm_buffer (void* data, struct wpe_fdo_shm_exported_buffer *exported_buffer)
+{
+    struct wl_resource *exported_resource = wpe_fdo_shm_exported_buffer_get_resource (exported_buffer);
+    struct wl_shm_buffer *exported_shm_buffer = wpe_fdo_shm_exported_buffer_get_shm_buffer (exported_buffer);
+
+    struct buffer_object *buffer = drm_buffer_for_resource (exported_resource);
+    if (buffer) {
+        drm_copy_shm_buffer_into_bo (exported_shm_buffer, buffer->bo);
+
+        buffer->export.shm_buffer = exported_buffer;
+        drm_commit_buffer (buffer);
+        return;
+    }
+
+    buffer = drm_create_buffer_for_shm_buffer (exported_resource, exported_shm_buffer);
+    if (buffer) {
+        drm_copy_shm_buffer_into_bo (exported_shm_buffer, buffer->bo);
+
+        buffer->export.shm_buffer = exported_buffer;
+        drm_commit_buffer (buffer);
+    }
 }
 
 gboolean
@@ -1438,6 +1579,7 @@ cog_platform_plugin_get_view_backend (CogPlatform   *platform,
     static struct wpe_view_backend_exportable_fdo_client exportable_client = {
         .export_buffer_resource = on_export_buffer_resource,
         .export_dmabuf_resource = on_export_dmabuf_resource,
+        .export_shm_buffer = on_export_shm_buffer,
     };
 
     wpe_host_data.exportable = wpe_view_backend_exportable_fdo_create (&exportable_client,
