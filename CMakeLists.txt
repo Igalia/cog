@@ -207,6 +207,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cogcore.pc
     COMPONENT "development"
 )
 
+add_subdirectory(platform/headless)
 if (COG_PLATFORM_FDO)
     add_subdirectory(platform/fdo)
 endif ()
