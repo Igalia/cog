@@ -321,7 +321,11 @@ if (COG_PLATFORM_DRM)
     pkg_check_modules(LibUdev IMPORTED_TARGET REQUIRED libudev)
     pkg_check_modules(WaylandServer IMPORTED_TARGET REQUIRED wayland-server)
 
-    add_library(cogplatform-drm MODULE platform/cog-platform-drm.c platform/kms.c platform/cursor-drm.c)
+    add_library(cogplatform-drm MODULE
+        platform/drm/cog-platform-drm.c
+        platform/drm/kms.c
+        platform/drm/cursor-drm.c
+    )
     set_property(TARGET cogplatform-drm PROPERTY C_STANDARD 99)
     target_compile_definitions(cogplatform-drm PRIVATE G_LOG_DOMAIN=\"Cog-DRM\")
     target_link_libraries(cogplatform-drm PRIVATE

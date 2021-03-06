@@ -19,7 +19,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
-#include "common/egl-proc-address.h"
+#include "../common/egl-proc-address.h"
 
 
 #if !defined(EGL_EXT_platform_base)
