@@ -210,7 +210,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cogcore.pc
 # libcogplaform-fdo
 
 if (COG_PLATFORM_FDO)
-    add_library(cogplatform-fdo MODULE platform/cog-platform-fdo.c)
+    add_library(cogplatform-fdo MODULE platform/fdo/cog-platform-fdo.c)
 
     set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
 
@@ -253,8 +253,8 @@ if (COG_PLATFORM_FDO)
     # Input methods extension.
     if (COG_IM_API_SUPPORTED)
         target_sources(cogplatform-fdo PRIVATE
-            platform/cog-im-context-fdo.c
-            platform/cog-im-context-fdo-v1.c
+            platform/fdo/cog-im-context-fdo.c
+            platform/fdo/cog-im-context-fdo-v1.c
         )
         add_wayland_protocol(cogplatform-fdo CLIENT text-input-unstable-v1)
         add_wayland_protocol(cogplatform-fdo CLIENT text-input-unstable-v3)
@@ -275,8 +275,8 @@ if (COG_PLATFORM_FDO)
         pkg_check_modules(CAIRO IMPORTED_TARGET cairo)
         target_link_libraries(cogplatform-fdo PRIVATE PkgConfig::CAIRO)
         target_sources(cogplatform-fdo PRIVATE
-            platform/cog-popup-menu-fdo.c
-            platform/os-compatibility.c
+            platform/fdo/cog-popup-menu-fdo.c
+            platform/fdo/os-compatibility.c
         )
         target_compile_definitions(cogplatform-fdo PRIVATE COG_FDO_WIDGETS_SUPPORTED=1)
     else ()
