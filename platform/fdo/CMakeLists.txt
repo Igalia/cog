@@ -1,9 +1,10 @@
 # libcogplatform-fdo
 
 add_library(cogplatform-fdo MODULE cog-platform-fdo.c)
-
-set_property(TARGET cogplatform-fdo PROPERTY C_STANDARD 99)
-
+set_target_properties(cogplatform-fdo PROPERTIES
+    C_STANDARD 99
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+)
 target_compile_definitions(cogplatform-fdo PRIVATE G_LOG_DOMAIN=\"Cog-FDO\")
 
 find_package(WaylandProtocols REQUIRED)
