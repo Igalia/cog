@@ -13,7 +13,10 @@ add_library(cogplatform-drm MODULE
     kms.c
     cursor-drm.c
 )
-set_property(TARGET cogplatform-drm PROPERTY C_STANDARD 99)
+set_target_properties(cogplatform-fdo PROPERTIES
+    C_STANDARD 99
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+)
 target_compile_definitions(cogplatform-drm PRIVATE G_LOG_DOMAIN=\"Cog-DRM\")
 target_link_libraries(cogplatform-drm PRIVATE
     cogcore
