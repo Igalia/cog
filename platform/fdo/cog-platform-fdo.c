@@ -6,7 +6,7 @@
  * Distributed under terms of the MIT license.
  */
 
-#include "../core/cog.h"
+#include "../../core/cog.h"
 
 #include <errno.h>
 #include <stdbool.h>
