@@ -1,0 +1,30 @@
+---
+name: Code Style
+on: [pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Install clang-format
+        run: |
+          sudo apt update
+          sudo apt install -y clang-format
+      - name: Checkout Head
+        uses: actions/checkout@v2
+        with:
+          path: head
+      - name: Checkout Base
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+      - name: Check
+        run: |
+          diff -NaurU0 base head | head/data/check-style -d -ocode-style.diff
+      - name: Archive Diff
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: diff
+          path: code-style.diff
