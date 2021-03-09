@@ -100,16 +100,6 @@ cog_view_constructor (GType                  type,
 }
 
 static void
-cog_view_constructed (GObject *object)
-{
-    G_OBJECT_CLASS (cog_view_parent_class)->constructed (object);
-
-    webkit_web_view_load_html (WEBKIT_WEB_VIEW (object),
-                               "<!DOCTYPE html><html><body></body></html>",
-                               "about:blank");
-}
-
-static void
 cog_view_dispose (GObject *object)
 {
     CogViewPrivate *priv = cog_view_get_instance_private (COG_VIEW (object));
@@ -126,7 +116,6 @@ cog_view_class_init (CogViewClass *klass)
     object_class->get_property = cog_view_get_property;
     object_class->set_property = cog_view_set_property;
     object_class->constructor = cog_view_constructor;
-    object_class->constructed = cog_view_constructed;
     object_class->dispose = cog_view_dispose;
 
     s_properties[PROP_NAME] =
