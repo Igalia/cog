@@ -1814,9 +1814,7 @@ on_export_shm_buffer (void* data, struct wpe_fdo_shm_exported_buffer* exported_b
 
     wl_surface_attach (win_data.wl_surface, buffer->buffer, 0, 0);
     wl_surface_damage (win_data.wl_surface,
-                       0, 0,
-                       win_data.width * wl_data.current_output.scale,
-                       win_data.height * wl_data.current_output.scale);
+                       0, 0, INT32_MAX, INT32_MAX);
     request_frame ();
     wl_surface_commit (win_data.wl_surface);
 }
