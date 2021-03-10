@@ -1787,7 +1787,7 @@ shm_buffer_copy_contents (struct shm_buffer *buffer, struct wl_shm_buffer *expor
 }
 
 static void
-on_export_shm_buffer(void* data, struct wpe_fdo_shm_exported_buffer* exported_buffer)
+on_export_shm_buffer (void* data, struct wpe_fdo_shm_exported_buffer* exported_buffer)
 {
     struct wl_resource *exported_resource = wpe_fdo_shm_exported_buffer_get_resource (exported_buffer);
     struct wl_shm_buffer *exported_shm_buffer = wpe_fdo_shm_exported_buffer_get_shm_buffer (exported_buffer);
