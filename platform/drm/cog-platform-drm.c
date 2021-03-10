@@ -787,7 +787,7 @@ drm_copy_shm_buffer_into_bo (struct wl_shm_buffer *shm_buffer, struct gbm_bo *bo
             }
         }
     } else
-        memcpy(dst, src, stride * height);
+        memcpy (dst, src, stride * height);
 
     wl_shm_buffer_end_access (shm_buffer);
     gbm_bo_unmap (bo, map_data);
