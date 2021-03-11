@@ -20,12 +20,13 @@ install(TARGETS cogplatform-headless
 
 add_library(WPEBackend-headless MODULE headless-backend.cpp)
 set_target_properties(WPEBackend-headless PROPERTIES
-    C_STANDARD 99
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+    C_VISIBILITY_PRESET hidden
+    CXX_VISIBILITY_PRESET hidden
 )
 
+pkg_check_modules(Wpe IMPORTED_TARGET REQUIRED wpe-1.0)
 target_link_libraries(WPEBackend-headless PRIVATE
-    PkgConfig::Glib
     PkgConfig::Wpe
 )
 

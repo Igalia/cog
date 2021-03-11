@@ -6,9 +6,9 @@
  */
 
 #include <EGL/eglplatform.h>
-#include <glib.h>
 #include <wpe/wpe-egl.h>
 #include <wpe/wpe.h>
+#include <string.h>
 
 extern "C" {
 
@@ -69,13 +69,11 @@ struct wpe_renderer_backend_egl_target_interface
           },
       };
 
-__attribute__((visibility(
-    "default"))) struct wpe_loader_interface _wpe_loader_interface
+struct wpe_loader_interface _wpe_loader_interface
     = {
           [](const char* object_name) -> void* {
               if (!strcmp(object_name, "_wpe_renderer_host_interface"))
                   return &cog_headless_renderer_host;
-
               if (!strcmp(object_name, "_wpe_renderer_backend_egl_interface"))
                   return &cog_headless_renderer_backend_egl;
               if (!strcmp(object_name, "_wpe_renderer_backend_egl_target_interface"))

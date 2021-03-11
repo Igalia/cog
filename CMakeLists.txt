@@ -14,7 +14,7 @@ set_project_version(0 7 1)
 # - If the interface is the same as the previous version, change to C:R+1:A
 calculate_library_versions_from_libtool_triple(COGCORE 4 0 3)
 
-project(cog VERSION "${PROJECT_VERSION}" LANGUAGES C)
+project(cog VERSION "${PROJECT_VERSION}")
 include(DistTargets)
 include(GNUInstallDirs)
 

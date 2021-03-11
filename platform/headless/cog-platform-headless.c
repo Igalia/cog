@@ -19,27 +19,45 @@ static struct platform_window win = {
     .view_backend = NULL, .frame_complete = FALSE
 };
 
+static void*
+create_backend(void* backend, struct wpe_view_backend* view_backend)
+{
+    return NULL;
+}
+
+static void
+destroy_backend(void* backend)
+{
+    
+}
+
+static void
+init_backend(void* backend)
+{
+    
+}
+
+static int
+get_renderer_host_fd(void* backend)
+{
+    return -1;
+}
+
 static void setup_fdo_exportable(struct platform_window* window)
 {
     static struct wpe_view_backend_interface s_backend_interface = {
-        // create
-        [](void*, struct wpe_view_backend*) -> void* { return nullptr; },
-        // destroy
-        [](void*) {},
-        // initialize
-        [](void*) {},
-        // get_renderer_host_fd
-        [](void*) -> int { return -1; },
-        // padding
-        nullptr, nullptr, nullptr, nullptr
+        .create = create_backend,
+        .destroy = destroy_backend,
+        .initialize = init_backend,
+        .get_renderer_host_fd = get_renderer_host_fd
     };
 
     wpe_loader_init("libWPEBackend-headless.so");
     window->view_backend = webkit_web_view_backend_new(
-        wpe_view_backend_create_with_backend_interface(&s_backend_interface,
-            nullptr),
+        wpe_view_backend_create_with_backend_interface(&s_backend_interface, NULL),
         NULL, NULL);
 
+    g_printerr("yo\n");
     g_assert_nonnull(window->view_backend);
 }
 
