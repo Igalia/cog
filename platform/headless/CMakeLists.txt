@@ -16,3 +16,21 @@ install(TARGETS cogplatform-headless
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
     COMPONENT "runtime"
 )
+
+
+add_library(WPEBackend-headless MODULE headless-backend.cpp)
+set_target_properties(WPEBackend-headless PROPERTIES
+    C_STANDARD 99
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
+target_link_libraries(WPEBackend-headless PRIVATE
+    PkgConfig::Glib
+    PkgConfig::Wpe
+)
+
+install(TARGETS WPEBackend-headless
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    COMPONENT "runtime"
+)
+
