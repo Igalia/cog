@@ -44,12 +44,6 @@ typedef void (GL_APIENTRYP PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC) (GLenu
 #define DEFAULT_WIDTH  1024
 #define DEFAULT_HEIGHT  768
 
-#if defined(WPE_CHECK_VERSION)
-# define HAVE_2D_AXIS_EVENT WPE_CHECK_VERSION(1, 5, 0) && WEBKIT_CHECK_VERSION(2, 27, 4)
-#else
-# define HAVE_2D_AXIS_EVENT 0
-#endif /* WPE_CHECK_VERSION */
-
 
 struct CogX11Display {
     Display *display;
@@ -249,7 +243,6 @@ xcb_handle_key_release (xcb_key_press_event_t *event)
 static void
 xcb_handle_axis (xcb_button_press_event_t *event, const int16_t axis_delta[2])
 {
-#if HAVE_2D_AXIS_EVENT
     struct wpe_input_axis_2d_event input_event = {
         .base = {
             .type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion_smooth,
@@ -262,26 +255,6 @@ xcb_handle_axis (xcb_button_press_event_t *event, const int16_t axis_delta[2])
     };
 
     wpe_view_backend_dispatch_axis_event (s_window->wpe.backend, &input_event.base);
-#else
-    assert (axis_delta[0] ^ axis_delta[1]);
-
-    struct wpe_input_axis_event input_event = {
-        .type = wpe_input_axis_event_type_motion,
-        .time = event->time,
-        .x = s_display->xcb.pointer.x,
-        .y = s_display->xcb.pointer.y,
-    };
-
-    if (!!axis_delta[0]) {
-        input_event.axis = 1;
-        input_event.value = axis_delta[0];
-    } else {
-        input_event.axis = 0;
-        input_event.value = axis_delta[1];
-    }
-
-    wpe_view_backend_dispatch_axis_event (s_window->wpe.backend, &input_event);
-#endif
 }
 
 static void

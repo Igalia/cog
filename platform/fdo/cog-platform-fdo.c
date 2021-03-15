@@ -36,20 +36,16 @@
 #include "../common/egl-proc-address.h"
 #include "os-compatibility.h"
 
-#include "xdg-shell-client.h"
-#include "fullscreen-shell-unstable-v1-client.h"
-#include "presentation-time-client.h"
-
-#if COG_IM_API_SUPPORTED
 #include "cog-im-context-fdo.h"
 #include "cog-im-context-fdo-v1.h"
-#include "text-input-unstable-v1-client.h"
-#include "text-input-unstable-v3-client.h"
-#endif
-
 #include "cog-popup-menu-fdo.h"
 
+#include "fullscreen-shell-unstable-v1-client.h"
 #include "linux-dmabuf-unstable-v1-client.h"
+#include "presentation-time-client.h"
+#include "text-input-unstable-v1-client.h"
+#include "text-input-unstable-v3-client.h"
+#include "xdg-shell-client.h"
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
 #include <drm_fourcc.h>
@@ -66,14 +62,6 @@
 #define DEFAULT_HEIGHT  768
 
 #define DEFAULT_ZOOM_STEP 0.1f
-
-#if defined(WPE_CHECK_VERSION)
-# define HAVE_DEVICE_SCALING WPE_CHECK_VERSION(1, 3, 0)
-# define HAVE_2D_AXIS_EVENT WPE_CHECK_VERSION(1, 5, 0) && WEBKIT_CHECK_VERSION(2, 27, 4)
-#else
-# define HAVE_DEVICE_SCALING 0
-# define HAVE_2D_AXIS_EVENT 0
-#endif /* WPE_CHECK_VERSION */
 
 #if defined(WPE_FDO_CHECK_VERSION)
 # define HAVE_SHM_EXPORTED_BUFFER WPE_FDO_CHECK_VERSION(1, 9, 0)
@@ -166,10 +154,8 @@ static struct {
 
     struct output_metrics metrics[16];
 
-#if COG_IM_API_SUPPORTED
     struct zwp_text_input_manager_v3 *text_input_manager;
     struct zwp_text_input_manager_v1 *text_input_manager_v1;
-#endif
 
     struct wp_presentation *presentation;
 
@@ -652,7 +638,6 @@ static const struct wl_output_listener output_listener = {
 static void
 surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *output)
 {
-#if HAVE_DEVICE_SCALING
     int32_t scale_factor = -1;
 
     for (int i=0; i < G_N_ELEMENTS (wl_data.metrics); i++)
@@ -669,7 +654,6 @@ surface_handle_enter (void *data, struct wl_surface *surface, struct wl_output *
     wl_surface_set_buffer_scale (surface, scale_factor);
     wpe_view_backend_dispatch_set_device_scale_factor (wpe_view_data.backend, scale_factor);
     wl_data.current_output.scale = scale_factor;
-#endif /* HAVE_DEVICE_SCALING */
 }
 
 static const struct wl_surface_listener surface_listener = {
@@ -761,7 +745,6 @@ registry_global (void               *data,
         if (!inserted) {
             g_warning ("Exceeded %" G_GSIZE_FORMAT " connected outputs(!)", G_N_ELEMENTS (wl_data.metrics));
         }
-#if COG_IM_API_SUPPORTED
     } else if (strcmp (interface, zwp_text_input_manager_v3_interface.name) == 0) {
         wl_data.text_input_manager = wl_registry_bind (registry,
                                                        name,
@@ -772,7 +755,6 @@ registry_global (void               *data,
                                                           name,
                                                           &zwp_text_input_manager_v1_interface,
                                                           version);
-#endif
 #ifdef COG_USE_WAYLAND_CURSOR
     } else if (strcmp (interface, wl_shm_interface.name) == 0) {
         wl_data.wl_shm = wl_registry_bind (registry,
@@ -915,7 +897,6 @@ dispatch_axis_event ()
     if (!wl_data.axis.has_delta)
         return;
 
-#if HAVE_2D_AXIS_EVENT
     struct wpe_input_axis_2d_event event = { 0, };
     event.base.type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion_smooth;
     event.base.time = wl_data.axis.time;
@@ -926,29 +907,6 @@ dispatch_axis_event ()
     event.y_axis = -wl_fixed_to_double(wl_data.axis.y_delta) * wl_data.current_output.scale;
 
     wpe_view_backend_dispatch_axis_event (wpe_view_data.backend, &event.base);
-#else
-    struct wpe_input_axis_event event = {
-        wpe_input_axis_event_type_motion,
-        wl_data.axis.time,
-        wl_data.pointer.x * wl_data.current_output.scale,
-        wl_data.pointer.y * wl_data.current_output.scale,
-        0, 0, 0,
-    };
-
-    if (wl_data.axis.x_delta) {
-        event.axis = WL_POINTER_AXIS_HORIZONTAL_SCROLL;
-        event.value = wl_fixed_to_int (wl_data.axis.x_delta) > 0 ? 1 : -1;
-
-        wpe_view_backend_dispatch_axis_event (wpe_view_data.backend, &event);
-    }
-
-    if (wl_data.axis.y_delta) {
-        event.axis = WL_POINTER_AXIS_VERTICAL_SCROLL;
-        event.value = wl_fixed_to_int (wl_data.axis.y_delta) > 0 ? -1 : 1;
-
-        wpe_view_backend_dispatch_axis_event (wpe_view_data.backend, &event);
-    }
-#endif
 
     wl_data.axis.has_delta = false;
     wl_data.axis.time = 0;
@@ -2316,7 +2274,6 @@ init_input (GError **error)
                                        XKB_COMPOSE_STATE_NO_FLAGS);
         }
 
-#if COG_IM_API_SUPPORTED
         if (wl_data.text_input_manager != NULL) {
             struct zwp_text_input_v3 *text_input =
                 zwp_text_input_manager_v3_get_text_input (wl_data.text_input_manager,
@@ -2329,7 +2286,6 @@ init_input (GError **error)
                                                   wl_data.seat,
                                                   win_data.wl_surface);
         }
-#endif
     }
 
     return TRUE;
@@ -2342,12 +2298,10 @@ clear_input (void)
     g_clear_pointer (&wl_data.keyboard.obj, wl_keyboard_destroy);
     g_clear_pointer (&wl_data.seat, wl_seat_destroy);
 
-#if COG_IM_API_SUPPORTED
     cog_im_context_fdo_set_text_input (NULL);
     g_clear_pointer (&wl_data.text_input_manager, zwp_text_input_manager_v3_destroy);
     cog_im_context_fdo_v1_set_text_input (NULL, NULL, NULL);
     g_clear_pointer (&wl_data.text_input_manager_v1, zwp_text_input_manager_v1_destroy);
-#endif
 
     g_clear_pointer (&xkb_data.state, xkb_state_unref);
     g_clear_pointer (&xkb_data.compose_state, xkb_compose_state_unref);
@@ -2476,10 +2430,8 @@ cog_platform_plugin_get_view_backend (CogPlatform   *platform,
         wpe_view_backend_exportable_fdo_get_view_backend (wpe_host_data.exportable);
     g_assert (wpe_view_data.backend);
 
-#if COG_IM_API_SUPPORTED
     if (wl_data.text_input_manager_v1 != NULL)
         cog_im_context_fdo_v1_set_view_backend (wpe_view_data.backend);
-#endif
 
     WebKitWebViewBackend *wk_view_backend =
         webkit_web_view_backend_new (wpe_view_data.backend,
@@ -2512,7 +2464,6 @@ cog_platform_plugin_init_web_view (CogPlatform   *platform,
     g_signal_connect (view, "show-option-menu", G_CALLBACK (on_show_option_menu), NULL);
 }
 
-#if COG_IM_API_SUPPORTED
 WebKitInputMethodContext*
 cog_platform_plugin_create_im_context (CogPlatform *platform)
 {
@@ -2522,4 +2473,3 @@ cog_platform_plugin_create_im_context (CogPlatform *platform)
         return cog_im_context_fdo_v1_new ();
     return NULL;
 }
-#endif

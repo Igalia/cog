@@ -127,12 +127,10 @@ cog_platform_init_web_view (CogPlatform   *platform,
 WebKitInputMethodContext*
 cog_platform_create_im_context (CogPlatform *platform)
 {
-#if COG_IM_API_SUPPORTED
     g_return_val_if_fail (platform != NULL, NULL);
 
     if (platform->create_im_context)
         return platform->create_im_context (platform);
-#endif
 
     return NULL;
 }
