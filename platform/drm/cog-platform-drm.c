@@ -36,6 +36,12 @@ typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platf
 # define HAVE_DEVICE_SCALING 0
 #endif
 
+#if defined(WPE_FDO_CHECK_VERSION)
+# define HAVE_SHM_EXPORTED_BUFFER WPE_FDO_CHECK_VERSION(1, 9, 0)
+#else
+# define HAVE_SHM_EXPORTED_BUFFER 0
+#endif
+
 #define KEY_STARTUP_DELAY 500000
 #define KEY_REPEAT_DELAY 100000
 
@@ -230,11 +236,13 @@ destroy_buffer (struct buffer_object *buffer)
                                                                  buffer->export.resource);
         buffer->export.resource = NULL;
     }
+#if HAVE_SHM_EXPORTED_BUFFER
     if (buffer->export.shm_buffer) {
         wpe_view_backend_exportable_fdo_dispatch_release_shm_exported_buffer (wpe_host_data.exportable,
                                                                               buffer->export.shm_buffer);
         buffer->export.shm_buffer = NULL;
     }
+#endif
     g_free (buffer);
 }
 
@@ -630,11 +638,13 @@ drm_page_flip_handler (int fd, unsigned int frame, unsigned int sec, unsigned in
                                                                      buffer->export.resource);
             buffer->export.resource = NULL;
         }
+#if HAVE_SHM_EXPORTED_BUFFER
         if (buffer->export.shm_buffer) {
             wpe_view_backend_exportable_fdo_dispatch_release_shm_exported_buffer (wpe_host_data.exportable,
                                                                                   buffer->export.shm_buffer);
             buffer->export.shm_buffer = NULL;
         }
+#endif
     }
     drm_data.committed_buffer = (struct buffer_object *) data;
 
@@ -708,6 +718,7 @@ drm_create_buffer_for_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource
     return buffer;
 }
 
+#if HAVE_SHM_EXPORTED_BUFFER
 static struct buffer_object *
 drm_create_buffer_for_shm_buffer (struct wl_resource *buffer_resource, struct wl_shm_buffer *shm_buffer)
 {
@@ -792,6 +803,7 @@ drm_copy_shm_buffer_into_bo (struct wl_shm_buffer *shm_buffer, struct gbm_bo *bo
     wl_shm_buffer_end_access (shm_buffer);
     gbm_bo_unmap (bo, map_data);
 }
+#endif
 
 static int
 add_property (drmModeObjectProperties *props, drmModePropertyRes **props_info, drmModeAtomicReq *req, uint32_t obj_id, const char *name, uint64_t value)
@@ -1462,6 +1474,7 @@ on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dm
     }
 }
 
+#if HAVE_SHM_EXPORTED_BUFFER
 static void
 on_export_shm_buffer (void* data, struct wpe_fdo_shm_exported_buffer *exported_buffer)
 {
@@ -1485,6 +1498,7 @@ on_export_shm_buffer (void* data, struct wpe_fdo_shm_exported_buffer *exported_b
         drm_commit_buffer (buffer);
     }
 }
+#endif
 
 gboolean
 cog_platform_plugin_setup (CogPlatform *platform,
@@ -1579,7 +1593,9 @@ cog_platform_plugin_get_view_backend (CogPlatform   *platform,
     static struct wpe_view_backend_exportable_fdo_client exportable_client = {
         .export_buffer_resource = on_export_buffer_resource,
         .export_dmabuf_resource = on_export_dmabuf_resource,
+#if HAVE_SHM_EXPORTED_BUFFER
         .export_shm_buffer = on_export_shm_buffer,
+#endif
     };
 
     wpe_host_data.exportable = wpe_view_backend_exportable_fdo_create (&exportable_client,
