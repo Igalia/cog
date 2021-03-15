@@ -13,12 +13,7 @@ add_wayland_protocol(cogplatform-fdo CLIENT fullscreen-shell-unstable-v1)
 add_wayland_protocol(cogplatform-fdo CLIENT presentation-time)
 add_wayland_protocol(cogplatform-fdo CLIENT linux-dmabuf-unstable-v1)
 
-set(WAYLAND_1_10_OR_GREATER OFF)
 pkg_check_modules(WAYLAND IMPORTED_TARGET REQUIRED wayland-client)
-if (NOT (WAYLAND_VERSION VERSION_LESS 1.10))
-    set(WAYLAND_1_10_OR_GREATER ON)
-endif ()
-
 pkg_check_modules(WpeFDO IMPORTED_TARGET REQUIRED wpebackend-fdo-1.0>=1.3.1)
 pkg_check_modules(EGL IMPORTED_TARGET REQUIRED egl)
 pkg_check_modules(XkbCommon IMPORTED_TARGET REQUIRED xkbcommon)

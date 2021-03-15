@@ -81,6 +81,13 @@
 # define HAVE_SHM_EXPORTED_BUFFER 0
 #endif
 
+#if defined(WAYLAND_VERSION_MAJOR) && defined(WAYLAND_VERSION_MINOR)
+# define WAYLAND_1_10_OR_GREATER ((WAYLAND_VERSION_MAJOR >= 2) || \
+                                  (WAYLAND_VERSION_MAJOR == 1 && WAYLAND_VERSION_MINOR >= 10))
+#else
+# define WAYLAND_1_10_OR_GREATER 0
+#endif
+
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
 #define VIDEO_BUFFER_FORMAT DRM_FORMAT_YUYV
 struct video_buffer {
