@@ -463,7 +463,7 @@ init_gbm (void)
         return FALSE;
 
     gbm_data.surface = gbm_surface_create (gbm_data.device, drm_data.width, drm_data.height,
-                                           GBM_FORMAT_XRGB8888, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+                                           GBM_FORMAT_RGB565, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
     if (!gbm_data.surface)
         return FALSE;
     return TRUE;
@@ -539,7 +539,7 @@ init_egl (void)
             if (!eglGetConfigAttrib (egl_data.display, configs[i], EGL_NATIVE_VISUAL_ID, &id))
                 continue;
 
-            if (id == GBM_FORMAT_XRGB8888) {
+            if (id == GBM_FORMAT_RGB565) {
                 egl_data.config = configs[i];
                 break;
             }
