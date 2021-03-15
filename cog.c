@@ -12,12 +12,6 @@
 #include <string.h>
 #include "core/cog.h"
 
-#if defined(WPE_CHECK_VERSION) && WPE_CHECK_VERSION(1, 3, 0)
-# define HAVE_DEVICE_SCALING 1
-#else
-# define HAVE_DEVICE_SCALING 0
-#endif /* WPE_CHECK_VERSION */
-
 enum webprocess_fail_action {
     WEBPROCESS_FAIL_UNKNOWN = 0,
     WEBPROCESS_FAIL_ERROR_PAGE,
@@ -34,9 +28,7 @@ static struct {
     gboolean print_appid;
     gboolean doc_viewer;
     gdouble  scale_factor;
-#if HAVE_DEVICE_SCALING
     gdouble  device_scale_factor;
-#endif // HAVE_DEVICE_SCALING
     GStrv    dir_handlers;
     GStrv    arguments;
     char    *background_color;
@@ -52,9 +44,7 @@ static struct {
     gboolean ignore_tls_errors;
 } s_options = {
     .scale_factor = 1.0,
-#if HAVE_DEVICE_SCALING
     .device_scale_factor = 1.0,
-#endif // HAVE_DEVICE_SCALING
 };
 
 
@@ -69,11 +59,9 @@ static GOptionEntry s_cli_options[] =
     { "scale", '\0', 0, G_OPTION_ARG_DOUBLE, &s_options.scale_factor,
         "Zoom/Scaling factor applied to Web content (default: 1.0, no scaling)",
         "FACTOR" },
-#if HAVE_DEVICE_SCALING
     { "device-scale", '\0', 0, G_OPTION_ARG_DOUBLE, &s_options.device_scale_factor,
         "Output device scaling factor (default: 1.0, no scaling, 96 DPI)",
         "FACTOR" },
-#endif // HAVE_DEVICE_SCALING
     { "doc-viewer", '\0', 0, G_OPTION_ARG_NONE, &s_options.doc_viewer,
         "Document viewer mode: optimizes for local loading of Web content. "
         "This reduces memory usage at the cost of reducing caching of "
@@ -395,11 +383,8 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
 
     if (s_options.platform) {
         cog_platform_init_web_view (s_options.platform, web_view);
-
-#if COG_IM_API_SUPPORTED
         g_autoptr(WebKitInputMethodContext) im_context = cog_platform_create_im_context (s_options.platform);
         webkit_web_view_set_input_method_context (web_view, im_context);
-#endif
     }
 
     if (s_options.background_color != NULL) {

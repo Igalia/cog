@@ -1,6 +1,12 @@
 # libcogplatform-fdo
 
-add_library(cogplatform-fdo MODULE cog-platform-fdo.c)
+add_library(cogplatform-fdo MODULE
+    cog-im-context-fdo-v1.c
+    cog-im-context-fdo.c
+    cog-platform-fdo.c
+    cog-popup-menu-fdo.c
+    os-compatibility.c
+)
 set_target_properties(cogplatform-fdo PROPERTIES
     C_STANDARD 99
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
@@ -8,21 +14,25 @@ set_target_properties(cogplatform-fdo PROPERTIES
 target_compile_definitions(cogplatform-fdo PRIVATE G_LOG_DOMAIN=\"Cog-FDO\")
 
 find_package(WaylandProtocols REQUIRED)
-add_wayland_protocol(cogplatform-fdo CLIENT xdg-shell)
 add_wayland_protocol(cogplatform-fdo CLIENT fullscreen-shell-unstable-v1)
-add_wayland_protocol(cogplatform-fdo CLIENT presentation-time)
 add_wayland_protocol(cogplatform-fdo CLIENT linux-dmabuf-unstable-v1)
+add_wayland_protocol(cogplatform-fdo CLIENT presentation-time)
+add_wayland_protocol(cogplatform-fdo CLIENT text-input-unstable-v1)
+add_wayland_protocol(cogplatform-fdo CLIENT text-input-unstable-v3)
+add_wayland_protocol(cogplatform-fdo CLIENT xdg-shell)
 
-pkg_check_modules(WAYLAND IMPORTED_TARGET REQUIRED wayland-client)
-pkg_check_modules(WpeFDO IMPORTED_TARGET REQUIRED wpebackend-fdo-1.0>=1.3.1)
+pkg_check_modules(Cairo IMPORTED_TARGET cairo)
 pkg_check_modules(EGL IMPORTED_TARGET REQUIRED egl)
+pkg_check_modules(WAYLAND IMPORTED_TARGET REQUIRED wayland-client)
+pkg_check_modules(WpeFDO IMPORTED_TARGET REQUIRED wpebackend-fdo-1.0>=1.6.0)
 pkg_check_modules(XkbCommon IMPORTED_TARGET REQUIRED xkbcommon)
 
 target_link_libraries(cogplatform-fdo PRIVATE
     cogcore
+    PkgConfig::Cairo
     PkgConfig::EGL
     PkgConfig::WAYLAND
-    PkgConfig::WEB_ENGINE
+    PkgConfig::WebKit
     PkgConfig::WpeFDO
 )
 
@@ -35,39 +45,6 @@ install(TARGETS cogplatform-fdo
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
     COMPONENT "runtime"
 )
-
-# Input methods extension.
-if (COG_IM_API_SUPPORTED)
-    target_sources(cogplatform-fdo PRIVATE
-        cog-im-context-fdo.c
-        cog-im-context-fdo-v1.c
-    )
-    add_wayland_protocol(cogplatform-fdo CLIENT text-input-unstable-v1)
-    add_wayland_protocol(cogplatform-fdo CLIENT text-input-unstable-v3)
-    target_compile_options(cogcore PRIVATE -DCOG_IM_API_SUPPORTED=1)
-    if (COG_BUILD_PROGRAMS)
-        target_compile_options(cog PRIVATE -DCOG_IM_API_SUPPORTED=1)
-    endif ()
-    target_compile_definitions(cogplatform-fdo PRIVATE COG_IM_API_SUPPORTED=1)
-else ()
-    target_compile_options(cogcore PRIVATE -DCOG_IM_API_SUPPORTED=0)
-    if (COG_BUILD_PROGRAMS)
-        target_compile_options(cog PRIVATE -DCOG_IM_API_SUPPORTED=0)
-    endif ()
-    target_compile_definitions(cogplatform-fdo PRIVATE COG_IM_API_SUPPORTED=0)
-endif ()
-
-if (COG_FDO_WIDGETS_SUPPORTED)
-    pkg_check_modules(CAIRO IMPORTED_TARGET cairo)
-    target_link_libraries(cogplatform-fdo PRIVATE PkgConfig::CAIRO)
-    target_sources(cogplatform-fdo PRIVATE
-        cog-popup-menu-fdo.c
-        os-compatibility.c
-    )
-    target_compile_definitions(cogplatform-fdo PRIVATE COG_FDO_WIDGETS_SUPPORTED=1)
-else ()
-    target_compile_definitions(cogplatform-fdo PRIVATE COG_FDO_WIDGETS_SUPPORTED=0)
-endif ()
 
 if (COG_WESTON_DIRECT_DISPLAY)
 

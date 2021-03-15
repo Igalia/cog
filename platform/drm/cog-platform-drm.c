@@ -30,12 +30,6 @@ typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platf
 #define EGL_PLATFORM_GBM_KHR 0x31D7
 #endif
 
-#if defined(WPE_CHECK_VERSION)
-# define HAVE_DEVICE_SCALING WPE_CHECK_VERSION(1, 3, 0)
-#else
-# define HAVE_DEVICE_SCALING 0
-#endif
-
 #if defined(WPE_FDO_CHECK_VERSION)
 # define HAVE_SHM_EXPORTED_BUFFER WPE_FDO_CHECK_VERSION(1, 9, 0)
 #else
@@ -1620,8 +1614,6 @@ void
 cog_platform_plugin_init_web_view (CogPlatform   *platform,
                                    WebKitWebView *view)
 {
-#ifdef HAVE_DEVICE_SCALING
     wpe_view_backend_dispatch_set_device_scale_factor (wpe_view_data.backend,
                                                        drm_data.device_scale);
-#endif
 }

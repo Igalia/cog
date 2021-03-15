@@ -115,29 +115,10 @@ set(COGCORE_SOURCES
 
 pkg_check_modules(GIO IMPORTED_TARGET REQUIRED gio-2.0>=2.44)
 pkg_check_modules(SOUP IMPORTED_TARGET REQUIRED libsoup-2.4)
-
-# There is no need to explicitly check wpe-1.0 here because it's a
-# dependency already specified in the wpe-webkit.pc file.
-pkg_check_modules(WEB_ENGINE IMPORTED_TARGET REQUIRED wpe-webkit-1.0>=2.23.91)
-if ("${WEB_ENGINE_VERSION}" VERSION_GREATER "2.23")
-    add_definitions(-DCOG_BG_COLOR_API_SUPPORTED=1)
-else ()
-    add_definitions(-DCOG_BG_COLOR_API_SUPPORTED=0)
-endif ()
-if ("${WEB_ENGINE_VERSION}" VERSION_GREATER "2.27.3")
-    set(COG_IM_API_SUPPORTED ON)
-else ()
-    set(COG_IM_API_SUPPORTED OFF)
-endif ()
-if (COG_PLATFORM_FDO AND "${WEB_ENGINE_VERSION}" VERSION_GREATER "2.27.3")
-    set(COG_FDO_WIDGETS_SUPPORTED ON)
-else ()
-    set(COG_FDO_WIDGETS_SUPPORTED OFF)
-endif ()
+pkg_check_modules(WebKit IMPORTED_TARGET REQUIRED wpe-webkit-1.0>=2.28.0 wpe-1.0>=1.6.0)
 
 include(CheckCCompilerFlag)
 check_c_compiler_flag(-Wall HAS_WALL)
-
 
 if (COG_DBUS_SYSTEM_BUS)
     # Generate and install D-Bus policy configuration file.
@@ -159,7 +140,7 @@ set_target_properties(cogcore PROPERTIES
     VERSION ${COGCORE_VERSION}
     SOVERSION ${COGCORE_VERSION_MAJOR}
 )
-target_link_libraries(cogcore PkgConfig::WEB_ENGINE PkgConfig::SOUP)
+target_link_libraries(cogcore PkgConfig::WebKit PkgConfig::SOUP)
 target_compile_definitions(cogcore PRIVATE G_LOG_DOMAIN=\"Cog-Core\")
 if (HAS_WALL)
     target_compile_options(cogcore PUBLIC -Wall)
