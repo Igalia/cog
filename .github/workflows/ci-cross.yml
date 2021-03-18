@@ -1,5 +1,5 @@
 ---
-name: CI
+name: "Build - ARM"
 on: [push]
 
 jobs:
@@ -15,12 +15,12 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y cmake ninja-build
-      - name: Toolchain Cache
+      - name: Cache
         uses: actions/cache@v2
         id: cache
         with:
           path: ~/toolchain
-          key: tc-${{ runner.os }}-${{ hashFiles('.github/toolchain.sh') }}
+          key: arm-${{ runner.os }}-${{ hashFiles('.github/toolchain.sh') }}
           restore-keys: tc-${{ runner.os }}-
       - name: Install Toolchain
         run: |-
