@@ -1,0 +1,78 @@
+---
+name: "Build - Native"
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/pip
+            ~/libwpe
+          key: native-${{ runner.os }}-${{ hashFiles('.github/workflows/ci-native.yml') }}
+          restore-keys: native-${{ runner.os }}-
+      - name: Install Debian Packages
+        run: |
+          sudo apt update
+          sudo apt install -y cmake ninja-build gobject-introspection \
+            libwpewebkit-1.0-dev libgles2-mesa-dev  libwpe-1.0-dev \
+            libgirepository1.0-dev gir1.2-glib-2.0 gir1.2-soup-2.4 \
+            libwayland-bin libwayland-dev wayland-protocols libepoxy-dev \
+            libdrm-dev libinput-dev libudev-dev libgbm-dev \
+            libxkbcommon-x11-dev libx11-xcb-dev
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Install Python Packages
+        run: |
+          pip install --upgrade pip gi-docgen==2021.2 meson==0.49
+          printf '#! /bin/sh\nexec python -m gidocgen.gidocmain "$@"\n' \
+            > "$(which gi-docgen)"
+      - name: Fetch WPEBackend-fdo
+        run: |
+          if [[ -d ~/WPEBackend-fdo/.git ]] ; then
+            echo 'Updating WPEBackend-fdo clone...'
+            cd ~/WPEBackend-fdo/
+            git reset --hard
+            git clean -qxdff
+            git checkout -f master
+            git pull -q
+          else
+            echo 'Cloning WPEBackend-fdo afresh...'
+            rm -rf ~/WPEBackend-fdo/
+            git clone -q https://github.com/Igalia/WPEBackend-fdo ~/WPEBackend-fdo
+          fi
+      - name: Build and Install WPEBackend-fdo
+        env:
+          TERM: dumb
+        run: |
+          meson --prefix ~/prefix --libdir ~/prefix/lib \
+            ~/WPEBackend-fdo-build ~/WPEBackend-fdo
+          ninja -C ~/WPEBackend-fdo-build install
+      - name: Configure
+        run: |
+          export PKG_CONFIG_PATH=${HOME}/prefix/lib/pkgconfig/
+          mkdir ~/build/ && cd "$_"
+          cmake "${GITHUB_WORKSPACE}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCOG_PLATFORM_FDO=ON \
+            -DCOG_PLATFORM_DRM=ON \
+            -DCOG_PLATFORM_X11=ON \
+            -DBUILD_DOCS=ON \
+            -GNinja
+      - name: Build
+        env:
+          TERM: dumb
+        run:
+          ninja -C ~/build/
+      - name: Archive Documentation
+        uses: actions/upload-artifact@v2
+        with:
+          name: docs
+          path: ~/build/docs/html
