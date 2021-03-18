@@ -60,6 +60,7 @@ option(COG_PLATFORM_X11 "Build the DRM platform module" OFF)
 option(COG_BUILD_PROGRAMS "Build and install programs as well" ON)
 option(INSTALL_MAN_PAGES "Install the man(1) pages if COG_BUILD_PROGRAMS is enabled" ON)
 option(COG_WESTON_DIRECT_DISPLAY "Build direct display support for the FDO platform module" OFF)
+option(BUILD_DOCS "Build the documentation" OFF)
 
 set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
@@ -150,7 +151,7 @@ if (COG_DBUS_SYSTEM_BUS)
     add_definitions(-DCOG_DBUS_OWN_USER=\"${COG_DBUS_OWN_USER}\")
 endif ()
 
-add_library(cogcore SHARED ${COGCORE_SOURCES})
+add_library(cogcore SHARED ${COGCORE_SOURCES} ${COGCORE_API_HEADERS})
 set_target_properties(cogcore PROPERTIES
     C_STANDARD 99
     VERSION ${COGCORE_VERSION}
@@ -201,11 +202,16 @@ install(FILES ${COGCORE_API_HEADERS}
     COMPONENT "development"
 )
 
+configure_file(core/cog-config.h.in cog-config.h @ONLY)
 configure_file(core/cogcore.pc.in cogcore.pc @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cogcore.pc
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
     COMPONENT "development"
 )
+
+if (BUILD_DOCS)
+    add_subdirectory(docs)
+endif ()
 
 add_subdirectory(platform/headless)
 if (COG_PLATFORM_FDO)
@@ -217,5 +223,3 @@ endif ()
 if (COG_PLATFORM_X11)
     add_subdirectory(platform/x11)
 endif ()
-
-configure_file(core/cog-config.h.in cog-config.h @ONLY)
