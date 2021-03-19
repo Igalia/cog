@@ -1,0 +1,239 @@
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Cog.PrefixRoutesHandler.mount</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta charset="utf-8" />
+
+  <meta property="og:site_name" content=""/>
+  <meta property="og:title" content=""/>
+  <meta property="og:url" content=""/>
+  <meta property="og:type" content="website"/>
+
+  
+
+  
+  <meta name="og:title" content="Cog.PrefixRoutesHandler.mount"/>
+  <meta name="og:description" content="Reference for Cog.PrefixRoutesHandler.mount"/>
+
+
+  <meta name="twitter:title" content=""/>
+  <meta name="twitter:url" content=""/>
+  <meta name="twitter:card" content="summary"/>
+
+  <link rel="canonical" href=""/>
+
+  <link rel="stylesheet" href="style.css" type="text/css" />
+
+  
+
+  
+  <script src="main.js"></script>
+  <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+</head>
+
+<body>
+  <div id="body-wrapper" tabindex="-1">
+
+    <nav class="sidebar">
+      
+      
+      <div class="search section">
+        <form id="search-form" method="GET">
+          <input class="search-input" type="text" name="q" placeholder="Search docs"/>
+        </form>
+      </div>
+      
+      <div class="section namespace">
+        <h3><a href="index.html">Cog</a></h3>
+        <p>API Version: 0.0</p>
+        
+        <p>Library Version: 0.9.1</p>
+        
+      </div>
+      
+<div class="section">
+  <h5>Type</h5>
+  <div class="links">
+    <a href="class.PrefixRoutesHandler.html">PrefixRoutesHandler</a>
+  </div>
+</div>
+<div class="section">
+  <h5>Methods</h5>
+  <div class="links">
+  
+    <a class="method current" href="method.PrefixRoutesHandler.mount.html">mount</a>
+  
+    <a class="method" href="method.PrefixRoutesHandler.mount_path.html">mount_path</a>
+  
+    <a class="method" href="method.PrefixRoutesHandler.unmount.html">unmount</a>
+  
+  </div>
+</div>
+
+    </nav>
+
+    
+    <button id="btn-to-top" class="hidden"><span class="up-arrow"></span></button>
+    
+
+    
+<section id="main" class="content">
+  <header>
+    <h3>Method</h3>
+    <h1><a href="index.html">Cog</a>.<a href="class.PrefixRoutesHandler.html">PrefixRoutesHandler</a>.mount</h1>
+  </header>
+
+  <section>
+    <div class="declaration toggle-wrapper">
+      <h4 style="display:flex;" id="declaration">
+        Declaration
+        <a class="anchor" href="#declaration"></a>
+        
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-prefix-routes-handler.h#L31">[src]</a>
+        
+      </h4>
+
+      <div class="docblock c-decl">
+        <pre><code><div class="highlight"><pre><span></span><span class="n">gboolean</span>
+<span class="n">cog_prefix_routes_handler_mount</span> <span class="p">(</span>
+  <span class="n">CogPrefixRoutesHandler</span><span class="o">*</span> <span class="n">self</span><span class="p">,</span>
+  <span class="k">const</span> <span class="kt">char</span><span class="o">*</span> <span class="n">path_prefix</span><span class="p">,</span>
+  <span class="n">CogRequestHandler</span><span class="o">*</span> <span class="n">handler</span>
+<span class="p">)</span>
+</pre></div>
+</code></pre>
+      </div>
+    </div>
+
+    <div class="description toggle-wrapper">
+      <h4 style="display:flex;" id="description">
+        Description
+        <a class="anchor" href="#description"></a>
+        
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-prefix-routes-handler.c#L250">[src]</a>
+        
+      </h4>
+
+      <div class="docblock">
+        <p>Adds a route to the&nbsp;handler.</p>
+<p>Configures a route which matches <code>path_prefix</code> in <span class="caps">URI</span> paths, and dispatches
+requests to a given <code>handler</code>. The <code>path_prefix</code> must contain a leading
+slash character (<code>/</code>).</p>
+      </div>
+
+      <div class="docblock">
+        <table>
+          
+          
+          
+        </table>
+      </div>
+
+      
+    </div>
+
+    
+    <div class="parameters toggle-wrapper">
+      <h4 id="parameters">
+        Parameters
+        <a href="#parameters" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+        <table>
+          
+          <tr class="arg-name">
+            <td><code>path_prefix</code></td>
+            <td><code>const char*</code></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td><p><span class="caps">URI</span> path prefix to&nbsp;match</p></td>
+          </tr>
+          
+          
+          
+          
+          
+          
+          <tr><td>&nbsp;</td><td>Ownership is not transferred to the callee</td></tr>
+          <tr><td>&nbsp;</td><td>The string is a NUL terminated UTF-8 string</td></tr>
+          
+          <tr class="arg-name">
+            <td><code>handler</code></td>
+            <td><a href="iface.RequestHandler.html"><code>CogRequestHandler</code></a></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td><p>a request handler for the matched&nbsp;prefix</p></td>
+          </tr>
+          
+          
+          
+          
+          
+          
+          <tr><td>&nbsp;</td><td>Ownership is not transferred to the callee</td></tr>
+          
+          
+        </table>
+      </div>
+    </div>
+    
+
+    
+    <div class="return-value toggle-wrapper">
+      <h4 id="return-value">
+        Return value
+        <a href="#return-value" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+        <table>
+          <tr class="arg-name">
+            <td colspan="2">Returns:&nbsp;<code>gboolean</code></td>
+          </tr>
+          <tr class="arg-description">
+            <td colspan="2"><p>Whether the route was successfully&nbsp;added.</p></td>
+          </tr>
+          
+          
+          
+          
+          
+          
+        </table>
+      </div>
+    </div>
+    
+
+  </section>
+</section>
+
+
+    <section id="search" class="content hidden"></section>
+
+    
+    <script src="search.js"></script>
+    
+
+    <footer>
+    
+    </footer>
+  </div>
+</body>
+</html>

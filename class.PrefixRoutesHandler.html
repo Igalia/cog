@@ -1,0 +1,401 @@
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Cog.PrefixRoutesHandler</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta charset="utf-8" />
+
+  <meta property="og:site_name" content=""/>
+  <meta property="og:title" content=""/>
+  <meta property="og:url" content=""/>
+  <meta property="og:type" content="website"/>
+
+  
+
+  
+  <meta name="og:title" content="Cog.PrefixRoutesHandler"/>
+  <meta name="og:description" content="Reference for Cog.PrefixRoutesHandler"/>
+
+
+  <meta name="twitter:title" content=""/>
+  <meta name="twitter:url" content=""/>
+  <meta name="twitter:card" content="summary"/>
+
+  <link rel="canonical" href=""/>
+
+  <link rel="stylesheet" href="style.css" type="text/css" />
+
+  
+
+  
+  <script src="main.js"></script>
+  <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+</head>
+
+<body>
+  <div id="body-wrapper" tabindex="-1">
+
+    <nav class="sidebar">
+      
+      
+      <div class="search section">
+        <form id="search-form" method="GET">
+          <input class="search-input" type="text" name="q" placeholder="Search docs"/>
+        </form>
+      </div>
+      
+      <div class="section namespace">
+        <h3><a href="index.html">Cog</a></h3>
+        <p>API Version: 0.0</p>
+        
+        <p>Library Version: 0.9.1</p>
+        
+      </div>
+      
+<div class="section">
+  <h5>Type</h5>
+  <div class="links">
+    <a class="current" href="class.PrefixRoutesHandler.html#description">PrefixRoutesHandler</a>
+  </div>
+</div>
+
+
+
+
+<div class="section">
+  <h5>Instance methods</h5>
+  <div class="links">
+  
+    <a class="method" href="method.PrefixRoutesHandler.mount.html">mount</a>
+  
+    <a class="method" href="method.PrefixRoutesHandler.mount_path.html">mount_path</a>
+  
+    <a class="method" href="method.PrefixRoutesHandler.unmount.html">unmount</a>
+  
+  </div>
+</div>
+
+
+
+<div class="section">
+  <h5>Properties</h5>
+  <div class="links">
+  
+    <a class="property" href="property.PrefixRoutesHandler.fallback-handler.html">fallback-handler</a>
+  
+  </div>
+</div>
+
+
+
+
+
+
+
+<div class="section">
+  <h5>Functions</h5>
+  <div class="links">
+  
+    <a class="func" href="type_func.PrefixRoutesHandler.new.html">new</a>
+  
+  </div>
+</div>
+
+
+
+
+
+    </nav>
+
+    
+    <button id="btn-to-top" class="hidden"><span class="up-arrow"></span></button>
+    
+
+    
+<section id="main" class="content">
+  <header>
+    <h3>Class</h3>
+    <h1><a href="index.html">Cog</a>.PrefixRoutesHandler</h1>
+  </header>
+
+  <section>
+    <summary>
+      <div class="toggle-wrapper">
+        <h4 id="description" style="display:flex;">
+          Description
+          <a href="#description" class="anchor"></a>
+          
+          <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-prefix-routes-handler.c#L11">[src]</a>
+          
+        </h4>
+
+        <pre><code>final class Cog.PrefixRoutesHandler : GObject.TypeInstance {
+  /* No available fields */
+}</pre></code>
+
+        <div class="docblock">
+          <p>Direct custom <span class="caps">URI</span> scheme requests to different&nbsp;handlers.</p>
+<p>Handler for custom <span class="caps">URI</span> scheme requests that can route requests to
+different handlers depending on the prefix of the requested <span class="caps">URI</span>
+<em>path</em>&nbsp;component.</p>
+<p>Optionally, if a “fallback” handler has been specified, it will be
+used to serve requests which do not match any of the routed&nbsp;prefixes.</p>
+<p>The set of available prefix routes can be configured using
+<a href="method.PrefixRoutesHandler.mount.html"><code>cog_prefix_routes_handler_mount()</code></a> and
+<a href="method.PrefixRoutesHandler.unmount.html"><code>cog_prefix_routes_handler_unmount()</code></a>. For each request, routes
+are checked and the one that matches the most <span class="caps">URI</span> <em>path</em> components
+will handle the&nbsp;request.</p>
+<p>This handler is typically used in tandem with
+<a href="class.DirectoryFilesHandler.html"><code>CogDirectoryFilesHandler</code></a>, the latter being typically a
+fallback, or as the handler for a routed&nbsp;prefix.</p>
+<p>The following configures a handler to route requests with their path
+starting with <code>/static/images</code> to a certain directory, and all the
+rest of paths to another—note how the
+<a href="property.DirectoryFilesHandler.strip-components.html"><code>CogDirectoryFilesHandler:strip-components</code></a> property is
+used to remove the matched path components for that&nbsp;route:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">GFile</span> <span class="o">*</span><span class="n">content_dir</span> <span class="o">=</span> <span class="n">g_file_new_for_path</span> <span class="p">(</span><span class="s">&quot;data/content&quot;</span><span class="p">);</span>
+<span class="n">CogRequestHandler</span> <span class="o">*</span><span class="n">fallback_handler</span> <span class="o">=</span> <span class="n">cog_directory_files_handler_new</span> <span class="p">(</span><span class="n">content_dir</span><span class="p">);</span>
+
+<span class="n">GFile</span> <span class="o">*</span><span class="n">images_dir</span> <span class="o">=</span> <span class="n">g_file_new_for_path</span> <span class="p">(</span><span class="s">&quot;data/images&quot;</span><span class="p">);</span>
+<span class="n">CogRequestHandler</span> <span class="o">*</span><span class="n">images_handler</span> <span class="o">=</span> <span class="n">g_object_new</span> <span class="p">(</span><span class="n">COG_TYPE_DIRECTORY_FILES_HANDLER</span><span class="p">,</span>
+                                                  <span class="s">&quot;base-path&quot;</span><span class="p">,</span> <span class="n">images_dir</span><span class="p">,</span>
+                                                  <span class="s">&quot;strip-components&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span>
+                                                  <span class="nb">NULL</span><span class="p">);</span>
+
+<span class="n">CogRequestHandler</span> <span class="o">*</span><span class="n">handler</span> <span class="o">=</span> <span class="n">cog_prefix_routes_handler_new</span> <span class="p">(</span><span class="n">fallback_handler</span><span class="p">);</span>
+<span class="n">cog_prefix_routes_handler_mount</span> <span class="p">(</span><span class="n">COG_PREFIX_ROUTES_HANDLER</span> <span class="p">(</span><span class="n">handler</span><span class="p">),</span>
+                                 <span class="s">&quot;/static/images&quot;</span><span class="p">,</span>
+                                 <span class="n">images_handler</span><span class="p">);</span>
+</code></pre></div>
+        </div>
+
+        <div class="docblock">
+          <table class="attributes">
+            
+            
+            
+          </table>
+        </div>
+
+        
+      </div>
+    </summary>
+
+    
+    <div class="toggle-wrapper hierarchy">
+      <h4 id="hierarchy">
+        Hierarchy
+        <a href="#hierarchy" class="anchor"></a>
+      </h4>
+      <div class="docblock">
+        <img src="hierarchy.PrefixRoutesHandler.svg" alt="Hierarchy for Cog.PrefixRoutesHandler"/>
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="toggle-wrapper implements">
+      <h4 id="implements">
+        Implements
+        <a href="#implements" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+        <ul>
+        
+          
+          <li class="interface"><a href="iface.RequestHandler.html" title="RequestHandler">CogRequestHandler</a></li>
+          
+        
+        </ul>
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="toggle-wrapper methods">
+      <h4 id="methods">
+        Instance methods
+        <a href="#methods" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+      
+        <div class="">
+          <h6><a href="method.PrefixRoutesHandler.mount.html">cog_prefix_routes_handler_mount</a></h6>
+          <div class="docblock">
+            <p>Adds a route to the&nbsp;handler.</p>
+          </div>
+          
+        </div>
+      
+        <div class="">
+          <h6><a href="method.PrefixRoutesHandler.mount_path.html">cog_prefix_routes_handler_mount_path</a></h6>
+          <div class="docblock">
+            <p>Adds a route to the handler pointing to a&nbsp;directory.</p>
+          </div>
+          
+        </div>
+      
+        <div class="">
+          <h6><a href="method.PrefixRoutesHandler.unmount.html">cog_prefix_routes_handler_unmount</a></h6>
+          <div class="docblock">
+            <p>Removes a previously configured&nbsp;route.</p>
+          </div>
+          
+        </div>
+      
+      </div>
+
+      
+
+      
+        
+        <div class="toggle-wrapper default-hide ancestor-methods">
+          <h5 style="display:block;">Methods inherited from <a href="iface.RequestHandler.html">CogRequestHandler</a> (1)</h5>
+
+          
+          <div class="docblock">
+          
+            <h6><a href="method.RequestHandler.run.html">cog_request_handler_run</a></h6>
+            <div class="docblock">
+              No description available.
+            </div>
+            
+          
+          </div>
+          
+        </div>
+        
+      
+    </div>
+    
+
+    
+    <div class="toggle-wrapper properties">
+      <h4 id="properties">
+        Properties
+        <a href="#properties" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+      
+        <div class="">
+          <h6><a href="property.PrefixRoutesHandler.fallback-handler.html">Cog.PrefixRoutesHandler:fallback-handler</a></h6>
+
+          <div class="docblock">
+            <p>Optional <code>CogRequestHandler</code> used as fallback when no routes match
+the <span class="caps">URI</span>&nbsp;path.</p>
+          </div>
+
+          
+        </div>
+      
+      </div>
+
+      
+
+      
+        
+      
+
+    </div>
+    
+
+    
+
+    
+    <div class="class toggle-wrapper default-hide">
+      <h4 id="class-struct">
+        Class structure
+        <a href="#class-struct" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+        <pre><code>struct CogPrefixRoutesHandlerClass {
+  GObjectClass parent_class;
+  
+}</code></pre>
+      </div>
+
+      
+      <div class="docblock">
+        <h6>Class members</h6>
+
+        <table class="members">
+        
+        <tr>
+          <td style="vertical-align:top"><code>parent_class</code></td>
+          <td style="vertical-align:top"><pre><code>GObjectClass</code></pre></td>
+        </tr>
+        <tr>
+          <td>&nbsp;</td>
+          <td style="vertical-align:top">No description available.</td>
+        </td>
+        
+        </table>
+      </div>
+      
+    </div>
+    
+
+    
+
+     
+
+    
+    <div class="toggle-wrapper methods">
+      <h4 id="type-functions">
+        Functions
+        <a href="#type-functions" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+      
+      <div class="">
+        <h6><a href="type_func.PrefixRoutesHandler.new.html">cog_prefix_routes_handler_new</a></h6>
+
+        <div class="docblock">
+          <p>Create a new&nbsp;handler.</p>
+        </div>
+
+        
+      </div>
+      
+      </div>
+    </div>
+    
+
+  </section>
+</section>
+
+
+    <section id="search" class="content hidden"></section>
+
+    
+    <script src="search.js"></script>
+    
+
+    <footer>
+    
+    </footer>
+  </div>
+</body>
+</html>

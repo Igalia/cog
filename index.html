@@ -1,0 +1,531 @@
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Cog &ndash; 0.0</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta charset="utf-8" />
+
+  <meta property="og:site_name" content=""/>
+  <meta property="og:title" content=""/>
+  <meta property="og:url" content=""/>
+  <meta property="og:type" content="website"/>
+
+  
+
+  
+  <meta name="og:title" content="Cog-0.0"/>
+  <meta name="og:description" content="Reference for Cog-0.0"/>
+
+
+  <meta name="twitter:title" content=""/>
+  <meta name="twitter:url" content=""/>
+  <meta name="twitter:card" content="summary"/>
+
+  <link rel="canonical" href=""/>
+
+  <link rel="stylesheet" href="style.css" type="text/css" />
+
+  
+
+  
+  <script src="main.js"></script>
+  <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+</head>
+
+<body>
+  <div id="body-wrapper" tabindex="-1">
+
+    <nav class="sidebar">
+      
+      
+      <div class="search section">
+        <form id="search-form" method="GET">
+          <input class="search-input" type="text" name="q" placeholder="Search docs"/>
+        </form>
+      </div>
+      
+      <div class="section namespace">
+        <h3><a href="index.html">Cog</a></h3>
+        <p>API Version: 0.0</p>
+        
+        <p>Library Version: 0.9.1</p>
+        
+      </div>
+      
+<div class="section">
+  <h5>Sections</h5>
+  <div class="links">
+  
+
+  
+    <a href="#classes">Classes</a>
+  
+  
+    <a href="#interfaces">Interfaces</a>
+  
+  
+    <a href="#structs">Structs</a>
+  
+  
+  
+  
+  
+  
+    <a href="#domains">Error Domains</a>
+  
+  
+  
+    <a href="#functions">Functions</a>
+  
+  
+  
+    <a href="#constants">Constants</a>
+  
+  </div>
+</div>
+
+<div class="section">
+  <h5>Dependencies</h5>
+  <div class="links">
+  
+    <a href="https://developer.gnome.org/gobject/stable" class="external">GObject</a>
+  
+    <a href="https://developer.gnome.org/gio/stable" class="external">Gio</a>
+  
+    <a href="https://developer.gnome.org/libsoup/stable" class="external">Soup</a>
+  
+  </div>
+</div>
+
+
+    </nav>
+
+    
+    <button id="btn-to-top" class="hidden"><span class="up-arrow"></span></button>
+    
+
+    
+<section id="main" class="content">
+  <header>
+    <h3>Namespace</h3>
+    <h1>Cog &ndash; 0.0</h1>
+
+    <div class="description">
+      <p>The Cog core library</p>
+    </div>
+
+    <div class="meta info">
+      <table>
+        <tr><td><em>Version</em></td><td>0.9.1</td></tr>
+        <tr><td><em>Authors</em></td><td>The WPE WebKit team</td></tr>
+        <tr><td><em>License</em></td><td>MIT</td></tr>
+        <tr><td><em>Website</em></td><td><a href="https://wpewebkit.org" class="external">https://wpewebkit.org</a></td></tr>
+        <tr><td><em>Source</em></td><td><a href="https://github.com/Igalia/cog" class="external">https://github.com/Igalia/cog</a></td></tr>
+      </table>
+    </div>
+
+    <div class="meta build toggle-wrapper">
+      <h4>Build</h4>
+
+      <div class="docblock">
+      <table>
+        <tr><td>C headers</td><td><code>cog/cog.h</code></td></tr>
+        <tr><td>pkg-config files</td><td><code>cogcore</code></td></tr>
+      </table>
+      </div>
+    </div>
+  </header>
+
+  
+  <section>
+    <div class="toggle-wrapper">
+      <h4 id="dependencies">Dependencies</a></h4>
+
+      <div class="docblock">
+        <table>
+        
+          <tr>
+            <td><strong>GObject</strong></td>
+            <td>The base type system library</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td><a href="https://developer.gnome.org/gobject/stable" class="external">Browse documentation</a></td>
+          </tr>
+        
+          <tr>
+            <td><strong>Gio</strong></td>
+            <td>The GLib input/output library</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td><a href="https://developer.gnome.org/gio/stable" class="external">Browse documentation</a></td>
+          </tr>
+        
+          <tr>
+            <td><strong>Soup</strong></td>
+            <td>The Soup networking library</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td><a href="https://developer.gnome.org/libsoup/stable" class="external">Browse documentation</a></td>
+          </tr>
+        
+        </table>
+      </div>
+    </div>
+  </section>
+  
+
+  
+  <section>
+    <div class="toggle-wrapper">
+      <h4 id="extra">Additional documentation</a></h4>
+
+      <div class="docblock">
+        <ul>
+        
+          <li><a href="classes_hierarchy.html">Classes Hierarchy</a></li>
+        
+        </ul>
+      </div>
+    </div>
+  </section>
+  
+
+  
+
+  
+  <section>
+    <div class="toggle-wrapper default-hide">
+      <h4 id="classes" class="section-header">Classes</h4>
+
+      <div class="docblock">
+        <table style="display:block;">
+          <tbody>
+          
+          <tr class="section-item">
+            <td><a title="DirectoryFilesHandler" class="symbol" href="class.DirectoryFilesHandler.html">DirectoryFilesHandler</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="Launcher" class="symbol" href="class.Launcher.html">Launcher</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="PrefixRoutesHandler" class="symbol" href="class.PrefixRoutesHandler.html">PrefixRoutesHandler</a></td>
+            
+            <td class="docblock-summary"><p>Direct custom <span class="caps">URI</span> scheme requests to different&nbsp;handlers.</p></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="Shell" class="symbol" href="class.Shell.html">Shell</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  
+  
+  <section>
+    <div class="toggle-wrapper default-hide">
+      <h4 id="interfaces" class="section-header">Interfaces</h4>
+
+      <div class="docblock">
+        <table style="display:block;">
+          <tbody>
+          
+          <tr class="section-item">
+            <td><a title="RequestHandler" class="symbol" href="iface.RequestHandler.html">RequestHandler</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  
+  
+  <section>
+    <div class="toggle-wrapper default-hide">
+      <h4 id="structs" class="section-header">Structs</h4>
+
+      <div class="docblock">
+        <table style="display:block;">
+          <tbody>
+          
+          <tr class="section-item">
+            <td><a title="_DirectoryFilesHandlerClass" class="symbol" href="struct._DirectoryFilesHandlerClass.html">_DirectoryFilesHandlerClass</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="_LauncherClass" class="symbol" href="struct._LauncherClass.html">_LauncherClass</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="_PrefixRoutesHandlerClass" class="symbol" href="struct._PrefixRoutesHandlerClass.html">_PrefixRoutesHandlerClass</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="Platform" class="symbol" href="struct.Platform.html">Platform</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  
+  
+  
+  
+  
+  
+  <section>
+    <div class="toggle-wrapper default-hide">
+      <h4 id="domains" class="section-header">Error Domains</h4>
+
+      <div class="docblock">
+        <table style="display:block;">
+          <tbody>
+          
+          <tr class="section-item">
+            <td><a title="PlatformWpeError" class="symbol" href="error.PlatformWpeError.html">PlatformWpeError</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  
+  
+  
+  <section>
+    <div class="toggle-wrapper default-hide">
+      <h4 id="functions" class="section-header">Functions</h4>
+
+      <div class="docblock">
+        <table style="display:block;">
+          <tbody>
+          
+          <tr class="section-item">
+            <td><a title="appid_to_dbus_object_path" class="symbol" href="func.appid_to_dbus_object_path.html">appid_to_dbus_object_path</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="handle_web_view_load_changed" class="symbol" href="func.handle_web_view_load_changed.html">handle_web_view_load_changed</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="handle_web_view_load_failed" class="symbol" href="func.handle_web_view_load_failed.html">handle_web_view_load_failed</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="handle_web_view_load_failed_with_tls_errors" class="symbol" href="func.handle_web_view_load_failed_with_tls_errors.html">handle_web_view_load_failed_with_tls_errors</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="handle_web_view_web_process_terminated" class="symbol" href="func.handle_web_view_web_process_terminated.html">handle_web_view_web_process_terminated</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="handle_web_view_web_process_terminated_exit" class="symbol" href="func.handle_web_view_web_process_terminated_exit.html">handle_web_view_web_process_terminated_exit</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="option_entries_from_class" class="symbol" href="func.option_entries_from_class.html">option_entries_from_class</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="uri_guess_from_user_input" class="symbol" href="func.uri_guess_from_user_input.html">uri_guess_from_user_input</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="web_view_connect_default_error_handlers" class="symbol" href="func.web_view_connect_default_error_handlers.html">web_view_connect_default_error_handlers</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="web_view_connect_default_progress_handlers" class="symbol" href="func.web_view_connect_default_progress_handlers.html">web_view_connect_default_progress_handlers</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="web_view_connect_web_process_terminated_restart_handler" class="symbol" href="func.web_view_connect_web_process_terminated_restart_handler.html">web_view_connect_web_process_terminated_restart_handler</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="webkit_settings_apply_from_key_file" class="symbol" href="func.webkit_settings_apply_from_key_file.html">webkit_settings_apply_from_key_file</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  
+  
+  
+  <section>
+    <div class="toggle-wrapper default-hide">
+      <h4 id="constants" class="section-header">Constants</h4>
+
+      <div class="docblock">
+        <table style="display:block;">
+          <tbody>
+          
+          <tr class="section-item">
+            <td><a title="DEFAULT_APPID" class="symbol" href="const.DEFAULT_APPID.html">DEFAULT_APPID</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="DEFAULT_APPNAME" class="symbol" href="const.DEFAULT_APPNAME.html">DEFAULT_APPNAME</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="INSIDE_COG__" class="symbol" href="const.INSIDE_COG__.html">INSIDE_COG__</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="VERSION_EXTRA" class="symbol" href="const.VERSION_EXTRA.html">VERSION_EXTRA</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="VERSION_MAJOR" class="symbol" href="const.VERSION_MAJOR.html">VERSION_MAJOR</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="VERSION_MINOR" class="symbol" href="const.VERSION_MINOR.html">VERSION_MINOR</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="VERSION_PATCH" class="symbol" href="const.VERSION_PATCH.html">VERSION_PATCH</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="VERSION_STRING" class="symbol" href="const.VERSION_STRING.html">VERSION_STRING</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  
+</section>
+
+
+    <section id="search" class="content hidden"></section>
+
+    
+    <script src="search.js"></script>
+    
+
+    <footer>
+    
+    </footer>
+  </div>
+</body>
+</html>
