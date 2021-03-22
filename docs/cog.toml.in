@@ -3,6 +3,7 @@ description = "The Cog core library"
 license = "MIT"
 authors = "The WPE WebKit team"
 version = "@PROJECT_VERSION@"
+logo_url = "cog.png"
 browse_url = "https://github.com/Igalia/cog"
 repository_url = "https://github.com/Igalia/cog"
 website_url = "https://wpewebkit.org"
@@ -35,4 +36,6 @@ base_url = "https://github.com/Igalia/cog/blob/master/"
 
 [extra]
 content_files = []
-content_images = []
+content_images = [
+    "../data/cog.png",
+]
