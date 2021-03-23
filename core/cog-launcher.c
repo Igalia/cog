@@ -40,6 +40,16 @@ g_clear_handle_id (guint            *tag_ptr,
 #define G_SOURCE_FUNC(f) ((GSourceFunc) (void (*)(void)) (f))
 #endif
 
+/**
+ * CogLauncher:
+ *
+ * Main application object.
+ *
+ * Wraps a [class@CogShell] into a [class@Gio.Application], and provides
+ * actions which can be remotely activated using the
+ * `org.freedesktop.Application` D-Bus interface.
+ */
+
 struct _CogLauncher {
     GApplication parent;
     CogShell    *shell;
@@ -310,7 +320,13 @@ cog_launcher_create_instance (void* user_data)
                          NULL);
 }
 
-
+/**
+ * cog_launcher_get_default:
+ *
+ * Returns the [class@Cog.Launcher] single instance, creating it if needed.
+ *
+ * Returns: (transfer none): Singleton instance.
+ */
 CogLauncher*
 cog_launcher_get_default (void)
 {
@@ -320,7 +336,13 @@ cog_launcher_get_default (void)
     return create_instance_once.retval;
 }
 
-
+/**
+ * cog_launcher_get_shell:
+ *
+ * Obtains the [class@Shell] instance managed by the launcher.
+ *
+ * Returns: (transfer none): Shell instance for the launcher.
+ */
 CogShell*
 cog_launcher_get_shell (CogLauncher *launcher)
 {
@@ -328,7 +350,13 @@ cog_launcher_get_shell (CogLauncher *launcher)
     return launcher->shell;
 }
 
-
+/**
+ * cog_launcher_add_web_settings_option_entries:
+ *
+ * Installs a [struct@GLib.OptionGroup] with an option entry for each property
+ * of [class@WebKit.Settings] class, which can then be used from the command
+ * line. Boolean, numeric, and string types are supported.
+ */
 void
 cog_launcher_add_web_settings_option_entries (CogLauncher *launcher)
 {
@@ -668,7 +696,12 @@ static GOptionEntry s_cookies_options[] =
     { NULL }
 };
 
-
+/**
+ * cog_launcher_add_web_cookies_option_entries:
+ *
+ * Installs a [struct@GLib.OptionGroup] with option entries to configure
+ * storing and presetting cookies from the command line.
+ */
 void
 cog_launcher_add_web_cookies_option_entries (CogLauncher *launcher)
 {
@@ -717,6 +750,13 @@ static GOptionEntry s_permissions_options[] =
     { NULL }
 };
 
+/**
+ * cog_launcher_add_web_permissions_option_entries:
+ *
+ * Installs a [struct@GLib.OptionGroup] with option entries to configure
+ * how permissions to access certain resources are to be granted (or denied)
+ * from the command line.
+ */
 void
 cog_launcher_add_web_permissions_option_entries (CogLauncher *launcher)
 {

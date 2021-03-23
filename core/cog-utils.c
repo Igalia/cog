@@ -25,7 +25,32 @@ cog_appid_to_dbus_object_path (const char *appid)
     return g_string_free (s, FALSE);
 }
 
-
+/**
+ * cog_uri_guess_from_user_input:
+ * @uri_like: String containing an URI-like value.
+ * @is_cli_arg: Whether the URI-like string is from a command line option.
+ * @error: (out) (nullable): Location where to store an error, if any.
+ *
+ * Tries to assemble a valid URI from input that resembles an URI.
+ *
+ * First, if `is_cli_arg` is set, the input string is converted to UTF-8.
+ * Then, the following heuristics may applied:
+ *
+ * - If the input is already a valid URI with a known scheme, return it as-is.
+ * - If the input is a relative path, or resembles a local file path, try to
+ *   resolve it to a full path and return a `file://` URI.
+ * - If an URI does not have any path, set `/` as the path.
+ * - As a last resort, try to prepend the `http://` scheme.
+ *
+ * The main use case for this function is turning some “simpler” version
+ * of an URI, as typically entered by an user in a browser URL entry
+ * (e.g. `wpewebkit.org/release`) and turn it into an actual
+ * URI (`http://wpewebkit.org/release/`) which can be then passed to
+ * [method@WebKit.WebView.load_uri].
+ *
+ * Returns: A valid, full URI as a string. If `NULL` is returned, the
+ *    `error` will also be set.
+ */
 char*
 cog_uri_guess_from_user_input (const char *uri_like,
                                gboolean    is_cli_arg,

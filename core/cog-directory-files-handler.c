@@ -8,6 +8,18 @@
 #include "cog-directory-files-handler.h"
 #include <gio/gio.h>
 
+/**
+ * CogDirectoryFilesHandler:
+ *
+ * Request handler implementation that loads content from files inside
+ * a local directory.
+ *
+ * By default only the path component of requested URIs is taken into
+ * account, and setting [property@Cog.DirectoryFilesHandler:use-host].
+ * also uses the URI host component. If a resolved path points to a
+ * local directory and it contains a file named `index.html`, it will
+ * be used as the response.
+ */
 
 struct _CogDirectoryFilesHandler {
     GObject  parent;
@@ -335,6 +347,11 @@ cog_directory_files_handler_class_init (CogDirectoryFilesHandlerClass *klass)
     object_class->constructed = cog_directory_files_handler_constructed;
     object_class->dispose = cog_directory_files_handler_dispose;
 
+    /**
+     * CogDirectoryFilesHandler:base-path:
+     *
+     * Base directory where to search for files to “serve” as resources.
+     */
     s_properties[PROP_BASE_PATH] =
         g_param_spec_object ("base-path",
                              "Base path",
@@ -344,6 +361,18 @@ cog_directory_files_handler_class_init (CogDirectoryFilesHandlerClass *klass)
                              G_PARAM_CONSTRUCT_ONLY |
                              G_PARAM_STATIC_STRINGS);
 
+    /**
+     * CogDirectoryFilesHandler:use-host: (attributes org.gtk.Property.get=cog_directory_files_handler_get_use_host org.gtk.Property.set=cog_directory_files_handler_set_use_host):
+     *
+     * Whether to use the URI host component as the first subdirectory name.
+     *
+     * For example, given a request for the URI `scheme://host/some/path`:
+     *
+     * - When enabled, a subdirectory named `host/some/path` will
+     *   be searched for inside the `base-path`.
+     * - When disabled, a subdirectory named `some/path` will be
+     *   searched for inside the `base-path`.
+     */
     s_properties[PROP_USE_HOST] =
         g_param_spec_boolean ("use-host",
                               "Use URI host",
@@ -353,7 +382,7 @@ cog_directory_files_handler_class_init (CogDirectoryFilesHandlerClass *klass)
                               G_PARAM_STATIC_STRINGS);
 
     /**
-     * CogDirectoryFilesHandler:strip-components:
+     * CogDirectoryFilesHandler:strip-components: (attributes org.gtk.Property.get=cog_directory_files_handler_get_strip_components org.gtk.Property.set=cog_directory_files_handler_set_strip_components):
      *
      * Number of leading path components to strip (ignore) at the beginning
      * of request URIs.
@@ -412,7 +441,14 @@ cog_directory_files_handler_is_suitable_path (GFile   *file,
     return TRUE;
 }
 
-
+/**
+ * cog_directory_files_handler_new: (constructor)
+ * @base_path: Base directory where to search for files.
+ *
+ * Create a new handler.
+ *
+ * Returns: (transfer full): A directory files handler.
+ */
 CogRequestHandler*
 cog_directory_files_handler_new (GFile *base_path)
 {
@@ -422,6 +458,14 @@ cog_directory_files_handler_new (GFile *base_path)
                          NULL);
 }
 
+/**
+ * cog_directory_files_handler_get_use_host:
+ *
+ * Gets the value of the [property@Cog.DirectoryFilesHandler:use-host]
+ * property.
+ *
+ * Returns: Whether to use the URI host part as a subdirectory name.
+ */
 gboolean
 cog_directory_files_handler_get_use_host (CogDirectoryFilesHandler *self)
 {
@@ -429,6 +473,13 @@ cog_directory_files_handler_get_use_host (CogDirectoryFilesHandler *self)
     return self->use_host;
 }
 
+/**
+ * cog_directory_files_handler_set_use_host:
+ * @use_host: Whether to use the URI host part as a subdirectory name.
+ *
+ * Sets the value of the [property@Cog.DirectoryFilesHandler:use-host]
+ * property.
+ */
 void
 cog_directory_files_handler_set_use_host (CogDirectoryFilesHandler *self,
                                           gboolean                  use_host)
@@ -447,7 +498,8 @@ cog_directory_files_handler_set_use_host (CogDirectoryFilesHandler *self,
  * cog_directory_files_handler_get_strip_components:
  * @self: a #CogDirectoryFilesHandler
  *
- * Gets the value of the `strip-components` property.
+ * Gets the value of the [property@Cog.DirectoryFilesHandler:strip-components]
+ * property.
  *
  * Returns: Number of leading URI path components to ignore.
  */
@@ -463,7 +515,8 @@ cog_directory_files_handler_get_strip_components (CogDirectoryFilesHandler *self
  * @self: a #CogDirectoryFilesHandler
  * @count: Number of leading URI path components to ignore.
  *
- * Sets the value of the `strip-components` property.
+ * Sets the value of the [property@Cog.DirectoryFilesHandler:strip-components]
+ * property.
  */
 void
 cog_directory_files_handler_set_strip_components (CogDirectoryFilesHandler *self,

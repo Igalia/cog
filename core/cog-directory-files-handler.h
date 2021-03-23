@@ -39,7 +39,7 @@ enum {
 
 
 GQuark             cog_directory_files_handler_error_quark      (void);
-CogRequestHandler* cog_directory_files_handler_new              (GFile   *file);
+CogRequestHandler* cog_directory_files_handler_new              (GFile   *base_path);
 gboolean           cog_directory_files_handler_is_suitable_path (GFile   *file,
                                                                  GError **error);
 gboolean           cog_directory_files_handler_get_use_host     (CogDirectoryFilesHandler *self);
