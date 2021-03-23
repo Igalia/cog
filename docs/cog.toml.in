@@ -7,9 +7,14 @@ logo_url = "cog.png"
 browse_url = "https://github.com/Igalia/cog"
 repository_url = "https://github.com/Igalia/cog"
 website_url = "https://wpewebkit.org"
-dependencies = ["GObject-2.0", "Gio-2.0", "Soup-2.4"]
+dependencies = ["GLib-2.0", "GObject-2.0", "Gio-2.0", "Soup-2.4"]
 devhelp = true
 search_index = true
+
+[dependencies."GLib-2.0"]
+name = "GLib"
+description = "The base utility library"
+docs_url = "https://developer.gnome.org/glib/stable"
 
 [dependencies."GObject-2.0"]
 name = "GObject"
