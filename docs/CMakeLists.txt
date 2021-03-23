@@ -71,11 +71,13 @@ add_custom_command(
         ${COGCORE_DOC_SOURCES}
 )
 
+file(GLOB COGCORE_DOC_MARKDOWN_SOURCES *.md)
+
 add_custom_command(
     OUTPUT html/index.html
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "Generating documentation for ${COGCORE_GIR_NAME} ..."
-    DEPENDS cog.toml ${COGCORE_GIR}
+    DEPENDS cog.toml ${COGCORE_GIR} ${COGCORE_DOC_MARKDOWN_SOURCES}
     VERBATIM
     COMMAND "${GI_DOCGEN}" generate --quiet --no-namespace-dir
         --content-dir ${CMAKE_CURRENT_SOURCE_DIR}

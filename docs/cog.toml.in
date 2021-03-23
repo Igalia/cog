@@ -35,7 +35,13 @@ show_class_hierarchy = true
 base_url = "https://github.com/Igalia/cog/blob/master/"
 
 [extra]
-content_files = []
+content_files = [
+    "overview.md",
+    "platform-fdo.md",
+    "platform-drm.md",
+    "platform-x11.md",
+    "platform-headless.md",
+]
 content_images = [
     "../data/cog.png",
 ]
