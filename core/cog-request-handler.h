@@ -20,10 +20,10 @@ G_BEGIN_DECLS
 
 G_DECLARE_INTERFACE (CogRequestHandler, cog_request_handler, COG, REQUEST_HANDLER, GObject)
 
-
 struct _CogRequestHandlerInterface {
     GTypeInterface g_iface;
 
+    /*< public >*/
     void (*run) (CogRequestHandler *handler, WebKitURISchemeRequest *request);
 };
 

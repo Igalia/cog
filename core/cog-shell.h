@@ -24,6 +24,7 @@ G_DECLARE_DERIVABLE_TYPE (CogShell, cog_shell, COG, SHELL, GObject)
 struct _CogShellClass {
     GObjectClass parent_class;
 
+    /*< public >*/
     WebKitWebView* (*create_view) (CogShell*);
     void           (*startup)     (CogShell*);
     void           (*shutdown)    (CogShell*);

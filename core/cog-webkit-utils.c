@@ -45,7 +45,29 @@ load_error_page (WebKitWebView *web_view,
     return TRUE;
 }
 
-
+/**
+ * cog_handle_web_view_load_failed:
+ * @web_view: A [class@WebKit.WebView].
+ * @load_event: Load event.
+ * @failing_uri: URI that failed to load.
+ * @error: Load error.
+ * @userdata: User data.
+ *
+ * Handles page load errors, showing a simple error page if needed and
+ * logging a message to the standard error output.
+ *
+ * This function is typically used in a callback that handles the
+ * [signal@WebKit.WebView::load-failed] signal, and can be used directly
+ * as a callback for it:
+ *
+ * ```c
+ * WebKitWebView* web_view = webkit_web_view_new(...);
+ * g_signal_connect(web_view, "load-failed",
+ *                  G_CALLBACK(cog_handle_web_view_load_failed), NULL);
+ * ```
+ *
+ * Returns: Whether other signal handlers should be skipped.
+ */
 gboolean
 cog_handle_web_view_load_failed (WebKitWebView  *web_view,
                                  WebKitLoadEvent load_event,
@@ -104,7 +126,30 @@ format_tls_error (GTlsCertificateFlags errors)
     return g_string_free (str, FALSE);
 }
 
-
+/**
+ * cog_handle_web_view_load_failed_with_tls_errors:
+ * @web_view: A [class@WebKit.WebView].
+ * @load_event: Load event.
+ * @failing_uri: URI that failed to load.
+ * @error: Load error.
+ * @userdata: User data.
+ *
+ * Handles TLS page load errors, showing a simple error page if needed and
+ * logging a message to the standard error output.
+ *
+ * This function is typically used in a callback that handles the
+ * [signal@WebKit.WebView::load-failed-with-tls-errors] signal, and can
+ * be used directly as a callback for it:
+ *
+ * ```c
+ * WebKitWebView* web_view = webkit_web_view_new(...);
+ * g_signal_connect(web_view, "load-failed-with-tls-errors",
+ *                  G_CALLBACK(cog_handle_web_view_load_failed_with_tls_errors),
+ *                  NULL);
+ * ```
+ *
+ * Returns: Whether other signal handler should be skipped.
+ */
 gboolean
 cog_handle_web_view_load_failed_with_tls_errors (WebKitWebView       *web_view,
                                                  char                *failing_uri,
@@ -119,7 +164,26 @@ cog_handle_web_view_load_failed_with_tls_errors (WebKitWebView       *web_view,
                             error_string);
 }
 
-
+/**
+ * cog_handle_web_view_web_process_terminated:
+ * @web_view: A [class@WebKit.WebView].
+ * @reason: Cause for process termination.
+ * @userdata: User data.
+ *
+ * Handles unexpected web process termination, showing a simple error page
+ * and logging a message to the standard error output.
+ *
+ * This function is typically used in a callback that handles the
+ * [signal@WebKit.WebView::web-process-terminated] signal, and can be
+ * used directly as a callback for it:
+ *
+ * ```c
+ * WebKitWebView* web_view = webkit_web_view_new(...);
+ * g_signal_connect(web_view, "web-process-terminated",
+ *                  G_CALLBACK(cog_handle_web_view_web_process_terminated),
+ *                  NULL);
+ * ```
+ */
 gboolean
 cog_handle_web_view_web_process_terminated (WebKitWebView                     *web_view,
                                             WebKitWebProcessTerminationReason  reason,
@@ -150,7 +214,25 @@ cog_handle_web_view_web_process_terminated (WebKitWebView                     *w
                             message);
 }
 
-
+/**
+ * cog_handle_web_view_web_process_terminated_exit:
+ * @web_view: A [class@WebKit.WebView].
+ * @reason: Cause for process termination.
+ * @userdata: Integer to use as exit status packed as a pointer.
+ *
+ * Handles unexpected web process termination, exiting the program with the
+ * value passed as `userdata` as status.
+ *
+ * This function is typically used as a callback for the
+ * [signal@WebKit.WebView::web-process-terminated-signal]:
+ *
+ * ```c
+ * WebKitWebView* web_view = webkit_web_view_new(...);
+ * g_signal_connect(web_view, "web-process-terminated",
+ *                  G_CALLBACK(cog_handle_web_view_web_process_terminated_exit),
+ *                  GINT_TO_POINTER(EXIT_FAILURE));
+ * ```
+ */
 gboolean
 cog_handle_web_view_web_process_terminated_exit (WebKitWebView                     *web_view,
                                                  WebKitWebProcessTerminationReason  reason,
@@ -231,7 +313,32 @@ free_restart_data (void *restart, G_GNUC_UNUSED GClosure *closure)
     g_slice_free (struct RestartData, restart);
 }
 
-
+/**
+ * cog_web_view_connect_web_process_terminated_restart_handler:
+ * @web_view: A [class@WebKit.WebView].
+ * @max_tries: Maximum number of attempts in the retry window.
+ * @try_window_ms: Length of the retry window in milliseconds.
+ *
+ * Handles unexpected web process termination, trying to restart the web
+ * process up to a maximum number of attempts during a retry window.
+ *
+ * Once the web process has been terminated, a retry window timer will
+ * be started with a duration of `try_window_ms` milliseconds. During
+ * this time, restarting the web process will be attempted up to a
+ * maximum amount of attempts (`max_tries`):
+ *
+ * - If the maximum number of attempts is reached within the retry window
+ *   time, an error page will be displayed.
+ * - If the retry window timer expires without the web process being
+ *   terminated again, the count of attempts done is reset to zero.
+ *
+ * This function will connect its own callback to the
+ * [signal@WebKit.WebView::web-process-terminated] signal. The identifier
+ * of the installed signal handler is returned, which allows to disconnect
+ * it if needed.
+ *
+ * Returns: Identifier of the installed signal handler.
+ */
 gulong
 cog_web_view_connect_web_process_terminated_restart_handler (WebKitWebView *web_view,
                                                              unsigned       max_tries,
@@ -252,7 +359,20 @@ cog_web_view_connect_web_process_terminated_restart_handler (WebKitWebView *web_
                                   0);
 }
 
-
+/**
+ * cog_web_view_connect_default_error_handlers:
+ * @web_view: A [class@WebKit.WebView].
+ *
+ * Install the default error signal handlers.
+ *
+ * Connects [id@cog_handle_web_view_load_failed],
+ * [id@cog_handle_web_view_load_failed_with_tls_errors], and
+ * [id@cog_handle_web_view_web_process_terminated] as callbacks for
+ * their respective signals.
+ *
+ * If there was any handler already connected for any of the signals,
+ * the default handler for it will not be used.
+ */
 void
 cog_web_view_connect_default_error_handlers (WebKitWebView *web_view)
 {
@@ -291,7 +411,24 @@ cog_web_view_connect_default_error_handlers (WebKitWebView *web_view)
     }
 }
 
-
+/**
+ * cog_handle_web_view_load_changed:
+ * @web_view: A [class@WebKit.WebView].
+ * @load_event: Load event.
+ * @userdata: User data.
+ *
+ * Handles page load status changes, writing status reports to the
+ * standard error output.
+ *
+ * This function is typically used as a callback for the
+ * [signal@WebKit.WebView::load-changed] signal:
+ *
+ * ```c
+ * WebKitWebView* web_view = webkit_web_view_new(...);
+ * g_signal_connect(web_view, "load-changed",
+ *                  G_CALLBACK(cog_handle_web_view_load_changed), NULL);
+ * ```
+ */
 void
 cog_handle_web_view_load_changed (WebKitWebView  *web_view,
                                   WebKitLoadEvent load_event,
@@ -316,7 +453,15 @@ cog_handle_web_view_load_changed (WebKitWebView  *web_view,
     g_message ("<%s> %s", webkit_web_view_get_uri (web_view), info);
 }
 
-
+/**
+ * cog_web_view_connect_default_progress_handlers:
+ * @web_view: A [class@WebKit.WebView].
+ *
+ * Install the default page load progress signal handlers.
+ *
+ * Connects [id@cog_handle_web_view_load_changed] as a callback to its
+ * respective signal.
+ */
 void
 cog_web_view_connect_default_progress_handlers (WebKitWebView *web_view)
 {
@@ -331,7 +476,19 @@ cog_web_view_connect_default_progress_handlers (WebKitWebView *web_view)
         g_signal_connect (web_view, handlers[i].sig, handlers[i].hnd, NULL);
 }
 
-
+/**
+ * cog_webkit_settings_apply_from_key_file:
+ * @settings: A [class@WebKit.Settings] object.
+ * @key_file: A loaded key file.
+ * @group: Name of a group from the key file.
+ * @error: (out) (nullable): Location where to store an error, if any.
+ *
+ * Reads values from a given `group` of a [class@GLib.KeyFile] object,
+ * and uses them to set the writable properties of a [class@WebKit.Settings]
+ * object.
+ *
+ * Returns: Whether the settings were successfully applied.
+ */
 gboolean
 cog_webkit_settings_apply_from_key_file (WebKitSettings *settings,
                                          GKeyFile       *key_file,
