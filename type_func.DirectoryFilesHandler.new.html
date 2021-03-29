@@ -50,6 +50,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
     <nav class="sidebar">
       
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
       
       <div class="search section">
         <form id="search-form" method="GET">
@@ -110,7 +114,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       <div class="docblock">
         <pre><code><div class="highlight"><pre><span></span><span class="n">CogRequestHandler</span><span class="o">*</span>
 <span class="n">cog_directory_files_handler_new</span> <span class="p">(</span>
-  <span class="n">GFile</span><span class="o">*</span> <span class="n">file</span>
+  <span class="n">GFile</span><span class="o">*</span> <span class="n">base_path</span>
 <span class="p">)</span>
 </pre></div>
 </code></pre>
@@ -122,10 +126,12 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-directory-files-handler.c#L444">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Create a new&nbsp;handler.</p>
       </div>
 
       <div class="docblock">
@@ -150,12 +156,12 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table>
           
           <tr class="arg-name">
-            <td><code>file</code></td>
+            <td><code>base_path</code></td>
             <td><code>GFile*</code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>Base directory where to search for&nbsp;files.</p></td>
           </tr>
           
           
@@ -184,12 +190,12 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
             <td colspan="2">Returns:&nbsp;<a href="iface.RequestHandler.html"><code>CogRequestHandler</code></a></td>
           </tr>
           <tr class="arg-description">
-            <td colspan="2">No description available.</td>
+            <td colspan="2"><p>A directory files&nbsp;handler.</p></td>
           </tr>
           
           
           
-          <tr><td>Ownership is not transferred to the caller</td></tr>
+          <tr><td>Ownership of the data is transferred to the caller</td></tr>
           
           
         </table>

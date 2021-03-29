@@ -50,6 +50,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
     <nav class="sidebar">
       
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
       
       <div class="search section">
         <form id="search-form" method="GET">
@@ -114,10 +118,21 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-webkit-utils.c#L167">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Handles unexpected web process termination, showing a simple error page
+and logging a message to the standard error&nbsp;output.</p>
+<p>This function is typically used in a callback that handles the
+WebKit.WebView::web-process-terminated signal, and can be
+used directly as a callback for&nbsp;it:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">WebKitWebView</span><span class="o">*</span> <span class="n">web_view</span> <span class="o">=</span> <span class="n">webkit_web_view_new</span><span class="p">(...);</span>
+<span class="n">g_signal_connect</span><span class="p">(</span><span class="n">web_view</span><span class="p">,</span> <span class="s">&quot;web-process-terminated&quot;</span><span class="p">,</span>
+                 <span class="n">G_CALLBACK</span><span class="p">(</span><span class="n">cog_handle_web_view_web_process_terminated</span><span class="p">),</span>
+                 <span class="nb">NULL</span><span class="p">);</span>
+</code></pre></div>
       </div>
 
       <div class="docblock">
@@ -149,7 +164,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>A&nbsp;WebKit.WebView.</p></td>
           </tr>
           
           
@@ -168,7 +183,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>Cause for process&nbsp;termination.</p></td>
           </tr>
           
           
@@ -187,7 +202,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>User&nbsp;data.</p></td>
           </tr>
           
           <tr><td>&nbsp;</td><td>Can be <code>NULL</code></td></tr>

@@ -50,6 +50,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
     <nav class="sidebar">
       
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
       
       <div class="search section">
         <form id="search-form" method="GET">
@@ -115,10 +119,13 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-webkit-utils.c#L479">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Reads values from a given <code>group</code> of a GLib.KeyFile object,
+and uses them to set the writable properties of a WebKit.Settings&nbsp;object.</p>
       </div>
 
       <div class="docblock">
@@ -150,7 +157,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>A WebKit.Settings&nbsp;object.</p></td>
           </tr>
           
           
@@ -169,7 +176,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>A loaded key&nbsp;file.</p></td>
           </tr>
           
           
@@ -188,7 +195,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>Name of a group from the key&nbsp;file.</p></td>
           </tr>
           
           
@@ -217,7 +224,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
             <td colspan="2">Returns:&nbsp;<code>gboolean</code></td>
           </tr>
           <tr class="arg-description">
-            <td colspan="2">No description available.</td>
+            <td colspan="2"><p>Whether the settings were successfully&nbsp;applied.</p></td>
           </tr>
           
           

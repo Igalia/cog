@@ -50,6 +50,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
     <nav class="sidebar">
       
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
       
       <div class="search section">
         <form id="search-form" method="GET">
@@ -100,6 +104,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <div class="section">
   <h5>Dependencies</h5>
   <div class="links">
+  
+    <a href="https://developer.gnome.org/glib/stable" class="external">GLib</a>
   
     <a href="https://developer.gnome.org/gobject/stable" class="external">GObject</a>
   
@@ -158,6 +164,15 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table>
         
           <tr>
+            <td><strong>GLib</strong></td>
+            <td>The base utility library</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td><a href="https://developer.gnome.org/glib/stable" class="external">Browse documentation</a></td>
+          </tr>
+        
+          <tr>
             <td><strong>GObject</strong></td>
             <td>The base type system library</td>
           </tr>
@@ -198,6 +213,16 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       <div class="docblock">
         <ul>
         
+          <li><a href="overview.html">Overview</a></li>
+        
+          <li><a href="platform-fdo.html">Platform: FDO</a></li>
+        
+          <li><a href="platform-drm.html">Platform: DRM</a></li>
+        
+          <li><a href="platform-x11.html">Platform: X11</a></li>
+        
+          <li><a href="platform-headless.html">Platform: Headless</a></li>
+        
           <li><a href="classes_hierarchy.html">Classes Hierarchy</a></li>
         
         </ul>
@@ -220,14 +245,15 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <tr class="section-item">
             <td><a title="DirectoryFilesHandler" class="symbol" href="class.DirectoryFilesHandler.html">DirectoryFilesHandler</a></td>
             
-            <td class="docblock-summary"></td>
+            <td class="docblock-summary"><p>Request handler implementation that loads content from files inside
+a local&nbsp;directory.</p></td>
             
           </tr>
           
           <tr class="section-item">
             <td><a title="Launcher" class="symbol" href="class.Launcher.html">Launcher</a></td>
             
-            <td class="docblock-summary"></td>
+            <td class="docblock-summary"><p>Main application&nbsp;object.</p></td>
             
           </tr>
           
@@ -241,7 +267,9 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <tr class="section-item">
             <td><a title="Shell" class="symbol" href="class.Shell.html">Shell</a></td>
             
-            <td class="docblock-summary"></td>
+            <td class="docblock-summary"><p>A shell managed a WebKit.WebView, the default <span class="caps">URI</span> that it will
+load, the view configuration, and keeps track of a number of registered
+<code>CogRequestHandler</code> instances.</p></td>
             
           </tr>
           
@@ -263,7 +291,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <tr class="section-item">
             <td><a title="RequestHandler" class="symbol" href="iface.RequestHandler.html">RequestHandler</a></td>
             
-            <td class="docblock-summary"></td>
+            <td class="docblock-summary"><p>Convenience interface which allows implementing custom <span class="caps">URI</span> scheme&nbsp;handlers.</p></td>
             
           </tr>
           
@@ -362,35 +390,40 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <tr class="section-item">
             <td><a title="handle_web_view_load_changed" class="symbol" href="func.handle_web_view_load_changed.html">handle_web_view_load_changed</a></td>
             
-            <td class="docblock-summary"></td>
+            <td class="docblock-summary"><p>Handles page load status changes, writing status reports to the
+standard error&nbsp;output.</p></td>
             
           </tr>
           
           <tr class="section-item">
             <td><a title="handle_web_view_load_failed" class="symbol" href="func.handle_web_view_load_failed.html">handle_web_view_load_failed</a></td>
             
-            <td class="docblock-summary"></td>
+            <td class="docblock-summary"><p>Handles page load errors, showing a simple error page if needed and
+logging a message to the standard error&nbsp;output.</p></td>
             
           </tr>
           
           <tr class="section-item">
             <td><a title="handle_web_view_load_failed_with_tls_errors" class="symbol" href="func.handle_web_view_load_failed_with_tls_errors.html">handle_web_view_load_failed_with_tls_errors</a></td>
             
-            <td class="docblock-summary"></td>
+            <td class="docblock-summary"><p>Handles <span class="caps">TLS</span> page load errors, showing a simple error page if needed and
+logging a message to the standard error&nbsp;output.</p></td>
             
           </tr>
           
           <tr class="section-item">
             <td><a title="handle_web_view_web_process_terminated" class="symbol" href="func.handle_web_view_web_process_terminated.html">handle_web_view_web_process_terminated</a></td>
             
-            <td class="docblock-summary"></td>
+            <td class="docblock-summary"><p>Handles unexpected web process termination, showing a simple error page
+and logging a message to the standard error&nbsp;output.</p></td>
             
           </tr>
           
           <tr class="section-item">
             <td><a title="handle_web_view_web_process_terminated_exit" class="symbol" href="func.handle_web_view_web_process_terminated_exit.html">handle_web_view_web_process_terminated_exit</a></td>
             
-            <td class="docblock-summary"></td>
+            <td class="docblock-summary"><p>Handles unexpected web process termination, exiting the program with the
+value passed as <code>userdata</code> as&nbsp;status.</p></td>
             
           </tr>
           
@@ -404,35 +437,37 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <tr class="section-item">
             <td><a title="uri_guess_from_user_input" class="symbol" href="func.uri_guess_from_user_input.html">uri_guess_from_user_input</a></td>
             
-            <td class="docblock-summary"></td>
+            <td class="docblock-summary"><p>Tries to assemble a valid <span class="caps">URI</span> from input that resembles an <span class="caps">URI</span>.</p></td>
             
           </tr>
           
           <tr class="section-item">
             <td><a title="web_view_connect_default_error_handlers" class="symbol" href="func.web_view_connect_default_error_handlers.html">web_view_connect_default_error_handlers</a></td>
             
-            <td class="docblock-summary"></td>
+            <td class="docblock-summary"><p>Install the default error signal&nbsp;handlers.</p></td>
             
           </tr>
           
           <tr class="section-item">
             <td><a title="web_view_connect_default_progress_handlers" class="symbol" href="func.web_view_connect_default_progress_handlers.html">web_view_connect_default_progress_handlers</a></td>
             
-            <td class="docblock-summary"></td>
+            <td class="docblock-summary"><p>Install the default page load progress signal&nbsp;handlers.</p></td>
             
           </tr>
           
           <tr class="section-item">
             <td><a title="web_view_connect_web_process_terminated_restart_handler" class="symbol" href="func.web_view_connect_web_process_terminated_restart_handler.html">web_view_connect_web_process_terminated_restart_handler</a></td>
             
-            <td class="docblock-summary"></td>
+            <td class="docblock-summary"><p>Handles unexpected web process termination, trying to restart the web
+process up to a maximum number of attempts during a retry&nbsp;window.</p></td>
             
           </tr>
           
           <tr class="section-item">
             <td><a title="webkit_settings_apply_from_key_file" class="symbol" href="func.webkit_settings_apply_from_key_file.html">webkit_settings_apply_from_key_file</a></td>
             
-            <td class="docblock-summary"></td>
+            <td class="docblock-summary"><p>Reads values from a given <code>group</code> of a GLib.KeyFile object,
+and uses them to set the writable properties of a WebKit.Settings&nbsp;object.</p></td>
             
           </tr>
           

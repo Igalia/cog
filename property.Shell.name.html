@@ -50,6 +50,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
     <nav class="sidebar">
       
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
       
       <div class="search section">
         <form id="search-form" method="GET">
@@ -120,10 +124,15 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-shell.c#L285">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Name of the&nbsp;shell.</p>
+<p>The shell name is used to determine the paths inside the <span class="caps">XDG</span> user
+directories where application-specific files (caches, website data,
+etc.) will be&nbsp;stored.</p>
       </div>
 
       <div class="docblock">
@@ -134,6 +143,14 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         </table>
       </div>
 
+      
+      <div class="docblock">
+        <table>
+        
+          <tr><td>Getter method</td><td><a href="method.Shell.get_name.html"><code>cog_shell_get_name</code></a></td></tr>
+        
+        </table>
+      </div>
       
     </div>
 

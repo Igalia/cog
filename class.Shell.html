@@ -50,6 +50,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
     <nav class="sidebar">
       
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
       
       <div class="search section">
         <form id="search-form" method="GET">
@@ -182,6 +186,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           Description
           <a href="#description" class="anchor"></a>
           
+          <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-shell.c#L10">[src]</a>
+          
         </h4>
 
         <pre><code>class Cog.Shell : GObject.TypeInstance {
@@ -189,7 +195,11 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 }</pre></code>
 
         <div class="docblock">
-          No description available.
+          <p>A shell managed a WebKit.WebView, the default <span class="caps">URI</span> that it will
+load, the view configuration, and keeps track of a number of registered
+<a href="iface.RequestHandler.html"><code>CogRequestHandler</code></a>&nbsp;instances.</p>
+<p>Applications using a shell can handle the <a href="signal.Shell.create-view.html"><code>CogShell::create-view</code></a>
+signal to customize the web&nbsp;view.</p>
         </div>
 
         <div class="docblock">
@@ -223,7 +233,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <h6><a href="ctor.Shell.new.html">cog_shell_new</a></h6>
 
           <div class="docblock">
-            No description available.
+            <p>Creates a new&nbsp;shell.</p>
           </div>
 
           
@@ -261,7 +271,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="method.Shell.get_name.html">cog_shell_get_name</a></h6>
           <div class="docblock">
-            No description available.
+            <p>Obtains the name of this&nbsp;shell.</p>
           </div>
           
         </div>
@@ -269,7 +279,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="method.Shell.get_web_context.html">cog_shell_get_web_context</a></h6>
           <div class="docblock">
-            No description available.
+            <p>Obtains the WebKit.WebContext for this&nbsp;shell.</p>
           </div>
           
         </div>
@@ -277,7 +287,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="method.Shell.get_web_settings.html">cog_shell_get_web_settings</a></h6>
           <div class="docblock">
-            No description available.
+            <p>Obtains the WebKit.Settings for this&nbsp;shell.</p>
           </div>
           
         </div>
@@ -285,7 +295,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="method.Shell.get_web_view.html">cog_shell_get_web_view</a></h6>
           <div class="docblock">
-            No description available.
+            <p>Obtains the WebKit.WebView for this&nbsp;shell.</p>
           </div>
           
         </div>
@@ -293,7 +303,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="method.Shell.set_request_handler.html">cog_shell_set_request_handler</a></h6>
           <div class="docblock">
-            No description available.
+            <p>Installs a handler for a custom <span class="caps">URI</span>&nbsp;scheme.</p>
           </div>
           
         </div>
@@ -301,7 +311,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="method.Shell.shutdown.html">cog_shell_shutdown</a></h6>
           <div class="docblock">
-            No description available.
+            <p>Deinitialize the&nbsp;shell.</p>
           </div>
           
         </div>
@@ -309,7 +319,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="method.Shell.startup.html">cog_shell_startup</a></h6>
           <div class="docblock">
-            No description available.
+            <p>Finish initializing the&nbsp;shell.</p>
           </div>
           
         </div>
@@ -355,7 +365,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <h6><a href="property.Shell.name.html">Cog.Shell:name</a></h6>
 
           <div class="docblock">
-            No description available.
+            <p>Name of the&nbsp;shell.</p>
           </div>
 
           
@@ -365,7 +375,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <h6><a href="property.Shell.web-context.html">Cog.Shell:web-context</a></h6>
 
           <div class="docblock">
-            No description available.
+            <p>The WebKit.WebContext for this shell&#8217;s&nbsp;view.</p>
           </div>
 
           
@@ -375,7 +385,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <h6><a href="property.Shell.web-settings.html">Cog.Shell:web-settings</a></h6>
 
           <div class="docblock">
-            No description available.
+            <p>WebKit settings for this&nbsp;shell.</p>
           </div>
 
           
@@ -385,7 +395,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <h6><a href="property.Shell.web-view.html">Cog.Shell:web-view</a></h6>
 
           <div class="docblock">
-            No description available.
+            <p>The WebKit.WebView managed by this&nbsp;shell.</p>
           </div>
 
           
@@ -412,7 +422,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="signal.Shell.create-view.html">Cog.Shell::create-view</a></h6>
           <div class="docblock">
-            No description available.
+            <p>The <code>create-view</code> signal is emitted when the shell needs to create
+a&nbsp;WebKit.WebView.</p>
           </div>
           
         </div>
@@ -526,7 +537,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <h6 id="vfunc-shutdown"><a href="vfunc.Shell.shutdown.html">Cog.ShellClass.shutdown</a></h6>
 
         <div class="docblock">
-          No description available.
+          <p>Deinitialize the&nbsp;shell.</p>
         </div>
 
           
@@ -536,7 +547,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <h6 id="vfunc-startup"><a href="vfunc.Shell.startup.html">Cog.ShellClass.startup</a></h6>
 
         <div class="docblock">
-          No description available.
+          <p>Finish initializing the&nbsp;shell.</p>
         </div>
 
           

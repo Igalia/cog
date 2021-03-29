@@ -50,6 +50,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
     <nav class="sidebar">
       
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
       
       <div class="search section">
         <form id="search-form" method="GET">
@@ -114,10 +118,27 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-webkit-utils.c#L316">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Handles unexpected web process termination, trying to restart the web
+process up to a maximum number of attempts during a retry&nbsp;window.</p>
+<p>Once the web process has been terminated, a retry window timer will
+be started with a duration of <code>try_window_ms</code> milliseconds. During
+this time, restarting the web process will be attempted up to a
+maximum amount of attempts (<code>max_tries</code>):</p>
+<ul>
+<li>If the maximum number of attempts is reached within the retry window
+  time, an error page will be&nbsp;displayed.</li>
+<li>If the retry window timer expires without the web process being
+  terminated again, the count of attempts done is reset to&nbsp;zero.</li>
+</ul>
+<p>This function will connect its own callback to the
+WebKit.WebView::web-process-terminated signal. The identifier
+of the installed signal handler is returned, which allows to disconnect
+it if&nbsp;needed.</p>
       </div>
 
       <div class="docblock">
@@ -149,7 +170,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>A&nbsp;WebKit.WebView.</p></td>
           </tr>
           
           
@@ -168,7 +189,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>Maximum number of attempts in the retry&nbsp;window.</p></td>
           </tr>
           
           
@@ -187,7 +208,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>Length of the retry window in&nbsp;milliseconds.</p></td>
           </tr>
           
           
@@ -216,7 +237,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
             <td colspan="2">Returns:&nbsp;<code>gulong</code></td>
           </tr>
           <tr class="arg-description">
-            <td colspan="2">No description available.</td>
+            <td colspan="2"><p>Identifier of the installed signal&nbsp;handler.</p></td>
           </tr>
           
           

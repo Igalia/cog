@@ -50,6 +50,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
     <nav class="sidebar">
       
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
       
       <div class="search section">
         <form id="search-form" method="GET">
@@ -148,6 +152,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           Description
           <a href="#description" class="anchor"></a>
           
+          <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-directory-files-handler.c#L11">[src]</a>
+          
         </h4>
 
         <pre><code>final class Cog.DirectoryFilesHandler : GObject.TypeInstance {
@@ -155,7 +161,13 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 }</pre></code>
 
         <div class="docblock">
-          No description available.
+          <p>Request handler implementation that loads content from files inside
+a local&nbsp;directory.</p>
+<p>By default only the path component of requested URIs is taken into
+account, and setting <a href="property.DirectoryFilesHandler.use-host.html"><code>CogDirectoryFilesHandler:use-host</code></a>.
+also uses the <span class="caps">URI</span> host component. If a resolved path points to a
+local directory and it contains a file named <code>index.html</code>, it will
+be used as the&nbsp;response.</p>
         </div>
 
         <div class="docblock">
@@ -217,7 +229,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="method.DirectoryFilesHandler.get_strip_components.html">cog_directory_files_handler_get_strip_components</a></h6>
           <div class="docblock">
-            <p>Gets the value of the <code>strip-components</code> property.</p>
+            <p>Gets the value of the <code>CogDirectoryFilesHandler:strip-components</code>
+property.</p>
           </div>
           
         </div>
@@ -225,7 +238,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="method.DirectoryFilesHandler.get_use_host.html">cog_directory_files_handler_get_use_host</a></h6>
           <div class="docblock">
-            No description available.
+            <p>Gets the value of the <code>CogDirectoryFilesHandler:use-host</code>
+property.</p>
           </div>
           
         </div>
@@ -233,7 +247,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="method.DirectoryFilesHandler.set_strip_components.html">cog_directory_files_handler_set_strip_components</a></h6>
           <div class="docblock">
-            <p>Sets the value of the <code>strip-components</code> property.</p>
+            <p>Sets the value of the <code>CogDirectoryFilesHandler:strip-components</code>
+property.</p>
           </div>
           
         </div>
@@ -241,7 +256,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="method.DirectoryFilesHandler.set_use_host.html">cog_directory_files_handler_set_use_host</a></h6>
           <div class="docblock">
-            No description available.
+            <p>Sets the value of the <code>CogDirectoryFilesHandler:use-host</code>
+property.</p>
           </div>
           
         </div>
@@ -260,7 +276,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           
             <h6><a href="method.RequestHandler.run.html">cog_request_handler_run</a></h6>
             <div class="docblock">
-              No description available.
+              <p>Handle a single custom <span class="caps">URI</span> scheme&nbsp;request.</p>
             </div>
             
           
@@ -285,7 +301,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <h6><a href="property.DirectoryFilesHandler.base-path.html">Cog.DirectoryFilesHandler:base-path</a></h6>
 
           <div class="docblock">
-            No description available.
+            <p>Base directory where to search for files to “serve” as&nbsp;resources.</p>
           </div>
 
           
@@ -306,7 +322,7 @@ of request&nbsp;URIs.</p>
           <h6><a href="property.DirectoryFilesHandler.use-host.html">Cog.DirectoryFilesHandler:use-host</a></h6>
 
           <div class="docblock">
-            No description available.
+            <p>Whether to use the <span class="caps">URI</span> host component as the first subdirectory&nbsp;name.</p>
           </div>
 
           
@@ -397,7 +413,7 @@ of request&nbsp;URIs.</p>
         <h6><a href="type_func.DirectoryFilesHandler.new.html">cog_directory_files_handler_new</a></h6>
 
         <div class="docblock">
-          No description available.
+          <p>Create a new&nbsp;handler.</p>
         </div>
 
         

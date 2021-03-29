@@ -50,6 +50,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
     <nav class="sidebar">
       
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
       
       <div class="search section">
         <form id="search-form" method="GET">
@@ -114,10 +118,25 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-utils.c#L28">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Tries to assemble a valid <span class="caps">URI</span> from input that resembles an <span class="caps">URI</span>.</p>
+<p>First, if <code>is_cli_arg</code> is set, the input string is converted to <span class="caps">UTF</span>-8.
+Then, the following heuristics may&nbsp;applied:</p>
+<ul>
+<li>If the input is already a valid <span class="caps">URI</span> with a known scheme, return it&nbsp;as-is.</li>
+<li>If the input is a relative path, or resembles a local file path, try to
+  resolve it to a full path and return a <code>file://</code> <span class="caps">URI</span>.</li>
+<li>If an <span class="caps">URI</span> does not have any path, set <code>/</code> as the&nbsp;path.</li>
+<li>As a last resort, try to prepend the <code>http://</code> scheme.</li>
+</ul>
+<p>The main use case for this function is turning some “simpler” version
+of an <span class="caps">URI</span>, as typically entered by an user in a browser <span class="caps">URL</span> entry
+(e.g. <code>wpewebkit.org/release</code>) and turn it into an actual
+<span class="caps">URI</span> (<code>http://wpewebkit.org/release/</code>) which can be then passed to&nbsp;WebKit.WebView.load_uri.</p>
       </div>
 
       <div class="docblock">
@@ -149,7 +168,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>String containing an <span class="caps">URI</span>-like&nbsp;value.</p></td>
           </tr>
           
           
@@ -168,7 +187,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>Whether the <span class="caps">URI</span>-like string is from a command line&nbsp;option.</p></td>
           </tr>
           
           
@@ -197,7 +216,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
             <td colspan="2">Returns:&nbsp;<code>char*</code></td>
           </tr>
           <tr class="arg-description">
-            <td colspan="2">No description available.</td>
+            <td colspan="2"><p>A valid, full <span class="caps">URI</span> as a string. If <code>NULL</code> is returned, the
+   <code>error</code> will also be&nbsp;set.</p></td>
           </tr>
           
           

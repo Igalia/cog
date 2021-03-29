@@ -50,6 +50,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
     <nav class="sidebar">
       
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
       
       <div class="search section">
         <form id="search-form" method="GET">
@@ -131,6 +135,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           Description
           <a href="#description" class="anchor"></a>
           
+          <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-launcher.c#L43">[src]</a>
+          
         </h4>
 
         <pre><code>final class Cog.Launcher : GObject.TypeInstance {
@@ -138,7 +144,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 }</pre></code>
 
         <div class="docblock">
-          No description available.
+          <p>Main application&nbsp;object.</p>
+<p>Wraps a <a href="class.Shell.html"><code>CogShell</code></a> into a Gio.Application, and provides
+actions which can be remotely activated using the
+<code>org.freedesktop.Application</code> D-Bus&nbsp;interface.</p>
         </div>
 
         <div class="docblock">
@@ -173,7 +182,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="method.Launcher.add_web_cookies_option_entries.html">cog_launcher_add_web_cookies_option_entries</a></h6>
           <div class="docblock">
-            No description available.
+            <p>Installs a GLib.OptionGroup with option entries to configure
+storing and presetting cookies from the command&nbsp;line.</p>
           </div>
           
         </div>
@@ -181,7 +191,9 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="method.Launcher.add_web_permissions_option_entries.html">cog_launcher_add_web_permissions_option_entries</a></h6>
           <div class="docblock">
-            No description available.
+            <p>Installs a GLib.OptionGroup with option entries to configure
+how permissions to access certain resources are to be granted (or denied)
+from the command&nbsp;line.</p>
           </div>
           
         </div>
@@ -189,7 +201,9 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="method.Launcher.add_web_settings_option_entries.html">cog_launcher_add_web_settings_option_entries</a></h6>
           <div class="docblock">
-            No description available.
+            <p>Installs a GLib.OptionGroup with an option entry for each property
+of WebKit.Settings class, which can then be used from the command
+line. Boolean, numeric, and string types are&nbsp;supported.</p>
           </div>
           
         </div>
@@ -197,7 +211,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <div class="">
           <h6><a href="method.Launcher.get_shell.html">cog_launcher_get_shell</a></h6>
           <div class="docblock">
-            No description available.
+            <p>Obtains the <code>CogShell</code> instance managed by the&nbsp;launcher.</p>
           </div>
           
         </div>
@@ -266,7 +280,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <h6><a href="type_func.Launcher.get_default.html">cog_launcher_get_default</a></h6>
 
         <div class="docblock">
-          No description available.
+          <p>Returns the <code>CogLauncher</code> single instance, creating it if&nbsp;needed.</p>
         </div>
 
         

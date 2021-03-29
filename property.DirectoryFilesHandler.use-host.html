@@ -50,6 +50,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
     <nav class="sidebar">
       
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
       
       <div class="search section">
         <form id="search-form" method="GET">
@@ -114,10 +118,19 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-directory-files-handler.c#L364">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Whether to use the <span class="caps">URI</span> host component as the first subdirectory&nbsp;name.</p>
+<p>For example, given a request for the <span class="caps">URI</span> <code>scheme://host/some/path</code>:</p>
+<ul>
+<li>When enabled, a subdirectory named <code>host/some/path</code> will
+  be searched for inside the <code>base-path</code>.</li>
+<li>When disabled, a subdirectory named <code>some/path</code> will be
+  searched for inside the <code>base-path</code>.</li>
+</ul>
       </div>
 
       <div class="docblock">
@@ -128,6 +141,16 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         </table>
       </div>
 
+      
+      <div class="docblock">
+        <table>
+        
+          <tr><td>Getter method</td><td><a href="method.DirectoryFilesHandler.get_use_host.html"><code>cog_directory_files_handler_get_use_host</code></a></td></tr>
+        
+          <tr><td>Setter method</td><td><a href="method.DirectoryFilesHandler.set_use_host.html"><code>cog_directory_files_handler_set_use_host</code></a></td></tr>
+        
+        </table>
+      </div>
       
     </div>
 
