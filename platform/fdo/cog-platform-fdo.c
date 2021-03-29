@@ -226,6 +226,11 @@ static struct {
     struct egl_display *display;
 } egl_data;
 
+typedef struct {
+    long w;
+    long h;
+} rect_t;
+
 static struct {
     struct wl_surface *wl_surface;
 
@@ -239,6 +244,8 @@ static struct {
 
     uint32_t width;
     uint32_t height;
+    rect_t min_rect;
+    rect_t max_rect;
 
     bool is_fullscreen;
     bool is_maximized;
@@ -246,6 +253,8 @@ static struct {
 } win_data = {
     .width = DEFAULT_WIDTH,
     .height = DEFAULT_HEIGHT,
+    .min_rect = {-1, -1},
+    .max_rect = {-1, -1},
     .is_fullscreen = false,
     .is_maximized = false,
     .should_resize_to_largest_output = false,
@@ -396,24 +405,26 @@ static void display_popup (void);
 static void update_popup (void);
 static void destroy_popup (void);
 
+// either size ("123") or min/size/max ("100:200:300")
+// 0 = unset (no mix, max).
+// -1 = do not set.
+static void
+parse_dim(const char *value, long *min, uint32_t *size, long *max)
+{
+    int count = sscanf(value, "%ld:%" SCNu32 ":%ld", min, size, max);
+
+    if(count == 1) {
+        *size = *min;
+        *min = -1;
+        *max = -1;
+    }
+}
+
 static void
 configure_surface_geometry (int32_t width, int32_t height)
 {
-    const char* env_var;
-    if (width == 0) {
-        env_var = g_getenv("COG_PLATFORM_FDO_VIEW_WIDTH");
-        if (env_var != NULL)
-            width = (int32_t) g_ascii_strtod(env_var, NULL);
-        else
-            width = DEFAULT_WIDTH;
-    }
-    if (height == 0) {
-        env_var = g_getenv("COG_PLATFORM_FDO_VIEW_HEIGHT");
-        if (env_var != NULL)
-            height = (int32_t) g_ascii_strtod(env_var, NULL);
-        else
-            height = DEFAULT_HEIGHT;
-    }
+    width = width ?: win_data.width ?: DEFAULT_WIDTH;
+    height = height ?: win_data.height ?: DEFAULT_HEIGHT;
 
     if (win_data.width != width || win_data.height != height) {
         g_debug("Configuring new size: %" PRId32 "x%" PRId32, width, height);
@@ -428,6 +439,26 @@ resize_window (void)
 {
     int32_t pixel_width = win_data.width * wl_data.current_output.scale;
     int32_t pixel_height = win_data.height * wl_data.current_output.scale;
+
+    rect_t min = win_data.min_rect;
+    if (min.w >= 0 && min.h >= 0) {
+        g_debug("Configuring min size: %ldx%ld", min.w, min.h);
+        if (wl_data.xdg_shell != NULL) {
+            xdg_toplevel_set_min_size (win_data.xdg_toplevel, min.w, min.h);
+        } else {
+            g_warning ("No available shell capable of settings min size.");
+        }
+    }
+
+    rect_t max = win_data.max_rect;
+    if (max.w >= 0 && max.h >= 0) {
+        g_debug("Configuring max size: %ldx%ld", max.w, max.h);
+        if (wl_data.xdg_shell != NULL) {
+            xdg_toplevel_set_max_size (win_data.xdg_toplevel, max.w, max.h);
+        } else {
+            g_warning ("No available shell capable of settings max size.");
+        }
+    }
 
     wpe_view_backend_dispatch_set_size (wpe_view_data.backend,
                                         win_data.width,
@@ -2085,6 +2116,17 @@ create_window (GError **error)
 
     wl_surface_add_listener (win_data.wl_surface, &surface_listener, NULL);
 
+    // initialize requested window dimensions from environment
+    parse_dim(g_getenv("COG_PLATFORM_FDO_VIEW_WIDTH"),
+            &win_data.min_rect.w,
+            &win_data.width,
+            &win_data.max_rect.w);
+
+    parse_dim(g_getenv("COG_PLATFORM_FDO_VIEW_HEIGHT"),
+            &win_data.min_rect.h,
+            &win_data.height,
+            &win_data.max_rect.h);
+
     if (wl_data.xdg_shell != NULL) {
         win_data.xdg_surface =
             xdg_wm_base_get_xdg_surface (wl_data.xdg_shell,
@@ -2510,6 +2552,32 @@ cog_platform_plugin_init_web_view (CogPlatform   *platform,
                                    WebKitWebView *view)
 {
     g_signal_connect (view, "show-option-menu", G_CALLBACK (on_show_option_menu), NULL);
+}
+
+void
+cog_platform_plugin_resize (CogPlatform   *platform,
+                            const char *size_spec)
+{
+    char w[100], h[100];
+    errno = 0;
+    int count = sscanf(size_spec, "%99[0-9:]x%99[0-9:]", w, h);
+    if(count != 2) {
+        g_warning("Invalid size specification: %s (%d != 2)", size_spec, count);
+        return;
+    }
+
+    parse_dim(w,
+            &win_data.min_rect.w,
+            &win_data.width,
+            &win_data.max_rect.w);
+
+    parse_dim(h,
+            &win_data.min_rect.h,
+            &win_data.height,
+            &win_data.max_rect.h);
+
+    configure_surface_geometry (0, 0);
+    resize_window ();
 }
 
 #if COG_IM_API_SUPPORTED

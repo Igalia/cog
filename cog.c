@@ -444,6 +444,18 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
     return g_steal_pointer (&web_view);
 }
 
+static void
+on_action_resize (G_GNUC_UNUSED GAction *action,
+                  GVariant              *param,
+                  CogLauncher       *launcher)
+{
+    g_debug ("%s: Platform = %p", __func__, s_options.platform);
+    g_return_if_fail (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
+
+    if (s_options.platform) {
+        cog_platform_resize (s_options.platform, g_variant_get_string (param, NULL));
+    }
+}
 
 int
 main (int argc, char *argv[])
@@ -462,6 +474,7 @@ main (int argc, char *argv[])
     cog_launcher_add_web_settings_option_entries (COG_LAUNCHER (app));
     cog_launcher_add_web_cookies_option_entries (COG_LAUNCHER (app));
     cog_launcher_add_web_permissions_option_entries (COG_LAUNCHER (app));
+    cog_launcher_add_action (COG_LAUNCHER(app), "resize", on_action_resize, G_VARIANT_TYPE_STRING);
 
     g_signal_connect (app, "shutdown", G_CALLBACK (on_shutdown), NULL);
     g_signal_connect (app, "handle-local-options",

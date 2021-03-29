@@ -53,6 +53,8 @@ WebKitWebViewBackend     *cog_platform_get_view_backend  (CogPlatform   *platfor
 
 void                      cog_platform_init_web_view     (CogPlatform   *platform,
                                                           WebKitWebView *view);
+void                      cog_platform_resize            (CogPlatform   *platform,
+                                                          const char *params);
 
 WebKitInputMethodContext *cog_platform_create_im_context (CogPlatform   *platform);
 

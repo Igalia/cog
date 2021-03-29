@@ -132,7 +132,7 @@ on_notify_web_view (CogShell *shell, GParamSpec * arg G_GNUC_UNUSED, CogLauncher
     g_signal_connect (web_view, "permission-request", G_CALLBACK (on_permission_request), launcher);
 }
 
-static void
+void
 cog_launcher_add_action (CogLauncher *launcher,
                          const char *name,
                          void (*callback) (GAction*, GVariant*, CogLauncher*),
