@@ -1,0 +1,12 @@
+CMakeFiles
+Makefile
+cmake_install.cmake
+libcog*.so*
+install_manifest.txt
+cogctl
+cogcore.pc
+cog-config.h
+cof
+WaylandProtocols.dir
+CMakeCache.txt
+cog
