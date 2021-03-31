@@ -411,6 +411,9 @@ static void destroy_popup (void);
 static void
 parse_dim(const char *value, long *min, uint32_t *size, long *max)
 {
+    if (!value)
+        return;
+
     int count = sscanf(value, "%ld:%" SCNu32 ":%ld", min, size, max);
 
     if(count == 1) {
