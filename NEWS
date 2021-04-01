@@ -1,4 +1,13 @@
 ======================
+0.9.90 - April 1, 2021
+======================
+
+- Support building documentation for the Cog core library using gi-docgen.
+- gtk4: Added mew "gtk4" platform module, which works on Wayland and uses
+  GTK4 to render web content into a GtkGLArea and provides a minimal yet
+  usable user interface
+
+======================
 0.9.1 - March 16, 2021
 ======================
 
