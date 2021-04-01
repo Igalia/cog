@@ -3,7 +3,9 @@ Cog
 
 ![Cog (boat)](data/cog.png)
 
-[![Build Status](https://travis-ci.com/Igalia/cog.svg?branch=master)](https://travis-ci.com/Igalia/cog)
+[![Build - Native](https://github.com/Igalia/cog/actions/workflows/ci-native.yml/badge.svg)](https://github.com/Igalia/cog/actions/workflows/ci-native.yml)
+[![Build - ARM](https://github.com/Igalia/cog/actions/workflows/ci-cross.yml/badge.svg)](https://github.com/Igalia/cog/actions/workflows/ci-cross.yml)
+[![Code Style](https://github.com/Igalia/cog/actions/workflows/codestyle.yml/badge.svg)](https://github.com/Igalia/cog/actions/workflows/codestyle.yml)
 
 Cog is a small single “window” launcher for the [WebKit WPE
 port](https://trac.webkit.org/wiki/WPE). It is small, provides no user
