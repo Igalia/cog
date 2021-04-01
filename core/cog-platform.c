@@ -31,6 +31,8 @@ struct _CogPlatform {
                                                     GError       **error);
     void                      (*init_web_view)     (CogPlatform   *platform,
                                                     WebKitWebView *view);
+    void                      (*resize)            (CogPlatform   *platform,
+                                                    const char *params);
     WebKitInputMethodContext* (*create_im_context) (CogPlatform   *platform);
 };
 
@@ -82,6 +84,8 @@ cog_platform_try_load (CogPlatform *platform,
 
     platform->init_web_view = dlsym (platform->so,
                                      "cog_platform_plugin_init_web_view");
+    platform->resize = dlsym (platform->so,
+                                     "cog_platform_plugin_resize");
     platform->create_im_context = dlsym (platform->so,
                                          "cog_platform_plugin_create_im_context");
 
@@ -122,6 +126,15 @@ cog_platform_init_web_view (CogPlatform   *platform,
 
     if (platform->init_web_view)
         platform->init_web_view (platform, view);
+}
+
+void
+cog_platform_resize (CogPlatform   *platform, const char *params)
+{
+    g_return_if_fail (platform != NULL);
+
+    if (platform->resize)
+        platform->resize (platform, params);
 }
 
 WebKitInputMethodContext*

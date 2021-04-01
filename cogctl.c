@@ -100,8 +100,8 @@ cmd_check_simple_help (const char *name, int needed_argc, int *argc, char ***arg
                                        NULL);
 
     g_autoptr(GError) error = NULL;
-    if (!g_option_context_parse (option_context, argc, argv, &error) || *argc > (1 + needed_argc)) {
-        g_printerr ("%s: %s\n", name, error ? error->message : "No arguments expected");
+    if (!g_option_context_parse (option_context, argc, argv, &error) || *argc != (1 + needed_argc)) {
+        g_printerr ("%s: %s\n", name, error ? error->message : g_strdup_printf("%d arguments expected", needed_argc));
         exit (EXIT_FAILURE);
     }
 }
@@ -180,6 +180,27 @@ cmd_open (const char               *name,
     g_variant_builder_add (param_uri, "v", g_variant_new_string (utf8_uri));
     GVariant *params = g_variant_new ("(sava{sv})", "open", param_uri, NULL);
 
+    if (!call_method (GTK_ACTIONS_ACTIVATE, params, &error)) {
+        g_printerr ("%s\n", error->message);
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
+static int
+cmd_resize (const char               *name,
+          G_GNUC_UNUSED const void *data,
+          int                       argc,
+          char                    **argv)
+{
+    cmd_check_simple_help ("resize window", 1, &argc, &argv);
+
+    g_autoptr(GVariantBuilder) param =
+        g_variant_builder_new (G_VARIANT_TYPE ("av"));
+    g_variant_builder_add (param, "v", g_variant_new_string (argv[1]));
+    GVariant *params = g_variant_new ("(sava{sv})", "resize", param, NULL);
+
+    g_autoptr(GError) error = NULL;
     if (!call_method (GTK_ACTIONS_ACTIVATE, params, &error)) {
         g_printerr ("%s\n", error->message);
         return EXIT_FAILURE;
@@ -298,6 +319,11 @@ cmd_find_by_name (const char *name)
             .name = "quit",
             .desc = "Exit the application",
             .handler = cmd_generic_no_args,
+        },
+        {
+            .name = "resize",
+            .desc = "Resize the window",
+            .handler = cmd_resize,
         },
         {
             .name = "reload",

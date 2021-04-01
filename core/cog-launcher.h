@@ -36,6 +36,10 @@ CogShell    *cog_launcher_get_shell                    (CogLauncher *launcher);
 void  cog_launcher_add_web_settings_option_entries     (CogLauncher *launcher);
 void  cog_launcher_add_web_cookies_option_entries      (CogLauncher *launcher);
 void  cog_launcher_add_web_permissions_option_entries  (CogLauncher *launcher);
+void  cog_launcher_add_action (CogLauncher *launcher,
+    const char *name,
+    void (*callback) (GAction*, GVariant*, CogLauncher*),
+    const GVariantType *param_type);
 
 G_END_DECLS
 
