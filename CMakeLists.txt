@@ -144,7 +144,7 @@ if (COG_DBUS_SYSTEM_BUS)
     configure_file(dbus/policy.conf.in ${COG_DEFAULT_APPID}.conf @ONLY)
     install(
         FILES ${CMAKE_CURRENT_BINARY_DIR}/${COG_DEFAULT_APPID}.conf
-        DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/dbus-1/system.d
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/dbus-1/system.d
         COMPONENT "runtime"
     )
 
