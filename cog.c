@@ -42,6 +42,7 @@ static struct {
     } on_failure;
     char *web_extensions_dir;
     gboolean ignore_tls_errors;
+    char *platform_options;
 } s_options = {
     .scale_factor = 1.0,
     .device_scale_factor = 1.0,
@@ -83,6 +84,9 @@ static GOptionEntry s_cli_options[] =
     { "platform", 'P', 0, G_OPTION_ARG_STRING, &s_options.platform_name,
         "Platform plug-in to use.",
         "NAME" },
+    { "platform-options", 'O', 0, G_OPTION_ARG_STRING, &s_options.platform_options,
+        "custom options to pass to the platform shared object",
+        "OPT,OPT=VALUE" },
     { "web-extensions-dir", '\0', 0, G_OPTION_ARG_STRING, &s_options.web_extensions_dir,
       "Load Web Extensions from given directory.",
       "PATH"},
@@ -306,7 +310,7 @@ platform_setup (CogShell *shell)
     }
 
     g_autoptr(GError) error = NULL;
-    if (!cog_platform_setup (platform, shell, "", &error)) {
+    if (!cog_platform_setup (platform, shell, s_options.platform_options, &error)) {
         g_warning ("Platform setup failed: %s", error->message);
         return FALSE;
     }
