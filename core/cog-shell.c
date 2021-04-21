@@ -339,6 +339,13 @@ cog_shell_class_init (CogShellClass *klass)
                              G_PARAM_READABLE |
                              G_PARAM_STATIC_STRINGS);
 
+    /**
+     * CogShell:config-file: (attributes org.gtk.Property.get=cog_shell_get_config_file):
+     *
+     * Optional configuration as a `GKeyFile`. This allows setting options
+     * which can be read elsewhere. This is typically used to provide
+     * additional options to [platform modules](overview.html).
+     */
     s_properties[PROP_CONFIG_FILE] =
         g_param_spec_boxed ("config-file",
                             "Configuration File",
@@ -438,7 +445,15 @@ cog_shell_get_name (CogShell *shell)
     return PRIV (shell)->name;
 }
 
-
+/**
+ * cog_shell_get_config_file:
+ *
+ * Obtains the additional configuration for this shell.
+ *
+ * See [property@Cog.Shell:config-file] for details.
+ *
+ * Returns: (nullable): `GKeyFile` used as configuration.
+ */
 GKeyFile*
 cog_shell_get_config_file (CogShell *shell)
 {
