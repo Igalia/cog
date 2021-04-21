@@ -21,9 +21,10 @@ jobs:
           path: base
       - name: Check
         run: |
-          echo "GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}"
-          cd "${GITHUB_WORKSPACE}/.."
-          diff -NaurU0 base head | head/data/check-style -d -ocode-style.diff
+          set -x
+          cd "${GITHUB_WORKSPACE}"
+          diff -NaurU0 base head > checkouts.diff
+          head/data/check-style -d -ocode-style.diff < checkouts.diff
       - name: Archive Diff
         uses: actions/upload-artifact@v2
         if: failure()
