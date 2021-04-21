@@ -6,10 +6,10 @@ jobs:
   check:
     runs-on: ubuntu-20.04
     steps:
-      - name: Install clang-format
+      - name: Install Tools
         run: |
           sudo apt update
-          sudo apt install -y clang-format
+          sudo apt install -y clang-format diffutils
       - name: Checkout Head
         uses: actions/checkout@v2
         with:
