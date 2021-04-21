@@ -21,6 +21,8 @@ jobs:
           path: base
       - name: Check
         run: |
+          echo "GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}"
+          cd "${GITHUB_WORKSPACE}/.."
           diff -NaurU0 base head | head/data/check-style -d -ocode-style.diff
       - name: Archive Diff
         uses: actions/upload-artifact@v2
