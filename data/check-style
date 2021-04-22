@@ -99,7 +99,7 @@ fi
 declare -r clang_format_min_version=11
 
 clang_format_version=$("${clang_format}" --version)
-if [[ ${clang_format_version} =~ ^clang-format[[:space:]]+version[[:space:]]+([[:digit:]]+)\. ]] ; then
+if [[ ${clang_format_version} =~ clang-format[[:space:]]+version[[:space:]]+([[:digit:]]+)\. ]] ; then
     clang_format_version=${BASH_REMATCH[1]}
     if [[ ${clang_format_version} -lt ${clang_format_min_version} ]] ; then
         echo "$0: clang-format ${clang_format_min_version}+ is needed, ${clang_format_version} detected" 1>&2
