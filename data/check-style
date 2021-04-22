@@ -52,6 +52,8 @@ declare -r BASE HEAD
 
 declare -ra clang_format_diff_candidates=(
     # Search in $PATH (Ubuntu, Debian, maybe others)
+    clang-format-diff-11
+    clang-format-diff-11.py
     clang-format-diff
     clang-format-diff.py
     # Arch Linux, Fedora.
@@ -74,7 +76,7 @@ find_program ()
 }
 
 clang_format_diff=$(find_program "${clang_format_diff_candidates[@]}")
-clang_format=$(find_program clang-format)
+clang_format=$(find_program clang-format-11 clang-format)
 declare -r clang_format_diff clang_format
 
 if [[ ! -x ${clang_format_diff} ]] ; then
@@ -94,7 +96,7 @@ fi
 #
 #   clang-format version X.Y.Z
 #
-declare -r clang_format_min_version=10
+declare -r clang_format_min_version=11
 
 clang_format_version=$("${clang_format}" --version)
 if [[ ${clang_format_version} =~ ^clang-format[[:space:]]+version[[:space:]]+([[:digit:]]+)\. ]] ; then
