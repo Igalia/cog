@@ -90,6 +90,41 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <li><strong>libinput</strong>:</li>
 <li><strong>libudev</strong>:</li>
 </ul>
+<h2 id="configuration-file-options">Configuration File Options<a class="md-anchor" href="#configuration-file-options" title="Permanent link"></a></h2>
+<p>If a section named <code>drm</code> is found in the configuration file (see
+<a href="property.Shell.config-file.html"><code>CogShell:config-file</code></a>), the following options will be&nbsp;honored:</p>
+<table>
+<thead>
+<tr>
+<th align="left">Option</th>
+<th align="left">Type</th>
+<th align="left">Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left"><code>device-scale-factor</code></td>
+<td align="left">float</td>
+<td align="left"><code>1.0</code></td>
+</tr>
+<tr>
+<td align="left"><code>disable-atomic-modesetting</code></td>
+<td align="left">boolean</td>
+<td align="left"><em>detect</em></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>device-scale-factor</code> option indicates a scaling factor to be applied to
+the rendered content. This is particularly useful for displays with a high
+<abbr title="Dots Per Inch"><span class="caps">DPI</span></abbr> to avoid rendered content to appear
+abnormally small. A typical setting for displays around the <span class="caps">192DPI</span> mark would
+be <code>2.0</code>. Note that currently no attempt is done to try guessing a suitable
+value, and values other than the default need to be explicitly&nbsp;set.</p>
+<p>The <code>disable-atomic-modesetting</code> option can be used to explicitly disable
+usage of <a href="https://lwn.net/Articles/653071/">atomic mode setting</a>. This is a feature supported
+by many modern <span class="caps">GPU</span> drivers and it will be used by default when available.  In
+some rare cases—mostly buggy or incomplete drivers—it might need to be
+manually disable its usage by setting this option to <code>true</code>.</p>
   </section>
 </section>
 
