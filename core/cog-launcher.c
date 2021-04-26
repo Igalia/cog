@@ -40,6 +40,11 @@ g_clear_handle_id (guint            *tag_ptr,
 #define G_SOURCE_FUNC(f) ((GSourceFunc) (void (*)(void)) (f))
 #endif
 
+enum {
+    PROP_0,
+    PROP_AUTOMATED,
+};
+
 /**
  * CogLauncher:
  *
@@ -54,6 +59,7 @@ struct _CogLauncher {
     GApplication parent;
     CogShell    *shell;
     gboolean     allow_all_requests;
+    gboolean     automated;
 
     guint        sigint_source;
     guint        sigterm_source;
@@ -284,6 +290,21 @@ cog_launcher_constructed (GObject *object)
 #endif
 }
 
+static void
+cog_launcher_set_property (GObject *object, guint propId, const GValue *value, GParamSpec *pspec)
+{
+    CogLauncher *launcher = COG_LAUNCHER(object);
+
+    switch (propId)
+    {
+    case PROP_AUTOMATED:
+        launcher->automated = g_value_get_boolean(value);
+        break;
+    default:
+        break;
+    }
+}
+
 
 static void
 cog_launcher_class_init (CogLauncherClass *klass)
@@ -291,11 +312,20 @@ cog_launcher_class_init (CogLauncherClass *klass)
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
     object_class->dispose = cog_launcher_dispose;
     object_class->constructed = cog_launcher_constructed;
+    object_class->set_property = cog_launcher_set_property;
 
     GApplicationClass *application_class = G_APPLICATION_CLASS (klass);
     application_class->open = cog_launcher_open;
     application_class->startup = cog_launcher_startup;
     application_class->shutdown = cog_launcher_shutdown;
+
+    g_object_class_install_property(object_class,
+                                PROP_AUTOMATED,
+                                g_param_spec_boolean("automated",
+                                                    "Automated",
+                                                    "Whether this launcher is automated",
+                                                    FALSE,
+                                                    G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 
@@ -308,6 +338,7 @@ cog_launcher_init (G_GNUC_UNUSED CogLauncher *launcher)
 static void*
 cog_launcher_create_instance (void* user_data)
 {
+    CogSessionType *sessionType = user_data;
     /* Global singleton */
     const GApplicationFlags app_flags =
 #if GLIB_CHECK_VERSION(2, 48, 0)
@@ -317,21 +348,37 @@ cog_launcher_create_instance (void* user_data)
     return g_object_new (COG_TYPE_LAUNCHER,
                          "application-id", COG_DEFAULT_APPID,
                          "flags",  app_flags,
+                         "automated", *sessionType == COG_SESSION_AUTOMATED,
                          NULL);
 }
 
 /**
  * cog_launcher_get_default:
  *
- * Returns the [class@Cog.Launcher] single instance, creating it if needed.
+ * Returns the [class@Cog.Launcher] single instance, creating a regular
+ * (non-autoamted) launcher if needed.
  *
  * Returns: (transfer none): Singleton instance.
  */
 CogLauncher*
-cog_launcher_get_default (void)
+cog_launcher_get_default ()
+{
+    return cog_launcher_init_default(COG_SESSION_REGULAR);
+}
+
+/**
+ * cog_launcher_init_default:
+ *
+ * Initializes once the [class@Cog.Launcher] single instance. This instance
+ * can be accessed later through [id@cog_launcher_get_default].
+ *
+ * Returns: (transfer none): Singleton instance.
+ */
+CogLauncher*
+cog_launcher_init_default (CogSessionType sessionType)
 {
     static GOnce create_instance_once = G_ONCE_INIT;
-    g_once (&create_instance_once, cog_launcher_create_instance, NULL);
+    g_once (&create_instance_once, cog_launcher_create_instance, &sessionType);
     g_assert_nonnull (create_instance_once.retval);
     return create_instance_once.retval;
 }
@@ -348,6 +395,20 @@ cog_launcher_get_shell (CogLauncher *launcher)
 {
     g_return_val_if_fail (COG_IS_LAUNCHER (launcher), NULL);
     return launcher->shell;
+}
+
+/**
+ * cog_launcher_is_automated:
+ *
+ * Whether this launcher was created in automated mode.
+ *
+ * Returns: TRUE if this session is automated, FALSE otherwise.
+ */
+gboolean
+cog_launcher_is_automated (CogLauncher *launcher)
+{
+    g_return_val_if_fail (COG_IS_LAUNCHER (launcher), FALSE);
+    return launcher->automated;
 }
 
 /**

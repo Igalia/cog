@@ -477,7 +477,17 @@ main (int argc, char *argv[])
     g_info("%s:", COG_MODULES_PLATFORM_EXTENSION_POINT);
     cog_modules_foreach(COG_MODULES_PLATFORM, print_module_info, NULL);
 
-    g_autoptr(GApplication) app = G_APPLICATION (cog_launcher_get_default ());
+    // We need to check whether we'll use automation mode before creating the launcher
+    gboolean automated = FALSE;
+    for (int i = 1; i < argc; i++) {
+        if (g_str_equal("--automation", argv[i])) {
+            automated = TRUE;
+            break;
+        }
+    }
+
+    CogSessionType sessionType = automated ? COG_SESSION_AUTOMATED : COG_SESSION_REGULAR;
+    g_autoptr(GApplication) app = G_APPLICATION (cog_launcher_init_default(sessionType));
     g_application_add_main_option_entries (app, s_cli_options);
     cog_launcher_add_web_settings_option_entries (COG_LAUNCHER (app));
     cog_launcher_add_web_cookies_option_entries (COG_LAUNCHER (app));
