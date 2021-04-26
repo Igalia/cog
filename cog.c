@@ -47,6 +47,7 @@ static struct {
     char *web_extensions_dir;
     gboolean ignore_tls_errors;
     gboolean enable_sandbox;
+    gboolean automation;
 } s_options = {
     .scale_factor = 1.0,
     .device_scale_factor = 1.0,
@@ -80,6 +81,8 @@ static GOptionEntry s_cli_options[] = {
      "Path to content filter JSON rule set (default: none).", "PATH"},
     {"enable-sandbox", 's', 0, G_OPTION_ARG_NONE, &s_options.enable_sandbox,
      "Enable WebProcess sandbox (default: disabled).", NULL},
+    { "automation", '\0', 0, G_OPTION_ARG_NONE, &s_options.automation,
+        "Enable automation mode (default: disabled).", NULL },
     {G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments, "", "[URL]"},
     {NULL}};
 
@@ -165,7 +168,10 @@ on_handle_local_options (GApplication *application,
     }
 
     const char *uri = NULL;
-    if (!s_options.arguments) {
+    g_autoptr(CogShell) shell = cog_launcher_get_shell (COG_LAUNCHER (application));
+    if (cog_shell_is_automated(shell)) {
+        uri = "about:blank";
+    } else if (!s_options.arguments) {
         if (!(uri = g_getenv ("COG_URL"))) {
 #ifdef COG_DEFAULT_HOME_URI
             uri = COG_DEFAULT_HOME_URI;
@@ -196,7 +202,6 @@ on_handle_local_options (GApplication *application,
      * whether the directory exists. Note that this creation of the
      * corresponding CogURIHandler objects is done at GApplication::startup.
      */
-    g_autoptr(CogShell) shell = cog_launcher_get_shell (COG_LAUNCHER (application));
     for (size_t i = 0; s_options.dir_handlers && s_options.dir_handlers[i]; i++) {
         char *colon = strchr (s_options.dir_handlers[i], ':');
         if (!colon) {
