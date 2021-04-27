@@ -31,13 +31,15 @@ struct _CogShellClass {
 };
 
 
-CogShell         *cog_shell_new                     (const char        *name);
+CogShell         *cog_shell_new                     (const char        *name,
+                                                     gboolean           automated);
 const char       *cog_shell_get_name                (CogShell          *shell);
 WebKitWebContext *cog_shell_get_web_context         (CogShell          *shell);
 WebKitSettings   *cog_shell_get_web_settings        (CogShell          *shell);
 WebKitWebView    *cog_shell_get_web_view            (CogShell          *shell);
 GKeyFile         *cog_shell_get_config_file         (CogShell          *shell);
 gdouble           cog_shell_get_device_scale_factor (CogShell          *shell);
+gboolean          cog_shell_is_automated            (CogShell          *shell);
 void              cog_shell_set_request_handler     (CogShell          *shell,
                                                      const char        *scheme,
                                                      CogRequestHandler *handler);
