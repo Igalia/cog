@@ -7,6 +7,8 @@
 
 #include "cog-shell.h"
 
+#include <wpe/webkit.h>
+
 /**
  * CogShell:
  *
@@ -63,9 +65,11 @@ static int s_signals[N_SIGNALS] = { 0, };
 static WebKitWebView*
 cog_shell_create_view_base (CogShell *shell)
 {
+    CogShellPrivate *priv = PRIV (shell);
     return g_object_new (WEBKIT_TYPE_WEB_VIEW,
                          "settings", cog_shell_get_web_settings (shell),
                          "web-context", cog_shell_get_web_context (shell),
+                         "is-controlled-by-automation", priv->automated,
                          NULL);
 }
 
@@ -122,7 +126,21 @@ request_handler_map_entry_register (const char             *scheme,
     }
 }
 
+static WebKitWebView*
+cog_shell_create_web_view_for_automation (WebKitAutomationSession *session, CogShell *shell)
+{
+    return PRIV (shell)->web_view;
+}
 
+static void
+cog_shell_automation_started_callback (WebKitWebContext *context, WebKitAutomationSession* session, CogShell* shell)
+{
+    g_autoptr(WebKitApplicationInfo) info = webkit_application_info_new();
+    webkit_application_info_set_version(info, WEBKIT_MAJOR_VERSION, WEBKIT_MINOR_VERSION, WEBKIT_MICRO_VERSION);
+    webkit_automation_session_set_application_info(session, info);
+
+    g_signal_connect(session, "create-web-view", G_CALLBACK(cog_shell_create_web_view_for_automation), shell);
+}
 
 static void
 cog_shell_startup_base (CogShell *shell)
@@ -145,6 +163,9 @@ cog_shell_startup_base (CogShell *shell)
      */
     g_assert (webkit_web_view_get_settings (priv->web_view) == priv->web_settings);
     g_assert (webkit_web_view_get_context (priv->web_view) == priv->web_context);
+
+    webkit_web_context_set_automation_allowed(priv->web_context, priv->automated);
+    g_signal_connect(priv->web_context, "automation-started", G_CALLBACK(cog_shell_automation_started_callback), shell);
 }
 
 
