@@ -26,6 +26,7 @@ typedef struct {
     GKeyFile         *config_file;
     gdouble           device_scale_factor;
     GHashTable       *request_handlers;  /* (string, RequestHandlerMapEntry) */
+    gboolean          automated;
 } CogShellPrivate;
 
 
@@ -42,6 +43,7 @@ enum {
     PROP_WEB_VIEW,
     PROP_CONFIG_FILE,
     PROP_DEVICE_SCALE_FACTOR,
+    PROP_AUTOMATED,
     N_PROPERTIES,
 };
 
@@ -195,6 +197,9 @@ cog_shell_set_property (GObject      *object,
         case PROP_DEVICE_SCALE_FACTOR:
             PRIV (shell)->device_scale_factor = g_value_get_double (value);
             break;
+        case PROP_AUTOMATED:
+            PRIV (shell)->automated = g_value_get_boolean(value);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
@@ -215,11 +220,14 @@ cog_shell_constructed (GObject *object)
     g_autofree char *cache_dir =
         g_build_filename (g_get_user_cache_dir (), priv->name, NULL);
 
-    g_autoptr(WebKitWebsiteDataManager) manager =
-        webkit_website_data_manager_new ("base-data-directory", data_dir,
-                                         "base-cache-directory", cache_dir,
-                                         NULL);
+    g_autoptr(WebKitWebsiteDataManager) manager = NULL;
 
+    if (priv->automated)
+        manager = webkit_website_data_manager_new_ephemeral();
+    else
+        manager = webkit_website_data_manager_new ("base-data-directory", data_dir,
+                                                   "base-cache-directory", cache_dir,
+                                                   NULL);
     priv->web_context =
         webkit_web_context_new_with_website_data_manager (manager);
 }
@@ -361,6 +369,13 @@ cog_shell_class_init (CogShellClass *klass)
                              0, 64.0, 1.0,
                              G_PARAM_READWRITE);
 
+    s_properties[PROP_AUTOMATED] = 
+        g_param_spec_boolean("automated",
+                             "Automated",
+                             "Whether this session is automated",
+                             FALSE,
+                             G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY);
+
     g_object_class_install_properties (object_class, N_PROPERTIES, s_properties);
 }
 
@@ -376,16 +391,18 @@ cog_shell_init (CogShell *shell G_GNUC_UNUSED)
 /**
  * cog_shell_new: (constructor)
  * @name: Name of the shell.
+ * @automated: Whether this shell is controlled by automation.
  *
  * Creates a new shell.
  *
  * Returns: (transfer full): A new shell instance.
  */
 CogShell*
-cog_shell_new (const char *name)
+cog_shell_new (const char *name, gboolean automated)
 {
     return g_object_new (COG_TYPE_SHELL,
                          "name", name,
+                         "automated", automated,
                          NULL);
 }
 
@@ -467,6 +484,13 @@ cog_shell_get_device_scale_factor (CogShell *shell)
 {
     g_return_val_if_fail (COG_IS_SHELL (shell), 0);
     return PRIV(shell)->device_scale_factor;
+}
+
+gboolean
+cog_shell_is_automated (CogShell *shell)
+{
+    g_return_val_if_fail (COG_IS_SHELL (shell), 0);
+    return PRIV (shell)->automated;
 }
 
 /**
