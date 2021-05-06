@@ -37,6 +37,10 @@ static struct {
         CogPlatform *platform;
     };
     union {
+        char *filter_path;
+        WebKitUserContentFilter *filter;
+    };
+    union {
         char *action_name;
         enum webprocess_fail_action action_id;
     } on_failure;
@@ -47,52 +51,34 @@ static struct {
     .device_scale_factor = 1.0,
 };
 
-
-static GOptionEntry s_cli_options[] =
-{
-    { "version", '\0', 0, G_OPTION_ARG_NONE, &s_options.version,
-        "Print version and exit",
-        NULL },
-    { "print-appid", '\0', 0, G_OPTION_ARG_NONE, &s_options.print_appid,
-        "Print application ID and exit",
-        NULL },
-    { "scale", '\0', 0, G_OPTION_ARG_DOUBLE, &s_options.scale_factor,
-        "Zoom/Scaling factor applied to Web content (default: 1.0, no scaling)",
-        "FACTOR" },
-    { "device-scale", '\0', 0, G_OPTION_ARG_DOUBLE, &s_options.device_scale_factor,
-        "Output device scaling factor (default: 1.0, no scaling, 96 DPI)",
-        "FACTOR" },
-    { "doc-viewer", '\0', 0, G_OPTION_ARG_NONE, &s_options.doc_viewer,
-        "Document viewer mode: optimizes for local loading of Web content. "
-        "This reduces memory usage at the cost of reducing caching of "
-        "resources loaded from the network.",
-        NULL },
-    { "dir-handler", 'd', 0, G_OPTION_ARG_STRING_ARRAY, &s_options.dir_handlers,
-        "Add a URI scheme handler for a directory",
-        "SCHEME:PATH" },
-    { "webprocess-failure", '\0', 0, G_OPTION_ARG_STRING,
-        &s_options.on_failure.action_name,
-        "Action on WebProcess failures: error-page (default), exit, exit-ok, restart.",
-        "ACTION" },
-    { "config", 'C', 0, G_OPTION_ARG_FILENAME, &s_options.config_file,
-        "Path to a configuration file",
-        "PATH" },
-    { "bg-color", 'b', 0, G_OPTION_ARG_STRING, &s_options.background_color,
-        "Background color, as a CSS name or in #RRGGBBAA hex syntax (default: white)",
-        "BG_COLOR" },
-    { "platform", 'P', 0, G_OPTION_ARG_STRING, &s_options.platform_name,
-        "Platform plug-in to use.",
-        "NAME" },
-    { "web-extensions-dir", '\0', 0, G_OPTION_ARG_STRING, &s_options.web_extensions_dir,
-      "Load Web Extensions from given directory.",
-      "PATH"},
-    { "ignore-tls-errors", '\0', 0, G_OPTION_ARG_NONE, &s_options.ignore_tls_errors,
-        "Ignore TLS errors (default: disabled).", NULL },
-    { G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments,
-        "", "[URL]" },
-    { NULL }
-};
-
+static GOptionEntry s_cli_options[] = {
+    {"version", '\0', 0, G_OPTION_ARG_NONE, &s_options.version, "Print version and exit", NULL},
+    {"print-appid", '\0', 0, G_OPTION_ARG_NONE, &s_options.print_appid, "Print application ID and exit", NULL},
+    {"scale", '\0', 0, G_OPTION_ARG_DOUBLE, &s_options.scale_factor,
+     "Zoom/Scaling factor applied to Web content (default: 1.0, no scaling)", "FACTOR"},
+    {"device-scale", '\0', 0, G_OPTION_ARG_DOUBLE, &s_options.device_scale_factor,
+     "Output device scaling factor (default: 1.0, no scaling, 96 DPI)", "FACTOR"},
+    {"doc-viewer", '\0', 0, G_OPTION_ARG_NONE, &s_options.doc_viewer,
+     "Document viewer mode: optimizes for local loading of Web content. "
+     "This reduces memory usage at the cost of reducing caching of "
+     "resources loaded from the network.",
+     NULL},
+    {"dir-handler", 'd', 0, G_OPTION_ARG_STRING_ARRAY, &s_options.dir_handlers,
+     "Add a URI scheme handler for a directory", "SCHEME:PATH"},
+    {"webprocess-failure", '\0', 0, G_OPTION_ARG_STRING, &s_options.on_failure.action_name,
+     "Action on WebProcess failures: error-page (default), exit, exit-ok, restart.", "ACTION"},
+    {"config", 'C', 0, G_OPTION_ARG_FILENAME, &s_options.config_file, "Path to a configuration file", "PATH"},
+    {"bg-color", 'b', 0, G_OPTION_ARG_STRING, &s_options.background_color,
+     "Background color, as a CSS name or in #RRGGBBAA hex syntax (default: white)", "BG_COLOR"},
+    {"platform", 'P', 0, G_OPTION_ARG_STRING, &s_options.platform_name, "Platform plug-in to use.", "NAME"},
+    {"web-extensions-dir", '\0', 0, G_OPTION_ARG_STRING, &s_options.web_extensions_dir,
+     "Load Web Extensions from given directory.", "PATH"},
+    {"ignore-tls-errors", '\0', 0, G_OPTION_ARG_NONE, &s_options.ignore_tls_errors,
+     "Ignore TLS errors (default: disabled).", NULL},
+    {"content-filter", 'F', 0, G_OPTION_ARG_FILENAME, &s_options.filter_path,
+     "Path to content filter JSON rule set (default: none).", "PATH"},
+    {G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments, "", "[URL]"},
+    {NULL}};
 
 static gboolean
 load_settings (CogShell *shell, GKeyFile *key_file, GError **error)
@@ -134,6 +120,15 @@ string_to_webprocess_fail_action (const char *action)
     return WEBPROCESS_FAIL_UNKNOWN;
 }
 
+static void
+on_filter_saved(WebKitUserContentFilterStore *store, GAsyncResult *result, GMainLoop *loop)
+{
+    g_autoptr(GError) error = NULL;
+    s_options.filter = webkit_user_content_filter_store_save_from_file_finish(store, result, &error);
+    if (!s_options.filter)
+        g_warning("Cannot compile filter: %s", error->message);
+    g_main_loop_quit(loop);
+}
 
 static int
 on_handle_local_options (GApplication *application,
@@ -273,6 +268,26 @@ on_handle_local_options (GApplication *application,
                                               ? WEBKIT_TLS_ERRORS_POLICY_IGNORE
                                               : WEBKIT_TLS_ERRORS_POLICY_FAIL);
 
+    if (s_options.filter_path) {
+        WebKitWebsiteDataManager *data_manager =
+            webkit_web_context_get_website_data_manager(cog_shell_get_web_context(shell));
+        g_autofree char *filters_path =
+            g_build_filename(webkit_website_data_manager_get_base_cache_directory(data_manager), "filters", NULL);
+        g_autoptr(WebKitUserContentFilterStore) store = webkit_user_content_filter_store_new(filters_path);
+
+        g_autoptr(GFile) file = g_file_new_for_commandline_arg(s_options.filter_path);
+        g_clear_pointer(&s_options.filter_path, g_free);
+
+        g_autoptr(GMainLoop) loop = g_main_loop_new(NULL, FALSE);
+        webkit_user_content_filter_store_save_from_file(store,
+                                                        "CogFilter",
+                                                        file,
+                                                        NULL,
+                                                        (GAsyncReadyCallback) on_filter_saved,
+                                                        loop);
+        g_main_loop_run(loop);
+    }
+
     return -1;  /* Continue startup. */
 }
 
@@ -370,6 +385,12 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
                                                       "zoom-level", s_options.scale_factor,
                                                       "backend", view_backend,
                                                       NULL);
+
+    if (s_options.filter) {
+        WebKitUserContentManager *manager = webkit_web_view_get_user_content_manager(web_view);
+        webkit_user_content_manager_add_filter(manager, s_options.filter);
+        g_clear_pointer(&s_options.filter, webkit_user_content_filter_unref);
+    }
 
     g_signal_connect (web_view, "create", G_CALLBACK (on_web_view_create), NULL);
 
