@@ -143,6 +143,12 @@ cog_shell_automation_started_callback (WebKitWebContext *context, WebKitAutomati
 }
 
 static void
+cog_shell_web_view_close (WebKitWebView *view, CogShell *shell)
+{
+    g_object_unref(view);
+}
+
+static void
 cog_shell_startup_base (CogShell *shell)
 {
     CogShellPrivate *priv = PRIV (shell);
@@ -166,6 +172,7 @@ cog_shell_startup_base (CogShell *shell)
 
     webkit_web_context_set_automation_allowed(priv->web_context, priv->automated);
     g_signal_connect(priv->web_context, "automation-started", G_CALLBACK(cog_shell_automation_started_callback), shell);
+    g_signal_connect(priv->web_view, "close", G_CALLBACK(cog_shell_web_view_close), shell);
 }
 
 
