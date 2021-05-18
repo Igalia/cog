@@ -1,3 +1,9 @@
+=====================
+0.10.0 - May 18, 2021
+=====================
+
+- Fix the location where the D-Bus policy config gets installed.
+
 ======================
 0.9.90 - April 1, 2021
 ======================
