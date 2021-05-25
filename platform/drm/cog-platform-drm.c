@@ -1112,22 +1112,25 @@ input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_e
 }
 
 static void
-input_handle_pointer_motion_event (struct libinput_event_pointer *pointer_event)
+input_handle_pointer_motion_event(struct libinput_event_pointer *pointer_event, bool absolute)
 {
     if (!cursor.enabled)
         return;
 
-    double dx = libinput_event_pointer_get_dx(pointer_event);
-    double dy = libinput_event_pointer_get_dy(pointer_event);
+    if (absolute) {
+        cursor.x = libinput_event_pointer_get_absolute_x_transformed(pointer_event, cursor.screen_width);
+        cursor.y = libinput_event_pointer_get_absolute_y_transformed(pointer_event, cursor.screen_height);
+    } else {
+        cursor.x += libinput_event_pointer_get_dx(pointer_event);
+        cursor.y += libinput_event_pointer_get_dy(pointer_event);
+    }
 
-    cursor.x = cursor.x + dx;
     if (cursor.x < 0) {
         cursor.x = 0;
     } else if (cursor.x > cursor.screen_width - 1) {
         cursor.x = cursor.screen_width - 1;
     }
 
-    cursor.y = cursor.y + dy;
     if (cursor.y < 0) {
         cursor.y = 0;
     } else if (cursor.y > cursor.screen_height - 1) {
@@ -1187,11 +1190,13 @@ input_process_events (void)
             case LIBINPUT_EVENT_TOUCH_UP:
             case LIBINPUT_EVENT_TOUCH_MOTION:
             case LIBINPUT_EVENT_TOUCH_FRAME:
-                input_handle_touch_event (event_type,
-                                          libinput_event_get_touch_event (event));
+                input_handle_touch_event(event_type, libinput_event_get_touch_event(event));
                 break;
             case LIBINPUT_EVENT_POINTER_MOTION:
-                input_handle_pointer_motion_event(libinput_event_get_pointer_event(event));
+                input_handle_pointer_motion_event(libinput_event_get_pointer_event(event), false);
+                break;
+            case LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE:
+                input_handle_pointer_motion_event(libinput_event_get_pointer_event(event), true);
                 break;
             case LIBINPUT_EVENT_POINTER_BUTTON:
                 input_handle_pointer_button_event(libinput_event_get_pointer_event(event));
