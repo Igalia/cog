@@ -103,6 +103,8 @@ set(COGCORE_API_HEADERS
     core/cog-utils.h
     core/cog-webkit-utils.h
     core/cog-platform.h
+    core/cog-modules.h
+    core/cog-modules.c
     ${CMAKE_CURRENT_BINARY_DIR}/cog-config.h
 )
 set(COGCORE_SOURCES
