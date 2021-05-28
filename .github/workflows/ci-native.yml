@@ -31,7 +31,7 @@ jobs:
           python-version: 3.8
       - name: Install Python Packages
         run: |
-          pip install --upgrade pip gi-docgen==2021.5 meson==0.49
+          pip install --upgrade pip gi-docgen==2021.2 meson==0.49
           printf '#! /bin/sh\nexec python -m gidocgen.gidocmain "$@"\n' \
             > "$(which gi-docgen)"
       - name: Fetch WPEBackend-fdo
