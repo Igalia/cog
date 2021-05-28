@@ -13,7 +13,7 @@ add_library(cogplatform-drm MODULE
     kms.c
     cursor-drm.c
 )
-set_target_properties(cogplatform-fdo PROPERTIES
+set_target_properties(cogplatform-drm PROPERTIES
     C_STANDARD 99
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
 )
