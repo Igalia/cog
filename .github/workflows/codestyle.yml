@@ -17,7 +17,7 @@ jobs:
           sudo add-apt-repository \
             'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main'
           sudo apt update
-          sudo apt install -y clang-format-11 diffutils
+          sudo apt install -y clang-format-11
       - name: Checkout Base
         uses: actions/checkout@v2
         with:
@@ -26,7 +26,8 @@ jobs:
       - name: Check
         run: |
           cd "${GITHUB_WORKSPACE}"
-          diff -NaurU0 base head > checkouts.diff || rc=$?
+          git diff --no-color --no-index -U0 --histogram --exit-code \
+            --no-index -- base head > checkouts.diff || rc=$?
           if [[ $rc -eq 1 ]] ; then
             cd head
             data/check-style -d -o../code-style.diff < ../checkouts.diff
