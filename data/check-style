@@ -119,7 +119,7 @@ declare -a input_cmd
 if ${diff_input} ; then
     input_cmd=(cat)
 else
-    input_cmd=(git diff --no-color -U0 --histogram "${BASE}...${HEAD}")
+    input_cmd=(git diff --no-color -U0 "${BASE}...${HEAD}")
 fi
 
 "${input_cmd[@]}" \
