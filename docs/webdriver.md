@@ -1,0 +1,61 @@
+Title: WebDriver support
+
+# WebDriver support
+
+Cog allows remote testing through the WebDriver interface. With Selenium python
+bindings, you can use the `selenium.webdriver.remote.WebDriver` class to run
+the tests on the target device directly from a host computer.
+
+## Requirements
+
+* `cog` and `WPEWebDriver` installed on the target devices.
+* Selenium python bindings on the computer with the test scripts.
+
+## Launching the WebDriver
+
+For example, on a meta-webkit RPi3 image:
+
+```shell
+$ export WAYLAND_DISPLAY=wayland-0
+$ export XDG_RUNTIME_DIR=/run/user/0
+# host=all to allow requests from other machines
+$ WPEWebDriver --port=8088 --host=all
+```
+
+## Connecting to the driver
+
+In the python script:
+
+```python
+from selenium import webdriver
+
+def capabilities():
+    return {
+        "wpe:browserOptions": {
+            "binary": "/usr/bin/cog",
+            "args": ["--automation", "--platform=fdo"],
+        }
+    }
+
+driver = webdriver.Remote(
+    command_executor="http://YOUR_DEVICE_IP:8088",
+    desired_capabilities=capabilities(),
+)
+```
+
+## Using the driver
+
+```python
+driver.get("https://lichess.org/analysis")
+board = WebDriverWait(driver, 10).until(
+    EC.presence_of_element_located((By.CLASS_NAME, "cg-wrap"))
+)
+
+square_size = board.size["height"] / 8
+# ...
+actions = ActionBuilder(driver)
+pointer = actions.pointer_action
+pointer.move_to(board, x, y)
+pointer.click()
+actions.perform()
+```
