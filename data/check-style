@@ -112,7 +112,9 @@ fi
 
 if [[ -z ${FILE} ]] ; then
     FILE=$(mktemp)
-    trap "rm -f '${FILE}'" EXIT
+    trap 'rm -f "${FILE}"' EXIT
+else
+    trap '[[ -s ${FILE} ]] || rm -f "${FILE}"' EXIT
 fi
 
 declare -a input_cmd
