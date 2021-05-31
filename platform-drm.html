@@ -18,28 +18,36 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
   <meta charset="utf-8" />
 
-  <meta property="og:site_name" content=""/>
-  <meta property="og:title" content=""/>
-  <meta property="og:url" content=""/>
+  
   <meta property="og:type" content="website"/>
 
   
+  <meta property="og:image:width" content="256"/>
+  <meta property="og:image:height" content="256"/>
+  <meta property="og:image:secure_url" content="cog.png"/>
+  <meta property="og:image:alt" content="Cog-0.0"/>
+  
 
   
-  <meta name="og:title" content="Cog-0.0: Platform: DRM"/>
-  <meta name="og:description" content="Reference for Cog-0.0"/>
+  <meta property="og:title" content="Cog: Platform: DRM"/>
+  <meta property="og:description" content="Reference for Cog-0.0: Platform: DRM"/>
+  <meta name="twitter:title" content="Cog: Platform: DRM"/>
+  <meta name="twitter:description" content="Reference for Cog-0.0: Platform: DRM"/>
 
 
-  <meta name="twitter:title" content=""/>
-  <meta name="twitter:url" content=""/>
+  
   <meta name="twitter:card" content="summary"/>
 
-  <link rel="canonical" href=""/>
+  
 
   <link rel="stylesheet" href="style.css" type="text/css" />
 
   
 
+  
+  
+  <script src="fzy.js"></script>
+  <script src="search.js"></script>
   
   <script src="main.js"></script>
   <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
@@ -48,7 +56,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <body>
   <div id="body-wrapper" tabindex="-1">
 
-    <nav class="sidebar">
+    <nav class="sidebar devhelp-hidden">
       
       <div class="section">
         <img src="cog.png" class="logo"/>
@@ -56,8 +64,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       
       
       <div class="search section">
-        <form id="search-form" method="GET">
-          <input class="search-input" type="text" name="q" placeholder="Search docs"/>
+        <form id="search-form" autocomplete="off">
+          <input id="search-input" type="text" name="do-not-autocomplete" placeholder="Click, or press 's' to search" autocomplete="off"/>
         </form>
       </div>
       
@@ -79,6 +87,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <section>
+    <div class="docblock">
     <h1 id="drmkms-platform">DRM/KMS Platform<a class="md-anchor" href="#drmkms-platform" title="Permanent link"></a></h1>
 <h2 id="requirements">Requirements<a class="md-anchor" href="#requirements" title="Permanent link"></a></h2>
 <p>The <span class="caps">DRM</span> platform plug-in additionally requires the following&nbsp;libraries:</p>
@@ -125,15 +134,12 @@ usage of <a href="https://lwn.net/Articles/653071/">atomic mode setting</a>. Thi
 by many modern <span class="caps">GPU</span> drivers and it will be used by default when available.  In
 some rare cases—mostly buggy or incomplete drivers—it might need to be
 manually disable its usage by setting this option to <code>true</code>.</p>
+    </div>
   </section>
 </section>
 
 
     <section id="search" class="content hidden"></section>
-
-    
-    <script src="search.js"></script>
-    
 
     <footer>
     

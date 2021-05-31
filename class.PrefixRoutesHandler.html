@@ -18,28 +18,36 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
   <meta charset="utf-8" />
 
-  <meta property="og:site_name" content=""/>
-  <meta property="og:title" content=""/>
-  <meta property="og:url" content=""/>
+  
   <meta property="og:type" content="website"/>
 
   
+  <meta property="og:image:width" content="256"/>
+  <meta property="og:image:height" content="256"/>
+  <meta property="og:image:secure_url" content="cog.png"/>
+  <meta property="og:image:alt" content="Cog-0.0"/>
+  
 
   
-  <meta name="og:title" content="Cog.PrefixRoutesHandler"/>
-  <meta name="og:description" content="Reference for Cog.PrefixRoutesHandler"/>
+  <meta property="og:title" content="Cog.PrefixRoutesHandler"/>
+  <meta property="og:description" content="Reference for Cog.PrefixRoutesHandler"/>
+  <meta name="twitter:title" content="Cog.PrefixRoutesHandler"/>
+  <meta name="twitter:description" content="Reference for Cog.PrefixRoutesHandler"/>
 
 
-  <meta name="twitter:title" content=""/>
-  <meta name="twitter:url" content=""/>
+  
   <meta name="twitter:card" content="summary"/>
 
-  <link rel="canonical" href=""/>
+  
 
   <link rel="stylesheet" href="style.css" type="text/css" />
 
   
 
+  
+  
+  <script src="fzy.js"></script>
+  <script src="search.js"></script>
   
   <script src="main.js"></script>
   <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
@@ -48,7 +56,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <body>
   <div id="body-wrapper" tabindex="-1">
 
-    <nav class="sidebar">
+    <nav class="sidebar devhelp-hidden">
       
       <div class="section">
         <img src="cog.png" class="logo"/>
@@ -56,8 +64,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       
       
       <div class="search section">
-        <form id="search-form" method="GET">
-          <input class="search-input" type="text" name="q" placeholder="Search docs"/>
+        <form id="search-form" autocomplete="off">
+          <input id="search-input" type="text" name="do-not-autocomplete" placeholder="Click, or press 's' to search" autocomplete="off"/>
         </form>
       </div>
       
@@ -132,7 +140,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <section id="main" class="content">
   <header>
     <h3>Class</h3>
-    <h1><a href="index.html">Cog</a>.PrefixRoutesHandler</h1>
+    <h1 aria-label="Name"><a href="index.html">Cog</a><span class="sep" role="presentation"></span>PrefixRoutesHandler</h1>
   </header>
 
   <section>
@@ -158,8 +166,8 @@ different handlers depending on the prefix of the requested <span class="caps">U
 <p>Optionally, if a “fallback” handler has been specified, it will be
 used to serve requests which do not match any of the routed&nbsp;prefixes.</p>
 <p>The set of available prefix routes can be configured using
-<a href="method.PrefixRoutesHandler.mount.html"><code>cog_prefix_routes_handler_mount()</code></a> and
-<a href="method.PrefixRoutesHandler.unmount.html"><code>cog_prefix_routes_handler_unmount()</code></a>. For each request, routes
+<a href="method.PrefixRoutesHandler.mount.html">cog_prefix_routes_handler_mount()</a> and
+<a href="method.PrefixRoutesHandler.unmount.html">cog_prefix_routes_handler_unmount()</a>. For each request, routes
 are checked and the one that matches the most <span class="caps">URI</span> <em>path</em> components
 will handle the&nbsp;request.</p>
 <p>This handler is typically used in tandem with
@@ -198,16 +206,6 @@ used to remove the matched path components for that&nbsp;route:</p>
       </div>
     </summary>
 
-    
-    <div class="toggle-wrapper hierarchy">
-      <h4 id="hierarchy">
-        Hierarchy
-        <a href="#hierarchy" class="anchor"></a>
-      </h4>
-      <div class="docblock">
-        <img src="hierarchy.PrefixRoutesHandler.svg" alt="Hierarchy for Cog.PrefixRoutesHandler"/>
-      </div>
-    </div>
     
 
     
@@ -392,10 +390,6 @@ the <span class="caps">URI</span>&nbsp;path.</p>
 
 
     <section id="search" class="content hidden"></section>
-
-    
-    <script src="search.js"></script>
-    
 
     <footer>
     

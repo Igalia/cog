@@ -20,6 +20,7 @@
   --sidebar-primary: rgb(144, 194, 255);
   --sidebar-bg: #151515;
   --sidebar-selected-bg: var(--primary);
+  --sidebar-hover-bg: rgba(127, 127, 127, 0.2);
   --sidebar-text-color: #fafafa;
   --sidebar-padding: 1.5em;
 
@@ -31,7 +32,7 @@
   --box-text-color: #111;
 
   /* typography */
-  --body-font-family: "Noto Serif",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+  --body-font-family: "Red Hat Text",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
   --body-font-scale: 0.95;
   --body-font-size: calc(var(--body-font-scale) * clamp(16px, 1vw, 20px));
   --body-font-weight: normal;
@@ -63,7 +64,7 @@
   --prefered-content-width: 90ch; /* The preferred width for the readable content */
   --anchor-sign: "#";
 
-} 
+}
 
 /*********************************
  * DARK THEME (overrides)
@@ -218,7 +219,18 @@ blockquote {
   margin: var(--box--margin);
 }
 
-code, 
+span.sep::after {
+  content: "▸";
+}
+
+span.sep {
+  font-size: calc(0.5em * var(--monospace-font-size));
+  opacity: 0.55;
+  padding-left: .25em;
+  padding-right: .25em;
+}
+
+code,
 pre {
   font-family: var(--monospace-font-family);
   font-size: var(--monospace-font-size);
@@ -261,6 +273,42 @@ h1 code, h2 code, h3 code, h4 code, h5 code, h6 code {
 
 strong, b {
   font-weight: 600;
+}
+
+/* fix alignment of images on small screen */
+img, svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+svg .node polygon, svg .node path {
+  transition: fill 150ms ease;
+  fill: var(--box-bg);
+  stroke: none;
+}
+
+svg .node a {
+  text-decoration: none !important;
+}
+
+svg .node a text {
+  fill: var(--text-color);
+  font-family: var(--body-font-family);
+}
+
+svg .node.link text {
+  fill: var(--primary);
+}
+
+svg .node.link:hover polygon, svg .node.link:hover path {
+  fill: var(--sidebar-hover-bg);
+}
+svg .node.link:hover text {
+  fill: var(--box-text-color);
+}
+svg .edge path {
+  stroke: var(--text-color);
 }
 
 /* fix unwanted margins in tables, code, lists and blockquotes */
@@ -337,8 +385,12 @@ footer {
   text-transform: none;
 }
 
+#btn-to-top > .up-arrow {
+  margin-left: -2px;
+}
+
 #btn-to-top > .up-arrow:after {
-  content: "🡅"
+  content: url(go-up-symbolic.png);
 }
 
 /*********************************
@@ -348,7 +400,7 @@ footer {
   scrollbar-width: thin;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-bg);
-  min-width: 40ch;
+  min-width: 35ch;
   padding: var(--sidebar-padding);
   color: var(--sidebar-text-color);
   position: sticky;
@@ -365,8 +417,8 @@ footer {
 
 .sidebar .logo {
   display: block;
-  margin: 2rem auto 0 auto;
-  width: 70%;
+  margin: 1rem auto 1.2rem auto;
+  width: 50%;
 }
 
 .sidebar .section > ul > li {
@@ -402,6 +454,7 @@ footer {
 .sidebar .section {
   padding-left: 0.5rem;
   padding-right: 0.5rem;
+  font-size: 80%;
 }
 
 .sidebar .links {
@@ -420,7 +473,7 @@ footer {
 }
 
 .sidebar .section a:hover {
-  background-color: rgba(127, 127, 127, 0.2);
+  background-color: var(--sidebar-hover-bg);
   color: var(--sidebar-text-color);
 }
 
@@ -441,7 +494,7 @@ footer {
   border-radius: 50px;
   padding: 6px 12px;
   display: inline-block;
-  font-size: 80%;
+  font-size: 14px;
   box-shadow: inset 0 1px 3px #ddd;
   transition: border .3s linear;
 }
@@ -671,6 +724,7 @@ table.results {
   border-radius: var(--box-radius);
   border: 1px solid var(--text-color-muted);
   border-spacing: 0 0 !important;
+  font-size: 80%;
 }
 
 table.enum-members tr th,
@@ -699,6 +753,27 @@ table.results tr td:last-child {
   padding-right: .5em;
 }
 
+table.results tr td code {
+  font-size: 100%;
+}
+
+table.arguments tr td,
+table.returns tr td {
+  color: var(--text-color-muted);
+}
+
+table.arguments tr td:first-child,
+table.returns tr td:first-child {
+  min-width: 12em;
+}
+
+table.arguments tr.arg-name td,
+table.arguments tr.arg-description td,
+table.returns tr.arg-name td,
+table.returns tr.arg-description td {
+  color: var(--text-color);
+}
+
 .docblock ul li,
 .docblock ol li {
   padding-top: 0.15rem;
@@ -716,6 +791,39 @@ table.results tr td:last-child {
   width: 1em;
   margin-left: -1em;
 }
+
+.docblock .codehilite {
+  position: relative;
+}
+.docblock .codehilite > .copy-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+
+  border: none;
+  background: none;
+
+  margin: var(--box-padding);
+  cursor: pointer;
+}
+
+.docblock .codehilite > .copy-button {
+  transition: background-color 150ms ease;
+  color: var(--primary);
+  border-radius: var(--box-radius);
+  padding: 0.2rem 0.5rem;
+  margin: var(--box-padding);
+}
+
+.docblock .codehilite > .copy-button:hover {
+  background-color: var(--sidebar-hover-bg);
+  color: var(--text-color);
+}
+
+.docblock .codehilite > .copy-button:active {
+  background-color: var(--primary);
+}
+
 
 /*************************************************************
  SYMBOLS
