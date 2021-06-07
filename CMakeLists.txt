@@ -54,6 +54,7 @@ option(COG_DBUS_SYSTEM_BUS "Expose remote control interface on system bus" OFF)
 set(COG_DBUS_OWN_USER "" CACHE STRING
     "Additional user allowed to own the well-known name on the system bus")
 
+option(COG_PLATFORM_HEADLESS "Build the headless platform module" ON)
 option(COG_PLATFORM_FDO "Build the FDO platform module" ON)
 option(COG_PLATFORM_DRM "Build the DRM platform module" ON)
 option(COG_PLATFORM_X11 "Build the X11 platform module" OFF)
@@ -196,7 +197,9 @@ if (BUILD_DOCS)
     add_subdirectory(docs)
 endif ()
 
-add_subdirectory(platform/headless)
+if (COG_PLATFORM_HEADLESS)
+    add_subdirectory(platform/headless)
+endif ()
 if (COG_PLATFORM_FDO)
     add_subdirectory(platform/fdo)
 endif ()
