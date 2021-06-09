@@ -65,6 +65,8 @@ option(INSTALL_MAN_PAGES "Install the man(1) pages if COG_BUILD_PROGRAMS is enab
 option(COG_WESTON_DIRECT_DISPLAY "Build direct display support for the FDO platform module" OFF)
 option(BUILD_DOCS "Build the documentation" OFF)
 
+option(USE_SOUP2 "Build with libsoup2 instead of libsoup3" ON)
+
 set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
 
@@ -114,9 +116,21 @@ set(COGCORE_SOURCES
     core/cog-platform.c
 )
 
-pkg_check_modules(GIO IMPORTED_TARGET REQUIRED gio-2.0>=2.44)
-pkg_check_modules(SOUP IMPORTED_TARGET REQUIRED libsoup-2.4)
-pkg_check_modules(WebKit IMPORTED_TARGET REQUIRED wpe-webkit-1.0>=2.28.0 wpe-1.0>=1.6.0)
+if (USE_SOUP2)
+    set(REQUIRED_GIO_VERSION "gio-2.0>=2.44")
+    set(REQUIRED_SOUP_VERSION "libsoup-2.4")
+    set(REQUIRED_WEBKIT_VERSION "wpe-webkit-1.0>=2.28.0")
+    add_definitions("-DCOG_USE_SOUP2=1")
+else()
+    set(REQUIRED_GIO_VERSION "gio-2.0>=2.67.4")
+    set(REQUIRED_SOUP_VERSION "libsoup-3.0>=2.99.7")
+    set(REQUIRED_WEBKIT_VERSION "wpe-webkit-1.0>=2.31.0")
+    add_definitions("-DCOG_USE_SOUP2=0")
+endif()
+
+pkg_check_modules(GIO IMPORTED_TARGET REQUIRED ${REQUIRED_GIO_VERSION})
+pkg_check_modules(SOUP IMPORTED_TARGET REQUIRED ${REQUIRED_SOUP_VERSION})
+pkg_check_modules(WebKit IMPORTED_TARGET REQUIRED ${REQUIRED_WEBKIT_VERSION})
 
 include(CheckCCompilerFlag)
 check_c_compiler_flag(-Wall HAS_WALL)

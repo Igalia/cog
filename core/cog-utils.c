@@ -7,22 +7,93 @@
 
 #include "cog-utils.h"
 #include <errno.h>
-#include <libsoup/soup.h>
 #include <gio/gio.h>
+#include <libsoup/soup.h>
 #include <stdlib.h>
 #include <string.h>
 
-
-char*
-cog_appid_to_dbus_object_path (const char *appid)
+char *
+cog_appid_to_dbus_object_path(const char *appid)
 {
-    g_return_val_if_fail (appid != NULL, NULL);
+    g_return_val_if_fail(appid != NULL, NULL);
 
-    GString *s = g_string_new ("/");
+    GString *s = g_string_new("/");
     for (; *appid; appid++) {
-        g_string_append_c (s, (*appid == '.') ? '/' : *appid);
+        g_string_append_c(s, (*appid == '.') ? '/' : *appid);
     }
-    return g_string_free (s, FALSE);
+    return g_string_free(s, FALSE);
+}
+
+static char *
+cog_uri_guess_internal(const char *utf8_uri_like)
+{
+#if COG_USE_SOUP2
+    g_autoptr(SoupURI) uri = soup_uri_new(utf8_uri_like);
+    if (uri) {
+        if (uri->scheme == SOUP_URI_SCHEME_HTTP || uri->scheme == SOUP_URI_SCHEME_HTTPS ||
+            uri->scheme == SOUP_URI_SCHEME_FTP || uri->scheme == SOUP_URI_SCHEME_WS ||
+            uri->scheme == SOUP_URI_SCHEME_WSS) {
+            // Use the input URI directly without further guessing.
+            return g_strdup(utf8_uri_like);
+        }
+
+        // We want to allow passing relative paths, but URIs must use full
+        // paths. GFile does not handle query strings nor fragments, so use it
+        // only to obtain the absolute path and modify the SoupURI in place.
+        g_autofree char *relpath = g_strconcat(uri->host ? uri->host : "", uri->path ? uri->path : "", NULL);
+        if (uri->scheme == SOUP_URI_SCHEME_FILE && relpath && *relpath != '\0') {
+            g_autoptr(GFile) file = g_file_new_for_path(relpath);
+            g_autofree char *path = g_file_get_path(file);
+            if (path) {
+                soup_uri_set_path(uri, path);
+                soup_uri_set_host(uri, "");
+            }
+        }
+
+        // Allow "scheme:" to be a shorthand for "scheme:/", which
+        // is handy when using custom URI scheme handlers.
+        if (!uri->path || *uri->path == '\0')
+            soup_uri_set_path(uri, "/");
+        return soup_uri_to_string(uri, FALSE);
+    }
+#else
+    const char *scheme = g_uri_peek_scheme(utf8_uri_like);
+    if (scheme) {
+        if (strcmp(scheme, "http") == 0 || strcmp(scheme, "https") == 0 || strcmp(scheme, "ftp") == 0 ||
+            strcmp(scheme, "ws") == 0 || strcmp(scheme, "wss") == 0) {
+            // Use the input URI directly without further guessing.
+            return g_strdup(utf8_uri_like);
+        }
+
+        g_autoptr(GUri) uri = g_uri_parse(utf8_uri_like, G_URI_FLAGS_ENCODED, NULL);
+        if (uri) {
+            // We want to allow passing relative paths, but URIs must use full
+            // paths. GFile does not handle query strings nor fragments, so use it
+            // only to obtain the absolute path and modify the SoupURI in place.
+            g_autofree char *relpath =
+                g_strconcat(g_uri_get_host(uri) ? g_uri_get_host(uri) : "", g_uri_get_path(uri), NULL);
+            if (strcmp(scheme, "file") == 0 && relpath && *relpath != '\0') {
+                g_autoptr(GFile) file = g_file_new_for_path(relpath);
+                g_autofree char *path = g_file_get_path(file);
+                if (path) {
+                    GUri *copy = soup_uri_copy(uri, SOUP_URI_HOST, NULL, SOUP_URI_PATH, path, SOUP_URI_NONE);
+                    g_uri_unref(g_steal_pointer(&uri));
+                    uri = copy;
+                }
+            }
+
+            // Allow "scheme:" to be a shorthand for "scheme:/", which
+            // is handy when using custom URI scheme handlers.
+            if (*g_uri_get_path(uri) == '\0') {
+                GUri *copy = soup_uri_copy(uri, SOUP_URI_PATH, "/", SOUP_URI_NONE);
+                g_uri_unref(g_steal_pointer(&uri));
+                uri = copy;
+            }
+            return g_uri_to_string(uri);
+        }
+    }
+#endif
+    return NULL;
 }
 
 /**
@@ -69,38 +140,9 @@ cog_uri_guess_from_user_input (const char *uri_like,
     // If the URI can be parsed do not try to guess whether the argument
     // is a local file or whether a scheme should be added to it. This also
     // covers the case of custom URI scheme handlers.
-    g_autoptr(SoupURI) uri = soup_uri_new (utf8_uri_like);
-    if (uri) {
-        if (uri->scheme == SOUP_URI_SCHEME_HTTP ||
-            uri->scheme == SOUP_URI_SCHEME_HTTPS ||
-            uri->scheme == SOUP_URI_SCHEME_FTP ||
-            uri->scheme == SOUP_URI_SCHEME_WS ||
-            uri->scheme == SOUP_URI_SCHEME_WSS)
-        {
-            // Use the input URI directly without further guessing.
-            return g_steal_pointer (&utf8_uri_like);
-        }
-
-        // We want to allow passing relative paths, but URIs must use full
-        // paths. GFile does not handle query strings nor fragments, so use it
-        // only to obtain the absolute path and modify the SoupURI in place.
-        g_autofree char *relpath = g_strconcat (uri->host ? uri->host : "",
-                                                uri->path ? uri->path : "",
-                                                NULL);
-        if (uri->scheme == SOUP_URI_SCHEME_FILE && relpath && *relpath != '\0') {
-            g_autoptr(GFile) file = g_file_new_for_path (relpath);
-            g_autofree char *path = g_file_get_path (file);
-            if (path) {
-                soup_uri_set_path (uri, path);
-                soup_uri_set_host (uri, "");
-            }
-        }
-
-        // Allow "scheme:" to be a shorthand for "scheme:/", which
-        // is handy when using custom URI scheme handlers.
-        if (!uri->path || *uri->path == '\0')
-            soup_uri_set_path (uri, "/");
-        return soup_uri_to_string (uri, FALSE);
+    g_autofree char *guessed_uri = cog_uri_guess_internal(utf8_uri_like);
+    if (guessed_uri) {
+        return g_steal_pointer(&guessed_uri);
     }
 
     // At this point we know that we have been given a shorthand without an
