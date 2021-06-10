@@ -124,7 +124,7 @@ if (USE_SOUP2)
 else()
     set(REQUIRED_GIO_VERSION "gio-2.0>=2.67.4")
     set(REQUIRED_SOUP_VERSION "libsoup-3.0>=2.99.7")
-    set(REQUIRED_WEBKIT_VERSION "wpe-webkit-1.0>=2.31.0")
+    set(REQUIRED_WEBKIT_VERSION "wpe-webkit-1.1>=2.33.1")
     add_definitions("-DCOG_USE_SOUP2=0")
 endif()
 
