@@ -8,8 +8,24 @@
 #include <glib.h>
 #include <wpe/fdo.h>
 #include <wpe/unstable/fdo-shm.h>
-
 #include "../../core/cog.h"
+
+struct _CogHeadlessPlatformClass {
+    CogPlatformClass parent_class;
+};
+
+struct _CogHeadlessPlatform {
+    CogPlatform parent;
+};
+
+G_DECLARE_FINAL_TYPE(CogHeadlessPlatform, cog_headless_platform, COG, HEADLESS_PLATFORM, CogPlatform)
+
+G_DEFINE_DYNAMIC_TYPE_EXTENDED(
+    CogHeadlessPlatform,
+    cog_headless_platform,
+    COG_TYPE_PLATFORM,
+    0,
+    g_io_extension_point_implement(COG_MODULES_PLATFORM_EXTENSION_POINT, g_define_type_id, "headless", 100);)
 
 struct platform_window {
     guint tick_source;
@@ -53,9 +69,9 @@ static gboolean tick_callback(gpointer data)
     return G_SOURCE_CONTINUE;
 }
 
-gboolean cog_platform_plugin_setup(CogPlatform* platform, CogShell* shell G_GNUC_UNUSED, const char* params, GError** error)
+static gboolean
+cog_headless_platform_setup(CogPlatform* platform, CogShell* shell G_GNUC_UNUSED, const char* params, GError** error)
 {
-    g_assert_nonnull(platform);
     setup_fdo_exportable(&win);
 
     // Maintain rendering at 30 FPS.
@@ -64,20 +80,47 @@ gboolean cog_platform_plugin_setup(CogPlatform* platform, CogShell* shell G_GNUC
     return TRUE;
 }
 
-void cog_platform_plugin_teardown(CogPlatform* platform)
+static void
+cog_headless_platform_teardown(CogPlatform* platform)
 {
-    g_assert_nonnull(platform);
     g_source_remove(win.tick_source);
     wpe_view_backend_exportable_fdo_destroy(win.exportable);
 }
 
-WebKitWebViewBackend* cog_platform_plugin_get_view_backend(CogPlatform* platform, WebKitWebView* related_view, GError** error)
+static WebKitWebViewBackend*
+cog_headless_platform_get_view_backend(CogPlatform* platform, WebKitWebView* related_view, GError** error)
 {
-    g_assert_nonnull(platform);
     g_assert_nonnull(win.view_backend);
     return win.view_backend;
 }
 
-void cog_platform_plugin_init_web_view(CogPlatform* platform, WebKitWebView* view)
+static void
+cog_headless_platform_class_init(CogHeadlessPlatformClass* klass)
+{
+    CogPlatformClass* platform_class = COG_PLATFORM_CLASS(klass);
+    platform_class->setup = cog_headless_platform_setup;
+    platform_class->teardown = cog_headless_platform_teardown;
+    platform_class->get_view_backend = cog_headless_platform_get_view_backend;
+}
+
+static void
+cog_headless_platform_class_finalize(CogHeadlessPlatformClass* klass G_GNUC_UNUSED)
+{
+}
+
+static void
+cog_headless_platform_init(CogHeadlessPlatform* self)
+{
+}
+
+G_MODULE_EXPORT void
+g_io_cogplatform_headless_load(GIOModule* module)
+{
+    GTypeModule* type_module = G_TYPE_MODULE(module);
+    cog_headless_platform_register_type(type_module);
+}
+
+G_MODULE_EXPORT void
+g_io_cogplatform_headless_unload(GIOModule* module G_GNUC_UNUSED)
 {
 }

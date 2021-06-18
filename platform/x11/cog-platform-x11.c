@@ -1,3 +1,9 @@
+/*
+ * cog-platform-x11.c
+ * Copyright (C) 2020-2021 Igalia S.L.
+ *
+ * Distributed under terms of the MIT license.
+ */
 
 #include "../../core/cog.h"
 
@@ -44,6 +50,22 @@ typedef void (GL_APIENTRYP PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC) (GLenu
 #define DEFAULT_WIDTH  1024
 #define DEFAULT_HEIGHT  768
 
+struct _CogX11PlatformClass {
+    CogPlatformClass parent_class;
+};
+
+struct _CogX11Platform {
+    CogPlatform parent;
+};
+
+G_DECLARE_FINAL_TYPE(CogX11Platform, cog_x11_platform, COG, X11_PLATFORM, CogPlatform)
+
+G_DEFINE_DYNAMIC_TYPE_EXTENDED(
+    CogX11Platform,
+    cog_x11_platform,
+    COG_TYPE_PLATFORM,
+    0,
+    g_io_extension_point_implement(COG_MODULES_PLATFORM_EXTENSION_POINT, g_define_type_id, "x11", 300);)
 
 struct CogX11Display {
     Display *display;
@@ -777,11 +799,8 @@ clear_glib (void)
     g_clear_pointer (&s_display->xcb.source, g_source_unref);
 }
 
-gboolean
-cog_platform_plugin_setup (CogPlatform *platform,
-                           CogShell    *shell G_GNUC_UNUSED,
-                           const char  *params,
-                           GError     **error)
+static gboolean
+cog_x11_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, const char *params, GError **error)
 {
     g_assert (platform);
     g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
@@ -843,8 +862,8 @@ cog_platform_plugin_setup (CogPlatform *platform,
     return TRUE;
 }
 
-void
-cog_platform_plugin_teardown (CogPlatform *platform)
+static void
+cog_x11_platform_teardown(CogPlatform *platform)
 {
     g_assert (platform);
 
@@ -858,10 +877,8 @@ cog_platform_plugin_teardown (CogPlatform *platform)
     g_clear_pointer (&s_display, free);
 }
 
-WebKitWebViewBackend*
-cog_platform_plugin_get_view_backend (CogPlatform   *platform,
-                                      WebKitWebView *related_view,
-                                      GError       **error)
+static WebKitWebViewBackend *
+cog_x11_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_view, GError **error)
 {
     static struct wpe_view_backend_exportable_fdo_egl_client exportable_egl_client = {
         .export_fdo_egl_image = on_export_fdo_egl_image,
@@ -886,4 +903,59 @@ cog_platform_plugin_get_view_backend (CogPlatform   *platform,
     g_assert (wk_view_backend);
 
     return wk_view_backend;
+}
+
+static void *
+check_supported(void *data G_GNUC_UNUSED)
+{
+    /*
+     * TODO: This could do more than only trying to connect to the X server.
+     */
+    Display *d = XOpenDisplay(NULL);
+    if (d) {
+        XCloseDisplay(d);
+        return GINT_TO_POINTER(TRUE);
+    } else {
+        return GINT_TO_POINTER(FALSE);
+    }
+}
+
+static gboolean
+cog_x11_platform_is_supported(void)
+{
+    static GOnce once = G_ONCE_INIT;
+    g_once(&once, check_supported, NULL);
+    return GPOINTER_TO_INT(once.retval);
+}
+
+static void
+cog_x11_platform_class_init(CogX11PlatformClass *klass)
+{
+    CogPlatformClass *platform_class = COG_PLATFORM_CLASS(klass);
+    platform_class->is_supported = cog_x11_platform_is_supported;
+    platform_class->setup = cog_x11_platform_setup;
+    platform_class->teardown = cog_x11_platform_teardown;
+    platform_class->get_view_backend = cog_x11_platform_get_view_backend;
+}
+
+static void
+cog_x11_platform_class_finalize(CogX11PlatformClass *klass)
+{
+}
+
+static void
+cog_x11_platform_init(CogX11Platform *self)
+{
+}
+
+G_MODULE_EXPORT void
+g_io_cogplatform_x11_load(GIOModule *module)
+{
+    GTypeModule *type_module = G_TYPE_MODULE(module);
+    cog_x11_platform_register_type(type_module);
+}
+
+G_MODULE_EXPORT void
+g_io_cogplatform_x11_unload(GIOModule *module G_GNUC_UNUSED)
+{
 }

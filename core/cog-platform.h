@@ -13,10 +13,16 @@
 # error "Do not include this header directly, use <cog.h> instead"
 #endif
 
-#include <glib.h>
 #include "cog-shell.h"
+#include <glib-object.h>
 
 G_BEGIN_DECLS
+
+#define COG_PLATFORM_ERROR (cog_platform_error_quark())
+
+typedef enum {
+    COG_PLATFORM_ERROR_NO_MODULE,
+} CogPlatformError;
 
 #define COG_PLATFORM_EGL_ERROR  (cog_platform_egl_error_quark ())
 GQuark cog_platform_egl_error_quark (void);
@@ -24,26 +30,34 @@ GQuark cog_platform_egl_error_quark (void);
 #define COG_PLATFORM_WPE_ERROR  (cog_platform_wpe_error_quark ())
 GQuark cog_platform_wpe_error_quark (void);
 
+typedef struct _WebKitInputMethodContext WebKitInputMethodContext;
+typedef struct _WebKitWebViewBackend WebKitWebViewBackend;
 
 typedef enum {
     COG_PLATFORM_WPE_ERROR_INIT,
 } CogPlatformWpeError;
 
+#define COG_TYPE_PLATFORM (cog_platform_get_type())
 
-/* @FIXME: Eventually move this interface to GObject. */
-typedef struct _CogPlatform CogPlatform;
-typedef struct _WebKitInputMethodContext WebKitInputMethodContext;
+G_DECLARE_DERIVABLE_TYPE(CogPlatform, cog_platform, COG, PLATFORM, GObject)
 
-CogPlatform              *cog_platform_new               (void);
-void                      cog_platform_free              (CogPlatform   *platform);
+struct _CogPlatformClass {
+    GObjectClass parent_class;
 
-gboolean                  cog_platform_try_load          (CogPlatform   *platform,
-                                                          const gchar   *soname);
+    /*< public >*/
+    gboolean (*is_supported)(void);
+    gboolean (*setup)(CogPlatform *, CogShell *shell, const char *params, GError **);
+    void (*teardown)(CogPlatform *);
+    WebKitWebViewBackend *(*get_view_backend)(CogPlatform *, WebKitWebView *related_view, GError **);
+    void (*init_web_view)(CogPlatform *, WebKitWebView *);
+    WebKitInputMethodContext *(*create_im_context)(CogPlatform *);
+};
 
-gboolean                  cog_platform_setup             (CogPlatform   *platform,
-                                                          CogShell      *shell,
-                                                          const char    *params,
-                                                          GError       **error);
+void cog_platform_set_default(CogPlatform *);
+CogPlatform *cog_platform_get_default(void);
+CogPlatform *cog_platform_new(const char *name, GError **);
+
+gboolean cog_platform_setup(CogPlatform *platform, CogShell *shell, const char *params, GError **error);
 
 void                      cog_platform_teardown          (CogPlatform   *platform);
 
@@ -55,8 +69,6 @@ void                      cog_platform_init_web_view     (CogPlatform   *platfor
                                                           WebKitWebView *view);
 
 WebKitInputMethodContext *cog_platform_create_im_context (CogPlatform   *platform);
-
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (CogPlatform, cog_platform_free)
 
 G_END_DECLS
 

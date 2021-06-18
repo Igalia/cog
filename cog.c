@@ -289,31 +289,23 @@ platform_setup (CogShell *shell)
 
     g_debug ("%s: Platform name: %s", __func__, s_options.platform_name);
 
-    if (!s_options.platform_name)
-        return FALSE;
-
-    g_autofree char *platform_soname =
-        g_strdup_printf ("libcogplatform-%s.so", s_options.platform_name);
-    g_clear_pointer (&s_options.platform_name, g_free);
-
-    g_debug ("%s: Platform plugin: %s", __func__, platform_soname);
-
-    g_autoptr(CogPlatform) platform = cog_platform_new ();
-    if (!cog_platform_try_load (platform, platform_soname)) {
-        g_warning ("Could not load: %s (possible cause: %s).\n",
-                   platform_soname, strerror (errno));
+    g_autoptr(GError) error = NULL;
+    CogPlatform *platform = cog_platform_new(s_options.platform_name, &error);
+    if (!platform) {
+        g_warning("Cannot create platform: %s", error->message);
         return FALSE;
     }
 
-    g_autoptr(GError) error = NULL;
-    if (!cog_platform_setup (platform, shell, "", &error)) {
+    g_clear_pointer(&s_options.platform_name, g_free);
+
+    if (!cog_platform_setup(platform, shell, "", &error)) {
         g_warning ("Platform setup failed: %s", error->message);
         return FALSE;
     }
 
     s_options.platform = g_steal_pointer (&platform);
 
-    g_debug ("%s: Platform = %p", __func__, s_options.platform);
+    g_debug("%s: Selected %s @ %p", __func__, g_type_name(G_OBJECT_TYPE(s_options.platform)), s_options.platform);
     return TRUE;
 }
 
@@ -325,7 +317,7 @@ on_shutdown (CogLauncher *launcher G_GNUC_UNUSED, void *user_data G_GNUC_UNUSED)
 
     if (s_options.platform) {
         cog_platform_teardown (s_options.platform);
-        g_clear_pointer (&s_options.platform, cog_platform_free);
+        g_clear_object(&s_options.platform);
         g_debug ("%s: Platform teardown completed.", __func__);
     }
 }
@@ -429,6 +421,14 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
     return g_steal_pointer (&web_view);
 }
 
+static void
+print_module_info(GIOExtension *extension, void *userdata G_GNUC_UNUSED)
+{
+    g_info("  %s - %d/%s",
+           g_io_extension_get_name(extension),
+           g_io_extension_get_priority(extension),
+           g_type_name(g_io_extension_get_type(extension)));
+}
 
 int
 main (int argc, char *argv[])
@@ -441,6 +441,11 @@ main (int argc, char *argv[])
         g_set_prgname (dir_separator ? dir_separator + 1 : argv[0]);
         g_set_application_name ("Cog");
     }
+
+    cog_modules_add_directory(g_getenv("COG_MODULEDIR") ?: COG_MODULEDIR);
+
+    g_info("%s:", COG_MODULES_PLATFORM_EXTENSION_POINT);
+    cog_modules_foreach(COG_MODULES_PLATFORM, print_module_info, NULL);
 
     g_autoptr(GApplication) app = G_APPLICATION (cog_launcher_get_default ());
     g_application_add_main_option_entries (app, s_cli_options);

@@ -15,7 +15,7 @@ add_library(cogplatform-drm MODULE
 )
 set_target_properties(cogplatform-drm PROPERTIES
     C_STANDARD 99
-    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/modules
 )
 target_compile_definitions(cogplatform-drm PRIVATE G_LOG_DOMAIN=\"Cog-DRM\")
 target_link_libraries(cogplatform-drm PRIVATE
@@ -31,6 +31,6 @@ target_link_libraries(cogplatform-drm PRIVATE
 )
 
 install(TARGETS cogplatform-drm
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    DESTINATION ${COG_MODULEDIR}
     COMPONENT "runtime"
 )

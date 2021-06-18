@@ -9,7 +9,7 @@ add_library(cogplatform-fdo MODULE
 )
 set_target_properties(cogplatform-fdo PROPERTIES
     C_STANDARD 99
-    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/modules
 )
 target_compile_definitions(cogplatform-fdo PRIVATE G_LOG_DOMAIN=\"Cog-FDO\")
 
@@ -42,7 +42,7 @@ if (TARGET PkgConfig::WAYLAND_EGL)
 endif ()
 
 install(TARGETS cogplatform-fdo
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    DESTINATION ${COG_MODULEDIR}
     COMPONENT "runtime"
 )
 

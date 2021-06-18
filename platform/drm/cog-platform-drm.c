@@ -39,6 +39,23 @@ typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platf
 #define KEY_STARTUP_DELAY 500000
 #define KEY_REPEAT_DELAY 100000
 
+struct _CogDrmPlatformClass {
+    CogPlatformClass parent_class;
+};
+
+struct _CogDrmPlatform {
+    CogPlatform parent;
+};
+
+G_DECLARE_FINAL_TYPE(CogDrmPlatform, cog_drm_platform, COG, DRM_PLATFORM, CogPlatform)
+
+G_DEFINE_DYNAMIC_TYPE_EXTENDED(
+    CogDrmPlatform,
+    cog_drm_platform,
+    COG_TYPE_PLATFORM,
+    0,
+    g_io_extension_point_implement(COG_MODULES_PLATFORM_EXTENSION_POINT, g_define_type_id, "drm", 200);)
+
 struct buffer_object {
     struct wl_list link;
     struct wl_listener destroy_listener;
@@ -1499,11 +1516,27 @@ on_export_shm_buffer (void* data, struct wpe_fdo_shm_exported_buffer *exported_b
 }
 #endif
 
-gboolean
-cog_platform_plugin_setup (CogPlatform *platform,
-                           CogShell    *shell,
-                           const char  *params,
-                           GError     **error)
+static void *
+check_supported(void *data G_GNUC_UNUSED)
+{
+    if (init_drm()) {
+        clear_drm();
+        return GINT_TO_POINTER(TRUE);
+    } else {
+        return GINT_TO_POINTER(FALSE);
+    }
+}
+
+static gboolean
+cog_drm_platform_is_supported(void)
+{
+    static GOnce once = G_ONCE_INIT;
+    g_once(&once, check_supported, NULL);
+    return GPOINTER_TO_INT(once.retval);
+}
+
+static gboolean
+cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *params, GError **error)
 {
     g_assert (platform);
     g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
@@ -1569,8 +1602,8 @@ cog_platform_plugin_setup (CogPlatform *platform,
     return TRUE;
 }
 
-void
-cog_platform_plugin_teardown (CogPlatform *platform)
+static void
+cog_drm_platform_teardown(CogPlatform *platform)
 {
     g_assert (platform);
 
@@ -1584,10 +1617,8 @@ cog_platform_plugin_teardown (CogPlatform *platform)
     clear_drm ();
 }
 
-WebKitWebViewBackend *
-cog_platform_plugin_get_view_backend (CogPlatform   *platform,
-                                      WebKitWebView *related_view,
-                                      GError       **error)
+static WebKitWebViewBackend *
+cog_drm_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_view, GError **error)
 {
     static struct wpe_view_backend_exportable_fdo_client exportable_client = {
         .export_buffer_resource = on_export_buffer_resource,
@@ -1615,10 +1646,42 @@ cog_platform_plugin_get_view_backend (CogPlatform   *platform,
     return wk_view_backend;
 }
 
-void
-cog_platform_plugin_init_web_view (CogPlatform   *platform,
-                                   WebKitWebView *view)
+static void
+cog_drm_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
 {
     wpe_view_backend_dispatch_set_device_scale_factor (wpe_view_data.backend,
                                                        drm_data.device_scale);
+}
+
+static void
+cog_drm_platform_class_init(CogDrmPlatformClass *klass)
+{
+    CogPlatformClass *platform_class = COG_PLATFORM_CLASS(klass);
+    platform_class->is_supported = cog_drm_platform_is_supported;
+    platform_class->setup = cog_drm_platform_setup;
+    platform_class->teardown = cog_drm_platform_teardown;
+    platform_class->get_view_backend = cog_drm_platform_get_view_backend;
+    platform_class->init_web_view = cog_drm_platform_init_web_view;
+}
+
+static void
+cog_drm_platform_class_finalize(CogDrmPlatformClass *klass)
+{
+}
+
+static void
+cog_drm_platform_init(CogDrmPlatform *self)
+{
+}
+
+G_MODULE_EXPORT void
+g_io_cogplatform_drm_load(GIOModule *module)
+{
+    GTypeModule *type_module = G_TYPE_MODULE(module);
+    cog_drm_platform_register_type(type_module);
+}
+
+G_MODULE_EXPORT void
+g_io_cogplatform_drm_unload(GIOModule *module G_GNUC_UNUSED)
+{
 }
