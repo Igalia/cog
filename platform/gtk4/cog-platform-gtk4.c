@@ -17,6 +17,23 @@
 #define DEFAULT_WIDTH 1280
 #define DEFAULT_HEIGHT 720
 
+struct _CogGtk4PlatformClass {
+    CogPlatformClass parent_class;
+};
+
+struct _CogGtk4Platform {
+    CogPlatform parent;
+};
+
+G_DECLARE_FINAL_TYPE(CogGtk4Platform, cog_gtk4_platform, COG, GTK4_PLATFORM, CogPlatform)
+
+G_DEFINE_DYNAMIC_TYPE_EXTENDED(
+    CogGtk4Platform,
+    cog_gtk4_platform,
+    COG_TYPE_PLATFORM,
+    0,
+    g_io_extension_point_implement(COG_MODULES_PLATFORM_EXTENSION_POINT, g_define_type_id, "gtk4", 400);)
+
 /*
  * TODO
  * - fullscreen: if a video element switches to fullscreen it would be nice to also fullscreen the
@@ -150,8 +167,11 @@ setup_shader(struct platform_window* window, GError** error)
     g_debug("GLSL version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
 
     /* if the GtkGLArea is in an error state we don't do anything */
-    if (gtk_gl_area_get_error(GTK_GL_AREA(window->gl_drawing_area)) != NULL)
+    if (gtk_gl_area_get_error(GTK_GL_AREA(window->gl_drawing_area)) != NULL) {
+        if (error)
+            *error = g_error_copy(gtk_gl_area_get_error(GTK_GL_AREA(window->gl_drawing_area)));
         return false;
+    }
 
     if (!(window->ext_glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)load_egl_proc_address(
               "glEGLImageTargetTexture2DOES"))) {
@@ -663,10 +683,8 @@ setup_fdo_exportable(struct platform_window* window)
     g_assert_nonnull(window->view_backend);
 }
 
-gboolean
-cog_platform_plugin_setup(CogPlatform* platform,
-    CogShell* shell G_GNUC_UNUSED,
-    const char* params, GError** error)
+static gboolean
+cog_gtk4_platform_setup(CogPlatform* platform, CogShell* shell G_GNUC_UNUSED, const char* params, GError** error)
 {
     g_assert_nonnull(platform);
 
@@ -682,15 +700,14 @@ cog_platform_plugin_setup(CogPlatform* platform,
     return TRUE;
 }
 
-void
-cog_platform_plugin_teardown(CogPlatform* platform)
+static void
+cog_gtk4_platform_teardown(CogPlatform* platform)
 {
     g_assert_nonnull(platform);
 }
 
-WebKitWebViewBackend*
-cog_platform_plugin_get_view_backend(
-    CogPlatform* platform, WebKitWebView* related_view, GError** error)
+static WebKitWebViewBackend*
+cog_gtk4_platform_get_view_backend(CogPlatform* platform, WebKitWebView* related_view, GError** error)
 {
     g_assert_nonnull(platform);
     g_assert_nonnull(win.view_backend);
@@ -741,9 +758,8 @@ on_back_forward_changed(WebKitBackForwardList* back_forward_list,
         webkit_web_view_can_go_forward(win->web_view));
 }
 
-void
-cog_platform_plugin_init_web_view(CogPlatform* platform,
-    WebKitWebView* view)
+static void
+cog_gtk4_platform_init_web_view(CogPlatform* platform, WebKitWebView* view)
 {
     g_signal_connect(view, "notify::title", G_CALLBACK(on_title_change), &win);
     g_signal_connect(view, "notify::uri", G_CALLBACK(on_uri_change), &win);
@@ -752,4 +768,51 @@ cog_platform_plugin_init_web_view(CogPlatform* platform,
     g_signal_connect(webkit_web_view_get_back_forward_list(view), "changed",
         G_CALLBACK(on_back_forward_changed), &win);
     win.web_view = view;
+}
+
+static void*
+check_supported(void* data G_GNUC_UNUSED)
+{
+    return GINT_TO_POINTER(gtk_init_check());
+}
+
+static gboolean
+cog_gtk4_platform_is_supported(void)
+{
+    static GOnce once = G_ONCE_INIT;
+    g_once(&once, check_supported, NULL);
+    return GPOINTER_TO_INT(once.retval);
+}
+
+static void
+cog_gtk4_platform_class_init(CogGtk4PlatformClass* klass)
+{
+    CogPlatformClass* platform_class = COG_PLATFORM_CLASS(klass);
+    platform_class->is_supported = cog_gtk4_platform_is_supported;
+    platform_class->setup = cog_gtk4_platform_setup;
+    platform_class->teardown = cog_gtk4_platform_teardown;
+    platform_class->get_view_backend = cog_gtk4_platform_get_view_backend;
+    platform_class->init_web_view = cog_gtk4_platform_init_web_view;
+}
+
+static void
+cog_gtk4_platform_class_finalize(CogGtk4PlatformClass* klass)
+{
+}
+
+static void
+cog_gtk4_platform_init(CogGtk4Platform* self)
+{
+}
+
+G_MODULE_EXPORT void
+g_io_cogplatform_gtk4_load(GIOModule* module)
+{
+    GTypeModule* type_module = G_TYPE_MODULE(module);
+    cog_gtk4_platform_register_type(type_module);
+}
+
+G_MODULE_EXPORT void
+g_io_cogplatform_gtk4_unload(GIOModule* module G_GNUC_UNUSED)
+{
 }

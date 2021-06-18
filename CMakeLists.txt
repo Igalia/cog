@@ -70,6 +70,9 @@ option(USE_SOUP2 "Build with libsoup2 instead of libsoup3" ON)
 set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
 
+set(COG_MODULEDIR "${CMAKE_INSTALL_PREFIX}/lib/cog/modules"
+    CACHE STRING "Default search path for loadable modules")
+
 if (NOT COG_APPID OR COG_APPID STREQUAL "")
     set(COG_DEFAULT_APPID com.igalia.Cog)
 else ()
@@ -157,7 +160,7 @@ set_target_properties(cogcore PROPERTIES
     VERSION ${COGCORE_VERSION}
     SOVERSION ${COGCORE_VERSION_MAJOR}
 )
-target_link_libraries(cogcore PkgConfig::WebKit PkgConfig::SOUP)
+target_link_libraries(cogcore PkgConfig::GIO PkgConfig::WebKit PkgConfig::SOUP)
 target_compile_definitions(cogcore PRIVATE G_LOG_DOMAIN=\"Cog-Core\")
 if (HAS_WALL)
     target_compile_options(cogcore PUBLIC -Wall)

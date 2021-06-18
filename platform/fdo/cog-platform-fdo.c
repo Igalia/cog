@@ -76,6 +76,23 @@
 # define WAYLAND_1_10_OR_GREATER 0
 #endif
 
+struct _CogFdoPlatformClass {
+    CogPlatformClass parent_class;
+};
+
+struct _CogFdoPlatform {
+    CogPlatform parent;
+};
+
+G_DECLARE_FINAL_TYPE(CogFdoPlatform, cog_fdo_platform, COG, FDO_PLATFORM, CogPlatform)
+
+G_DEFINE_DYNAMIC_TYPE_EXTENDED(
+    CogFdoPlatform,
+    cog_fdo_platform,
+    COG_TYPE_PLATFORM,
+    0,
+    g_io_extension_point_implement(COG_MODULES_PLATFORM_EXTENSION_POINT, g_define_type_id, "fdo", 500);)
+
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
 #define VIDEO_BUFFER_FORMAT DRM_FORMAT_YUYV
 struct video_buffer {
@@ -1952,7 +1969,7 @@ init_wayland (GError **error)
 static void
 clear_wayland (void)
 {
-    g_source_destroy (wl_data.event_src);
+    g_clear_pointer(&wl_data.event_src, g_source_destroy);
 
     if (wl_data.xdg_shell != NULL)
         xdg_wm_base_destroy (wl_data.xdg_shell);
@@ -1981,6 +1998,24 @@ clear_wayland (void)
     wl_display_disconnect (wl_data.display);
 }
 
+static void *
+check_supported(void *data G_GNUC_UNUSED)
+{
+    if (init_wayland(NULL)) {
+        clear_wayland();
+        return GINT_TO_POINTER(TRUE);
+    } else {
+        return GINT_TO_POINTER(FALSE);
+    }
+}
+
+static gboolean
+cog_fdo_platform_is_supported(void)
+{
+    static GOnce once = G_ONCE_INIT;
+    g_once(&once, check_supported, NULL);
+    return GPOINTER_TO_INT(once.retval);
+}
 
 #define ERR_EGL(_err, _msg)                              \
     do {                                                 \
@@ -2326,11 +2361,8 @@ clear_buffers (void)
 #endif
 }
 
-gboolean
-cog_platform_plugin_setup (CogPlatform *platform,
-                           CogShell    *shell G_GNUC_UNUSED,
-                           const char  *params,
-                           GError     **error)
+static gboolean
+cog_fdo_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, const char *params, GError **error)
 {
     g_assert (platform);
     g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
@@ -2374,8 +2406,8 @@ cog_platform_plugin_setup (CogPlatform *platform,
     return TRUE;
 }
 
-void
-cog_platform_plugin_teardown (CogPlatform *platform)
+static void
+cog_fdo_platform_teardown(CogPlatform *platform)
 {
     g_assert (platform);
 
@@ -2406,10 +2438,8 @@ cog_platform_plugin_teardown (CogPlatform *platform)
     clear_wayland ();
 }
 
-WebKitWebViewBackend*
-cog_platform_plugin_get_view_backend (CogPlatform   *platform,
-                                      WebKitWebView *related_view,
-                                      GError       **error)
+static WebKitWebViewBackend *
+cog_fdo_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_view, GError **error)
 {
     static struct wpe_view_backend_exportable_fdo_egl_client exportable_egl_client = {
         .export_fdo_egl_image = on_export_fdo_egl_image,
@@ -2457,19 +2487,52 @@ on_show_option_menu (WebKitWebView *view,
     create_popup (g_object_ref (menu));
 }
 
-void
-cog_platform_plugin_init_web_view (CogPlatform   *platform,
-                                   WebKitWebView *view)
+static void
+cog_fdo_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
 {
     g_signal_connect (view, "show-option-menu", G_CALLBACK (on_show_option_menu), NULL);
 }
 
-WebKitInputMethodContext*
-cog_platform_plugin_create_im_context (CogPlatform *platform)
+static WebKitInputMethodContext *
+cog_fdo_platform_create_im_context(CogPlatform *platform)
 {
     if (wl_data.text_input_manager)
         return cog_im_context_fdo_new ();
     if (wl_data.text_input_manager_v1)
         return cog_im_context_fdo_v1_new ();
     return NULL;
+}
+
+static void
+cog_fdo_platform_class_init(CogFdoPlatformClass *klass)
+{
+    CogPlatformClass *platform_class = COG_PLATFORM_CLASS(klass);
+    platform_class->is_supported = cog_fdo_platform_is_supported;
+    platform_class->setup = cog_fdo_platform_setup;
+    platform_class->teardown = cog_fdo_platform_teardown;
+    platform_class->get_view_backend = cog_fdo_platform_get_view_backend;
+    platform_class->init_web_view = cog_fdo_platform_init_web_view;
+    platform_class->create_im_context = cog_fdo_platform_create_im_context;
+}
+
+static void
+cog_fdo_platform_class_finalize(CogFdoPlatformClass *klass)
+{
+}
+
+static void
+cog_fdo_platform_init(CogFdoPlatform *self)
+{
+}
+
+G_MODULE_EXPORT void
+g_io_cogplatform_fdo_load(GIOModule *module)
+{
+    GTypeModule *type_module = G_TYPE_MODULE(module);
+    cog_fdo_platform_register_type(type_module);
+}
+
+G_MODULE_EXPORT void
+g_io_cogplatform_fdo_unload(GIOModule *module G_GNUC_UNUSED)
+{
 }
