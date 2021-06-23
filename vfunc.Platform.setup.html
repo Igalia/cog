@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Platform.try_load</title>
+  <title>Cog.Platform.setup</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta priority="og:title" content="Cog.Platform.try_load"/>
-  <meta priority="og:description" content="Reference for Cog.Platform.try_load"/>
-  <meta name="twitter:title" content="Cog.Platform.try_load"/>
-  <meta name="twitter:description" content="Reference for Cog.Platform.try_load"/>
+  <meta property="og:title" content="Cog.Platform.setup"/>
+  <meta property="og:description" content="Reference for Cog.Platform.setup"/>
+  <meta name="twitter:title" content="Cog.Platform.setup"/>
+  <meta name="twitter:description" content="Reference for Cog.Platform.setup"/>
 
 
   
@@ -80,26 +80,22 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <div class="section">
   <h5>Type</h5>
   <div class="links">
-    <a href="struct.Platform.html">Platform</a>
+    <a href="class.Platform.html">Platform</a>
   </div>
 </div>
 <div class="section">
-  <h5>Methods</h5>
+  <h5>Virtual methods</h5>
   <div class="links">
   
-    <a class="method" href="method.Platform.create_im_context.html">create_im_context</a>
+    <a class="method" href="vfunc.Platform.create_im_context.html">create_im_context</a>
   
-    <a class="method" href="method.Platform.free.html">free</a>
+    <a class="method" href="vfunc.Platform.get_view_backend.html">get_view_backend</a>
   
-    <a class="method" href="method.Platform.get_view_backend.html">get_view_backend</a>
+    <a class="method" href="vfunc.Platform.init_web_view.html">init_web_view</a>
   
-    <a class="method" href="method.Platform.init_web_view.html">init_web_view</a>
+    <a class="method current" href="vfunc.Platform.setup.html">setup</a>
   
-    <a class="method" href="method.Platform.setup.html">setup</a>
-  
-    <a class="method" href="method.Platform.teardown.html">teardown</a>
-  
-    <a class="method current" href="method.Platform.try_load.html">try_load</a>
+    <a class="method" href="vfunc.Platform.teardown.html">teardown</a>
   
   </div>
 </div>
@@ -113,25 +109,27 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Method</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="struct.Platform.html">Platform</a><span class="sep"></span>try_load</h1>
+    <h3>Virtual Method</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a><span class="sep"></span>setup</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 style="display:flex;" id="declaration">
+      <h4 id="declaration">
         Declaration
-        <a class="anchor" href="#declaration"></a>
+        <a href="#declaration" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-platform.h#L40">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-platform.h#L49">[src]</a>
         
       </h4>
 
       <div class="docblock c-decl">
         <pre><code><div class="highlight"><pre><span></span><span class="n">gboolean</span>
-<span class="n">cog_platform_try_load</span> <span class="p">(</span>
-  <span class="n">CogPlatform</span><span class="o">*</span> <span class="n">platform</span><span class="p">,</span>
-  <span class="k">const</span> <span class="n">gchar</span><span class="o">*</span> <span class="n">soname</span>
+<span class="n">setup</span> <span class="p">(</span>
+  <span class="n">CogPlatform</span><span class="o">*</span> <span class="n">arg0</span><span class="p">,</span>
+  <span class="n">CogShell</span><span class="o">*</span> <span class="n">shell</span><span class="p">,</span>
+  <span class="k">const</span> <span class="kt">char</span><span class="o">*</span> <span class="n">params</span><span class="p">,</span>
+  <span class="n">GError</span><span class="o">**</span> <span class="n">error</span>
 <span class="p">)</span>
 </pre></div>
 </code></pre>
@@ -139,9 +137,9 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     <div class="description toggle-wrapper">
-      <h4 style="display:flex;" id="description">
+      <h4 id="description">
         Description
-        <a class="anchor" href="#description"></a>
+        <a href="#description" class="anchor"></a>
         
       </h4>
 
@@ -171,8 +169,26 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="arguments">
           
           <tr class="arg-name">
-            <td><code>soname</code></td>
-            <td><code>const gchar*</code></td>
+            <td><code>shell</code></td>
+            <td><a href="class.Shell.html"><code>CogShell</code></a></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td>No description available.</td>
+          </tr>
+          
+          
+          
+          
+          
+          
+          
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
+          
+          
+          <tr class="arg-name">
+            <td><code>params</code></td>
+            <td><code>const char*</code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
@@ -188,6 +204,15 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
           <tr><td>&nbsp;</td><td>The string is a NUL terminated UTF-8 string.</td></tr>
           
+          
+          <tr class="arg-name">
+            <td><code>error</code></td>
+            <td><code>GError **</code></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td>The return location for a <code>GError*</code>, or <code>NULL</code>.</td>
+          </tr>
           
         </table>
       </div>

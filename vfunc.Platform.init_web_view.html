@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Platform.new</title>
+  <title>Cog.Platform.init_web_view</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.Platform.new"/>
-  <meta property="og:description" content="Reference for Cog.Platform.new"/>
-  <meta name="twitter:title" content="Cog.Platform.new"/>
-  <meta name="twitter:description" content="Reference for Cog.Platform.new"/>
+  <meta property="og:title" content="Cog.Platform.init_web_view"/>
+  <meta property="og:description" content="Reference for Cog.Platform.init_web_view"/>
+  <meta name="twitter:title" content="Cog.Platform.init_web_view"/>
+  <meta name="twitter:description" content="Reference for Cog.Platform.init_web_view"/>
 
 
   
@@ -80,18 +80,22 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <div class="section">
   <h5>Type</h5>
   <div class="links">
-    <a href="struct.Platform.html">Platform</a>
+    <a href="class.Platform.html">Platform</a>
   </div>
 </div>
 <div class="section">
-  <h5>Functions</h5>
+  <h5>Virtual methods</h5>
   <div class="links">
   
-    <a class="method" href="type_func.Platform.egl_error_quark.html">egl_error_quark</a>
+    <a class="method" href="vfunc.Platform.create_im_context.html">create_im_context</a>
   
-    <a class="method current" href="type_func.Platform.new.html">new</a>
+    <a class="method" href="vfunc.Platform.get_view_backend.html">get_view_backend</a>
   
-    <a class="method" href="type_func.Platform.wpe_error_quark.html">wpe_error_quark</a>
+    <a class="method current" href="vfunc.Platform.init_web_view.html">init_web_view</a>
+  
+    <a class="method" href="vfunc.Platform.setup.html">setup</a>
+  
+    <a class="method" href="vfunc.Platform.teardown.html">teardown</a>
   
   </div>
 </div>
@@ -105,24 +109,25 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Function</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="struct.Platform.html">Platform</a><span class="sep"></span>new</h1>
+    <h3>Virtual Method</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a><span class="sep"></span>init_web_view</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 id="declaration" style="display:flex;">
+      <h4 id="declaration">
         Declaration
         <a href="#declaration" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-platform.h#L37">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-platform.h#L52">[src]</a>
         
       </h4>
 
-      <div class="docblock">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">CogPlatform</span><span class="o">*</span>
-<span class="n">cog_platform_new</span> <span class="p">(</span>
-  <span class="kt">void</span>
+      <div class="docblock c-decl">
+        <pre><code><div class="highlight"><pre><span></span><span class="kt">void</span>
+<span class="n">init_web_view</span> <span class="p">(</span>
+  <span class="n">CogPlatform</span><span class="o">*</span> <span class="n">arg0</span><span class="p">,</span>
+  <span class="n">WebKitWebView</span><span class="o">*</span> <span class="n">arg1</span>
 <span class="p">)</span>
 </pre></div>
 </code></pre>
@@ -130,7 +135,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     <div class="description toggle-wrapper">
-      <h4 id="description" style="display:flex;">
+      <h4 id="description">
         Description
         <a href="#description" class="anchor"></a>
         
@@ -152,19 +157,18 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     
-
-    
-    <div class="return-value toggle-wrapper">
-      <h4 id="return-value">
-        Return value
-        <a href="#return-value" class="anchor"></a>
+    <div class="parameters toggle-wrapper">
+      <h4 id="parameters">
+        Parameters
+        <a href="#parameters" class="anchor"></a>
       </h4>
 
       <div class="docblock">
-        <table class="returns">
+        <table class="arguments">
+          
           <tr class="arg-name">
-            <td>Returns:</td>
-            <td><a href="struct.Platform.html"><code>CogPlatform</code></a></td>
+            <td><code>arg1</code></td>
+            <td><code>WebKitWebView*</code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
@@ -173,13 +177,21 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           
           
           
-          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the called function.</td></tr>
+          
+          
+          
+          
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
+          
           
           
         </table>
       </div>
     </div>
     
+
+    
+
   </section>
 </section>
 

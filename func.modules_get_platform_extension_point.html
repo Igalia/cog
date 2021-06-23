@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Platform.egl_error_quark</title>
+  <title>Cog.modules_get_platform_extension_point</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.Platform.egl_error_quark"/>
-  <meta property="og:description" content="Reference for Cog.Platform.egl_error_quark"/>
-  <meta name="twitter:title" content="Cog.Platform.egl_error_quark"/>
-  <meta name="twitter:description" content="Reference for Cog.Platform.egl_error_quark"/>
+  <meta property="og:title" content="Cog.modules_get_platform_extension_point"/>
+  <meta property="og:description" content="Reference for Cog.modules_get_platform_extension_point"/>
+  <meta name="twitter:title" content="Cog.modules_get_platform_extension_point"/>
+  <meta name="twitter:description" content="Reference for Cog.modules_get_platform_extension_point"/>
 
 
   
@@ -77,24 +77,14 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         
       </div>
       
-<div class="section">
-  <h5>Type</h5>
-  <div class="links">
-    <a href="class.Platform.html">Platform</a>
-  </div>
-</div>
+
 <div class="section">
   <h5>Functions</h5>
   <div class="links">
   
-    <a class="method current" href="type_func.Platform.egl_error_quark.html">egl_error_quark</a>
-  
-    <a class="method" href="type_func.Platform.get_default.html">get_default</a>
-  
-    <a class="method" href="type_func.Platform.wpe_error_quark.html">wpe_error_quark</a>
-  
   </div>
 </div>
+
 
     </nav>
 
@@ -105,8 +95,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Function</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a><span class="sep"></span>egl_error_quark</h1>
+    <h3>Function </h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span>modules_get_platform_extension_point</h1>
   </header>
 
   <section>
@@ -115,11 +105,13 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Declaration
         <a href="#declaration" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-modules.h#L22">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">GQuark</span>
-<span class="n">cog_platform_egl_error_quark</span> <span class="p">(</span>
+        <pre><code><div class="highlight"><pre><span></span><span class="n">GIOExtensionPoint</span><span class="o">*</span>
+<span class="n">cog_modules_get_platform_extension_point</span> <span class="p">(</span>
   <span class="kt">void</span>
 <span class="p">)</span>
 </pre></div>
@@ -132,10 +124,12 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-modules.c#L31">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Obtain the extension point for platform&nbsp;modules.</p>
       </div>
 
       <div class="docblock">
@@ -162,16 +156,16 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="returns">
           <tr class="arg-name">
             <td>Returns:</td>
-            <td><code>GQuark</code></td>
+            <td><code>GIOExtensionPoint*</code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>Extension&nbsp;point.</p></td>
           </tr>
           
           
           
-          
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the called function.</td></tr>
           
           
         </table>

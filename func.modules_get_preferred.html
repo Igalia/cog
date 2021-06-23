@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Platform.get_view_backend</title>
+  <title>Cog.modules_get_preferred</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta priority="og:title" content="Cog.Platform.get_view_backend"/>
-  <meta priority="og:description" content="Reference for Cog.Platform.get_view_backend"/>
-  <meta name="twitter:title" content="Cog.Platform.get_view_backend"/>
-  <meta name="twitter:description" content="Reference for Cog.Platform.get_view_backend"/>
+  <meta property="og:title" content="Cog.modules_get_preferred"/>
+  <meta property="og:description" content="Reference for Cog.modules_get_preferred"/>
+  <meta name="twitter:title" content="Cog.modules_get_preferred"/>
+  <meta name="twitter:description" content="Reference for Cog.modules_get_preferred"/>
 
 
   
@@ -77,30 +77,14 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         
       </div>
       
+
 <div class="section">
-  <h5>Type</h5>
+  <h5>Functions</h5>
   <div class="links">
-    <a href="class.Platform.html">Platform</a>
-  </div>
-</div>
-<div class="section">
-  <h5>Methods</h5>
-  <div class="links">
-  
-    <a class="method" href="method.Platform.create_im_context.html">create_im_context</a>
-  
-    <a class="method current" href="method.Platform.get_view_backend.html">get_view_backend</a>
-  
-    <a class="method" href="method.Platform.init_web_view.html">init_web_view</a>
-  
-    <a class="method" href="method.Platform.set_default.html">set_default</a>
-  
-    <a class="method" href="method.Platform.setup.html">setup</a>
-  
-    <a class="method" href="method.Platform.teardown.html">teardown</a>
   
   </div>
 </div>
+
 
     </nav>
 
@@ -111,26 +95,26 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Method</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a><span class="sep"></span>get_view_backend</h1>
+    <h3>Function </h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span>modules_get_preferred</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 style="display:flex;" id="declaration">
+      <h4 id="declaration" style="display:flex;">
         Declaration
-        <a class="anchor" href="#declaration"></a>
+        <a href="#declaration" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-platform.h#L64">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-modules.h#L25">[src]</a>
         
       </h4>
 
-      <div class="docblock c-decl">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">WebKitWebViewBackend</span><span class="o">*</span>
-<span class="n">cog_platform_get_view_backend</span> <span class="p">(</span>
-  <span class="n">CogPlatform</span><span class="o">*</span> <span class="n">platform</span><span class="p">,</span>
-  <span class="n">WebKitWebView</span><span class="o">*</span> <span class="n">related_view</span><span class="p">,</span>
-  <span class="n">GError</span><span class="o">**</span> <span class="n">error</span>
+      <div class="docblock">
+        <pre><code><div class="highlight"><pre><span></span><span class="n">GType</span>
+<span class="n">cog_modules_get_preferred</span> <span class="p">(</span>
+  <span class="n">GIOExtensionPoint</span><span class="o">*</span> <span class="n">extension_point</span><span class="p">,</span>
+  <span class="k">const</span> <span class="kt">char</span><span class="o">*</span> <span class="n">preferred_module</span><span class="p">,</span>
+  <span class="kt">size_t</span> <span class="n">is_supported_offset</span>
 <span class="p">)</span>
 </pre></div>
 </code></pre>
@@ -138,14 +122,23 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     <div class="description toggle-wrapper">
-      <h4 style="display:flex;" id="description">
+      <h4 id="description" style="display:flex;">
         Description
-        <a class="anchor" href="#description"></a>
+        <a href="#description" class="anchor"></a>
+        
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-modules.c#L60">[src]</a>
         
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Retrieves the default class which implements a certain extension&nbsp;point.</p>
+<p>If <code>preferred_module</code> is not <code>NULL</code>, then the implementation named by it will
+be tried first. After that, or if <code>NULL</code>, all other implementations will be
+tried in order of decreasing&nbsp;priority.</p>
+<p>If <code>is_supported_offset</code> is non-zero, then it is the offset into the class
+vtable at which there is a function which takes no arguments and returns
+a boolean. This function will be called on each candidate implementation
+to check whether it is usable or&nbsp;not.</p>
       </div>
 
       <div class="docblock">
@@ -170,12 +163,12 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="arguments">
           
           <tr class="arg-name">
-            <td><code>related_view</code></td>
-            <td><code>WebKitWebView*</code></td>
+            <td><code>extension_point</code></td>
+            <td><code>GIOExtensionPoint*</code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>Name of the extension point for which to obtain a&nbsp;module.</p></td>
           </tr>
           
           
@@ -187,15 +180,43 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
           
           
-          
           <tr class="arg-name">
-            <td><code>error</code></td>
-            <td><code>GError **</code></td>
+            <td><code>preferred_module</code></td>
+            <td><code>const char*</code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>The return location for a <code>GError*</code>, or <code>NULL</code>.</td>
+            <td><p>Name of the preferred module, which
+   overrides the default preferred&nbsp;one.</p></td>
           </tr>
+          
+          <tr><td>&nbsp;</td><td>The argument can be <code>NULL</code>.</td></tr>
+          
+          
+          
+          
+          
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
+          <tr><td>&nbsp;</td><td>The string is a NUL terminated UTF-8 string.</td></tr>
+          
+          <tr class="arg-name">
+            <td><code>is_supported_offset</code></td>
+            <td><code>size_t</code></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td><p>A vtable offset, or&nbsp;zero.</p></td>
+          </tr>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
         </table>
       </div>
@@ -213,23 +234,23 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="returns">
           <tr class="arg-name">
             <td>Returns:</td>
-            <td><code>WebKitWebViewBackend*</code></td>
+            <td><code>GType</code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>A type that can be instantiated to implement
+   <code>extension_point</code>, or <code>G_TYPE_INVALID</code> if there are o usable&nbsp;implementations.</p></td>
           </tr>
           
           
           
-          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the instance.</td></tr>
+          
           
           
         </table>
       </div>
     </div>
     
-
   </section>
 </section>
 

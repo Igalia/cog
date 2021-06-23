@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Platform.egl_error_quark</title>
+  <title>Cog.Platform.new</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.Platform.egl_error_quark"/>
-  <meta property="og:description" content="Reference for Cog.Platform.egl_error_quark"/>
-  <meta name="twitter:title" content="Cog.Platform.egl_error_quark"/>
-  <meta name="twitter:description" content="Reference for Cog.Platform.egl_error_quark"/>
+  <meta property="og:title" content="Cog.Platform.new"/>
+  <meta property="og:description" content="Reference for Cog.Platform.new"/>
+  <meta name="twitter:title" content="Cog.Platform.new"/>
+  <meta name="twitter:description" content="Reference for Cog.Platform.new"/>
 
 
   
@@ -84,14 +84,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   </div>
 </div>
 <div class="section">
-  <h5>Functions</h5>
+  <h5>Constructors</h5>
   <div class="links">
   
-    <a class="method current" href="type_func.Platform.egl_error_quark.html">egl_error_quark</a>
-  
-    <a class="method" href="type_func.Platform.get_default.html">get_default</a>
-  
-    <a class="method" href="type_func.Platform.wpe_error_quark.html">wpe_error_quark</a>
+    <a class="method current" href="ctor.Platform.new.html">new</a>
   
   </div>
 </div>
@@ -105,8 +101,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Function</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a><span class="sep"></span>egl_error_quark</h1>
+    <h3>Constructor</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a><span class="sep"></span>new</h1>
   </header>
 
   <section>
@@ -115,12 +111,15 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Declaration
         <a href="#declaration" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-platform.h#L58">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">GQuark</span>
-<span class="n">cog_platform_egl_error_quark</span> <span class="p">(</span>
-  <span class="kt">void</span>
+        <pre><code><div class="highlight"><pre><span></span><span class="n">CogPlatform</span><span class="o">*</span>
+<span class="n">cog_platform_new</span> <span class="p">(</span>
+  <span class="k">const</span> <span class="kt">char</span><span class="o">*</span> <span class="n">name</span><span class="p">,</span>
+  <span class="n">GError</span><span class="o">**</span> <span class="n">error</span>
 <span class="p">)</span>
 </pre></div>
 </code></pre>
@@ -150,6 +149,47 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     
+    <div class="parameters toggle-wrapper">
+      <h4 id="parameters">
+        Parameters
+        <a href="#parameters" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+        <table class="arguments">
+          
+          <tr class="arg-name">
+            <td><code>name</code></td>
+            <td><code>const char*</code></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td>No description available.</td>
+          </tr>
+          
+          
+          
+          
+          
+          
+          
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
+          <tr><td>&nbsp;</td><td>The string is a NUL terminated UTF-8 string.</td></tr>
+          
+          
+          <tr class="arg-name">
+            <td><code>error</code></td>
+            <td><code>GError **</code></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td>The return location for a <code>GError*</code>, or <code>NULL</code>.</td>
+          </tr>
+          
+        </table>
+      </div>
+    </div>
+    
 
     
     <div class="return-value toggle-wrapper">
@@ -162,7 +202,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="returns">
           <tr class="arg-name">
             <td>Returns:</td>
-            <td><code>GQuark</code></td>
+            <td><a href="class.Platform.html"><code>CogPlatform</code></a></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
@@ -171,7 +211,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           
           
           
-          
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the called function.</td></tr>
           
           
         </table>

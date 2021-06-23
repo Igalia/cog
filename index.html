@@ -94,9 +94,9 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
   
   
+    <a href="#enums">Enumerations</a>
   
   
-    <a href="#domains">Error Domains</a>
   
   
   
@@ -275,6 +275,13 @@ a local&nbsp;directory.</p></td>
           </tr>
           
           <tr class="section-item">
+            <td><a title="Platform" class="symbol" href="class.Platform.html">Platform</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
             <td><a title="PrefixRoutesHandler" class="symbol" href="class.PrefixRoutesHandler.html">PrefixRoutesHandler</a></td>
             
             <td class="docblock-summary"><p>Direct custom <span class="caps">URI</span> scheme requests to different&nbsp;handlers.</p></td>
@@ -354,13 +361,6 @@ load, the view configuration, and keeps track of a number of registered
             
           </tr>
           
-          <tr class="section-item">
-            <td><a title="Platform" class="symbol" href="struct.Platform.html">Platform</a></td>
-            
-            <td class="docblock-summary"></td>
-            
-          </tr>
-          
           </tbody>
         </table>
       </div>
@@ -370,13 +370,11 @@ load, the view configuration, and keeps track of a number of registered
   
   
   
-  
-  
   <section>
     <div class="toggle-wrapper default-hide">
-      <h4 id="domains" class="section-header" style="display:flex;">
-        Error Domains
-        <a href="#domains" class="anchor"></a>
+      <h4 id="enums" class="section-header" style="display:flex;">
+        Enumerations
+        <a href="#enums" class="anchor"></a>
       </h4>
 
       <div class="docblock">
@@ -384,7 +382,14 @@ load, the view configuration, and keeps track of a number of registered
           <tbody>
           
           <tr class="section-item">
-            <td><a title="PlatformWpeError" class="symbol" href="error.PlatformWpeError.html">PlatformWpeError</a></td>
+            <td><a title="PlatformError" class="symbol" href="enum.PlatformError.html">PlatformError</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="PlatformWpeError" class="symbol" href="enum.PlatformWpeError.html">PlatformWpeError</a></td>
             
             <td class="docblock-summary"></td>
             
@@ -395,6 +400,8 @@ load, the view configuration, and keeps track of a number of registered
       </div>
     </div>
   </section>
+  
+  
   
   
   
@@ -453,6 +460,35 @@ and logging a message to the standard error&nbsp;output.</p></td>
             
             <td class="docblock-summary"><p>Handles unexpected web process termination, exiting the program with the
 value passed as <code>userdata</code> as&nbsp;status.</p></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="modules_add_directory" class="symbol" href="func.modules_add_directory.html">modules_add_directory</a></td>
+            
+            <td class="docblock-summary"><p>Scans a directory for loadable modules and registers them with the
+extension points they&nbsp;implement.</p></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="modules_foreach" class="symbol" href="func.modules_foreach.html">modules_foreach</a></td>
+            
+            <td class="docblock-summary"><p>Invokes a callback for each module which implements an extension&nbsp;point.</p></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="modules_get_platform_extension_point" class="symbol" href="func.modules_get_platform_extension_point.html">modules_get_platform_extension_point</a></td>
+            
+            <td class="docblock-summary"><p>Obtain the extension point for platform&nbsp;modules.</p></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="modules_get_preferred" class="symbol" href="func.modules_get_preferred.html">modules_get_preferred</a></td>
+            
+            <td class="docblock-summary"><p>Retrieves the default class which implements a certain extension&nbsp;point.</p></td>
             
           </tr>
           
@@ -535,6 +571,20 @@ and uses them to set the writable properties of a WebKit.Settings&nbsp;object.</
           
           <tr class="section-item">
             <td><a title="INSIDE_COG__" class="symbol" href="const.INSIDE_COG__.html">INSIDE_COG__</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="MODULEDIR" class="symbol" href="const.MODULEDIR.html">MODULEDIR</a></td>
+            
+            <td class="docblock-summary"></td>
+            
+          </tr>
+          
+          <tr class="section-item">
+            <td><a title="MODULES_PLATFORM_EXTENSION_POINT" class="symbol" href="const.MODULES_PLATFORM_EXTENSION_POINT.html">MODULES_PLATFORM_EXTENSION_POINT</a></td>
             
             <td class="docblock-summary"></td>
             
