@@ -12,16 +12,16 @@
 #define COG_INSIDE_COG__ 1
 
 #include "cog-config.h"
-#include "cog-modules.h"
-#include "cog-webkit-utils.h"
-#include "cog-request-handler.h"
 #include "cog-directory-files-handler.h"
+#include "cog-host-routes-handler.h"
+#include "cog-launcher.h"
 #include "cog-modules.h"
 #include "cog-prefix-routes-handler.h"
-#include "cog-launcher.h"
+#include "cog-request-handler.h"
 #include "cog-shell.h"
 #include "cog-utils.h"
 #include "cog-view.h"
+#include "cog-webkit-utils.h"
 
 #undef COG_INSIDE_COG__
 
