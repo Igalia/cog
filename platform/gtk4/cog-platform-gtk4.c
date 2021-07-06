@@ -59,6 +59,7 @@ struct platform_window {
 
     int width;
     int height;
+    double device_scale_factor;
 
     GdkModifierType key_modifiers;
 
@@ -69,9 +70,11 @@ struct platform_window {
     struct wpe_fdo_egl_exported_image* commited_image;
 };
 
-static struct platform_window win = {
-    .gtk_window = NULL, .width = DEFAULT_WIDTH, .height = DEFAULT_HEIGHT, .settings_dialog = NULL
-};
+static struct platform_window win = {.gtk_window = NULL,
+                                     .width = DEFAULT_WIDTH,
+                                     .height = DEFAULT_HEIGHT,
+                                     .device_scale_factor = 1,
+                                     .settings_dialog = NULL};
 
 static const char s_vertex_shader[] = "#version 330\n"
                                       "attribute vec2 pos;\n"
@@ -684,7 +687,7 @@ setup_fdo_exportable(struct platform_window* window)
 }
 
 static gboolean
-cog_gtk4_platform_setup(CogPlatform* platform, CogShell* shell G_GNUC_UNUSED, const char* params, GError** error)
+cog_gtk4_platform_setup(CogPlatform* platform, CogShell* shell, const char* params, GError** error)
 {
     g_assert_nonnull(platform);
 
@@ -697,6 +700,9 @@ cog_gtk4_platform_setup(CogPlatform* platform, CogShell* shell G_GNUC_UNUSED, co
 
     setup_window(&win);
     setup_fdo_exportable(&win);
+
+    win.device_scale_factor = cog_shell_get_device_scale_factor(shell);
+
     return TRUE;
 }
 
@@ -768,6 +774,9 @@ cog_gtk4_platform_init_web_view(CogPlatform* platform, WebKitWebView* view)
     g_signal_connect(webkit_web_view_get_back_forward_list(view), "changed",
         G_CALLBACK(on_back_forward_changed), &win);
     win.web_view = view;
+
+    wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_backend_exportable_fdo_get_view_backend(win.exportable),
+                                                      win.device_scale_factor);
 }
 
 static void*
