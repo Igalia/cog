@@ -35,12 +35,12 @@ Hacking on Cog
 -----------------
 
 ### Building/running
-This project requires libwpewebkit-1.0-dev (), 
+This project requires libwpewebkit-1.0-dev, 
 libwpe-1.0-dev (https://github.com/WebPlatformForEmbedded/libwpe/), 
 libwpebackend-fdo-1.0-dev (https://github.com/Igalia/WPEBackend-fdo) 
 and GTK4 for the build/run process.
 
-After cloning the dependency, checkout the branch with the specified version. 
+After cloning each dependency, checkout the branch with the specified version. 
 If this branch doesn't have a build directory,
 create one. Move into this directory and run "meson .." then "ninja" to build this
 dependency.
