@@ -53,7 +53,8 @@ Clone the project from https://github.com/Igalia/cog and do the following
 * create a build directory
 * cd into this directory. This is where your build files will be stored.
 * run "cmake -DCOG_PLATFORM_X11=ON -DCOG_PLATFORM_GTK4=ON .." to generate the build files.
-* Then run the make command to generate the binaries
+* Then run the make command to generate the binaries.
+
 You just finished building cog. To run it, run "COG_MODULEDIR=$PWD/modules ./cog --platform=gtk4 https://www.igalia.com/"
 while in the build directory. If you are running Wayland, this will startup fine.
 
