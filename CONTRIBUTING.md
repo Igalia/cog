@@ -36,8 +36,8 @@ Hacking on Cog
 
 ### Building/running Cog
 This project requires libwpewebkit-1.0-dev (), 
-libwpe-1.0-dev ([https://github.com/WebPlatformForEmbedded/libwpe/]), 
-libwpebackend-fdo-1.0-dev ([https://github.com/Igalia/WPEBackend-fdo]) 
+libwpe-1.0-dev (https://github.com/WebPlatformForEmbedded/libwpe/), 
+libwpebackend-fdo-1.0-dev (https://github.com/Igalia/WPEBackend-fdo) 
 and GTK4 for the build/run process.
 
 After cloning the dependency, checkout the branch with the specified version. 
@@ -48,7 +48,7 @@ You could also directly install them through the terminal if you can find them
 on your linux distro's repositories. For example "sudo apt-get install libwpewebkit-1.0-dev libwpe-1.0-dev" 
 installs the respective packages in versions of ubuntu.
 
-Clone the project from [https://github.com/Igalia/cog] and do the following 
+Clone the project from https://github.com/Igalia/cog and do the following 
 to build and get the project running
 * cd into project
 * create a build directory
