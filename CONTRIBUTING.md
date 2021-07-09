@@ -56,7 +56,7 @@ Clone the project from https://github.com/Igalia/cog and do the following
 * Then run the make command to generate the binaries.
 
 You just finished building cog. To run it, run "COG_MODULEDIR=$PWD/modules ./cog --platform=gtk4 https://www.igalia.com/"
-while in the build directory. If you are running Wayland, this will startup fine.
+while in the build directory. If you are running Wayland, this will startup fine. Valid platforms for building include 'gtk4', 'x11', 'drm', 'fdo' and 'headless' - the gtk4 one, however is most user-friendly.
 
 ### Working on the source
 
