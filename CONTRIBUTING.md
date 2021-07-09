@@ -42,7 +42,7 @@ and GTK4 for the build/run process.
 
 After cloning each dependency, checkout the branch with the specified version. 
 If this branch doesn't have a build directory,
-create one. Move into this directory and run "meson .." then "ninja" to build this
+create one. Move into this directory and run `meson ..` then "ninja" to build this
 dependency.
 You could also directly install them through the terminal if you can find them
 on your linux distro's repositories. For example "sudo apt-get install libwpewebkit-1.0-dev libwpe-1.0-dev" 
