@@ -34,7 +34,7 @@ you are using, and which steps can be followed to reproduce the issue.
 Hacking on Cog
 -----------------
 
-### Building/running Cog
+### Building/running
 This project requires libwpewebkit-1.0-dev (), 
 libwpe-1.0-dev (https://github.com/WebPlatformForEmbedded/libwpe/), 
 libwpebackend-fdo-1.0-dev (https://github.com/Igalia/WPEBackend-fdo) 
