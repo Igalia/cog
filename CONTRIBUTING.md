@@ -49,7 +49,6 @@ on your linux distro's repositories. For example "sudo apt-get install libwpeweb
 installs the respective packages in versions of ubuntu.
 
 Clone the project from https://github.com/Igalia/cog and do the following 
-to build and get the project running
 * cd into project
 * create a build directory
 * cd into this directory. This is where your build files will be stored.
