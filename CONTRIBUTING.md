@@ -40,23 +40,23 @@ libwpe-1.0-dev (https://github.com/WebPlatformForEmbedded/libwpe/),
 libwpebackend-fdo-1.0-dev (https://github.com/Igalia/WPEBackend-fdo) 
 and GTK4 for the build/run process.
 
-After cloning each dependency, checkout the branch with the specified version. 
-If this branch doesn't have a build directory,
-create one. Move into this directory and run `meson ..` then `ninja` to build this
+After cloning each dependency, change directory to the cloned directory. 
+If this directory doesn't have a build folder,
+create one. Then change directory to the build directory and run `meson ..` then `ninja` to build this
 dependency.
 You could also directly install them through the terminal if you can find them
 on your linux distro's repositories. For example `sudo apt-get install libwpewebkit-1.0-dev libwpe-1.0-dev` 
 installs the respective packages in versions of ubuntu.
 
-Clone the project from https://github.com/Igalia/cog and do the following 
-* cd into project
+Clone the cog repository and do the following 
+* change directory to the cloned repository
 * create a build directory
 * cd into this directory. This is where your build files will be stored.
 * run `cmake -DCOG_PLATFORM_X11=ON -DCOG_PLATFORM_GTK4=ON ..` to generate the build files.
-* Then run the make command to generate the binaries.
+* Then run `make` to generate the binaries.
 
 You just finished building cog. To run it, run `COG_MODULEDIR=$PWD/modules ./cog --platform=gtk4 https://www.igalia.com/`
-while in the build directory. If you are running Wayland, this will startup fine. Valid platforms for building include 'gtk4', 'x11', 'drm', 'fdo' and 'headless' - the gtk4 one, however is most user-friendly.
+while in the build directory. If you are running Wayland, this will startup fine. Valid platforms include 'gtk4', 'x11', 'drm', 'fdo' and 'headless'.
 
 ### Working on the source
 
