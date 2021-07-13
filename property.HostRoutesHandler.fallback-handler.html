@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.VERSION_EXTRA</title>
+  <title>Cog.HostRoutesHandler:fallback-handler</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.VERSION_EXTRA"/>
-  <meta property="og:description" content="Reference for Cog.VERSION_EXTRA"/>
-  <meta name="twitter:title" content="Cog.VERSION_EXTRA"/>
-  <meta name="twitter:description" content="Reference for Cog.VERSION_EXTRA"/>
+  <meta property="og:title" content="Cog.HostRoutesHandler:fallback-handler"/>
+  <meta property="og:description" content="Reference for property Cog.HostRoutesHandler:fallback-handler"/>
+  <meta name="twitter:title" content="Cog.HostRoutesHandler:fallback-handler"/>
+  <meta name="twitter:description" content="Reference for property Cog.HostRoutesHandler:fallback-handler"/>
 
 
   
@@ -78,9 +78,17 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       </div>
       
 <div class="section">
-  <h5>Constant</h5>
+  <h5>Type</h5>
   <div class="links">
-    <a class="current" href="const.VERSION_EXTRA.html">VERSION_EXTRA</a>
+    <a href="class.HostRoutesHandler.html">HostRoutesHandler</a>
+  </div>
+</div>
+<div class="section">
+  <h5>Properties</h5>
+  <div class="links">
+  
+    <a class="property current"href="property.HostRoutesHandler.fallback-handler.html">fallback-handler</a>
+  
   </div>
 </div>
 
@@ -93,22 +101,19 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Constant</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span>VERSION_EXTRA</h1>
+    <h3>Property</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.HostRoutesHandler.html">HostRoutesHandler</a>:fallback-handler</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 id="declaration" style="display:flex;">
+      <h4 id="declaration">
         Declaration
         <a href="#declaration" class="anchor"></a>
-        
       </h4>
 
       <div class="docblock">
-        <pre><code><div class="highlight"><pre><span></span><span class="cp">#define COG_VERSION_EXTRA +git-8ebb164</span>
-</pre></div>
-</code></pre>
+        <pre><code>property fallback-handler: Cog.RequestHandler [ read, write, construct-only ]</code></pre>
       </div>
     </div>
 
@@ -117,14 +122,20 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-host-routes-handler.c#L162">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Optional <code>CogRequestHandler</code> used as fallback when no route entries match
+the <span class="caps">URI</span>&nbsp;host.</p>
       </div>
 
       <div class="docblock">
         <table>
+          <tr><td>Type:</td>
+            <td><a href="iface.RequestHandler.html"><code>CogRequestHandler</code></a></td>
+          </tr>
           
           
           
@@ -132,6 +143,22 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       </div>
 
       
+    </div>
+
+    <div class="flags toggle-wrapper">
+      <h4 id="flags">
+        Flags
+        <a href="#flags" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+      <table>
+        <tr><td>Readable</td><td><b>yes</b></td></tr>
+        <tr><td>Writable</td><td><b>yes</b></td></tr>
+        <tr><td>Construct</td><td><b>no</b></td></tr>
+        <tr><td>Construct only</td><td><b>yes</b></td></tr>
+      </table>
+      </div>
     </div>
 
   </section>
