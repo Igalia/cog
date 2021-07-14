@@ -244,12 +244,16 @@ static struct {
     uint32_t height;
 
     bool is_fullscreen;
+    bool was_fullscreen_requested_from_dom;
+    bool is_resizing_fullscreen;
     bool is_maximized;
     bool should_resize_to_largest_output;
 } win_data = {
     .width = DEFAULT_WIDTH,
     .height = DEFAULT_HEIGHT,
     .is_fullscreen = false,
+    .was_fullscreen_requested_from_dom = false,
+    .is_resizing_fullscreen = false,
     .is_maximized = false,
     .should_resize_to_largest_output = false,
 };
@@ -643,6 +647,64 @@ output_handle_scale (void *data,
 
     metrics->scale = factor;
     g_info ("Got scale factor %i for output %p\n", factor, output);
+}
+
+static bool
+cog_fdo_does_image_match_win_size(struct wpe_fdo_egl_exported_image* image)
+{
+    return image && wpe_fdo_egl_exported_image_get_width(image) == win_data.width &&
+        wpe_fdo_egl_exported_image_get_height(image) == win_data.height;
+}
+
+static void
+cog_fdo_fullscreen_image_ready()
+{
+    xdg_toplevel_set_fullscreen(win_data.xdg_toplevel, NULL);
+    win_data.is_resizing_fullscreen = false;
+    if (win_data.was_fullscreen_requested_from_dom)
+        wpe_view_backend_dispatch_did_enter_fullscreen(wpe_view_data.backend);
+}
+
+static bool
+cog_fdo_set_fullscreen(void* unused, bool fullscreen)
+{
+    if (win_data.is_resizing_fullscreen || win_data.is_fullscreen == fullscreen)
+        return false;
+
+    win_data.is_fullscreen = fullscreen;
+    
+    if (fullscreen) {
+        // Resize the view_backend to the size of the screen.
+        // Wait until a new exported image is reveived. See cog_fdo_fullscreen_image_ready().
+        win_data.is_resizing_fullscreen = true;
+        resize_to_largest_output();
+        if (cog_fdo_does_image_match_win_size(wpe_view_data.image))
+            cog_fdo_fullscreen_image_ready();
+    }
+    else {
+        xdg_toplevel_unset_fullscreen (win_data.xdg_toplevel);
+        if (win_data.was_fullscreen_requested_from_dom)
+            wpe_view_backend_dispatch_did_exit_fullscreen(wpe_view_data.backend);
+        win_data.was_fullscreen_requested_from_dom = false;
+    }
+    wpe_view_data.should_update_opaque_region = true;
+    return true;
+}
+
+static bool
+cog_fdo_handle_dom_fullscreen_request(void* unused, bool fullscreen)
+{
+    win_data.was_fullscreen_requested_from_dom = true;
+    if (fullscreen != win_data.is_fullscreen)
+        return cog_fdo_set_fullscreen(unused, fullscreen);
+
+    // Handle situations where DOM fullscreen requests are mixed with system fullscreen commands (e.g F11)
+    if (fullscreen)
+        wpe_view_backend_dispatch_did_enter_fullscreen(wpe_view_data.backend);
+    else
+        wpe_view_backend_dispatch_did_exit_fullscreen(wpe_view_data.backend);
+
+    return true;
 }
 
 static const struct wl_output_listener output_listener = {
@@ -1081,13 +1143,12 @@ capture_app_key_bindings (uint32_t keysym,
 
     if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         /* fullscreen */
-        if (modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F11) {
-            if (! win_data.is_fullscreen)
-                xdg_toplevel_set_fullscreen (win_data.xdg_toplevel, NULL);
+        if (modifiers == 0 && unicode == 0 && keysym == XKB_KEY_Up) {
+            if (win_data.is_fullscreen && win_data.was_fullscreen_requested_from_dom)
+                wpe_view_backend_dispatch_request_exit_fullscreen(wpe_view_data.backend);
             else
-                xdg_toplevel_unset_fullscreen (win_data.xdg_toplevel);
-            win_data.is_fullscreen = ! win_data.is_fullscreen;
-            wpe_view_data.should_update_opaque_region = true;
+                cog_fdo_set_fullscreen(0, !win_data.is_fullscreen);
+
             return true;
         }
         /* Ctrl+W, exit the application */
@@ -1669,6 +1730,9 @@ on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
     request_frame ();
 
     wl_surface_commit (win_data.wl_surface);
+
+    if (win_data.is_resizing_fullscreen && cog_fdo_does_image_match_win_size(image))
+        cog_fdo_fullscreen_image_ready();
 }
 
 #if HAVE_SHM_EXPORTED_BUFFER
@@ -2474,6 +2538,8 @@ cog_fdo_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_
                        (GDestroyNotify) wpe_view_backend_exportable_fdo_destroy,
                                      wpe_host_data.exportable);
     g_assert (wk_view_backend);
+
+    wpe_view_backend_set_platform_fullscreen_handler(wpe_view_data.backend, cog_fdo_handle_dom_fullscreen_request, 0);
 
     if (!wl_data.event_src) {
         wl_data.event_src =
