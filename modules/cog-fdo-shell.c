@@ -17,6 +17,8 @@
 #include <wpe/fdo.h>
 #include <wpe/fdo-egl.h>
 
+/* Needs to be included after wayland-egl.h */
+#include "../platform/egl-proc-address.h"
 
 #if defined(WPE_CHECK_VERSION)
 # define HAVE_2D_AXIS_EVENT (WPE_CHECK_VERSION (1, 5, 0) && (WEBKIT_CHECK_VERSION (2, 27, 4)))
@@ -534,7 +536,7 @@ cog_fdo_shell_gles_setup (CogFdoShell *self,
                    self->egl_swap_interval, eglGetError ());
 
     self->gl_eglImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)
-        eglGetProcAddress ("glEGLImageTargetTexture2DOES");
+        load_egl_proc_address ("glEGLImageTargetTexture2DOES");
     if (!self->gl_eglImageTargetTexture2DOES) {
         g_set_error (error, PWL_ERROR, PWL_ERROR_EGL,
                      "No glEGLImageTargetTexture2DOES pointer (%#06x)",

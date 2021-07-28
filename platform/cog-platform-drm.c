@@ -1,3 +1,5 @@
+
+#include "egl-proc-address.h"
 #include <cog.h>
 
 #include <assert.h>
@@ -379,7 +381,7 @@ init_egl (void)
 {
     static PFNEGLGETPLATFORMDISPLAYEXTPROC s_eglGetPlatformDisplay = NULL;
     if (!s_eglGetPlatformDisplay)
-        s_eglGetPlatformDisplay = (PFNEGLGETPLATFORMDISPLAYEXTPROC) eglGetProcAddress ("eglGetPlatformDisplayEXT");
+        s_eglGetPlatformDisplay = (PFNEGLGETPLATFORMDISPLAYEXTPROC) load_egl_proc_address ("eglGetPlatformDisplayEXT");
 
     if (s_eglGetPlatformDisplay)
         egl_data.display = s_eglGetPlatformDisplay (EGL_PLATFORM_GBM_KHR, gbm_data.device, NULL);

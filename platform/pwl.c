@@ -16,6 +16,9 @@
 #include <string.h>
 #include <sys/mman.h>
 
+/* Needs to be included after wayland-egl.h */
+#include "egl-proc-address.h"
+
 #ifdef HAVE_XDG_SHELL
 #include "xdg-shell-client.h"
 #endif /* HAVE_XDG_SHELL */
@@ -1850,7 +1853,7 @@ pwl_display_egl_init (PwlDisplay  *display,
      */
 
     display->egl_createWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
-        eglGetProcAddress ("eglCreateWaylandBufferFromImageWL");
+        load_egl_proc_address ("eglCreateWaylandBufferFromImageWL");
     if (!display->egl_createWaylandBufferFromImageWL) {
         set_egl_error (error, eglGetError (),
                        "eglCreateWaylandBufferFromImageWL unsupported");
