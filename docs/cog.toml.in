@@ -42,6 +42,7 @@ base_url = "https://github.com/Igalia/cog/blob/master/"
 [extra]
 content_files = [
     "overview.md",
+    "contributing.md",
     "platform-fdo.md",
     "platform-drm.md",
     "platform-x11.md",
