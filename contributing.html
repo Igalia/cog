@@ -1,0 +1,164 @@
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Cog &ndash; 0.0: Contributing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta charset="utf-8" />
+
+  
+  <meta property="og:type" content="website"/>
+
+  
+  <meta property="og:image:width" content="256"/>
+  <meta property="og:image:height" content="256"/>
+  <meta property="og:image:secure_url" content="cog.png"/>
+  <meta property="og:image:alt" content="Cog-0.0"/>
+  
+
+  
+  <meta property="og:title" content="Cog: Contributing"/>
+  <meta property="og:description" content="Reference for Cog-0.0: Contributing"/>
+  <meta name="twitter:title" content="Cog: Contributing"/>
+  <meta name="twitter:description" content="Reference for Cog-0.0: Contributing"/>
+
+
+  
+  <meta name="twitter:card" content="summary"/>
+
+  
+
+  <link rel="stylesheet" href="style.css" type="text/css" />
+
+  
+
+  
+  
+  <script src="fzy.js"></script>
+  <script src="search.js"></script>
+  
+  <script src="main.js"></script>
+  <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+</head>
+
+<body>
+  <div id="body-wrapper" tabindex="-1">
+
+    <nav class="sidebar devhelp-hidden">
+      
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
+      
+      <div class="search section">
+        <form id="search-form" autocomplete="off">
+          <input id="search-input" type="text" name="do-not-autocomplete" placeholder="Click, or press 's' to search" autocomplete="off"/>
+        </form>
+      </div>
+      
+      <div class="section namespace">
+        <h3><a href="index.html">Cog</a></h3>
+        <p>API Version: 0.0</p>
+        
+        <p>Library Version: 0.9.1</p>
+        
+      </div>
+      
+      
+    </nav>
+
+    
+    <button id="btn-to-top" class="hidden"><span class="up-arrow"></span></button>
+    
+
+    
+<section id="main" class="content">
+  <section>
+    <div class="docblock">
+    <h1 id="contributing-to-cog">Contributing to Cog<a class="md-anchor" href="#contributing-to-cog" title="Permanent link"></a></h1>
+<p>Thank you for considering contributing to Cog! There are different ways if
+contributing, and we appreciate all of&nbsp;them.</p>
+<h2 id="source-repository">Source Repository<a class="md-anchor" href="#source-repository" title="Permanent link"></a></h2>
+<p>Cog&#8217;s source repository is hosted at <a href="https://github.com/Igalia/cog">github.com/Igalia/cog</a>.</p>
+<p>Development happens in the <code>master</code> branch, which must be always&nbsp;buildable.</p>
+<h2 id="reporting-bugs">Reporting Bugs<a class="md-anchor" href="#reporting-bugs" title="Permanent link"></a></h2>
+<p>Please report bugs at <a href="https://github.com/Igalia/cog/issues">github.com/Igalia/cog/issues</a> — you can also
+browse the issues already reported, and in case someone has already reported
+your bug, do not hesitate to add additional information which may help solve&nbsp;it.</p>
+<p>A general advice for bug reports is to mention the version of WebKit that
+you are using, and which steps can be followed to reproduce the&nbsp;issue.</p>
+<h2 id="hacking-on-cog">Hacking on Cog<a class="md-anchor" href="#hacking-on-cog" title="Permanent link"></a></h2>
+<h3 id="dependencies">Dependencies<a class="md-anchor" href="#dependencies" title="Permanent link"></a></h3>
+<p>This project requires <span class="caps">WPE</span> WebKit, <a href="https://github.com/WebPlatformForEmbedded/libwpe/">libwpe</a>, and <a href="https://github.com/Igalia/WPEBackend-fdo">WPEBackend-fdo</a>;
+and it is recommended to also have the <a href="https://gitlab.freedesktop.org/mesa/drm">libdrm</a>, X11 and <span class="caps">GTK4</span>
+development packages&nbsp;installed.</p>
+<p>The easiest way of getting the dependencies installed is using your Linux
+distribution&#8217;s package manager to install their development packages.
+For example, on a Debian (or Ubuntu) system, the following command should
+be&nbsp;enough:</p>
+<div class="codehilite"><pre><span></span><code>sudo apt-get install libwpewebkit-1.0-dev libwpe-1.0-dev
+</code></pre></div>
+
+<h3 id="building">Building<a class="md-anchor" href="#building" title="Permanent link"></a></h3>
+<p>Clone the Cog <a href="https://github.com/Igalia/cog">repository</a> and do the&nbsp;following:</p>
+<ol>
+<li>Change directory to the cloned&nbsp;repository.</li>
+<li>Create a build directory, and change into it. This is where the built
+   files will be&nbsp;stored.</li>
+<li>Run CMake to generate configure the&nbsp;build.</li>
+<li>Then run Make to compile the&nbsp;binaries.</li>
+</ol>
+<p>The following sequence of shell commands does the steps&nbsp;above:</p>
+<div class="codehilite"><pre><span></span><code>git clone https://github.com/Igalia/cog
+<span class="nb">cd</span> cog
+mkdir _build <span class="o">&amp;&amp;</span> <span class="nb">cd</span> _build
+cmake ..
+make
+</code></pre></div>
+
+<p>Congratulations, you just finished building&nbsp;Cog!</p>
+<h3 id="running">Running<a class="md-anchor" href="#running" title="Permanent link"></a></h3>
+<p>To run Cog it, change into your build directory, and run the following&nbsp;command:</p>
+<div class="codehilite"><pre><span></span><code><span class="nv">COG_MODULEDIR</span><span class="o">=</span><span class="nv">$PWD</span>/modules ./cog https://www.igalia.com
+</code></pre></div>
+
+<p>Cog will try to guess which platform plug-in to use depending on what it finds
+running in your system. If you want to manually indicate which one to load,
+use the <code>--platform=</code> command line&nbsp;option:</p>
+<div class="codehilite"><pre><span></span><code><span class="nv">COG_MODULEDIR</span><span class="o">=</span><span class="nv">$PWD</span>/modules ./cog --platform<span class="o">=</span>x11 https://www.igalia.com
+</code></pre></div>
+
+<p>Typical values are <code>fdo</code> or <code>gtk4</code> if you are running a Wayland compositor,
+<code>x11</code> if you are running the X Window system, and so&nbsp;on.</p>
+<h3 id="creating-and-sending-a-patch">Creating and sending a patch<a class="md-anchor" href="#creating-and-sending-a-patch" title="Permanent link"></a></h3>
+<p>Pull requests should be also prepared to be merged onto the <code>master</code> branch,
+except when the changes specifically apply to a release branch (like
+<code>cog-0.1</code>) and do not apply to <code>master</code>. If the changes in a <span class="caps">PR</span> should be
+backported to a release branch, link the <span class="caps">PR</span> in <a href="https://github.com/Igalia/cog/wiki/Release-Branches">this wiki
+page</a>.</p>
+    </div>
+  </section>
+</section>
+
+
+    <section id="search" class="content hidden"></section>
+
+    <footer>
+    
+    </footer>
+  </div>
+</body>
+</html>
