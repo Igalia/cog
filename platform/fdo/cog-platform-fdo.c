@@ -242,17 +242,25 @@ static struct {
 
     uint32_t width;
     uint32_t height;
+    uint32_t width_before_fullscreen;
+    uint32_t height_before_fullscreen;
 
     bool is_fullscreen;
+#if WPE_CHECK_VERSION(1, 11, 1)
     bool was_fullscreen_requested_from_dom;
+#endif
     bool is_resizing_fullscreen;
     bool is_maximized;
     bool should_resize_to_largest_output;
 } win_data = {
     .width = DEFAULT_WIDTH,
     .height = DEFAULT_HEIGHT,
+    .width_before_fullscreen = DEFAULT_WIDTH,
+    .height_before_fullscreen = DEFAULT_HEIGHT,
     .is_fullscreen = false,
+#if WPE_CHECK_VERSION(1, 11, 1)
     .was_fullscreen_requested_from_dom = false,
+#endif
     .is_resizing_fullscreen = false,
     .is_maximized = false,
     .should_resize_to_largest_output = false,
@@ -650,49 +658,73 @@ output_handle_scale (void *data,
 }
 
 static bool
-cog_fdo_does_image_match_win_size(struct wpe_fdo_egl_exported_image* image)
+cog_fdo_does_image_match_win_size(struct wpe_fdo_egl_exported_image *image)
 {
     return image && wpe_fdo_egl_exported_image_get_width(image) == win_data.width &&
-        wpe_fdo_egl_exported_image_get_height(image) == win_data.height;
+           wpe_fdo_egl_exported_image_get_height(image) == win_data.height;
 }
 
 static void
 cog_fdo_fullscreen_image_ready()
 {
-    xdg_toplevel_set_fullscreen(win_data.xdg_toplevel, NULL);
+    if (wl_data.xdg_shell) {
+        xdg_toplevel_set_fullscreen(win_data.xdg_toplevel, NULL);
+    } else if (wl_data.shell) {
+        wl_shell_surface_set_fullscreen(win_data.shell_surface, WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE, 0, NULL);
+    } else if (wl_data.fshell == NULL) {
+        g_assert_not_reached();
+    }
+
     win_data.is_resizing_fullscreen = false;
+#if WPE_CHECK_VERSION(1, 11, 1)
     if (win_data.was_fullscreen_requested_from_dom)
         wpe_view_backend_dispatch_did_enter_fullscreen(wpe_view_data.backend);
+#endif
 }
 
 static bool
-cog_fdo_set_fullscreen(void* unused, bool fullscreen)
+cog_fdo_set_fullscreen(void *unused, bool fullscreen)
 {
     if (win_data.is_resizing_fullscreen || win_data.is_fullscreen == fullscreen)
         return false;
 
     win_data.is_fullscreen = fullscreen;
-    
+
     if (fullscreen) {
         // Resize the view_backend to the size of the screen.
         // Wait until a new exported image is reveived. See cog_fdo_fullscreen_image_ready().
         win_data.is_resizing_fullscreen = true;
+        win_data.width_before_fullscreen = win_data.width;
+        win_data.height_before_fullscreen = win_data.height;
         resize_to_largest_output();
         if (cog_fdo_does_image_match_win_size(wpe_view_data.image))
             cog_fdo_fullscreen_image_ready();
-    }
-    else {
-        xdg_toplevel_unset_fullscreen (win_data.xdg_toplevel);
+    } else {
+        if (wl_data.xdg_shell != NULL) {
+            xdg_toplevel_unset_fullscreen(win_data.xdg_toplevel);
+        } else if (wl_data.fshell != NULL) {
+            configure_surface_geometry(win_data.width_before_fullscreen, win_data.height_before_fullscreen);
+            resize_window();
+        } else if (wl_data.shell != NULL) {
+            wl_shell_surface_set_toplevel(win_data.shell_surface);
+            configure_surface_geometry(win_data.width_before_fullscreen, win_data.height_before_fullscreen);
+            resize_window();
+        } else {
+            g_assert_not_reached();
+        }
+#if WPE_CHECK_VERSION(1, 11, 1)
         if (win_data.was_fullscreen_requested_from_dom)
             wpe_view_backend_dispatch_did_exit_fullscreen(wpe_view_data.backend);
         win_data.was_fullscreen_requested_from_dom = false;
+#endif
     }
     wpe_view_data.should_update_opaque_region = true;
     return true;
 }
 
+#if WPE_CHECK_VERSION(1, 11, 1)
 static bool
-cog_fdo_handle_dom_fullscreen_request(void* unused, bool fullscreen)
+cog_fdo_handle_dom_fullscreen_request(void *unused, bool fullscreen)
 {
     win_data.was_fullscreen_requested_from_dom = true;
     if (fullscreen != win_data.is_fullscreen)
@@ -706,6 +738,7 @@ cog_fdo_handle_dom_fullscreen_request(void* unused, bool fullscreen)
 
     return true;
 }
+#endif
 
 static const struct wl_output_listener output_listener = {
         .geometry = noop,
@@ -1143,51 +1176,48 @@ capture_app_key_bindings (uint32_t keysym,
 
     if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         /* fullscreen */
-        if (modifiers == 0 && unicode == 0 && keysym == XKB_KEY_Up) {
-            if (win_data.is_fullscreen && win_data.was_fullscreen_requested_from_dom)
+        if (modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F11) {
+#if WPE_CHECK_VERSION(1, 11, 1)
+            if (win_data.is_fullscreen && win_data.was_fullscreen_requested_from_dom) {
                 wpe_view_backend_dispatch_request_exit_fullscreen(wpe_view_data.backend);
-            else
-                cog_fdo_set_fullscreen(0, !win_data.is_fullscreen);
-
+                return true;
+            }
+#endif
+            cog_fdo_set_fullscreen(0, !win_data.is_fullscreen);
             return true;
         }
         /* Ctrl+W, exit the application */
-        else if (modifiers == wpe_input_keyboard_modifier_control &&
-                 unicode == 0x17 && keysym == 0x77) {
+        else if (modifiers == wpe_input_keyboard_modifier_control && unicode == 0x17 && keysym == 0x77) {
             g_application_quit (G_APPLICATION (launcher));
             return true;
         }
         /* Ctrl+Plus, zoom in */
-        else if (modifiers == wpe_input_keyboard_modifier_control &&
-                 unicode == XKB_KEY_equal && keysym == XKB_KEY_equal) {
+        else if (modifiers == wpe_input_keyboard_modifier_control && unicode == XKB_KEY_equal &&
+                 keysym == XKB_KEY_equal) {
             const double level = webkit_web_view_get_zoom_level (web_view);
             webkit_web_view_set_zoom_level (web_view,
                                             level + DEFAULT_ZOOM_STEP);
             return true;
         }
         /* Ctrl+Minus, zoom out */
-        else if (modifiers == wpe_input_keyboard_modifier_control &&
-                 unicode == 0x2D && keysym == 0x2D) {
+        else if (modifiers == wpe_input_keyboard_modifier_control && unicode == 0x2D && keysym == 0x2D) {
             const double level = webkit_web_view_get_zoom_level (web_view);
             webkit_web_view_set_zoom_level (web_view,
                                             level - DEFAULT_ZOOM_STEP);
             return true;
         }
         /* Ctrl+0, restore zoom level to 1.0 */
-        else if (modifiers == wpe_input_keyboard_modifier_control &&
-                 unicode == XKB_KEY_0 && keysym == XKB_KEY_0) {
+        else if (modifiers == wpe_input_keyboard_modifier_control && unicode == XKB_KEY_0 && keysym == XKB_KEY_0) {
             webkit_web_view_set_zoom_level (web_view, 1.0f);
             return true;
         }
         /* Alt+Left, navigate back */
-        else if (modifiers == wpe_input_keyboard_modifier_alt &&
-                 unicode == 0 && keysym == XKB_KEY_Left) {
+        else if (modifiers == wpe_input_keyboard_modifier_alt && unicode == 0 && keysym == XKB_KEY_Left) {
             webkit_web_view_go_back (web_view);
             return true;
         }
         /* Alt+Right, navigate forward */
-        else if (modifiers == wpe_input_keyboard_modifier_alt &&
-                 unicode == 0 && keysym == XKB_KEY_Right) {
+        else if (modifiers == wpe_input_keyboard_modifier_alt && unicode == 0 && keysym == XKB_KEY_Right) {
             webkit_web_view_go_forward (web_view);
             return true;
         }
@@ -2533,7 +2563,9 @@ cog_fdo_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_
                                      wpe_host_data.exportable);
     g_assert (wk_view_backend);
 
-    wpe_view_backend_set_platform_fullscreen_handler(wpe_view_data.backend, cog_fdo_handle_dom_fullscreen_request, 0);
+#if WPE_CHECK_VERSION(1, 11, 1)
+    wpe_view_backend_set_fullscreen_handler(wpe_view_data.backend, cog_fdo_handle_dom_fullscreen_request, NULL);
+#endif
 
     if (!wl_data.event_src) {
         wl_data.event_src =
