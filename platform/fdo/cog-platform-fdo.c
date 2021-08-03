@@ -2001,8 +2001,14 @@ clear_wayland (void)
 static void *
 check_supported(void *data G_GNUC_UNUSED)
 {
-    if (init_wayland(NULL)) {
-        clear_wayland();
+    /*
+     * XXX: It would be neat to be able to determine if the compositor
+     *      supports the few protocols needed for operation, but that
+     *      would require protocol roundtrips.
+     */
+    struct wl_display *display = wl_display_connect(NULL);
+    if (display) {
+        wl_display_destroy(display);
         return GINT_TO_POINTER(TRUE);
     } else {
         return GINT_TO_POINTER(FALSE);
