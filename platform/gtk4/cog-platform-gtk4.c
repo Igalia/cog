@@ -36,8 +36,6 @@ G_DEFINE_DYNAMIC_TYPE_EXTENDED(
 
 /*
  * TODO
- * - fullscreen: if a video element switches to fullscreen it would be nice to also fullscreen the
-     GTK window. https://github.com/Igalia/cog/issues/287
  * - multi-views
  */
 
@@ -59,6 +57,10 @@ struct platform_window {
 
     int width;
     int height;
+#if WPE_CHECK_VERSION(1, 11, 1)
+    bool is_fullscreen;
+    bool waiting_fullscreen_notify;
+#endif
     double device_scale_factor;
 
     GdkModifierType key_modifiers;
@@ -73,6 +75,10 @@ struct platform_window {
 static struct platform_window win = {.gtk_window = NULL,
                                      .width = DEFAULT_WIDTH,
                                      .height = DEFAULT_HEIGHT,
+#if WPE_CHECK_VERSION(1, 11, 1)
+                                     .is_fullscreen = false,
+                                     .waiting_fullscreen_notify = false,
+#endif
                                      .device_scale_factor = 1,
                                      .settings_dialog = NULL};
 
@@ -326,6 +332,32 @@ resize(GtkGLArea* area, int width, int height, gpointer user_data)
         win->width, win->height);
 }
 
+#if WPE_CHECK_VERSION(1, 11, 1)
+static void
+dispatch_wpe_fullscreen_event(struct platform_window* win)
+{
+    struct wpe_view_backend* backend = webkit_web_view_backend_get_wpe_backend(win->view_backend);
+    if (win->is_fullscreen)
+        wpe_view_backend_dispatch_did_enter_fullscreen(backend);
+    else
+        wpe_view_backend_dispatch_did_exit_fullscreen(backend);
+}
+
+static void
+on_fullscreen_change(GtkWidget* window, GParamSpec* pspec, gpointer user_data)
+{
+    struct platform_window* win = user_data;
+    bool was_fullscreen_requested_from_dom = win->waiting_fullscreen_notify;
+    win->waiting_fullscreen_notify = false;
+    win->is_fullscreen = gtk_window_is_fullscreen(GTK_WINDOW(window));
+
+    if (!win->is_fullscreen && !was_fullscreen_requested_from_dom)
+        wpe_view_backend_dispatch_request_exit_fullscreen(webkit_web_view_backend_get_wpe_backend(win->view_backend));
+    else if (was_fullscreen_requested_from_dom)
+        dispatch_wpe_fullscreen_event(win);
+}
+#endif
+
 static void
 on_quit(GtkWidget* widget, gpointer data)
 {
@@ -513,6 +545,29 @@ action_activate_entry(GtkWidget* widget, GVariant* args,
     return TRUE;
 }
 
+#if WPE_CHECK_VERSION(1, 11, 1)
+static bool
+on_dom_fullscreen_request(void* unused, bool fullscreen)
+{
+    if (win.waiting_fullscreen_notify)
+        return false;
+
+    if (fullscreen == win.is_fullscreen) {
+        // Handle situations where DOM fullscreen requests are mixed with system fullscreen commands (e.g F11)
+        dispatch_wpe_fullscreen_event(&win);
+        return true;
+    }
+
+    win.waiting_fullscreen_notify = true;
+    if (fullscreen)
+        gtk_window_fullscreen(GTK_WINDOW(win.gtk_window));
+    else
+        gtk_window_unfullscreen(GTK_WINDOW(win.gtk_window));
+
+    return true;
+}
+#endif
+
 static gboolean
 action_open_settings(GtkWidget* widget, GVariant* args,
     gpointer user_data)
@@ -605,6 +660,9 @@ setup_window(struct platform_window* window)
     g_signal_connect(window->gl_drawing_area, "realize", G_CALLBACK(realize), window);
     g_signal_connect(window->gl_drawing_area, "render", G_CALLBACK(render), window);
     g_signal_connect(window->gl_drawing_area, "resize", G_CALLBACK(resize), window);
+#if WPE_CHECK_VERSION(1, 11, 1)
+    g_signal_connect(window->gtk_window, "notify::fullscreened", G_CALLBACK(on_fullscreen_change), window);
+#endif
 
     GtkGesture* press = gtk_gesture_click_new();
     gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(press), GDK_BUTTON_PRIMARY);
@@ -702,6 +760,11 @@ cog_gtk4_platform_setup(CogPlatform* platform, CogShell* shell, const char* para
     setup_fdo_exportable(&win);
 
     win.device_scale_factor = cog_shell_get_device_scale_factor(shell);
+
+#if WPE_CHECK_VERSION(1, 11, 1)
+    wpe_view_backend_set_fullscreen_handler(webkit_web_view_backend_get_wpe_backend(win.view_backend),
+                                            on_dom_fullscreen_request, NULL);
+#endif
 
     return TRUE;
 }
