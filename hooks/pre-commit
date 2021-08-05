@@ -1,0 +1,1 @@
+git diff --staged | data/check-style --diff
