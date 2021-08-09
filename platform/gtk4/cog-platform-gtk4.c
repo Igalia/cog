@@ -17,6 +17,12 @@
 #define DEFAULT_WIDTH 1280
 #define DEFAULT_HEIGHT 720
 
+#if defined(WPE_FDO_CHECK_VERSION)
+#    define HAVE_FULLSCREEN_HANDLING WPE_FDO_CHECK_VERSION(1, 11, 1)
+#else
+#    define HAVE_FULLSCREEN_HANDLING 0
+#endif
+
 struct _CogGtk4PlatformClass {
     CogPlatformClass parent_class;
 };
@@ -57,7 +63,7 @@ struct platform_window {
 
     int width;
     int height;
-#if WPE_CHECK_VERSION(1, 11, 1)
+#if HAVE_FULLSCREEN_HANDLING
     bool is_fullscreen;
     bool waiting_fullscreen_notify;
 #endif
@@ -72,15 +78,11 @@ struct platform_window {
     struct wpe_fdo_egl_exported_image* commited_image;
 };
 
-static struct platform_window win = {.gtk_window = NULL,
-                                     .width = DEFAULT_WIDTH,
-                                     .height = DEFAULT_HEIGHT,
-#if WPE_CHECK_VERSION(1, 11, 1)
-                                     .is_fullscreen = false,
-                                     .waiting_fullscreen_notify = false,
-#endif
-                                     .device_scale_factor = 1,
-                                     .settings_dialog = NULL};
+static struct platform_window win = {
+    .width = DEFAULT_WIDTH,
+    .height = DEFAULT_HEIGHT,
+    .device_scale_factor = 1,
+};
 
 static const char s_vertex_shader[] = "#version 330\n"
                                       "attribute vec2 pos;\n"
@@ -332,7 +334,7 @@ resize(GtkGLArea* area, int width, int height, gpointer user_data)
         win->width, win->height);
 }
 
-#if WPE_CHECK_VERSION(1, 11, 1)
+#if HAVE_FULLSCREEN_HANDLING
 static void
 dispatch_wpe_fullscreen_event(struct platform_window* win)
 {
@@ -545,7 +547,7 @@ action_activate_entry(GtkWidget* widget, GVariant* args,
     return TRUE;
 }
 
-#if WPE_CHECK_VERSION(1, 11, 1)
+#if HAVE_FULLSCREEN_HANDLING
 static bool
 on_dom_fullscreen_request(void* unused, bool fullscreen)
 {
@@ -660,7 +662,8 @@ setup_window(struct platform_window* window)
     g_signal_connect(window->gl_drawing_area, "realize", G_CALLBACK(realize), window);
     g_signal_connect(window->gl_drawing_area, "render", G_CALLBACK(render), window);
     g_signal_connect(window->gl_drawing_area, "resize", G_CALLBACK(resize), window);
-#if WPE_CHECK_VERSION(1, 11, 1)
+
+#if HAVE_FULLSCREEN_HANDLING
     g_signal_connect(window->gtk_window, "notify::fullscreened", G_CALLBACK(on_fullscreen_change), window);
 #endif
 
@@ -761,7 +764,7 @@ cog_gtk4_platform_setup(CogPlatform* platform, CogShell* shell, const char* para
 
     win.device_scale_factor = cog_shell_get_device_scale_factor(shell);
 
-#if WPE_CHECK_VERSION(1, 11, 1)
+#if HAVE_FULLSCREEN_HANDLING
     wpe_view_backend_set_fullscreen_handler(webkit_web_view_backend_get_wpe_backend(win.view_backend),
                                             on_dom_fullscreen_request, NULL);
 #endif

@@ -64,9 +64,11 @@
 #define DEFAULT_ZOOM_STEP 0.1f
 
 #if defined(WPE_FDO_CHECK_VERSION)
-# define HAVE_SHM_EXPORTED_BUFFER WPE_FDO_CHECK_VERSION(1, 9, 0)
+#    define HAVE_SHM_EXPORTED_BUFFER WPE_FDO_CHECK_VERSION(1, 9, 0)
+#    define HAVE_FULLSCREEN_HANDLING WPE_FDO_CHECK_VERSION(1, 11, 1)
 #else
-# define HAVE_SHM_EXPORTED_BUFFER 0
+#    define HAVE_SHM_EXPORTED_BUFFER 0
+#    define HAVE_FULLSCREEN_HANDLING 0
 #endif
 
 #if defined(WAYLAND_VERSION_MAJOR) && defined(WAYLAND_VERSION_MINOR)
@@ -246,7 +248,7 @@ static struct {
     uint32_t height_before_fullscreen;
 
     bool is_fullscreen;
-#if WPE_CHECK_VERSION(1, 11, 1)
+#if HAVE_FULLSCREEN_HANDLING
     bool was_fullscreen_requested_from_dom;
 #endif
     bool is_resizing_fullscreen;
@@ -257,13 +259,6 @@ static struct {
     .height = DEFAULT_HEIGHT,
     .width_before_fullscreen = DEFAULT_WIDTH,
     .height_before_fullscreen = DEFAULT_HEIGHT,
-    .is_fullscreen = false,
-#if WPE_CHECK_VERSION(1, 11, 1)
-    .was_fullscreen_requested_from_dom = false,
-#endif
-    .is_resizing_fullscreen = false,
-    .is_maximized = false,
-    .should_resize_to_largest_output = false,
 };
 
 static struct {
@@ -676,7 +671,7 @@ cog_fdo_fullscreen_image_ready()
     }
 
     win_data.is_resizing_fullscreen = false;
-#if WPE_CHECK_VERSION(1, 11, 1)
+#if HAVE_FULLSCREEN_HANDLING
     if (win_data.was_fullscreen_requested_from_dom)
         wpe_view_backend_dispatch_did_enter_fullscreen(wpe_view_data.backend);
 #endif
@@ -712,7 +707,7 @@ cog_fdo_set_fullscreen(void *unused, bool fullscreen)
         } else {
             g_assert_not_reached();
         }
-#if WPE_CHECK_VERSION(1, 11, 1)
+#if HAVE_FULLSCREEN_HANDLING
         if (win_data.was_fullscreen_requested_from_dom)
             wpe_view_backend_dispatch_did_exit_fullscreen(wpe_view_data.backend);
         win_data.was_fullscreen_requested_from_dom = false;
@@ -722,7 +717,7 @@ cog_fdo_set_fullscreen(void *unused, bool fullscreen)
     return true;
 }
 
-#if WPE_CHECK_VERSION(1, 11, 1)
+#if HAVE_FULLSCREEN_HANDLING
 static bool
 cog_fdo_handle_dom_fullscreen_request(void *unused, bool fullscreen)
 {
@@ -1177,7 +1172,7 @@ capture_app_key_bindings (uint32_t keysym,
     if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         /* fullscreen */
         if (modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F11) {
-#if WPE_CHECK_VERSION(1, 11, 1)
+#if HAVE_FULLSCREEN_HANDLING
             if (win_data.is_fullscreen && win_data.was_fullscreen_requested_from_dom) {
                 wpe_view_backend_dispatch_request_exit_fullscreen(wpe_view_data.backend);
                 return true;
@@ -2622,7 +2617,7 @@ cog_fdo_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_
                                      wpe_host_data.exportable);
     g_assert (wk_view_backend);
 
-#if WPE_CHECK_VERSION(1, 11, 1)
+#if HAVE_FULLSCREEN_HANDLING
     wpe_view_backend_set_fullscreen_handler(wpe_view_data.backend, cog_fdo_handle_dom_fullscreen_request, NULL);
 #endif
 
