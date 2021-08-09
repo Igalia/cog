@@ -22,6 +22,7 @@ set(COG_VERSION_EXTRA "")
 if (IS_DIRECTORY "${CMAKE_SOURCE_DIR}/.git")
     set(COG_VERSION_EXTRA "+git")
     find_package(Git)
+    file(COPY ${CMAKE_SOURCE_DIR}/hooks/pre-commit DESTINATION ${CMAKE_SOURCE_DIR}/.git/hooks FILE_PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ)
     if (GIT_FOUND)
         execute_process(
             COMMAND "${GIT_EXECUTABLE}" rev-list --max-count=1 --abbrev-commit HEAD
