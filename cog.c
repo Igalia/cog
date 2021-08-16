@@ -263,10 +263,9 @@ on_handle_local_options (GApplication *application,
                                                          s_options.web_extensions_dir);
     }
 
-    webkit_web_context_set_tls_errors_policy (cog_shell_get_web_context (shell),
-                                              s_options.ignore_tls_errors
-                                              ? WEBKIT_TLS_ERRORS_POLICY_IGNORE
-                                              : WEBKIT_TLS_ERRORS_POLICY_FAIL);
+    webkit_website_data_manager_set_tls_errors_policy(
+        webkit_web_context_get_website_data_manager(cog_shell_get_web_context(shell)),
+        s_options.ignore_tls_errors ? WEBKIT_TLS_ERRORS_POLICY_IGNORE : WEBKIT_TLS_ERRORS_POLICY_FAIL);
 
     if (s_options.filter_path) {
         WebKitWebsiteDataManager *data_manager =
