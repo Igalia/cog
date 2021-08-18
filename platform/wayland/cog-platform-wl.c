@@ -1,5 +1,5 @@
 /*
- * cog-fdo-platform.c
+ * cog-wl-platform.c
  * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  * Copyright (C) 2018 Adrian Perez de Castro <aperez@igalia.com>
  *
@@ -36,9 +36,9 @@
 #include "../common/egl-proc-address.h"
 #include "os-compatibility.h"
 
-#include "cog-im-context-fdo.h"
-#include "cog-im-context-fdo-v1.h"
-#include "cog-popup-menu-fdo.h"
+#include "cog-im-context-wl.h"
+#include "cog-im-context-wl-v1.h"
+#include "cog-popup-menu-wl.h"
 
 #include "fullscreen-shell-unstable-v1-client.h"
 #include "linux-dmabuf-unstable-v1-client.h"
@@ -63,7 +63,7 @@
 
 #define DEFAULT_ZOOM_STEP 0.1f
 
-#if defined(WPE_FDO_CHECK_VERSION)
+#if defined(WPE_WL_CHECK_VERSION)
 #    define HAVE_SHM_EXPORTED_BUFFER WPE_FDO_CHECK_VERSION(1, 9, 0)
 #    define HAVE_FULLSCREEN_HANDLING WPE_FDO_CHECK_VERSION(1, 11, 1)
 #else
@@ -78,22 +78,22 @@
 # define WAYLAND_1_10_OR_GREATER 0
 #endif
 
-struct _CogFdoPlatformClass {
+struct _CogWlPlatformClass {
     CogPlatformClass parent_class;
 };
 
-struct _CogFdoPlatform {
+struct _CogWlPlatform {
     CogPlatform parent;
 };
 
-G_DECLARE_FINAL_TYPE(CogFdoPlatform, cog_fdo_platform, COG, FDO_PLATFORM, CogPlatform)
+G_DECLARE_FINAL_TYPE(CogWlPlatform, cog_wl_platform, COG, WL_PLATFORM, CogPlatform)
 
 G_DEFINE_DYNAMIC_TYPE_EXTENDED(
-    CogFdoPlatform,
-    cog_fdo_platform,
+    CogWlPlatform,
+    cog_wl_platform,
     COG_TYPE_PLATFORM,
     0,
-    g_io_extension_point_implement(COG_MODULES_PLATFORM_EXTENSION_POINT, g_define_type_id, "fdo", 500);)
+    g_io_extension_point_implement(COG_MODULES_PLATFORM_EXTENSION_POINT, g_define_type_id, "wl", 500);)
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
 #define VIDEO_BUFFER_FORMAT DRM_FORMAT_YUYV
@@ -411,14 +411,14 @@ configure_surface_geometry (int32_t width, int32_t height)
 {
     const char* env_var;
     if (width == 0) {
-        env_var = g_getenv("COG_PLATFORM_FDO_VIEW_WIDTH");
+        env_var = g_getenv("COG_PLATFORM_WL_VIEW_WIDTH");
         if (env_var != NULL)
             width = (int32_t) g_ascii_strtod(env_var, NULL);
         else
             width = DEFAULT_WIDTH;
     }
     if (height == 0) {
-        env_var = g_getenv("COG_PLATFORM_FDO_VIEW_HEIGHT");
+        env_var = g_getenv("COG_PLATFORM_WL_VIEW_HEIGHT");
         if (env_var != NULL)
             height = (int32_t) g_ascii_strtod(env_var, NULL);
         else
@@ -653,14 +653,14 @@ output_handle_scale (void *data,
 }
 
 static bool
-cog_fdo_does_image_match_win_size(struct wpe_fdo_egl_exported_image *image)
+cog_wl_does_image_match_win_size(struct wpe_fdo_egl_exported_image *image)
 {
     return image && wpe_fdo_egl_exported_image_get_width(image) == win_data.width &&
            wpe_fdo_egl_exported_image_get_height(image) == win_data.height;
 }
 
 static void
-cog_fdo_fullscreen_image_ready()
+cog_wl_fullscreen_image_ready()
 {
     if (wl_data.xdg_shell) {
         xdg_toplevel_set_fullscreen(win_data.xdg_toplevel, NULL);
@@ -678,7 +678,7 @@ cog_fdo_fullscreen_image_ready()
 }
 
 static bool
-cog_fdo_set_fullscreen(void *unused, bool fullscreen)
+cog_wl_set_fullscreen(void *unused, bool fullscreen)
 {
     if (win_data.is_resizing_fullscreen || win_data.is_fullscreen == fullscreen)
         return false;
@@ -687,13 +687,13 @@ cog_fdo_set_fullscreen(void *unused, bool fullscreen)
 
     if (fullscreen) {
         // Resize the view_backend to the size of the screen.
-        // Wait until a new exported image is reveived. See cog_fdo_fullscreen_image_ready().
+        // Wait until a new exported image is reveived. See cog_wl_fullscreen_image_ready().
         win_data.is_resizing_fullscreen = true;
         win_data.width_before_fullscreen = win_data.width;
         win_data.height_before_fullscreen = win_data.height;
         resize_to_largest_output();
-        if (cog_fdo_does_image_match_win_size(wpe_view_data.image))
-            cog_fdo_fullscreen_image_ready();
+        if (cog_wl_does_image_match_win_size(wpe_view_data.image))
+            cog_wl_fullscreen_image_ready();
     } else {
         if (wl_data.xdg_shell != NULL) {
             xdg_toplevel_unset_fullscreen(win_data.xdg_toplevel);
@@ -719,11 +719,11 @@ cog_fdo_set_fullscreen(void *unused, bool fullscreen)
 
 #if HAVE_FULLSCREEN_HANDLING
 static bool
-cog_fdo_handle_dom_fullscreen_request(void *unused, bool fullscreen)
+cog_wl_handle_dom_fullscreen_request(void *unused, bool fullscreen)
 {
     win_data.was_fullscreen_requested_from_dom = true;
     if (fullscreen != win_data.is_fullscreen)
-        return cog_fdo_set_fullscreen(unused, fullscreen);
+        return cog_wl_set_fullscreen(unused, fullscreen);
 
     // Handle situations where DOM fullscreen requests are mixed with system fullscreen commands (e.g F11)
     if (fullscreen)
@@ -1178,7 +1178,7 @@ capture_app_key_bindings (uint32_t keysym,
                 return true;
             }
 #endif
-            cog_fdo_set_fullscreen(0, !win_data.is_fullscreen);
+            cog_wl_set_fullscreen(0, !win_data.is_fullscreen);
             return true;
         }
         /* Ctrl+W, exit the application */
@@ -1717,7 +1717,7 @@ static const struct wl_buffer_listener dmabuf_buffer_listener = {
 #endif /* COG_ENABLE_WESTON_DIRECT_DISPLAY */
 
 static void
-on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
+on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 {
     wpe_view_data.image = image;
 
@@ -1756,8 +1756,8 @@ on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 
     wl_surface_commit (win_data.wl_surface);
 
-    if (win_data.is_resizing_fullscreen && cog_fdo_does_image_match_win_size(image))
-        cog_fdo_fullscreen_image_ready();
+    if (win_data.is_resizing_fullscreen && cog_wl_does_image_match_win_size(image))
+        cog_wl_fullscreen_image_ready();
 }
 
 #if HAVE_SHM_EXPORTED_BUFFER
@@ -1806,7 +1806,7 @@ static void
 shm_buffer_destroy (struct shm_buffer *buffer)
 {
     if (buffer->exported_buffer) {
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_shm_exported_buffer (wpe_host_data.exportable,
+        wpe_view_backend_exportable_wl_egl_dispatch_release_shm_exported_buffer (wpe_host_data.exportable,
                                                                                   buffer->exported_buffer);
     }
 
@@ -2158,7 +2158,7 @@ check_supported(void *data G_GNUC_UNUSED)
 }
 
 static gboolean
-cog_fdo_platform_is_supported(void)
+cog_wl_platform_is_supported(void)
 {
     static GOnce once = G_ONCE_INIT;
     g_once(&once, check_supported, NULL);
@@ -2276,7 +2276,7 @@ create_window (GError **error)
     }
 
     const char* env_var;
-    if ((env_var = g_getenv ("COG_PLATFORM_FDO_VIEW_FULLSCREEN")) &&
+    if ((env_var = g_getenv ("COG_PLATFORM_WL_VIEW_FULLSCREEN")) &&
         g_ascii_strtoll (env_var, NULL, 10) > 0)
     {
         win_data.is_maximized = false;
@@ -2297,7 +2297,7 @@ create_window (GError **error)
             win_data.is_fullscreen = false;
         }
     }
-    else if ((env_var = g_getenv ("COG_PLATFORM_FDO_VIEW_MAXIMIZE")) &&
+    else if ((env_var = g_getenv ("COG_PLATFORM_WL_VIEW_MAXIMIZE")) &&
              g_ascii_strtoll (env_var, NULL, 10) > 0)
     {
         win_data.is_maximized = true;
@@ -2461,11 +2461,11 @@ init_input (GError **error)
             struct zwp_text_input_v3 *text_input =
                 zwp_text_input_manager_v3_get_text_input (wl_data.text_input_manager,
                                                           wl_data.seat);
-            cog_im_context_fdo_set_text_input (text_input);
+            cog_im_context_wl_set_text_input (text_input);
         } else if (wl_data.text_input_manager_v1 != NULL) {
             struct zwp_text_input_v1 *text_input =
                 zwp_text_input_manager_v1_create_text_input (wl_data.text_input_manager_v1);
-            cog_im_context_fdo_v1_set_text_input (text_input,
+            cog_im_context_wl_v1_set_text_input (text_input,
                                                   wl_data.seat,
                                                   win_data.wl_surface);
         }
@@ -2481,9 +2481,9 @@ clear_input (void)
     g_clear_pointer (&wl_data.keyboard.obj, wl_keyboard_destroy);
     g_clear_pointer (&wl_data.seat, wl_seat_destroy);
 
-    cog_im_context_fdo_set_text_input (NULL);
+    cog_im_context_wl_set_text_input (NULL);
     g_clear_pointer (&wl_data.text_input_manager, zwp_text_input_manager_v3_destroy);
-    cog_im_context_fdo_v1_set_text_input (NULL, NULL, NULL);
+    cog_im_context_wl_v1_set_text_input (NULL, NULL, NULL);
     g_clear_pointer (&wl_data.text_input_manager_v1, zwp_text_input_manager_v1_destroy);
 
     g_clear_pointer (&xkb_data.state, xkb_state_unref);
@@ -2510,7 +2510,7 @@ clear_buffers (void)
 }
 
 static gboolean
-cog_fdo_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, const char *params, GError **error)
+cog_wl_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, const char *params, GError **error)
 {
     g_assert (platform);
     g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
@@ -2555,7 +2555,7 @@ cog_fdo_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, con
 }
 
 static void
-cog_fdo_platform_teardown(CogPlatform *platform)
+cog_wl_platform_teardown(CogPlatform *platform)
 {
     g_assert (platform);
 
@@ -2574,7 +2574,7 @@ cog_fdo_platform_teardown(CogPlatform *platform)
 
     /* free WPE host data */
     /* @FIXME: check why this segfaults
-    wpe_view_backend_exportable_fdo_destroy (wpe_host_data.exportable);
+    wpe_view_backend_exportable_wl_destroy (wpe_host_data.exportable);
     */
 
     clear_buffers();
@@ -2587,10 +2587,10 @@ cog_fdo_platform_teardown(CogPlatform *platform)
 }
 
 static WebKitWebViewBackend *
-cog_fdo_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_view, GError **error)
+cog_wl_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_view, GError **error)
 {
     static struct wpe_view_backend_exportable_fdo_egl_client exportable_egl_client = {
-        .export_fdo_egl_image = on_export_fdo_egl_image,
+        .export_fdo_egl_image = on_export_wl_egl_image,
 #if HAVE_SHM_EXPORTED_BUFFER
         .export_shm_buffer = on_export_shm_buffer,
 #endif
@@ -2609,7 +2609,7 @@ cog_fdo_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_
     g_assert (wpe_view_data.backend);
 
     if (wl_data.text_input_manager_v1 != NULL)
-        cog_im_context_fdo_v1_set_view_backend (wpe_view_data.backend);
+        cog_im_context_wl_v1_set_view_backend (wpe_view_data.backend);
 
     WebKitWebViewBackend *wk_view_backend =
         webkit_web_view_backend_new (wpe_view_data.backend,
@@ -2618,7 +2618,7 @@ cog_fdo_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_
     g_assert (wk_view_backend);
 
 #if HAVE_FULLSCREEN_HANDLING
-    wpe_view_backend_set_fullscreen_handler(wpe_view_data.backend, cog_fdo_handle_dom_fullscreen_request, NULL);
+    wpe_view_backend_set_fullscreen_handler(wpe_view_data.backend, cog_wl_handle_dom_fullscreen_request, NULL);
 #endif
 
     if (!wl_data.event_src) {
@@ -2640,51 +2640,51 @@ on_show_option_menu (WebKitWebView *view,
 }
 
 static void
-cog_fdo_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
+cog_wl_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
 {
     g_signal_connect (view, "show-option-menu", G_CALLBACK (on_show_option_menu), NULL);
 }
 
 static WebKitInputMethodContext *
-cog_fdo_platform_create_im_context(CogPlatform *platform)
+cog_wl_platform_create_im_context(CogPlatform *platform)
 {
     if (wl_data.text_input_manager)
-        return cog_im_context_fdo_new ();
+        return cog_im_context_wl_new ();
     if (wl_data.text_input_manager_v1)
-        return cog_im_context_fdo_v1_new ();
+        return cog_im_context_wl_v1_new ();
     return NULL;
 }
 
 static void
-cog_fdo_platform_class_init(CogFdoPlatformClass *klass)
+cog_wl_platform_class_init(CogWlPlatformClass *klass)
 {
     CogPlatformClass *platform_class = COG_PLATFORM_CLASS(klass);
-    platform_class->is_supported = cog_fdo_platform_is_supported;
-    platform_class->setup = cog_fdo_platform_setup;
-    platform_class->teardown = cog_fdo_platform_teardown;
-    platform_class->get_view_backend = cog_fdo_platform_get_view_backend;
-    platform_class->init_web_view = cog_fdo_platform_init_web_view;
-    platform_class->create_im_context = cog_fdo_platform_create_im_context;
+    platform_class->is_supported = cog_wl_platform_is_supported;
+    platform_class->setup = cog_wl_platform_setup;
+    platform_class->teardown = cog_wl_platform_teardown;
+    platform_class->get_view_backend = cog_wl_platform_get_view_backend;
+    platform_class->init_web_view = cog_wl_platform_init_web_view;
+    platform_class->create_im_context = cog_wl_platform_create_im_context;
 }
 
 static void
-cog_fdo_platform_class_finalize(CogFdoPlatformClass *klass)
+cog_wl_platform_class_finalize(CogWlPlatformClass *klass)
 {
 }
 
 static void
-cog_fdo_platform_init(CogFdoPlatform *self)
+cog_wl_platform_init(CogWlPlatform *self)
 {
 }
 
 G_MODULE_EXPORT void
-g_io_cogplatform_fdo_load(GIOModule *module)
+g_io_cogplatform_wl_load(GIOModule *module)
 {
     GTypeModule *type_module = G_TYPE_MODULE(module);
-    cog_fdo_platform_register_type(type_module);
+    cog_wl_platform_register_type(type_module);
 }
 
 G_MODULE_EXPORT void
-g_io_cogplatform_fdo_unload(GIOModule *module G_GNUC_UNUSED)
+g_io_cogplatform_wl_unload(GIOModule *module G_GNUC_UNUSED)
 {
 }

@@ -1,5 +1,5 @@
 /*
- * cog-popup-menu-fdo.h
+ * cog-popup-menu-wl.h
  * Copyright (C) 2020 Igalia S.L.
  *
  * Distributed under terms of the MIT license.

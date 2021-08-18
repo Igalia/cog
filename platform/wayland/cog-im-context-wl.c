@@ -1,11 +1,11 @@
 /*
- * cog-im-context-fdo.c
+ * cog-im-context-wl.c
  * Copyright (C) 2020 Igalia S.L.
  *
  * Distributed under terms of the MIT license.
  */
 
-#include "cog-im-context-fdo.h"
+#include "cog-im-context-wl.h"
 
 static struct {
     struct zwp_text_input_v3 *text_input;
@@ -46,13 +46,13 @@ typedef struct {
         uint32_t before_length;
         uint32_t after_length;
     } pending_surrounding_delete;
-} CogIMContextFdoPrivate;
+} CogIMContextWlPrivate;
 
 
-G_DEFINE_TYPE_WITH_PRIVATE (CogIMContextFdo, cog_im_context_fdo, WEBKIT_TYPE_INPUT_METHOD_CONTEXT)
+G_DEFINE_TYPE_WITH_PRIVATE (CogIMContextWl, cog_im_context_wl, WEBKIT_TYPE_INPUT_METHOD_CONTEXT)
 
 #define PRIV(obj)                                                       \
-    ((CogIMContextFdoPrivate*) cog_im_context_fdo_get_instance_private (COG_IM_CONTEXT_FDO (obj)))
+    ((CogIMContextWlPrivate*) cog_im_context_wl_get_instance_private (COG_IM_CONTEXT_WL (obj)))
 
 
 static char *
@@ -108,9 +108,9 @@ truncate_surrounding_if_needed (const char *text,
 
 
 static void
-cog_im_context_fdo_text_input_notify_surrounding (CogIMContextFdo *context)
+cog_im_context_wl_text_input_notify_surrounding (CogIMContextWl *context)
 {
-    CogIMContextFdoPrivate *priv = PRIV (context);
+    CogIMContextWlPrivate *priv = PRIV (context);
     char *truncated_text;
     int32_t cursor_index;
     int32_t anchor_index;
@@ -183,7 +183,7 @@ wk_input_hints_to_wayland (WebKitInputHints hints,
 
 
 static void
-cog_im_context_fdo_text_input_notify_content_type (CogIMContextFdo *context)
+cog_im_context_wl_text_input_notify_content_type (CogIMContextWl *context)
 {
     WebKitInputMethodContext *wk_context = WEBKIT_INPUT_METHOD_CONTEXT (context);
     WebKitInputPurpose purpose = webkit_input_method_context_get_input_purpose (wk_context);
@@ -196,9 +196,9 @@ cog_im_context_fdo_text_input_notify_content_type (CogIMContextFdo *context)
 
 
 static void
-cog_im_context_fdo_text_input_notify_cursor_rectangle (CogIMContextFdo *context)
+cog_im_context_wl_text_input_notify_cursor_rectangle (CogIMContextWl *context)
 {
-    CogIMContextFdoPrivate *priv = PRIV (context);
+    CogIMContextWlPrivate *priv = PRIV (context);
 
     zwp_text_input_v3_set_cursor_rectangle (wl_text_input.text_input,
                                             priv->cursor_rect.x,
@@ -209,9 +209,9 @@ cog_im_context_fdo_text_input_notify_cursor_rectangle (CogIMContextFdo *context)
 
 
 static void
-cog_im_context_fdo_text_input_commit_state (CogIMContextFdo *context)
+cog_im_context_wl_text_input_commit_state (CogIMContextWl *context)
 {
-    CogIMContextFdoPrivate *priv = PRIV (context);
+    CogIMContextWlPrivate *priv = PRIV (context);
 
     wl_text_input.serial++;
     zwp_text_input_v3_commit (wl_text_input.text_input);
@@ -220,35 +220,35 @@ cog_im_context_fdo_text_input_commit_state (CogIMContextFdo *context)
 
 
 static void
-cog_im_context_fdo_text_input_enable (CogIMContextFdo *context)
+cog_im_context_wl_text_input_enable (CogIMContextWl *context)
 {
     zwp_text_input_v3_enable (wl_text_input.text_input);
-    cog_im_context_fdo_text_input_notify_surrounding (context);
-    cog_im_context_fdo_text_input_notify_content_type (context);
-    cog_im_context_fdo_text_input_notify_cursor_rectangle (context);
-    cog_im_context_fdo_text_input_commit_state (context);
+    cog_im_context_wl_text_input_notify_surrounding (context);
+    cog_im_context_wl_text_input_notify_content_type (context);
+    cog_im_context_wl_text_input_notify_cursor_rectangle (context);
+    cog_im_context_wl_text_input_commit_state (context);
 
     WebKitInputHints hints = webkit_input_method_context_get_input_hints (WEBKIT_INPUT_METHOD_CONTEXT (context));
     if (!(hints & WEBKIT_INPUT_HINT_INHIBIT_OSK)) {
         zwp_text_input_v3_enable (wl_text_input.text_input);
-        cog_im_context_fdo_text_input_commit_state (context);
+        cog_im_context_wl_text_input_commit_state (context);
     }
 }
 
 
 static void
-cog_im_context_fdo_text_input_disable (CogIMContextFdo *context)
+cog_im_context_wl_text_input_disable (CogIMContextWl *context)
 {
     zwp_text_input_v3_disable (wl_text_input.text_input);
-    cog_im_context_fdo_text_input_commit_state (context);
+    cog_im_context_wl_text_input_commit_state (context);
 }
 
 
 static void
-cog_im_context_fdo_preedit_apply (CogIMContextFdo *context,
+cog_im_context_wl_preedit_apply (CogIMContextWl *context,
                                   uint32_t serial)
 {
-    CogIMContextFdoPrivate *priv = PRIV (context);
+    CogIMContextWlPrivate *priv = PRIV (context);
 
     bool valid = wl_text_input.serial == serial;
     bool state_changed = (priv->current_preedit.text != NULL) != (priv->pending_preedit.text != NULL);
@@ -269,10 +269,10 @@ cog_im_context_fdo_preedit_apply (CogIMContextFdo *context,
 
 
 static void
-cog_im_context_fdo_commit_apply (CogIMContextFdo *context,
+cog_im_context_wl_commit_apply (CogIMContextWl *context,
                                  uint32_t serial)
 {
-    CogIMContextFdoPrivate *priv = PRIV (context);
+    CogIMContextWlPrivate *priv = PRIV (context);
 
     bool valid = wl_text_input.serial == serial;
     if (valid && priv->pending_commit)
@@ -282,10 +282,10 @@ cog_im_context_fdo_commit_apply (CogIMContextFdo *context,
 
 
 static void
-cog_im_context_fdo_delete_surrounding_text_apply (CogIMContextFdo *context,
+cog_im_context_wl_delete_surrounding_text_apply (CogIMContextWl *context,
                                                   uint32_t serial)
 {
-    CogIMContextFdoPrivate *priv = PRIV (context);
+    CogIMContextWlPrivate *priv = PRIV (context);
 
     bool valid = wl_text_input.serial == serial;
     if (valid &&
@@ -310,7 +310,7 @@ text_input_enter (void *data,
     wl_text_input.focused = true;
 
     if (wl_text_input.context)
-        cog_im_context_fdo_text_input_enable (COG_IM_CONTEXT_FDO (wl_text_input.context));
+        cog_im_context_wl_text_input_enable (COG_IM_CONTEXT_WL (wl_text_input.context));
 }
 
 
@@ -322,7 +322,7 @@ text_input_leave (void *data,
     wl_text_input.focused = false;
 
     if (wl_text_input.context)
-        cog_im_context_fdo_text_input_disable (COG_IM_CONTEXT_FDO (wl_text_input.context));
+        cog_im_context_wl_text_input_disable (COG_IM_CONTEXT_WL (wl_text_input.context));
 }
 
 
@@ -352,7 +352,7 @@ text_input_commit_string (void *data,
     if (!wl_text_input.context)
         return;
 
-    CogIMContextFdoPrivate *priv = PRIV (wl_text_input.context);
+    CogIMContextWlPrivate *priv = PRIV (wl_text_input.context);
     g_clear_pointer (&priv->pending_commit, g_free);
     priv->pending_commit = g_strdup (text);
 }
@@ -367,7 +367,7 @@ text_input_delete_surrounding_text (void *data,
     if (!wl_text_input.context)
         return;
 
-    CogIMContextFdoPrivate *priv = PRIV (wl_text_input.context);
+    CogIMContextWlPrivate *priv = PRIV (wl_text_input.context);
     priv->pending_surrounding_delete.before_length = before_length;
     priv->pending_surrounding_delete.after_length = after_length;
 }
@@ -381,10 +381,10 @@ text_input_done (void *data,
     if (!wl_text_input.context)
         return;
 
-    CogIMContextFdo *context = COG_IM_CONTEXT_FDO (wl_text_input.context);
-    cog_im_context_fdo_delete_surrounding_text_apply (context, serial);
-    cog_im_context_fdo_commit_apply (context, serial);
-    cog_im_context_fdo_preedit_apply (context, serial);
+    CogIMContextWl *context = COG_IM_CONTEXT_WL (wl_text_input.context);
+    cog_im_context_wl_delete_surrounding_text_apply (context, serial);
+    cog_im_context_wl_commit_apply (context, serial);
+    cog_im_context_wl_preedit_apply (context, serial);
 }
 
 
@@ -399,26 +399,26 @@ static const struct zwp_text_input_v3_listener text_input_listener = {
 
 
 static void
-cog_im_context_fdo_finalize (GObject* object)
+cog_im_context_wl_finalize (GObject* object)
 {
-    CogIMContextFdoPrivate *priv = PRIV (object);
+    CogIMContextWlPrivate *priv = PRIV (object);
 
     g_free (priv->pending_preedit.text);
     g_free (priv->current_preedit.text);
     g_free (priv->pending_commit);
     g_free (priv->surrounding.text);
 
-    G_OBJECT_CLASS (cog_im_context_fdo_parent_class)->finalize (object);
+    G_OBJECT_CLASS (cog_im_context_wl_parent_class)->finalize (object);
 }
 
 
 static void
-cog_im_context_fdo_get_preedit (WebKitInputMethodContext *context,
+cog_im_context_wl_get_preedit (WebKitInputMethodContext *context,
                                 char                    **text,
                                 GList                   **underlines,
                                 guint                    *cursor_offset)
 {
-    CogIMContextFdoPrivate *priv = PRIV (context);
+    CogIMContextWlPrivate *priv = PRIV (context);
 
     if (text)
         *text = priv->current_preedit.text ? g_strdup (priv->current_preedit.text) : g_strdup ("");
@@ -437,7 +437,7 @@ cog_im_context_fdo_get_preedit (WebKitInputMethodContext *context,
 
 
 static void
-cog_im_context_fdo_notify_focus_in (WebKitInputMethodContext *context)
+cog_im_context_wl_notify_focus_in (WebKitInputMethodContext *context)
 {
     if (wl_text_input.context == context)
         return;
@@ -447,30 +447,30 @@ cog_im_context_fdo_notify_focus_in (WebKitInputMethodContext *context)
 
     wl_text_input.context = context;
     if (wl_text_input.focused)
-        cog_im_context_fdo_text_input_enable (COG_IM_CONTEXT_FDO (context));
+        cog_im_context_wl_text_input_enable (COG_IM_CONTEXT_WL (context));
 }
 
 
 static void
-cog_im_context_fdo_notify_focus_out (WebKitInputMethodContext *context)
+cog_im_context_wl_notify_focus_out (WebKitInputMethodContext *context)
 {
     if (wl_text_input.context != context)
         return;
 
     if (wl_text_input.focused)
-        cog_im_context_fdo_text_input_disable (COG_IM_CONTEXT_FDO (context));
+        cog_im_context_wl_text_input_disable (COG_IM_CONTEXT_WL (context));
     wl_text_input.context = NULL;
 }
 
 
 static void
-cog_im_context_fdo_notify_cursor_area (WebKitInputMethodContext *context,
+cog_im_context_wl_notify_cursor_area (WebKitInputMethodContext *context,
                                        int                       x,
                                        int                       y,
                                        int                       width,
                                        int                       height)
 {
-    CogIMContextFdoPrivate *priv = PRIV (context);
+    CogIMContextWlPrivate *priv = PRIV (context);
 
     if (priv->cursor_rect.x == x &&
         priv->cursor_rect.y == y &&
@@ -484,20 +484,20 @@ cog_im_context_fdo_notify_cursor_area (WebKitInputMethodContext *context,
     priv->cursor_rect.height = height;
 
     if (wl_text_input.context == context) {
-        cog_im_context_fdo_text_input_notify_cursor_rectangle (COG_IM_CONTEXT_FDO (context));
-        cog_im_context_fdo_text_input_commit_state (COG_IM_CONTEXT_FDO (context));
+        cog_im_context_wl_text_input_notify_cursor_rectangle (COG_IM_CONTEXT_WL (context));
+        cog_im_context_wl_text_input_commit_state (COG_IM_CONTEXT_WL (context));
     }
 }
 
 
 static void
-cog_im_context_fdo_notify_surrounding (WebKitInputMethodContext *context,
+cog_im_context_wl_notify_surrounding (WebKitInputMethodContext *context,
                                        const char               *text,
                                        guint                     length,
                                        guint                     cursor_index,
                                        guint                     selection_index)
 {
-    CogIMContextFdoPrivate *priv = PRIV (context);
+    CogIMContextWlPrivate *priv = PRIV (context);
 
     g_clear_pointer (&priv->surrounding.text, g_free);
     priv->surrounding.text = g_strndup (text, length);
@@ -505,66 +505,66 @@ cog_im_context_fdo_notify_surrounding (WebKitInputMethodContext *context,
     priv->surrounding.anchor_index = selection_index;
 
     if (wl_text_input.context == context) {
-        cog_im_context_fdo_text_input_notify_surrounding (COG_IM_CONTEXT_FDO (context));
-        cog_im_context_fdo_text_input_commit_state (COG_IM_CONTEXT_FDO (context));
+        cog_im_context_wl_text_input_notify_surrounding (COG_IM_CONTEXT_WL (context));
+        cog_im_context_wl_text_input_commit_state (COG_IM_CONTEXT_WL (context));
     }
 }
 
 
 static void
-cog_im_context_fdo_reset (WebKitInputMethodContext *context)
+cog_im_context_wl_reset (WebKitInputMethodContext *context)
 {
     if (wl_text_input.context != context)
         return;
 
-    CogIMContextFdoPrivate *priv = PRIV (context);
+    CogIMContextWlPrivate *priv = PRIV (context);
     priv->text_change_cause = ZWP_TEXT_INPUT_V3_CHANGE_CAUSE_OTHER;
-    cog_im_context_fdo_text_input_notify_surrounding (COG_IM_CONTEXT_FDO (context));
-    cog_im_context_fdo_text_input_commit_state (COG_IM_CONTEXT_FDO (context));
+    cog_im_context_wl_text_input_notify_surrounding (COG_IM_CONTEXT_WL (context));
+    cog_im_context_wl_text_input_commit_state (COG_IM_CONTEXT_WL (context));
 }
 
 
 static void
-cog_im_context_fdo_class_init (CogIMContextFdoClass *klass)
+cog_im_context_wl_class_init (CogIMContextWlClass *klass)
 {
     GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
-    gobject_class->finalize = cog_im_context_fdo_finalize;
+    gobject_class->finalize = cog_im_context_wl_finalize;
 
     WebKitInputMethodContextClass *im_context_class = WEBKIT_INPUT_METHOD_CONTEXT_CLASS (klass);
-    im_context_class->get_preedit = cog_im_context_fdo_get_preedit;
-    im_context_class->notify_focus_in = cog_im_context_fdo_notify_focus_in;
-    im_context_class->notify_focus_out = cog_im_context_fdo_notify_focus_out;
-    im_context_class->notify_cursor_area = cog_im_context_fdo_notify_cursor_area;
-    im_context_class->notify_surrounding = cog_im_context_fdo_notify_surrounding;
-    im_context_class->reset = cog_im_context_fdo_reset;
+    im_context_class->get_preedit = cog_im_context_wl_get_preedit;
+    im_context_class->notify_focus_in = cog_im_context_wl_notify_focus_in;
+    im_context_class->notify_focus_out = cog_im_context_wl_notify_focus_out;
+    im_context_class->notify_cursor_area = cog_im_context_wl_notify_cursor_area;
+    im_context_class->notify_surrounding = cog_im_context_wl_notify_surrounding;
+    im_context_class->reset = cog_im_context_wl_reset;
 }
 
 
 static void
-cog_im_context_fdo_content_type_changed (CogIMContextFdo *context)
+cog_im_context_wl_content_type_changed (CogIMContextWl *context)
 {
     if (wl_text_input.context != WEBKIT_INPUT_METHOD_CONTEXT (context))
         return;
 
-    cog_im_context_fdo_text_input_notify_content_type (context);
-    cog_im_context_fdo_text_input_commit_state (context);
+    cog_im_context_wl_text_input_notify_content_type (context);
+    cog_im_context_wl_text_input_commit_state (context);
 }
 
 
 static void
-cog_im_context_fdo_init (CogIMContextFdo *context)
+cog_im_context_wl_init (CogIMContextWl *context)
 {
     g_signal_connect_swapped (context, "notify::input-purpose",
-                              G_CALLBACK (cog_im_context_fdo_content_type_changed),
+                              G_CALLBACK (cog_im_context_wl_content_type_changed),
                               context);
     g_signal_connect_swapped (context, "notify::input-hints",
-                              G_CALLBACK (cog_im_context_fdo_content_type_changed),
+                              G_CALLBACK (cog_im_context_wl_content_type_changed),
                               context);
 }
 
 
 void
-cog_im_context_fdo_set_text_input (struct zwp_text_input_v3 *text_input)
+cog_im_context_wl_set_text_input (struct zwp_text_input_v3 *text_input)
 {
     g_clear_pointer(&wl_text_input.text_input, zwp_text_input_v3_destroy);
     wl_text_input.text_input = text_input;
@@ -575,7 +575,7 @@ cog_im_context_fdo_set_text_input (struct zwp_text_input_v3 *text_input)
 
 
 WebKitInputMethodContext *
-cog_im_context_fdo_new (void)
+cog_im_context_wl_new (void)
 {
-    return WEBKIT_INPUT_METHOD_CONTEXT (g_object_new (COG_TYPE_IM_CONTEXT_FDO, NULL));
+    return WEBKIT_INPUT_METHOD_CONTEXT (g_object_new (COG_TYPE_IM_CONTEXT_WL, NULL));
 }
