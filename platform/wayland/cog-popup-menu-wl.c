@@ -1,11 +1,11 @@
 /*
- * cog-popup-menu-fdo.c
+ * cog-popup-menu-wl.c
  * Copyright (C) 2020 Igalia S.L.
  *
  * Distributed under terms of the MIT license.
  */
 
-#include "cog-popup-menu-fdo.h"
+#include "cog-popup-menu-wl.h"
 
 #include "os-compatibility.h"
 #include <cairo.h>
