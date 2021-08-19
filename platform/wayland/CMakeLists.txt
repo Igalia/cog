@@ -36,6 +36,7 @@ target_link_libraries(cogplatform-wl PRIVATE
     PkgConfig::WpeFDO
 )
 
+
 pkg_check_modules(WAYLAND_EGL IMPORTED_TARGET wayland-egl)
 if (TARGET PkgConfig::WAYLAND_EGL)
     target_link_libraries(cogplatform-wl PRIVATE PkgConfig::WAYLAND_EGL)
