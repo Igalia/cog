@@ -42,23 +42,19 @@
 static int
 set_cloexec_or_close(int fd)
 {
-	long flags;
-
-	if (fd == -1)
-		return -1;
-
-	flags = fcntl(fd, F_GETFD);
-	if (flags == -1)
-		goto err;
-
-	if (fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1)
-		goto err;
-
-	return fd;
+    long flags;
+    if (fd == -1)
+        return -1;
+    flags = fcntl(fd, F_GETFD);
+    if (flags == -1)
+        goto err;
+    if (fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1)
+        goto err;
+    return fd;
 
 err:
-	close(fd);
-	return -1;
+    close(fd);
+    return -1;
 }
 #endif
 
@@ -156,17 +152,18 @@ os_create_anonymous_file(off_t size)
 #ifdef HAVE_POSIX_FALLOCATE
 	ret = posix_fallocate(fd, 0, size);
 	if (ret != 0) {
-		close(fd);
-		errno = ret;
-		return -1;
-	}
+        close(fd);
+        errno = ret;
+        return -1;
+    }
+
 #else
-	ret = ftruncate(fd, size);
-	if (ret < 0) {
-		close(fd);
-		return -1;
-	}
+    ret = ftruncate(fd, size);
+    if (ret < 0) {
+        close(fd);
+        return -1;
+    }
 #endif
 
-	return fd;
+    return fd;
 }

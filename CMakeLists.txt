@@ -51,6 +51,7 @@ if (IS_DIRECTORY "${CMAKE_SOURCE_DIR}/.git")
 endif ()
 
 
+
 option(COG_DBUS_SYSTEM_BUS "Expose remote control interface on system bus" OFF)
 set(COG_DBUS_OWN_USER "" CACHE STRING
     "Additional user allowed to own the well-known name on the system bus")

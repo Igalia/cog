@@ -13,21 +13,19 @@
 
 G_BEGIN_DECLS
 
-#define COG_TYPE_IM_CONTEXT_WL_V1  (cog_im_context_wl_v1_get_type ())
+#define COG_TYPE_IM_CONTEXT_WL_V1 (cog_im_context_wl_v1_get_type())
 
-G_DECLARE_DERIVABLE_TYPE (CogIMContextWlV1, cog_im_context_wl_v1, COG, IM_CONTEXT_WL_V1, WebKitInputMethodContext)
-
+G_DECLARE_DERIVABLE_TYPE(CogIMContextWlV1, cog_im_context_wl_v1, COG, IM_CONTEXT_WL_V1, WebKitInputMethodContext)
 
 struct _CogIMContextWlV1Class {
     WebKitInputMethodContextClass parent_class;
 };
 
-void cog_im_context_wl_v1_set_text_input   (struct zwp_text_input_v1 *text_input,
-                                             struct wl_seat           *seat,
-                                             struct wl_surface        *surface);
-void cog_im_context_wl_v1_set_view_backend (struct wpe_view_backend  *backend);
+void cog_im_context_wl_v1_set_text_input(struct zwp_text_input_v1 *text_input,
+                                         struct wl_seat *seat,
+                                         struct wl_surface *surface);
+void cog_im_context_wl_v1_set_view_backend(struct wpe_view_backend *backend);
 
-
-WebKitInputMethodContext *cog_im_context_wl_v1_new (void);
+WebKitInputMethodContext *cog_im_context_wl_v1_new(void);
 
 G_END_DECLS
