@@ -14,19 +14,16 @@
 #endif
 
 #include "cog-config.h"
+#include "cog-request-handler.h"
 #include "cog-shell.h"
-#include "cog-webkit-utils.h"
 
 G_BEGIN_DECLS
 
-typedef struct _CogRequestHandler CogRequestHandler;
+#define COG_TYPE_LAUNCHER (cog_launcher_get_type())
 
-#define COG_TYPE_LAUNCHER (cog_launcher_get_type ())
+G_DECLARE_FINAL_TYPE(CogLauncher, cog_launcher, COG, LAUNCHER, GApplication)
 
-G_DECLARE_FINAL_TYPE (CogLauncher, cog_launcher, COG, LAUNCHER, GApplication)
-
-struct _CogLauncherClass
-{
+struct _CogLauncherClass {
     GApplicationClass parent_class;
 };
 
