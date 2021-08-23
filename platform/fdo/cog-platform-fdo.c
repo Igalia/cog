@@ -2150,7 +2150,7 @@ check_supported(void *data G_GNUC_UNUSED)
 #undef CHECK_SHELL_PROTOCOL
 
         wl_registry_destroy(registry);
-        wl_display_destroy(display);
+        wl_display_disconnect(display);
         return GINT_TO_POINTER(ok);
     } else {
         return GINT_TO_POINTER(FALSE);
