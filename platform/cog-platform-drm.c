@@ -10,6 +10,7 @@
 #include <wayland-server.h>
 #include <wpe/fdo.h>
 #include <wpe/fdo-egl.h>
+#include <wpe/unstable/fdo-dmabuf.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
@@ -34,11 +35,10 @@ typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platf
 
 struct buffer_object {
     struct wl_list link;
-    struct wl_listener destroy_listener;
 
     uint32_t fb_id;
     struct gbm_bo *bo;
-    struct wl_resource *buffer_resource;
+    struct wpe_dmabuf_pool_entry *dmabuf_pool_entry;
 };
 
 static struct {
@@ -136,7 +136,7 @@ static struct {
 };
 
 static struct {
-    struct wpe_view_backend_exportable_fdo *exportable;
+    struct wpe_view_backend_dmabuf_pool_fdo* dmabuf_pool;
 } wpe_host_data;
 
 static struct {
@@ -187,21 +187,10 @@ destroy_buffer (struct buffer_object *buffer)
     drmModeRmFB (drm_data.fd, buffer->fb_id);
     gbm_bo_destroy (buffer->bo);
 
-    wpe_view_backend_exportable_fdo_dispatch_release_buffer (wpe_host_data.exportable, buffer->buffer_resource);
+    wpe_view_backend_dmabuf_pool_fdo_dispatch_release_entry (wpe_host_data.dmabuf_pool, buffer->dmabuf_pool_entry);
     g_free (buffer);
 }
 
-static void
-destroy_buffer_notify (struct wl_listener *listener, void *data)
-{
-    struct buffer_object *buffer = wl_container_of (listener, buffer, destroy_listener);
-
-    if (drm_data.committed_buffer == buffer)
-        drm_data.committed_buffer = NULL;
-
-    wl_list_remove (&buffer->link);
-    destroy_buffer (buffer);
-}
 
 static void
 clear_buffers (void)
@@ -211,7 +200,6 @@ clear_buffers (void)
     struct buffer_object *buffer, *tmp;
     wl_list_for_each_safe (buffer, tmp, &drm_data.buffer_list, link) {
         wl_list_remove (&buffer->link);
-        wl_list_remove (&buffer->destroy_listener.link);
 
         destroy_buffer (buffer);
     }
@@ -506,18 +494,19 @@ static void
 drm_page_flip_handler (int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data)
 {
     if (drm_data.committed_buffer)
-        wpe_view_backend_exportable_fdo_dispatch_release_buffer (wpe_host_data.exportable, drm_data.committed_buffer->buffer_resource);
+        wpe_view_backend_dmabuf_pool_fdo_dispatch_release_entry (wpe_host_data.dmabuf_pool, drm_data.committed_buffer->dmabuf_pool_entry);
     drm_data.committed_buffer = (struct buffer_object *) data;
 
-    wpe_view_backend_exportable_fdo_dispatch_frame_complete (wpe_host_data.exportable);
+    wpe_view_backend_dmabuf_pool_fdo_dispatch_frame_complete (wpe_host_data.dmabuf_pool);
 }
 
+
 static struct buffer_object *
-drm_buffer_for_resource (struct wl_resource *buffer_resource)
+drm_buffer_for_dmabuf_pool_entry (struct wpe_dmabuf_pool_entry *entry)
 {
     struct buffer_object *buffer;
     wl_list_for_each (buffer, &drm_data.buffer_list, link) {
-        if (buffer->buffer_resource == buffer_resource)
+        if (buffer->dmabuf_pool_entry == entry)
             return buffer;
     }
 
@@ -525,15 +514,28 @@ drm_buffer_for_resource (struct wl_resource *buffer_resource)
 }
 
 static struct buffer_object *
-drm_create_buffer_for_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource, uint32_t width, uint32_t height, uint32_t format)
+drm_create_buffer_for_dmabuf_pool_entry (struct wpe_dmabuf_pool_entry *entry)
 {
+    struct gbm_bo *bo = wpe_dmabuf_pool_entry_get_user_data (entry);
+    fprintf(stderr, "drm_create_buffer_for_dmabuf_pool_entry() entry %p, bo %p\n",
+        entry, bo);
+
+    uint32_t width = gbm_bo_get_width (bo);
+    uint32_t height = gbm_bo_get_height (bo);
+    uint32_t format = gbm_bo_get_format (bo);
+
     uint32_t in_handles[4] = { 0, };
     uint32_t in_strides[4] = { 0, };
     uint32_t in_offsets[4] = { 0, };
     uint64_t in_modifiers[4] = { 0, };
 
+#if 0
     in_modifiers[0] = gbm_bo_get_modifier (bo);
+#endif
 
+#if 1
+    int plane_count = 1;
+#else
     int plane_count = MIN (gbm_bo_get_plane_count (bo), 4);
     for (int i = 0; i < plane_count; ++i) {
         in_handles[i] = gbm_bo_get_handle_for_plane (bo, i).u32;
@@ -541,6 +543,7 @@ drm_create_buffer_for_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource
         in_offsets[i] = gbm_bo_get_offset (bo, i);
         in_modifiers[i] = in_modifiers[0];
     }
+#endif
 
     int flags = 0;
     if (in_modifiers[0])
@@ -569,12 +572,10 @@ drm_create_buffer_for_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource
 
     struct buffer_object *buffer = g_new0 (struct buffer_object, 1);
     wl_list_insert (&drm_data.buffer_list, &buffer->link);
-    buffer->destroy_listener.notify = destroy_buffer_notify;
-    wl_resource_add_destroy_listener (buffer_resource, &buffer->destroy_listener);
 
     buffer->fb_id = fb_id;
     buffer->bo = bo;
-    buffer->buffer_resource = buffer_resource;
+    buffer->dmabuf_pool_entry = entry;
 
     return buffer;
 }
@@ -741,6 +742,7 @@ init_egl (void)
     static PFNEGLGETPLATFORMDISPLAYEXTPROC s_eglGetPlatformDisplay = NULL;
     if (!s_eglGetPlatformDisplay)
         s_eglGetPlatformDisplay = (PFNEGLGETPLATFORMDISPLAYEXTPROC) eglGetProcAddress ("eglGetPlatformDisplayEXT");
+    fprintf(stderr, "init_egl() s_eglGetPlatformDisplay %p\n", s_eglGetPlatformDisplay);
 
     if (s_eglGetPlatformDisplay)
         egl_data.display = s_eglGetPlatformDisplay (EGL_PLATFORM_GBM_KHR, gbm_data.device, NULL);
@@ -1054,66 +1056,63 @@ init_glib (void)
 }
 
 
-static void
-on_export_buffer_resource (void *data, struct wl_resource *buffer_resource)
+static struct wpe_dmabuf_pool_entry *
+dmabuf_pool_create_entry (void *data)
 {
-    struct buffer_object *buffer = drm_buffer_for_resource (buffer_resource);
-    if (buffer) {
-        drm_commit_buffer (buffer);
-        return;
-    }
+    struct gbm_bo *bo = gbm_bo_create (gbm_data.device, drm_data.width, drm_data.height,
+                                       GBM_FORMAT_XRGB8888, GBM_BO_USE_RENDERING | GBM_BO_USE_SCANOUT);
+    fprintf(stderr, "dmabuf_pool_create_entry(): bo %p, %d planes, modifier %lu\n",
+        bo, 1 /* gbm_bo_get_plane_count (bo) */, 0 /* gbm_bo_get_modifier (bo) */);
 
-    struct gbm_bo* bo = gbm_bo_import (gbm_data.device, GBM_BO_IMPORT_WL_BUFFER,
-                                       (void *) buffer_resource, GBM_BO_USE_SCANOUT);
-    if (!bo) {
-        g_warning ("failed to import a wl_buffer resource into gbm_bo");
-        return;
-    }
-
-    uint32_t width = gbm_bo_get_width (bo);
-    uint32_t height = gbm_bo_get_height (bo);
-    uint32_t format = gbm_bo_get_format (bo);
-
-    buffer = drm_create_buffer_for_bo (bo, buffer_resource, width, height, format);
-    if (buffer)
-        drm_commit_buffer (buffer);
-}
-
-static void
-on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dmabuf_resource *dmabuf_resource)
-{
-    struct buffer_object *buffer = drm_buffer_for_resource (dmabuf_resource->buffer_resource);
-    if (buffer) {
-        drm_commit_buffer (buffer);
-        return;
-    }
-
-    struct gbm_import_fd_modifier_data modifier_data = {
-        .width = dmabuf_resource->width,
-        .height = dmabuf_resource->height,
-        .format = dmabuf_resource->format,
-        .num_fds = dmabuf_resource->n_planes,
-        .modifier = dmabuf_resource->modifiers[0],
+    struct wpe_dmabuf_pool_entry_init entry_init = {
+        .width = gbm_bo_get_width (bo),
+        .height = gbm_bo_get_height (bo),
+        .format = gbm_bo_get_format (bo),
+        .num_planes = 1 /* gbm_bo_get_plane_count (bo) */, 
     };
-    for (uint32_t i = 0; i < modifier_data.num_fds; ++i) {
-        modifier_data.fds[i] = dmabuf_resource->fds[i];
-        modifier_data.strides[i] = dmabuf_resource->strides[i];
-        modifier_data.offsets[i] = dmabuf_resource->offsets[i];
-    }
 
-    struct gbm_bo *bo = gbm_bo_import (gbm_data.device, GBM_BO_IMPORT_FD_MODIFIER,
-                                       (void *)(&modifier_data), GBM_BO_USE_SCANOUT);
-    if (!bo) {
-        g_warning ("failed to import a dma-buf resource into gbm_bo");
+    union gbm_bo_handle handle = gbm_bo_get_handle (bo);
+    drmPrimeHandleToFD(drm_data.fd, handle.u32, 0, &entry_init.fds[0]);
+    entry_init.strides[0] = gbm_bo_get_stride (bo);
+    entry_init.offsets[0] = 0;
+    entry_init.modifiers[0] = 0;
+#if 0
+    uint64_t modifier = gbm_bo_get_modifier (bo);
+    for (unsigned i = 0; i < entry_init.num_planes; ++i) {
+        union gbm_bo_handle handle = gbm_bo_get_handle_for_plane (bo, i);
+        drmPrimeHandleToFD(drm_data.fd, handle.u32, 0, &entry_init.fds[i]);
+
+        entry_init.strides[i] = gbm_bo_get_stride_for_plane (bo, i);
+        entry_init.offsets[i] = gbm_bo_get_offset (bo, i);
+        entry_init.modifiers[i] = modifier;
+    }
+#endif
+
+    struct wpe_dmabuf_pool_entry *entry = wpe_dmabuf_pool_entry_create (&entry_init);
+    wpe_dmabuf_pool_entry_set_user_data (entry, bo);
+    fprintf(stderr, "dmabuf_pool_create_entry(): entry %p\n", entry);
+    return entry;
+}
+
+static void
+dmabuf_pool_destroy_entry (void *data, struct wpe_dmabuf_pool_entry *entry)
+{
+}
+
+static void
+dmabuf_pool_commit_entry (void *data, struct wpe_dmabuf_pool_entry *entry)
+{
+    struct buffer_object *buffer = drm_buffer_for_dmabuf_pool_entry (entry);
+    if (buffer) {
+        drm_commit_buffer (buffer);
         return;
     }
 
-    buffer = drm_create_buffer_for_bo (bo, dmabuf_resource->buffer_resource,
-                                       dmabuf_resource->width, dmabuf_resource->height,
-                                       dmabuf_resource->format);
+    buffer = drm_create_buffer_for_dmabuf_pool_entry (entry);
     if (buffer)
         drm_commit_buffer (buffer);
 }
+
 
 gboolean
 cog_platform_plugin_setup (CogPlatform *platform,
@@ -1174,7 +1173,8 @@ cog_platform_plugin_setup (CogPlatform *platform,
         return FALSE;
     }
 
-    wpe_fdo_initialize_for_egl_display (egl_data.display);
+    //wpe_fdo_initialize_for_egl_display (egl_data.display);
+    wpe_fdo_initialize_dmabuf ();
 
     return TRUE;
 }
@@ -1198,24 +1198,25 @@ cog_platform_plugin_get_view_backend (CogPlatform   *platform,
                                       WebKitWebView *related_view,
                                       GError       **error)
 {
-    static struct wpe_view_backend_exportable_fdo_client exportable_client = {
-        .export_buffer_resource = on_export_buffer_resource,
-        .export_dmabuf_resource = on_export_dmabuf_resource,
+    static struct wpe_view_backend_dmabuf_pool_fdo_client dmabuf_pool_client = {
+        .create_entry = dmabuf_pool_create_entry,
+        .destroy_entry = dmabuf_pool_destroy_entry,
+        .commit_entry = dmabuf_pool_commit_entry,
     };
 
-    wpe_host_data.exportable = wpe_view_backend_exportable_fdo_create (&exportable_client,
-                                                                       NULL,
-                                                                       drm_data.width / drm_data.device_scale,
-                                                                       drm_data.height / drm_data.device_scale);
-    g_assert (wpe_host_data.exportable);
+    wpe_host_data.dmabuf_pool = wpe_view_backend_dmabuf_pool_fdo_create (&dmabuf_pool_client,
+                                                                         NULL,
+                                                                         drm_data.width / drm_data.device_scale,
+                                                                         drm_data.height / drm_data.device_scale);
+    g_assert (wpe_host_data.dmabuf_pool);
 
-    wpe_view_data.backend = wpe_view_backend_exportable_fdo_get_view_backend (wpe_host_data.exportable);
+    wpe_view_data.backend = wpe_view_backend_dmabuf_pool_fdo_get_view_backend (wpe_host_data.dmabuf_pool);
     g_assert (wpe_view_data.backend);
 
     WebKitWebViewBackend *wk_view_backend =
         webkit_web_view_backend_new (wpe_view_data.backend,
-                                     (GDestroyNotify) wpe_view_backend_exportable_fdo_destroy,
-                                     wpe_host_data.exportable);
+                                     (GDestroyNotify) wpe_view_backend_dmabuf_pool_fdo_destroy,
+                                     wpe_host_data.dmabuf_pool);
     g_assert (wk_view_backend);
 
     return wk_view_backend;
