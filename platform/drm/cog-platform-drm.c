@@ -328,12 +328,31 @@ clear_drm (void)
 }
 
 static gboolean
-init_drm (void)
+check_drm(void)
 {
     drmDevice *devices[64];
-    memset (devices, 0, sizeof (*devices) * 64);
+    memset(devices, 0, sizeof(*devices) * 64);
 
-    int num_devices = drmGetDevices2 (0, devices, 64);
+    int num_devices = drmGetDevices2(0, devices, 64);
+    if (num_devices < 0)
+        return FALSE;
+
+    for (int i = 0; i < num_devices; ++i) {
+        drmDevice *device = devices[i];
+        if (!!(device->available_nodes & (1 << DRM_NODE_PRIMARY)))
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
+static gboolean
+init_drm(void)
+{
+    drmDevice *devices[64];
+    memset(devices, 0, sizeof(*devices) * 64);
+
+    int num_devices = drmGetDevices2(0, devices, 64);
     if (num_devices < 0)
         return FALSE;
 
@@ -1519,12 +1538,9 @@ on_export_shm_buffer (void* data, struct wpe_fdo_shm_exported_buffer *exported_b
 static void *
 check_supported(void *data G_GNUC_UNUSED)
 {
-    if (init_drm()) {
-        clear_drm();
+    if (check_drm())
         return GINT_TO_POINTER(TRUE);
-    } else {
-        return GINT_TO_POINTER(FALSE);
-    }
+    return GINT_TO_POINTER(FALSE);
 }
 
 static gboolean
