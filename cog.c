@@ -81,8 +81,8 @@ static GOptionEntry s_cli_options[] = {
      "Path to content filter JSON rule set (default: none).", "PATH"},
     {"enable-sandbox", 's', 0, G_OPTION_ARG_NONE, &s_options.enable_sandbox,
      "Enable WebProcess sandbox (default: disabled).", NULL},
-    { "automation", '\0', 0, G_OPTION_ARG_NONE, &s_options.automation,
-        "Enable automation mode (default: disabled).", NULL },
+    {"automation", '\0', 0, G_OPTION_ARG_NONE, &s_options.automation, "Enable automation mode (default: disabled).",
+     NULL},
     {G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments, "", "[URL]"},
     {NULL}};
 
@@ -168,11 +168,11 @@ on_handle_local_options (GApplication *application,
     }
 
     const char *uri = NULL;
-    g_autoptr(CogShell) shell = cog_launcher_get_shell (COG_LAUNCHER (application));
+    g_autoptr(CogShell) shell = cog_launcher_get_shell(COG_LAUNCHER(application));
     if (cog_shell_is_automated(shell)) {
         uri = "about:blank";
     } else if (!s_options.arguments) {
-        if (!(uri = g_getenv ("COG_URL"))) {
+        if (!(uri = g_getenv("COG_URL"))) {
 #ifdef COG_DEFAULT_HOME_URI
             uri = COG_DEFAULT_HOME_URI;
 #else
@@ -180,7 +180,7 @@ on_handle_local_options (GApplication *application,
             return EXIT_FAILURE;
 #endif // COG_DEFAULT_HOME_URI
         }
-    } else if (g_strv_length (s_options.arguments) > 1) {
+    } else if (g_strv_length(s_options.arguments) > 1) {
         g_printerr ("%s: Cannot load more than one URL.\n", g_get_prgname ());
         return EXIT_FAILURE;
     } else {
@@ -393,13 +393,10 @@ on_create_view (CogShell *shell, void *user_data G_GNUC_UNUSED)
     if (!view_backend)
         g_error ("Could not instantiate any WPE backend.");
 
-    g_autoptr(WebKitWebView) web_view = g_object_new (WEBKIT_TYPE_WEB_VIEW,
-                                                      "settings", cog_shell_get_web_settings (shell),
-                                                      "web-context", web_context,
-                                                      "zoom-level", s_options.scale_factor,
-                                                      "backend", view_backend,
-                                                      "is-controlled-by-automation", cog_shell_is_automated(shell),
-                                                      NULL);
+    g_autoptr(WebKitWebView) web_view =
+        g_object_new(WEBKIT_TYPE_WEB_VIEW, "settings", cog_shell_get_web_settings(shell), "web-context", web_context,
+                     "zoom-level", s_options.scale_factor, "backend", view_backend, "is-controlled-by-automation",
+                     cog_shell_is_automated(shell), NULL);
 
     if (s_options.filter) {
         WebKitUserContentManager *manager = webkit_web_view_get_user_content_manager(web_view);
@@ -493,10 +490,10 @@ main (int argc, char *argv[])
     }
 
     CogSessionType sessionType = automated ? COG_SESSION_AUTOMATED : COG_SESSION_REGULAR;
-    g_autoptr(GApplication) app = G_APPLICATION (cog_launcher_init_default(sessionType));
-    g_application_add_main_option_entries (app, s_cli_options);
-    cog_launcher_add_web_settings_option_entries (COG_LAUNCHER (app));
-    cog_launcher_add_web_cookies_option_entries (COG_LAUNCHER (app));
+    g_autoptr(GApplication) app = G_APPLICATION(cog_launcher_init_default(sessionType));
+    g_application_add_main_option_entries(app, s_cli_options);
+    cog_launcher_add_web_settings_option_entries(COG_LAUNCHER(app));
+    cog_launcher_add_web_cookies_option_entries(COG_LAUNCHER(app));
     cog_launcher_add_web_permissions_option_entries (COG_LAUNCHER (app));
 
     g_signal_connect (app, "shutdown", G_CALLBACK (on_shutdown), NULL);
