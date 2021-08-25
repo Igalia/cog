@@ -262,7 +262,7 @@ cog_launcher_constructed (GObject *object)
 
     CogLauncher *launcher = COG_LAUNCHER (object);
 
-    launcher->shell = g_object_ref_sink (cog_shell_new (g_get_prgname (), launcher->automated));
+    launcher->shell = g_object_ref_sink(cog_shell_new(g_get_prgname(), launcher->automated));
     g_signal_connect (launcher->shell, "notify::web-view", G_CALLBACK (on_notify_web_view), launcher);
 
     cog_launcher_add_action (launcher, "quit", on_action_quit, NULL);
@@ -291,12 +291,11 @@ cog_launcher_constructed (GObject *object)
 }
 
 static void
-cog_launcher_set_property (GObject *object, guint propId, const GValue *value, GParamSpec *pspec)
+cog_launcher_set_property(GObject *object, guint propId, const GValue *value, GParamSpec *pspec)
 {
     CogLauncher *launcher = COG_LAUNCHER(object);
 
-    switch (propId)
-    {
+    switch (propId) {
     case PROP_AUTOMATED:
         launcher->automated = g_value_get_boolean(value);
         break;
@@ -304,7 +303,6 @@ cog_launcher_set_property (GObject *object, guint propId, const GValue *value, G
         break;
     }
 }
-
 
 static void
 cog_launcher_class_init (CogLauncherClass *klass)
@@ -320,14 +318,13 @@ cog_launcher_class_init (CogLauncherClass *klass)
     application_class->shutdown = cog_launcher_shutdown;
 
     g_object_class_install_property(object_class,
-                                PROP_AUTOMATED,
-                                g_param_spec_boolean("automated",
-                                                    "Automated",
-                                                    "Whether this launcher is automated",
-                                                    FALSE,
-                                                    G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+                                    PROP_AUTOMATED,
+                                    g_param_spec_boolean("automated",
+                                                         "Automated",
+                                                         "Whether this launcher is automated",
+                                                         FALSE,
+                                                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
-
 
 static void
 cog_launcher_init (G_GNUC_UNUSED CogLauncher *launcher)
@@ -344,12 +341,9 @@ cog_launcher_create_instance (void* user_data)
 #if GLIB_CHECK_VERSION(2, 48, 0)
         G_APPLICATION_CAN_OVERRIDE_APP_ID |
 #endif // GLIB_CHECK_VERSION
-        G_APPLICATION_HANDLES_OPEN ;
-    return g_object_new (COG_TYPE_LAUNCHER,
-                         "application-id", COG_DEFAULT_APPID,
-                         "flags",  app_flags,
-                         "automated", *sessionType == COG_SESSION_AUTOMATED,
-                         NULL);
+        G_APPLICATION_HANDLES_OPEN;
+    return g_object_new(COG_TYPE_LAUNCHER, "application-id", COG_DEFAULT_APPID, "flags", app_flags, "automated",
+                        *sessionType == COG_SESSION_AUTOMATED, NULL);
 }
 
 /**
@@ -360,8 +354,8 @@ cog_launcher_create_instance (void* user_data)
  *
  * Returns: (transfer none): Singleton instance.
  */
-CogLauncher*
-cog_launcher_get_default ()
+CogLauncher *
+cog_launcher_get_default()
 {
     return cog_launcher_init_default(COG_SESSION_REGULAR);
 }
@@ -374,11 +368,11 @@ cog_launcher_get_default ()
  *
  * Returns: (transfer none): Singleton instance.
  */
-CogLauncher*
-cog_launcher_init_default (CogSessionType sessionType)
+CogLauncher *
+cog_launcher_init_default(CogSessionType sessionType)
 {
     static GOnce create_instance_once = G_ONCE_INIT;
-    g_once (&create_instance_once, cog_launcher_create_instance, &sessionType);
+    g_once(&create_instance_once, cog_launcher_create_instance, &sessionType);
     g_assert_nonnull (create_instance_once.retval);
     return create_instance_once.retval;
 }
@@ -405,9 +399,9 @@ cog_launcher_get_shell (CogLauncher *launcher)
  * Returns: TRUE if this session is automated, FALSE otherwise.
  */
 gboolean
-cog_launcher_is_automated (CogLauncher *launcher)
+cog_launcher_is_automated(CogLauncher *launcher)
 {
-    g_return_val_if_fail (COG_IS_LAUNCHER (launcher), FALSE);
+    g_return_val_if_fail(COG_IS_LAUNCHER(launcher), FALSE);
     return launcher->automated;
 }
 

@@ -33,9 +33,9 @@ typedef enum {
 } CogSessionType;
 
 CogLauncher *cog_launcher_get_default                  (void);
-CogLauncher *cog_launcher_init_default                 (CogSessionType sessionType);
+CogLauncher *cog_launcher_init_default(CogSessionType sessionType);
 CogShell    *cog_launcher_get_shell                    (CogLauncher *launcher);
-gboolean     cog_launcher_is_automated                 (CogLauncher *launcher);
+gboolean     cog_launcher_is_automated(CogLauncher *launcher);
 
 void  cog_launcher_add_web_settings_option_entries     (CogLauncher *launcher);
 void  cog_launcher_add_web_cookies_option_entries      (CogLauncher *launcher);
