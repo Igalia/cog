@@ -111,14 +111,15 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Declaration
         <a href="#declaration" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-shell.h#L34">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-shell.h#L33">[src]</a>
         
       </h4>
 
       <div class="docblock">
         <pre><code><div class="highlight"><pre><span></span><span class="n">CogShell</span><span class="o">*</span><span class="w"></span>
 <span class="n">cog_shell_new</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">name</span><span class="w"></span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">gboolean</span><span class="w"> </span><span class="n">automated</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
 </code></pre>
@@ -130,7 +131,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-shell.c#L376">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-shell.c#L403">[src]</a>
         
       </h4>
 
@@ -176,6 +177,24 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           
           <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
           <tr><td>&nbsp;</td><td>The string is a NUL terminated UTF-8 string.</td></tr>
+          
+          <tr class="arg-name">
+            <td><code>automated</code></td>
+            <td><code>gboolean</code></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td><p>Whether this shell is controlled by&nbsp;automation.</p></td>
+          </tr>
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
         </table>

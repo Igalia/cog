@@ -1,0 +1,152 @@
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Cog &ndash; 0.0: WebDriver support</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta charset="utf-8" />
+
+  
+  <meta property="og:type" content="website"/>
+
+  
+  <meta property="og:image:width" content="256"/>
+  <meta property="og:image:height" content="256"/>
+  <meta property="og:image:secure_url" content="cog.png"/>
+  <meta property="og:image:alt" content="Cog-0.0"/>
+  
+
+  
+  <meta property="og:title" content="Cog: WebDriver support"/>
+  <meta property="og:description" content="Reference for Cog-0.0: WebDriver support"/>
+  <meta name="twitter:title" content="Cog: WebDriver support"/>
+  <meta name="twitter:description" content="Reference for Cog-0.0: WebDriver support"/>
+
+
+  
+  <meta name="twitter:card" content="summary"/>
+
+  
+
+  <link rel="stylesheet" href="style.css" type="text/css" />
+
+  
+
+  
+  
+  <script src="fzy.js"></script>
+  <script src="search.js"></script>
+  
+  <script src="main.js"></script>
+  <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+</head>
+
+<body>
+  <div id="body-wrapper" tabindex="-1">
+
+    <nav class="sidebar devhelp-hidden">
+      
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
+      
+      <div class="search section">
+        <form id="search-form" autocomplete="off">
+          <input id="search-input" type="text" name="do-not-autocomplete" placeholder="Click, or press 's' to search" autocomplete="off"/>
+        </form>
+      </div>
+      
+      <div class="section namespace">
+        <h3><a href="index.html">Cog</a></h3>
+        <p>API Version: 0.0</p>
+        
+        <p>Library Version: 0.9.1</p>
+        
+      </div>
+      
+      
+    </nav>
+
+    
+    <button id="btn-to-top" class="hidden"><span class="up-arrow"></span></button>
+    
+
+    
+<section id="main" class="content">
+  <section>
+    <div class="docblock">
+    <h1 id="webdriver-support">WebDriver support<a class="md-anchor" href="#webdriver-support" title="Permanent link"></a></h1>
+<p>Cog allows remote testing through the WebDriver interface. With Selenium python
+bindings, you can use the <code>selenium.webdriver.remote.WebDriver</code> class to run
+the tests on the target device directly from a host&nbsp;computer.</p>
+<h2 id="requirements">Requirements<a class="md-anchor" href="#requirements" title="Permanent link"></a></h2>
+<ul>
+<li><code>cog</code> and <code>WPEWebDriver</code> installed on the target&nbsp;devices.</li>
+<li>Selenium python bindings on the computer with the test&nbsp;scripts.</li>
+</ul>
+<h2 id="launching-the-webdriver">Launching the WebDriver<a class="md-anchor" href="#launching-the-webdriver" title="Permanent link"></a></h2>
+<p>For example, on a meta-webkit RPi3&nbsp;image:</p>
+<div class="codehilite"><pre><span></span><code>$ <span class="nb">export</span> <span class="nv">WAYLAND_DISPLAY</span><span class="o">=</span>wayland-0
+$ <span class="nb">export</span> <span class="nv">XDG_RUNTIME_DIR</span><span class="o">=</span>/run/user/0
+<span class="c1"># host=all to allow requests from other machines</span>
+$ WPEWebDriver --port<span class="o">=</span><span class="m">8088</span> --host<span class="o">=</span>all
+</code></pre></div>
+
+<h2 id="connecting-to-the-driver">Connecting to the driver<a class="md-anchor" href="#connecting-to-the-driver" title="Permanent link"></a></h2>
+<p>In the python&nbsp;script:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">selenium</span> <span class="kn">import</span> <span class="n">webdriver</span>
+
+<span class="k">def</span> <span class="nf">capabilities</span><span class="p">():</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;wpe:browserOptions&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;binary&quot;</span><span class="p">:</span> <span class="s2">&quot;/usr/bin/cog&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;args&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;--automation&quot;</span><span class="p">,</span> <span class="s2">&quot;--platform=fdo&quot;</span><span class="p">],</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+<span class="n">driver</span> <span class="o">=</span> <span class="n">webdriver</span><span class="o">.</span><span class="n">Remote</span><span class="p">(</span>
+    <span class="n">command_executor</span><span class="o">=</span><span class="s2">&quot;http://YOUR_DEVICE_IP:8088&quot;</span><span class="p">,</span>
+    <span class="n">desired_capabilities</span><span class="o">=</span><span class="n">capabilities</span><span class="p">(),</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<h2 id="using-the-driver">Using the driver<a class="md-anchor" href="#using-the-driver" title="Permanent link"></a></h2>
+<div class="codehilite"><pre><span></span><code><span class="n">driver</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://lichess.org/analysis&quot;</span><span class="p">)</span>
+<span class="n">board</span> <span class="o">=</span> <span class="n">WebDriverWait</span><span class="p">(</span><span class="n">driver</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span><span class="o">.</span><span class="n">until</span><span class="p">(</span>
+    <span class="n">EC</span><span class="o">.</span><span class="n">presence_of_element_located</span><span class="p">((</span><span class="n">By</span><span class="o">.</span><span class="n">CLASS_NAME</span><span class="p">,</span> <span class="s2">&quot;cg-wrap&quot;</span><span class="p">))</span>
+<span class="p">)</span>
+
+<span class="n">square_size</span> <span class="o">=</span> <span class="n">board</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="s2">&quot;height&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="mi">8</span>
+<span class="c1"># ...</span>
+<span class="n">actions</span> <span class="o">=</span> <span class="n">ActionBuilder</span><span class="p">(</span><span class="n">driver</span><span class="p">)</span>
+<span class="n">pointer</span> <span class="o">=</span> <span class="n">actions</span><span class="o">.</span><span class="n">pointer_action</span>
+<span class="n">pointer</span><span class="o">.</span><span class="n">move_to</span><span class="p">(</span><span class="n">board</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="n">pointer</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+<span class="n">actions</span><span class="o">.</span><span class="n">perform</span><span class="p">()</span>
+</code></pre></div>
+    </div>
+  </section>
+</section>
+
+
+    <section id="search" class="content hidden"></section>
+
+    <footer>
+    
+    </footer>
+  </div>
+</body>
+</html>

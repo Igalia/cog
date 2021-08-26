@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Launcher.get_shell</title>
+  <title>Cog.Launcher.init_default</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta priority="og:title" content="Cog.Launcher.get_shell"/>
-  <meta priority="og:description" content="Reference for Cog.Launcher.get_shell"/>
-  <meta name="twitter:title" content="Cog.Launcher.get_shell"/>
-  <meta name="twitter:description" content="Reference for Cog.Launcher.get_shell"/>
+  <meta property="og:title" content="Cog.Launcher.init_default"/>
+  <meta property="og:description" content="Reference for Cog.Launcher.init_default"/>
+  <meta name="twitter:title" content="Cog.Launcher.init_default"/>
+  <meta name="twitter:description" content="Reference for Cog.Launcher.init_default"/>
 
 
   
@@ -84,18 +84,12 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   </div>
 </div>
 <div class="section">
-  <h5>Methods</h5>
+  <h5>Functions</h5>
   <div class="links">
   
-    <a class="method" href="method.Launcher.add_web_cookies_option_entries.html">add_web_cookies_option_entries</a>
+    <a class="method" href="type_func.Launcher.get_default.html">get_default</a>
   
-    <a class="method" href="method.Launcher.add_web_permissions_option_entries.html">add_web_permissions_option_entries</a>
-  
-    <a class="method" href="method.Launcher.add_web_settings_option_entries.html">add_web_settings_option_entries</a>
-  
-    <a class="method current" href="method.Launcher.get_shell.html">get_shell</a>
-  
-    <a class="method" href="method.Launcher.is_automated.html">is_automated</a>
+    <a class="method current" href="type_func.Launcher.init_default.html">init_default</a>
   
   </div>
 </div>
@@ -109,24 +103,24 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Method</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Launcher.html">Launcher</a><span class="sep"></span>get_shell</h1>
+    <h3>Function</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Launcher.html">Launcher</a><span class="sep"></span>init_default</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 style="display:flex;" id="declaration">
+      <h4 id="declaration" style="display:flex;">
         Declaration
-        <a class="anchor" href="#declaration"></a>
+        <a href="#declaration" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-launcher.h#L37">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-launcher.h#L36">[src]</a>
         
       </h4>
 
-      <div class="docblock c-decl">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">CogShell</span><span class="o">*</span><span class="w"></span>
-<span class="n">cog_launcher_get_shell</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="n">CogLauncher</span><span class="o">*</span><span class="w"> </span><span class="n">launcher</span><span class="w"></span>
+      <div class="docblock">
+        <pre><code><div class="highlight"><pre><span></span><span class="n">CogLauncher</span><span class="o">*</span><span class="w"></span>
+<span class="n">cog_launcher_init_default</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogSessionType</span><span class="w"> </span><span class="n">sessionType</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
 </code></pre>
@@ -134,16 +128,17 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     <div class="description toggle-wrapper">
-      <h4 style="display:flex;" id="description">
+      <h4 id="description" style="display:flex;">
         Description
-        <a class="anchor" href="#description"></a>
+        <a href="#description" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-launcher.c#L380">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-launcher.c#L363">[src]</a>
         
       </h4>
 
       <div class="docblock">
-        <p>Obtains the <a href="class.Shell.html"><code>CogShell</code></a> instance managed by the&nbsp;launcher.</p>
+        <p>Initializes once the <a href="class.Launcher.html"><code>CogLauncher</code></a> single instance. This instance
+can be accessed later through <a href="method.Launcher.get_default.html">cog_launcher_get_default()</a>.</p>
       </div>
 
       <div class="docblock">
@@ -158,6 +153,38 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     
+    <div class="parameters toggle-wrapper">
+      <h4 id="parameters">
+        Parameters
+        <a href="#parameters" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+        <table class="arguments">
+          
+          <tr class="arg-name">
+            <td><code>sessionType</code></td>
+            <td><a href="enum.SessionType.html"><code>CogSessionType</code></a></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td>No description available.</td>
+          </tr>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </table>
+      </div>
+    </div>
+    
 
     
     <div class="return-value toggle-wrapper">
@@ -170,23 +197,22 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="returns">
           <tr class="arg-name">
             <td>Returns:</td>
-            <td><a href="class.Shell.html"><code>CogShell</code></a></td>
+            <td><a href="class.Launcher.html"><code>CogLauncher</code></a></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td><p>Shell instance for the&nbsp;launcher.</p></td>
+            <td><p>Singleton&nbsp;instance.</p></td>
           </tr>
           
           
           
-          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the instance.</td></tr>
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the called function.</td></tr>
           
           
         </table>
       </div>
     </div>
     
-
   </section>
 </section>
 

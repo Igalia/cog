@@ -99,10 +99,21 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
     <a class="method" href="method.Launcher.get_shell.html">get_shell</a>
   
+    <a class="method" href="method.Launcher.is_automated.html">is_automated</a>
+  
   </div>
 </div>
 
 
+
+<div class="section">
+  <h5>Properties</h5>
+  <div class="links">
+  
+    <a class="property" href="property.Launcher.automated.html">automated</a>
+  
+  </div>
+</div>
 
 
 
@@ -115,6 +126,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <div class="links">
   
     <a class="func" href="type_func.Launcher.get_default.html">get_default</a>
+  
+    <a class="func" href="type_func.Launcher.init_default.html">init_default</a>
   
   </div>
 </div>
@@ -143,7 +156,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           Description
           <a href="#description" class="anchor"></a>
           
-          <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-launcher.c#L43">[src]</a>
+          <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-launcher.c#L48">[src]</a>
           
         </h4>
 
@@ -224,6 +237,14 @@ line. Boolean, numeric, and string types are&nbsp;supported.</p>
           
         </div>
       
+        <div class="">
+          <h6><a href="method.Launcher.is_automated.html">cog_launcher_is_automated</a></h6>
+          <div class="docblock">
+            <p>Whether this launcher was created in automated&nbsp;mode.</p>
+          </div>
+          
+        </div>
+      
       </div>
 
       
@@ -232,6 +253,32 @@ line. Boolean, numeric, and string types are&nbsp;supported.</p>
     </div>
     
 
+    
+    <div class="toggle-wrapper properties">
+      <h4 id="properties">
+        Properties
+        <a href="#properties" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+      
+        <div class="">
+          <h6><a href="property.Launcher.automated.html">Cog.Launcher:automated</a></h6>
+
+          <div class="docblock">
+            No description available.
+          </div>
+
+          
+        </div>
+      
+      </div>
+
+      
+
+      
+
+    </div>
     
 
     
@@ -288,7 +335,19 @@ line. Boolean, numeric, and string types are&nbsp;supported.</p>
         <h6><a href="type_func.Launcher.get_default.html">cog_launcher_get_default</a></h6>
 
         <div class="docblock">
-          <p>Returns the <code>CogLauncher</code> single instance, creating it if&nbsp;needed.</p>
+          <p>Returns the <code>CogLauncher</code> single instance, creating a regular
+(non-autoamted) launcher if&nbsp;needed.</p>
+        </div>
+
+        
+      </div>
+      
+      <div class="">
+        <h6><a href="type_func.Launcher.init_default.html">cog_launcher_init_default</a></h6>
+
+        <div class="docblock">
+          <p>Initializes once the <code>CogLauncher</code> single instance. This instance
+can be accessed later through&nbsp;cog_launcher_get_default().</p>
         </div>
 
         

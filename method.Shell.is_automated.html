@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Launcher.get_shell</title>
+  <title>Cog.Shell.is_automated</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta priority="og:title" content="Cog.Launcher.get_shell"/>
-  <meta priority="og:description" content="Reference for Cog.Launcher.get_shell"/>
-  <meta name="twitter:title" content="Cog.Launcher.get_shell"/>
-  <meta name="twitter:description" content="Reference for Cog.Launcher.get_shell"/>
+  <meta priority="og:title" content="Cog.Shell.is_automated"/>
+  <meta priority="og:description" content="Reference for Cog.Shell.is_automated"/>
+  <meta name="twitter:title" content="Cog.Shell.is_automated"/>
+  <meta name="twitter:description" content="Reference for Cog.Shell.is_automated"/>
 
 
   
@@ -80,22 +80,32 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <div class="section">
   <h5>Type</h5>
   <div class="links">
-    <a href="class.Launcher.html">Launcher</a>
+    <a href="class.Shell.html">Shell</a>
   </div>
 </div>
 <div class="section">
   <h5>Methods</h5>
   <div class="links">
   
-    <a class="method" href="method.Launcher.add_web_cookies_option_entries.html">add_web_cookies_option_entries</a>
+    <a class="method" href="method.Shell.get_config_file.html">get_config_file</a>
   
-    <a class="method" href="method.Launcher.add_web_permissions_option_entries.html">add_web_permissions_option_entries</a>
+    <a class="method" href="method.Shell.get_device_scale_factor.html">get_device_scale_factor</a>
   
-    <a class="method" href="method.Launcher.add_web_settings_option_entries.html">add_web_settings_option_entries</a>
+    <a class="method" href="method.Shell.get_name.html">get_name</a>
   
-    <a class="method current" href="method.Launcher.get_shell.html">get_shell</a>
+    <a class="method" href="method.Shell.get_web_context.html">get_web_context</a>
   
-    <a class="method" href="method.Launcher.is_automated.html">is_automated</a>
+    <a class="method" href="method.Shell.get_web_settings.html">get_web_settings</a>
+  
+    <a class="method" href="method.Shell.get_web_view.html">get_web_view</a>
+  
+    <a class="method current" href="method.Shell.is_automated.html">is_automated</a>
+  
+    <a class="method" href="method.Shell.set_request_handler.html">set_request_handler</a>
+  
+    <a class="method" href="method.Shell.shutdown.html">shutdown</a>
+  
+    <a class="method" href="method.Shell.startup.html">startup</a>
   
   </div>
 </div>
@@ -110,7 +120,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <section id="main" class="content">
   <header>
     <h3>Method</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Launcher.html">Launcher</a><span class="sep"></span>get_shell</h1>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Shell.html">Shell</a><span class="sep"></span>is_automated</h1>
   </header>
 
   <section>
@@ -119,14 +129,14 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Declaration
         <a class="anchor" href="#declaration"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-launcher.h#L37">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-shell.h#L40">[src]</a>
         
       </h4>
 
       <div class="docblock c-decl">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">CogShell</span><span class="o">*</span><span class="w"></span>
-<span class="n">cog_launcher_get_shell</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="n">CogLauncher</span><span class="o">*</span><span class="w"> </span><span class="n">launcher</span><span class="w"></span>
+        <pre><code><div class="highlight"><pre><span></span><span class="n">gboolean</span><span class="w"></span>
+<span class="n">cog_shell_is_automated</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogShell</span><span class="o">*</span><span class="w"> </span><span class="n">shell</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
 </code></pre>
@@ -138,12 +148,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a class="anchor" href="#description"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-launcher.c#L380">[src]</a>
-        
       </h4>
 
       <div class="docblock">
-        <p>Obtains the <a href="class.Shell.html"><code>CogShell</code></a> instance managed by the&nbsp;launcher.</p>
+        No description available.
       </div>
 
       <div class="docblock">
@@ -170,16 +178,16 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="returns">
           <tr class="arg-name">
             <td>Returns:</td>
-            <td><a href="class.Shell.html"><code>CogShell</code></a></td>
+            <td><code>gboolean</code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td><p>Shell instance for the&nbsp;launcher.</p></td>
+            <td>No description available.</td>
           </tr>
           
           
           
-          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the instance.</td></tr>
+          
           
           
         </table>

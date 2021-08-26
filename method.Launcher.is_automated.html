@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Launcher.get_shell</title>
+  <title>Cog.Launcher.is_automated</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta priority="og:title" content="Cog.Launcher.get_shell"/>
-  <meta priority="og:description" content="Reference for Cog.Launcher.get_shell"/>
-  <meta name="twitter:title" content="Cog.Launcher.get_shell"/>
-  <meta name="twitter:description" content="Reference for Cog.Launcher.get_shell"/>
+  <meta priority="og:title" content="Cog.Launcher.is_automated"/>
+  <meta priority="og:description" content="Reference for Cog.Launcher.is_automated"/>
+  <meta name="twitter:title" content="Cog.Launcher.is_automated"/>
+  <meta name="twitter:description" content="Reference for Cog.Launcher.is_automated"/>
 
 
   
@@ -93,9 +93,9 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
     <a class="method" href="method.Launcher.add_web_settings_option_entries.html">add_web_settings_option_entries</a>
   
-    <a class="method current" href="method.Launcher.get_shell.html">get_shell</a>
+    <a class="method" href="method.Launcher.get_shell.html">get_shell</a>
   
-    <a class="method" href="method.Launcher.is_automated.html">is_automated</a>
+    <a class="method current" href="method.Launcher.is_automated.html">is_automated</a>
   
   </div>
 </div>
@@ -110,7 +110,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <section id="main" class="content">
   <header>
     <h3>Method</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Launcher.html">Launcher</a><span class="sep"></span>get_shell</h1>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Launcher.html">Launcher</a><span class="sep"></span>is_automated</h1>
   </header>
 
   <section>
@@ -119,13 +119,13 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Declaration
         <a class="anchor" href="#declaration"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-launcher.h#L37">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-launcher.h#L38">[src]</a>
         
       </h4>
 
       <div class="docblock c-decl">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">CogShell</span><span class="o">*</span><span class="w"></span>
-<span class="n">cog_launcher_get_shell</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+        <pre><code><div class="highlight"><pre><span></span><span class="n">gboolean</span><span class="w"></span>
+<span class="n">cog_launcher_is_automated</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
 <span class="w">  </span><span class="n">CogLauncher</span><span class="o">*</span><span class="w"> </span><span class="n">launcher</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
@@ -138,12 +138,12 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a class="anchor" href="#description"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-launcher.c#L380">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-launcher.c#L394">[src]</a>
         
       </h4>
 
       <div class="docblock">
-        <p>Obtains the <a href="class.Shell.html"><code>CogShell</code></a> instance managed by the&nbsp;launcher.</p>
+        <p>Whether this launcher was created in automated&nbsp;mode.</p>
       </div>
 
       <div class="docblock">
@@ -170,16 +170,16 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="returns">
           <tr class="arg-name">
             <td>Returns:</td>
-            <td><a href="class.Shell.html"><code>CogShell</code></a></td>
+            <td><code>gboolean</code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td><p>Shell instance for the&nbsp;launcher.</p></td>
+            <td><p><span class="caps">TRUE</span> if this session is automated, <span class="caps">FALSE</span>&nbsp;otherwise.</p></td>
           </tr>
           
           
           
-          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the instance.</td></tr>
+          
           
           
         </table>
