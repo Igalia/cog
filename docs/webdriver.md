@@ -46,6 +46,11 @@ driver = webdriver.Remote(
 ## Using the driver
 
 ```python
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.actions.action_builder import ActionBuilder
+
 driver.get("https://lichess.org/analysis")
 board = WebDriverWait(driver, 10).until(
     EC.presence_of_element_located((By.CLASS_NAME, "cg-wrap"))
