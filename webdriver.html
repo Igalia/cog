@@ -124,7 +124,12 @@ $ WPEWebDriver --port<span class="o">=</span><span class="m">8088</span> --host<
 </code></pre></div>
 
 <h2 id="using-the-driver">Using the driver<a class="md-anchor" href="#using-the-driver" title="Permanent link"></a></h2>
-<div class="codehilite"><pre><span></span><code><span class="n">driver</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://lichess.org/analysis&quot;</span><span class="p">)</span>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">selenium.webdriver.support.ui</span> <span class="kn">import</span> <span class="n">WebDriverWait</span>
+<span class="kn">from</span> <span class="nn">selenium.webdriver.support</span> <span class="kn">import</span> <span class="n">expected_conditions</span> <span class="k">as</span> <span class="n">EC</span>
+<span class="kn">from</span> <span class="nn">selenium.webdriver.common.by</span> <span class="kn">import</span> <span class="n">By</span>
+<span class="kn">from</span> <span class="nn">selenium.webdriver.common.actions.action_builder</span> <span class="kn">import</span> <span class="n">ActionBuilder</span>
+
+<span class="n">driver</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://lichess.org/analysis&quot;</span><span class="p">)</span>
 <span class="n">board</span> <span class="o">=</span> <span class="n">WebDriverWait</span><span class="p">(</span><span class="n">driver</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span><span class="o">.</span><span class="n">until</span><span class="p">(</span>
     <span class="n">EC</span><span class="o">.</span><span class="n">presence_of_element_located</span><span class="p">((</span><span class="n">By</span><span class="o">.</span><span class="n">CLASS_NAME</span><span class="p">,</span> <span class="s2">&quot;cg-wrap&quot;</span><span class="p">))</span>
 <span class="p">)</span>
