@@ -1,3 +1,12 @@
+==========================
+0.10.1 - September 7, 2021
+==========================
+
+- drm: Added support for absolute pointer motion events.
+- drm: Fixed the build with the platform module enabled.
+- headless: Added a COG_PLATFORM_HEADLESS CMake option to make the
+  platform module optional.
+
 =====================
 0.10.0 - May 18, 2021
 =====================
