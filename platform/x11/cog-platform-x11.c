@@ -744,6 +744,13 @@ clear_glib (void)
     g_clear_pointer (&s_display->xcb.source, g_source_unref);
 }
 
+static struct wpe_view_backend *
+gamepad_provider_get_view_backend_for_gamepad(void *provider G_GNUC_UNUSED, void *gamepad G_GNUC_UNUSED)
+{
+    assert(s_window && s_window->wpe.backend);
+    return s_window->wpe.backend;
+}
+
 static gboolean
 cog_x11_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, const char *params, GError **error)
 {
@@ -802,6 +809,8 @@ cog_x11_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, con
 
     /* init WPE host data */
     wpe_fdo_initialize_for_egl_display (s_display->egl.display);
+
+    cog_register_gamepad_backend(gamepad_provider_get_view_backend_for_gamepad);
 
     return TRUE;
 }

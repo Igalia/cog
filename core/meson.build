@@ -28,6 +28,7 @@ cogcore_headers = files(
     'cog-webkit-utils.h',
     'cog-platform.h',
     'cog-modules.h',
+    'cog-gamepad.h',
 )
 cogcore_sources = files(
     'cog-directory-files-handler.c',
@@ -46,6 +47,13 @@ cogcore_dependencies = [
 ]
 
 install_headers(cogcore_headers, cogcore_config_h, subdir: 'cog')
+
+if (wpe_dep.version().version_compare('>= 1.13.90') and manette_dep.found())
+    cogcore_sources += files('cog-gamepad-manette.c')
+    cogcore_dependencies += manette_dep
+else
+    cogcore_sources += files('cog-gamepad-noop.c')
+endif
 
 cogcore_lib = shared_library('cogcore',
     cogcore_config_h,

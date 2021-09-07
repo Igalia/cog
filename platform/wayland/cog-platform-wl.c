@@ -2445,6 +2445,14 @@ clear_buffers(void)
 #endif
 }
 
+static struct wpe_view_backend *
+gamepad_provider_get_view_backend_for_gamepad(void *provider G_GNUC_UNUSED, void *gamepad G_GNUC_UNUSED)
+{
+    /* get_view_backend() might not been called yet */
+    g_assert(wpe_view_data.backend);
+    return wpe_view_data.backend;
+}
+
 static gboolean
 cog_wl_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, const char *params, GError **error)
 {
@@ -2485,6 +2493,8 @@ cog_wl_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, cons
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     wpe_video_plane_display_dmabuf_register_receiver (&video_plane_display_dmabuf_receiver, NULL);
 #endif
+
+    cog_register_gamepad_backend(gamepad_provider_get_view_backend_for_gamepad);
 
     return TRUE;
 }

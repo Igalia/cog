@@ -125,6 +125,9 @@ if cog_launcher_system_bus
     )
 endif
 
+wpe_dep = dependency('wpe-1.0')
+manette_dep = dependency('manette-0.2', version: '>=0.2.4', required: false)
+
 subdir('core')
 subdir('platform')
 

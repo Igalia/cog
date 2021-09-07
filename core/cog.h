@@ -14,6 +14,7 @@
 
 #include "cog-config.h"
 #include "cog-directory-files-handler.h"
+#include "cog-gamepad.h"
 #include "cog-host-routes-handler.h"
 #include "cog-modules.h"
 #include "cog-platform.h"
