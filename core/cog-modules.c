@@ -86,6 +86,11 @@ cog_modules_get_preferred(GIOExtensionPoint *extension_point, const char *prefer
 
     ensure_extension_points();
 
+    if (extension_point == COG_MODULES_PLATFORM && g_strcmp0(preferred_module, "fdo") == 0) {
+        g_warning("Platform module name 'fdo' is deprecated, please use 'wl' instead.");
+        preferred_module = "wl";
+    }
+
     GIOExtension *extension, *chosen = NULL;
     if (preferred_module) {
         extension = g_io_extension_point_get_extension_by_name(extension_point, preferred_module);
