@@ -32,6 +32,7 @@ static struct {
     GStrv    dir_handlers;
     GStrv    arguments;
     char    *background_color;
+    int      rotation;  /* TODO: Handle platform properties in a generic way. */
     union {
         char *platform_name;
         CogPlatform *platform;
@@ -60,6 +61,8 @@ static GOptionEntry s_cli_options[] = {
      "Zoom/Scaling factor applied to Web content (default: 1.0, no scaling)", "FACTOR"},
     {"device-scale", '\0', 0, G_OPTION_ARG_DOUBLE, &s_options.device_scale_factor,
      "Output device scaling factor (default: 1.0, no scaling, 96 DPI)", "FACTOR"},
+    {"rotation", 'r', 0, G_OPTION_ARG_INT, &s_options.rotation,
+     "Output device clockwise rotation in degrees (default: 0)", "DEGREES"},
     {"doc-viewer", '\0', 0, G_OPTION_ARG_NONE, &s_options.doc_viewer,
      "Document viewer mode: optimizes for local loading of Web content. "
      "This reduces memory usage at the cost of reducing caching of "
@@ -326,6 +329,15 @@ platform_setup (CogShell *shell)
     }
 
     g_clear_pointer(&s_options.platform_name, g_free);
+
+    if (s_options.rotation && g_object_class_find_property(G_OBJECT_GET_CLASS(platform), "rotation")) {
+        if (s_options.rotation < 0)
+            s_options.rotation = 360 - (s_options.rotation % 360);
+        GValue value = G_VALUE_INIT;
+        g_value_init(&value, G_TYPE_UINT);
+        g_value_set_uint(&value, s_options.rotation);
+        g_object_set_property(G_OBJECT(platform), "rotation", &value);
+    }
 
     if (!cog_platform_setup(platform, shell, "", &error)) {
         g_warning ("Platform setup failed: %s", error->message);

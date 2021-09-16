@@ -61,7 +61,18 @@ struct _CogDrmPlatformClass {
 
 struct _CogDrmPlatform {
     CogPlatform parent;
+
+    uint32_t rotation;  /* Counter-clockwise degrees. */
+    bool rotation_set;
 };
+
+enum {
+    PROP_0,
+    PROP_ROTATION,
+    N_PROPERTIES,
+};
+
+static GParamSpec *s_properties[N_PROPERTIES] = { NULL, };
 
 G_DECLARE_FINAL_TYPE(CogDrmPlatform, cog_drm_platform, COG, DRM_PLATFORM, CogPlatform)
 
@@ -86,6 +97,14 @@ struct buffer_object {
     } export;
 };
 
+enum {
+    ROTATE_VALUE_INDEX_0,
+    ROTATE_VALUE_INDEX_90,
+    ROTATE_VALUE_INDEX_180,
+    ROTATE_VALUE_INDEX_270,
+    ROTATE_N_VALUES,
+};
+
 static struct {
     int fd;
     drmModeRes *base_resources;
@@ -103,6 +122,8 @@ static struct {
     struct {
         drmModePlane *obj;
         uint32_t obj_id;
+        uint32_t rotation_prop_id;
+        uint64_t rotation_values[ROTATE_N_VALUES];
     } plane;
 
     struct {
@@ -537,25 +558,56 @@ init_drm(void)
 
         drm_data.plane.obj = plane;
         drm_data.plane.obj_id = plane_id;
+        drm_data.plane.rotation_prop_id = 0;
         bool is_primary = false;
 
         drmModeObjectProperties *plane_props = drmModeObjectGetProperties (drm_data.fd, plane_id, DRM_MODE_OBJECT_PLANE);
 
         for (int j = 0; j < plane_props->count_props; ++j) {
             drmModePropertyRes *prop = drmModeGetProperty (drm_data.fd, plane_props->props[j]);
-            is_primary = !g_strcmp0 (prop->name, "type")
-                              && plane_props->prop_values[j] == DRM_PLANE_TYPE_PRIMARY;
-            drmModeFreeProperty (prop);
+            if (!g_strcmp0(prop->name, "type")) {
+                is_primary = plane_props->prop_values[j] == DRM_PLANE_TYPE_PRIMARY;
+            } else if (!g_strcmp0(prop->name, "rotation")) {
+                drm_data.plane.rotation_prop_id = prop->prop_id;
+                /*
+                 * Map bitmask enum value names (which are standard) to their values
+                 * (which are not, and may change from one driver/device to another).
+                 */
+                static const char *value_names[ROTATE_N_VALUES] = {
+                    [ROTATE_VALUE_INDEX_0] = "rotate-0",
+                    [ROTATE_VALUE_INDEX_90] = "rotate-90",
+                    [ROTATE_VALUE_INDEX_180] = "rotate-180",
+                    [ROTATE_VALUE_INDEX_270] = "rotate-270",
+                };
+                for (unsigned m = 0; m < ROTATE_N_VALUES; m++) {
+                    drm_data.plane.rotation_values[m] = UINT64_MAX;
+                    for (unsigned n = 0; n < prop->count_enums; n++)  {
+                        if (!strcmp(value_names[m], prop->enums[n].name)) {
+                            /* The value is the bit index of the bitmask: shift it. */
+                            drm_data.plane.rotation_values[m] = (1 << prop->enums[n].value);
+                            break;
+                        }
+                    }
+                }
+            }
 
-            if (is_primary)
-                break;
+            drmModeFreeProperty(prop);
         }
 
-        drmModeFreeObjectProperties (plane_props);
+        drmModeFreeObjectProperties(plane_props);
 
         if (is_primary)
             break;
     }
+
+    g_debug("%s: using primary plane id %" PRIu32 ", rotation prop id %" PRIu32
+            " {rotate-0 = %#" PRIx64 ", rotate-90 = %#" PRIx64
+            ", rotate-180 = %#" PRIx64 ", rotate-270 = %#" PRIx64 "}",
+            __func__, drm_data.plane.obj_id, drm_data.plane.rotation_prop_id,
+            drm_data.plane.rotation_values[0],
+            drm_data.plane.rotation_values[1],
+            drm_data.plane.rotation_values[2],
+            drm_data.plane.rotation_values[3]);
 
     drm_data.connector_props.props = drmModeObjectGetProperties (drm_data.fd,
                                                                  drm_data.connector.obj_id,
@@ -888,8 +940,20 @@ add_plane_property (drmModeAtomicReq *req, uint32_t obj_id, const char *name, ui
                          req, obj_id, name, value);
 }
 
+static inline uint32_t
+to_drm_rotation(uint32_t cw_degrees)
+{
+    switch (cw_degrees % 360) {
+        case 0:   return drm_data.plane.rotation_values[ROTATE_VALUE_INDEX_0];
+        case 90:  return drm_data.plane.rotation_values[ROTATE_VALUE_INDEX_90];
+        case 180: return drm_data.plane.rotation_values[ROTATE_VALUE_INDEX_180];
+        case 270: return drm_data.plane.rotation_values[ROTATE_VALUE_INDEX_270];
+        default:  return UINT32_MAX;
+    }
+}
+
 static int
-drm_commit_buffer_nonatomic (struct buffer_object *buffer)
+drm_commit_buffer_nonatomic(CogDrmPlatform *platform, struct buffer_object *buffer)
 {
     if (!drm_data.mode_set) {
         int ret = drmModeSetCrtc (drm_data.fd, drm_data.crtc.obj_id, buffer->fb_id, 0, 0,
@@ -900,12 +964,24 @@ drm_commit_buffer_nonatomic (struct buffer_object *buffer)
         drm_data.mode_set = true;
     }
 
+    if (drm_data.plane.rotation_prop_id && !platform->rotation_set) {
+        if (drmModeObjectSetProperty(drm_data.fd, drm_data.plane.obj_id,
+                                     DRM_MODE_OBJECT_PLANE,
+                                     drm_data.plane.rotation_prop_id,
+                                     to_drm_rotation(platform->rotation))) {
+            g_warning("Could not set rotation '%" PRIu32 "' (%s)",
+                      platform->rotation, strerror(errno));
+            return -1;
+        }
+        platform->rotation_set = true;
+    }
+
     return drmModePageFlip (drm_data.fd, drm_data.crtc.obj_id, buffer->fb_id,
                             DRM_MODE_PAGE_FLIP_EVENT, buffer);
 }
 
 static int
-drm_commit_buffer_atomic (struct buffer_object *buffer)
+drm_commit_buffer_atomic(CogDrmPlatform *platform, struct buffer_object *buffer)
 {
     int ret = 0;
     uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_ATOMIC_NONBLOCK;
@@ -931,6 +1007,12 @@ drm_commit_buffer_atomic (struct buffer_object *buffer)
         }
 
         drm_data.mode_set = true;
+    }
+
+    if (drm_data.plane.rotation_prop_id && !platform->rotation_set) {
+        ret |= add_plane_property(req, drm_data.plane.obj_id,
+                                  "rotation", to_drm_rotation(platform->rotation));
+        platform->rotation_set = true;
     }
 
     ret |= add_plane_property (req, drm_data.plane.obj_id,
@@ -969,13 +1051,13 @@ drm_commit_buffer_atomic (struct buffer_object *buffer)
 }
 
 static void
-drm_commit_buffer (struct buffer_object *buffer)
+drm_commit_buffer(CogDrmPlatform *platform, struct buffer_object *buffer)
 {
     int ret;
     if (drm_data.atomic_modesetting)
-        ret = drm_commit_buffer_atomic (buffer);
+        ret = drm_commit_buffer_atomic(platform, buffer);
     else
-        ret = drm_commit_buffer_nonatomic (buffer);
+        ret = drm_commit_buffer_nonatomic(platform, buffer);
 
     if (ret)
         g_warning ("failed to schedule a page flip: %s", strerror (errno));
@@ -1648,10 +1730,11 @@ init_glib (void)
 static void
 on_export_buffer_resource (void *data, struct wl_resource *buffer_resource)
 {
+    CogDrmPlatform *platform = data;
     struct buffer_object *buffer = drm_buffer_for_resource (buffer_resource);
     if (buffer) {
         buffer->export.resource = buffer_resource;
-        drm_commit_buffer (buffer);
+        drm_commit_buffer(platform, buffer);
         return;
     }
 
@@ -1669,17 +1752,18 @@ on_export_buffer_resource (void *data, struct wl_resource *buffer_resource)
     buffer = drm_create_buffer_for_bo (bo, buffer_resource, width, height, format);
     if (buffer) {
         buffer->export.resource = buffer_resource;
-        drm_commit_buffer (buffer);
+        drm_commit_buffer(platform, buffer);
     }
 }
 
 static void
 on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dmabuf_resource *dmabuf_resource)
 {
+    CogDrmPlatform *platform = data;
     struct buffer_object *buffer = drm_buffer_for_resource (dmabuf_resource->buffer_resource);
     if (buffer) {
         buffer->export.resource = dmabuf_resource->buffer_resource;
-        drm_commit_buffer (buffer);
+        drm_commit_buffer(platform, buffer);
         return;
     }
 
@@ -1708,7 +1792,7 @@ on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dm
                                        dmabuf_resource->format);
     if (buffer) {
         buffer->export.resource = dmabuf_resource->buffer_resource;
-        drm_commit_buffer (buffer);
+        drm_commit_buffer(platform, buffer);
     }
 }
 
@@ -1716,6 +1800,7 @@ on_export_dmabuf_resource (void *data, struct wpe_view_backend_exportable_fdo_dm
 static void
 on_export_shm_buffer (void* data, struct wpe_fdo_shm_exported_buffer *exported_buffer)
 {
+    CogDrmPlatform *platform = data;
     struct wl_resource *exported_resource = wpe_fdo_shm_exported_buffer_get_resource (exported_buffer);
     struct wl_shm_buffer *exported_shm_buffer = wpe_fdo_shm_exported_buffer_get_shm_buffer (exported_buffer);
 
@@ -1724,7 +1809,7 @@ on_export_shm_buffer (void* data, struct wpe_fdo_shm_exported_buffer *exported_b
         drm_copy_shm_buffer_into_bo (exported_shm_buffer, buffer->bo);
 
         buffer->export.shm_buffer = exported_buffer;
-        drm_commit_buffer (buffer);
+        drm_commit_buffer(platform, buffer);
         return;
     }
 
@@ -1733,7 +1818,7 @@ on_export_shm_buffer (void* data, struct wpe_fdo_shm_exported_buffer *exported_b
         drm_copy_shm_buffer_into_bo (exported_shm_buffer, buffer->bo);
 
         buffer->export.shm_buffer = exported_buffer;
-        drm_commit_buffer (buffer);
+        drm_commit_buffer(platform, buffer);
     }
 }
 #endif
@@ -1848,7 +1933,7 @@ cog_drm_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_
     };
 
     wpe_host_data.exportable = wpe_view_backend_exportable_fdo_create (&exportable_client,
-                                                                       NULL,
+                                                                       platform,
                                                                        drm_data.width / drm_data.device_scale,
                                                                        drm_data.height / drm_data.device_scale);
     g_assert (wpe_host_data.exportable);
@@ -1873,14 +1958,79 @@ cog_drm_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
 }
 
 static void
+cog_drm_platform_set_property(GObject      *object,
+                              unsigned      prop_id,
+                              const GValue *value,
+                              GParamSpec   *pspec)
+{
+    CogDrmPlatform *self = COG_DRM_PLATFORM(object);
+    switch (prop_id) {
+        case PROP_ROTATION: {
+            uint32_t rotation = g_value_get_uint(value);
+            if (rotation == self->rotation)
+                return;
+            switch (rotation) {
+                case 0: case 90: case 180: case 270:
+                    break;
+                default:
+                    g_warning("Unsupported rotation value '%" PRIu32 "'", rotation);
+                    return;
+            }
+            self->rotation = rotation;
+            self->rotation_set = false;
+            break;
+        }
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+    }
+}
+
+static void
+cog_drm_platform_get_property(GObject    *object,
+                              unsigned    prop_id,
+                              GValue     *value,
+                              GParamSpec *pspec)
+{
+    CogDrmPlatform *self = COG_DRM_PLATFORM(object);
+    switch (prop_id) {
+        case PROP_ROTATION:
+            g_value_set_uint(value, self->rotation);
+            break;
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+    }
+}
+
+static void
 cog_drm_platform_class_init(CogDrmPlatformClass *klass)
 {
+    GObjectClass *object_class = G_OBJECT_CLASS(klass);
+    object_class->get_property = cog_drm_platform_get_property;
+    object_class->set_property = cog_drm_platform_set_property;
+
     CogPlatformClass *platform_class = COG_PLATFORM_CLASS(klass);
     platform_class->is_supported = cog_drm_platform_is_supported;
     platform_class->setup = cog_drm_platform_setup;
     platform_class->teardown = cog_drm_platform_teardown;
     platform_class->get_view_backend = cog_drm_platform_get_view_backend;
     platform_class->init_web_view = cog_drm_platform_init_web_view;
+
+    /* TODO: Move into CogDrmShell once we have such a thing. */
+
+    /**
+     * CogDrmPlatform:rotation:
+     *
+     * Clockwise rotation applied to outputs, in degrees.
+     * Only multiples of 90 degrees are guaranteed to work.
+     */
+    s_properties[PROP_ROTATION] =
+        g_param_spec_uint("rotation",
+                          "Output rotation",
+                          "Amount of clockwise rotation in degrees applied to the output",
+                          0, 359, 0,
+                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+    g_object_class_install_properties(object_class, N_PROPERTIES, s_properties);
 }
 
 static void
