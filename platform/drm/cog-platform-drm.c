@@ -1910,6 +1910,22 @@ cog_drm_platform_teardown(CogPlatform *platform)
     clear_drm ();
 }
 
+static bool
+rotation_needs_size_swap(uint32_t amount)
+{
+    switch (amount) {
+        case 0:
+        case 180:
+            return false;
+        case 90:
+        case 270:
+            return true;
+        default:
+            g_assert_not_reached();
+            return false;
+    }
+}
+
 static WebKitWebViewBackend *
 cog_drm_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_view, GError **error)
 {
@@ -1921,10 +1937,17 @@ cog_drm_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_
 #endif
     };
 
+    uint32_t width = drm_data.width;
+    uint32_t height = drm_data.height;
+    if (rotation_needs_size_swap(COG_DRM_PLATFORM(platform)->rotation)) {
+        width = drm_data.height;
+        height = drm_data.width;
+    }
+
     wpe_host_data.exportable = wpe_view_backend_exportable_fdo_create (&exportable_client,
                                                                        platform,
-                                                                       drm_data.width / drm_data.device_scale,
-                                                                       drm_data.height / drm_data.device_scale);
+                                                                       width / drm_data.device_scale,
+                                                                       height / drm_data.device_scale);
     g_assert (wpe_host_data.exportable);
 
     wpe_view_data.backend = wpe_view_backend_exportable_fdo_get_view_backend (wpe_host_data.exportable);
@@ -1965,6 +1988,22 @@ cog_drm_platform_set_property(GObject      *object,
                     g_warning("Unsupported rotation value '%" PRIu32 "'", rotation);
                     return;
             }
+
+            /* Properties can be set during construction while there is no view backend. */
+            if (wpe_view_data.backend) {
+                if (rotation_needs_size_swap(self->rotation) != rotation_needs_size_swap(rotation)) {
+                    if (rotation_needs_size_swap(rotation)) {
+                        wpe_view_backend_dispatch_set_size(wpe_view_data.backend,
+                                                           drm_data.height / drm_data.device_scale,
+                                                           drm_data.width / drm_data.device_scale);
+                    } else {
+                        wpe_view_backend_dispatch_set_size(wpe_view_data.backend,
+                                                           drm_data.width / drm_data.device_scale,
+                                                           drm_data.height / drm_data.device_scale);
+                    }
+                }
+            }
+
             self->rotation = rotation;
             self->rotation_set = false;
             break;
