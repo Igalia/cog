@@ -15,7 +15,7 @@
 
 #include <stdio.h>
 
-typedef struct _CogPopupMenu {
+struct _CogPopupMenu {
     WebKitOptionMenu *option_menu;
 
     int shm_pool_fd;
@@ -46,7 +46,7 @@ typedef struct _CogPopupMenu {
     int finalized_local_index;
     int finalized_selection_index;
     bool pending_changes;
-} CogPopupMenu;
+};
 
 #define VERTICAL_PADDING             20
 #define HORIZONTAL_PADDING           40
