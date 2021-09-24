@@ -383,3 +383,123 @@ cog_option_entries_from_class (GObjectClass *klass)
 
     return g_steal_pointer (&entries);
 }
+
+/**
+ * cog_apply_properties_from_key_file:
+ * @object: An object to set properties on
+ * @key_file: A key file
+ * @group_name: Name of a key file group
+ * @error: Where to store an error, if any
+ *
+ * Set properties on an object from values stored in a #GKeyFile.
+ *
+ * For each writable property of the object's class, looks up key with
+ * the same name as the property in the specified group of the key file.
+ * If present, it will be set as the new value of the property.
+ *
+ * If the specified group name does not exist in the key file, the
+ * function returns `TRUE` without applying any changes to the object.
+ * The group may contain keys with names other than those of the object
+ * properties; these keys will be ignored.
+ *
+ * Properties of the following types are supported:
+ *
+ * - `G_TYPE_BOOLEAN`
+ * - `G_TYPE_DOUBLE`
+ * - `G_TYPE_FLOAT`
+ * - `G_TYPE_STRING`
+ *
+ * Returns: Whether the configuration file values have been successfully
+ *    applied to the corresponding object properties.
+ *
+ * Since: 0.18
+ */
+gboolean
+cog_apply_properties_from_key_file(GObject *object, GKeyFile *key_file, const char *group_name, GError **error)
+{
+    g_return_val_if_fail(G_IS_OBJECT(object), FALSE);
+    g_return_val_if_fail(key_file != NULL, FALSE);
+    g_return_val_if_fail(group_name != NULL, FALSE);
+
+    if (!g_key_file_has_group(key_file, group_name))
+        return TRUE;
+
+    GObjectClass *object_class = G_OBJECT_GET_CLASS(object);
+
+    unsigned n_properties = 0;
+
+    g_autofree GParamSpec **properties = g_object_class_list_properties(object_class, &n_properties);
+
+    if (!properties || n_properties == 0)
+        return TRUE;
+
+    for (unsigned i = 0; i < n_properties; i++) {
+        GParamSpec *pspec = properties[i];
+
+        /* Pick only writable properties. */
+        if (!pspec || !(pspec->flags & G_PARAM_WRITABLE) || (pspec->flags & G_PARAM_CONSTRUCT_ONLY))
+            continue;
+
+        g_autoptr(GError) item_error = NULL;
+        g_auto(GValue)    prop_value = G_VALUE_INIT;
+        const GType       prop_type = G_PARAM_SPEC_VALUE_TYPE(pspec);
+        const char       *prop_name = g_param_spec_get_name(pspec);
+
+        switch (prop_type) {
+        case G_TYPE_BOOLEAN: {
+            gboolean value = g_key_file_get_boolean(key_file, group_name, prop_name, &item_error);
+            if (!value && item_error) {
+                if (g_error_matches(item_error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND))
+                    continue;
+                g_propagate_error(error, g_steal_pointer(&item_error));
+                return FALSE;
+            }
+            g_value_set_boolean(g_value_init(&prop_value, G_TYPE_BOOLEAN), value);
+            break;
+        }
+
+        case G_TYPE_FLOAT:
+        case G_TYPE_DOUBLE: {
+            double value = g_key_file_get_double(key_file, group_name, prop_name, &item_error);
+            if (g_error_matches(item_error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND))
+                continue;
+            if (item_error) {
+                g_propagate_error(error, g_steal_pointer(&item_error));
+                return FALSE;
+            }
+            g_value_set_double(g_value_init(&prop_value, G_TYPE_DOUBLE), value);
+            break;
+        }
+
+        case G_TYPE_STRING: {
+            g_autofree char *value = g_key_file_get_string(key_file, group_name, prop_name, &item_error);
+            if (g_error_matches(item_error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_NOT_FOUND))
+                continue;
+            if (item_error) {
+                g_propagate_error(error, g_steal_pointer(&item_error));
+                return FALSE;
+            }
+            g_value_take_string(g_value_init(&prop_value, G_TYPE_STRING), g_steal_pointer(&value));
+            break;
+        }
+
+        default:
+            /* Skip properties of unsupported types. */
+            continue;
+        }
+
+        g_assert(G_IS_VALUE(&prop_value));
+        g_object_set_property(object, prop_name, &prop_value);
+
+        g_auto(GValue) prop_str_value = G_VALUE_INIT;
+        g_value_init(&prop_str_value, G_TYPE_STRING);
+        if (g_value_transform(&prop_value, &prop_str_value)) {
+            g_debug("%s: Setting %s<%p>.%s = <%s>", __func__, G_OBJECT_CLASS_NAME(object_class), object, prop_name,
+                    g_value_get_string(&prop_str_value));
+        } else {
+            g_debug("%s: Setting %s<%p>.%s = <...>", __func__, G_OBJECT_CLASS_NAME(object_class), object, prop_name);
+        }
+    }
+
+    return TRUE;
+}
