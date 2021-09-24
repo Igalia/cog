@@ -50,9 +50,7 @@ struct _CogDrmPlatformClass {
 
 struct _CogDrmPlatform {
     CogPlatform parent;
-
-    uint32_t rotation;  /* Counter-clockwise degrees. */
-    bool rotation_set;
+    unsigned rotation;  /* Number of counter-clockwise 90 degree increments. */
 };
 
 enum {
@@ -87,10 +85,10 @@ struct buffer_object {
 };
 
 enum {
-    ROTATE_VALUE_INDEX_0,
-    ROTATE_VALUE_INDEX_90,
-    ROTATE_VALUE_INDEX_180,
-    ROTATE_VALUE_INDEX_270,
+    ROTATE_VALUE_INDEX_0   = 0,
+    ROTATE_VALUE_INDEX_90  = 1,
+    ROTATE_VALUE_INDEX_180 = 2,
+    ROTATE_VALUE_INDEX_270 = 3,
     ROTATE_N_VALUES,
 };
 
@@ -123,8 +121,6 @@ static struct {
     drmModeModeInfo *mode;
     drmModeEncoder *encoder;
 
-    uint32_t width;
-    uint32_t height;
     double device_scale;
 
     bool atomic_modesetting;
@@ -143,8 +139,6 @@ static struct {
     .plane_props = { NULL, NULL, },
     .mode = NULL,
     .encoder = NULL,
-    .width = 0,
-    .height = 0,
     .device_scale = 1.0,
     .atomic_modesetting = true,
     .mode_set = false,
@@ -634,8 +628,6 @@ init_drm(void)
         }
     }
 
-    drm_data.width = drm_data.mode->hdisplay;
-    drm_data.height = drm_data.mode->vdisplay;
     wl_list_init (&drm_data.buffer_list);
 
     g_clear_pointer (&drm_data.base_resources, drmModeFreeResources);
@@ -776,6 +768,8 @@ drm_create_buffer_for_bo (struct gbm_bo *bo, struct wl_resource *buffer_resource
     int ret = drmModeAddFB2WithModifiers (drm_data.fd, width, height, format,
                                           in_handles, in_strides, in_offsets, in_modifiers,
                                           &fb_id, flags);
+    g_debug("%s: created fb_id=%" PRIu32 " size %" PRIu32 "x%" PRIu32,
+            __func__, fb_id, width, height);
     if (ret) {
         in_handles[0] = gbm_bo_get_handle (bo).u32;
         in_handles[1] = in_handles[2] = in_handles[3] = 0;
@@ -898,6 +892,8 @@ add_property (drmModeObjectProperties *props, drmModePropertyRes **props_info, d
     for (int i = 0; i < props->count_props; ++i) {
         if (!g_strcmp0 (props_info[i]->name, name)) {
             int ret = drmModeAtomicAddProperty (req, obj_id, props_info[i]->prop_id, value);
+            if (ret < 0)
+                g_warning("%s: Cannot set property '%s': %s", __func__, name, strerror(-ret));
             return (ret > 0) ? 0 : -1;
         }
     }
@@ -929,16 +925,39 @@ add_plane_property (drmModeAtomicReq *req, uint32_t obj_id, const char *name, ui
                          req, obj_id, name, value);
 }
 
-static inline uint32_t
-to_drm_rotation(uint32_t cw_degrees)
+static inline uint64_t
+to_drm_rotation(uint32_t value)
 {
-    switch (cw_degrees % 360) {
-        case 0:   return drm_data.plane.rotation_values[ROTATE_VALUE_INDEX_0];
-        case 90:  return drm_data.plane.rotation_values[ROTATE_VALUE_INDEX_90];
-        case 180: return drm_data.plane.rotation_values[ROTATE_VALUE_INDEX_180];
-        case 270: return drm_data.plane.rotation_values[ROTATE_VALUE_INDEX_270];
-        default:  return UINT32_MAX;
+    g_assert(value < ROTATE_N_VALUES);
+    return drm_data.plane.rotation_values[value];
+}
+
+static inline bool
+angle_is_tilted(uint32_t value)
+{
+    return (value & 0x1);
+}
+
+/* Calculate the transformed output resolution. */
+static void
+transformed_resolution(CogDrmPlatform *self, uint32_t *width, uint32_t *height)
+{
+    if (angle_is_tilted(self->rotation)) {
+        *width = drm_data.mode->vdisplay;
+        *height = drm_data.mode->hdisplay;
+    } else {
+        *width = drm_data.mode->hdisplay;
+        *height = drm_data.mode->vdisplay;
     }
+}
+
+/* Calculate the transformed and scaled output resolution. */
+static void
+effective_resolution(CogDrmPlatform *self, uint32_t *width, uint32_t *height)
+{
+    transformed_resolution(self, width, height);
+    *width /= drm_data.device_scale;
+    *height /= drm_data.device_scale;
 }
 
 static int
@@ -953,16 +972,14 @@ drm_commit_buffer_nonatomic(CogDrmPlatform *platform, struct buffer_object *buff
         drm_data.mode_set = true;
     }
 
-    if (drm_data.plane.rotation_prop_id && !platform->rotation_set) {
+    if (drm_data.plane.rotation_prop_id) {
+        const uint64_t rotation = to_drm_rotation(platform->rotation);
         if (drmModeObjectSetProperty(drm_data.fd, drm_data.plane.obj_id,
                                      DRM_MODE_OBJECT_PLANE,
                                      drm_data.plane.rotation_prop_id,
-                                     to_drm_rotation(platform->rotation))) {
-            g_warning("Could not set rotation '%" PRIu32 "' (%s)",
-                      platform->rotation, strerror(errno));
-            return -1;
+                                     rotation)) {
+            g_warning("%s: Could not set rotation (%s)", __func__, strerror(errno));
         }
-        platform->rotation_set = true;
     }
 
     return drmModePageFlip (drm_data.fd, drm_data.crtc.obj_id, buffer->fb_id,
@@ -998,11 +1015,14 @@ drm_commit_buffer_atomic(CogDrmPlatform *platform, struct buffer_object *buffer)
         drm_data.mode_set = true;
     }
 
-    if (drm_data.plane.rotation_prop_id && !platform->rotation_set) {
-        ret |= add_plane_property(req, drm_data.plane.obj_id,
-                                  "rotation", to_drm_rotation(platform->rotation));
-        platform->rotation_set = true;
+    uint32_t width, height;
+    transformed_resolution(platform, &width, &height);
+
+    if (drm_data.plane.rotation_prop_id) {
+        const uint64_t rotation = to_drm_rotation(platform->rotation);
+        ret |= add_plane_property(req, drm_data.plane.obj_id, "rotation", rotation);
     }
+    flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
 
     ret |= add_plane_property (req, drm_data.plane.obj_id,
                                "FB_ID", buffer->fb_id);
@@ -1013,21 +1033,35 @@ drm_commit_buffer_atomic(CogDrmPlatform *platform, struct buffer_object *buffer)
     ret |= add_plane_property (req, drm_data.plane.obj_id,
                                "SRC_Y", 0);
     ret |= add_plane_property (req, drm_data.plane.obj_id,
-                               "SRC_W", ((uint64_t) drm_data.width) << 16);
+                               "SRC_W", width << 16);
     ret |= add_plane_property (req, drm_data.plane.obj_id,
-                               "SRC_H", ((uint64_t) drm_data.height) << 16);
+                               "SRC_H", height << 16);
     ret |= add_plane_property (req, drm_data.plane.obj_id,
                                "CRTC_X", 0);
     ret |= add_plane_property (req, drm_data.plane.obj_id,
                                "CRTC_Y", 0);
     ret |= add_plane_property (req, drm_data.plane.obj_id,
-                               "CRTC_W", drm_data.width);
+                               "CRTC_W", width);
     ret |= add_plane_property (req, drm_data.plane.obj_id,
-                               "CRTC_H", drm_data.height);
+                               "CRTC_H", height);
     if (ret) {
         drmModeAtomicFree (req);
         return -1;
     }
+
+    g_debug("%s: Submit"
+            " fb_id=%" PRIu32
+            " crtc_id=%" PRIu32
+            " src=[%" PRIu32 ",%" PRIu32 " %" PRIu32 "x%" PRIu32 "]"
+            " crtc=[%" PRIu32 ",%" PRIu32 " %" PRIu32 "x%" PRIu32 "]"
+            " rotation=%" PRIx64
+            ,
+            __func__,
+            buffer->fb_id,
+            drm_data.crtc.obj_id,
+            0, 0, width, height, /* src_[xywh] */
+            0, 0, width, height, /* crtc_[xywh] */
+            to_drm_rotation(platform->rotation));
 
     ret = drmModeAtomicCommit (drm_data.fd, req, flags, buffer);
     if (ret) {
@@ -1910,22 +1944,6 @@ cog_drm_platform_teardown(CogPlatform *platform)
     clear_drm ();
 }
 
-static bool
-rotation_needs_size_swap(uint32_t amount)
-{
-    switch (amount) {
-        case 0:
-        case 180:
-            return false;
-        case 90:
-        case 270:
-            return true;
-        default:
-            g_assert_not_reached();
-            return false;
-    }
-}
-
 static WebKitWebViewBackend *
 cog_drm_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_view, GError **error)
 {
@@ -1937,17 +1955,10 @@ cog_drm_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_
 #endif
     };
 
-    uint32_t width = drm_data.width;
-    uint32_t height = drm_data.height;
-    if (rotation_needs_size_swap(COG_DRM_PLATFORM(platform)->rotation)) {
-        width = drm_data.height;
-        height = drm_data.width;
-    }
-
-    wpe_host_data.exportable = wpe_view_backend_exportable_fdo_create (&exportable_client,
-                                                                       platform,
-                                                                       width / drm_data.device_scale,
-                                                                       height / drm_data.device_scale);
+    uint32_t width, height;
+    effective_resolution(COG_DRM_PLATFORM(platform), &width, &height);
+    g_debug("%s: Effective resolution %" PRIu32 "x%" PRIu32 ".", __func__, width, height);
+    wpe_host_data.exportable = wpe_view_backend_exportable_fdo_create(&exportable_client, platform, width, height);
     g_assert (wpe_host_data.exportable);
 
     wpe_view_data.backend = wpe_view_backend_exportable_fdo_get_view_backend (wpe_host_data.exportable);
@@ -1978,34 +1989,45 @@ cog_drm_platform_set_property(GObject      *object,
     CogDrmPlatform *self = COG_DRM_PLATFORM(object);
     switch (prop_id) {
         case PROP_ROTATION: {
-            uint32_t rotation = g_value_get_uint(value);
+            const uint32_t rotation = g_value_get_uint(value);
             if (rotation == self->rotation)
                 return;
-            switch (rotation) {
-                case 0: case 90: case 180: case 270:
-                    break;
-                default:
-                    g_warning("Unsupported rotation value '%" PRIu32 "'", rotation);
-                    return;
-            }
 
-            /* Properties can be set during construction while there is no view backend. */
-            if (wpe_view_data.backend) {
-                if (rotation_needs_size_swap(self->rotation) != rotation_needs_size_swap(rotation)) {
-                    if (rotation_needs_size_swap(rotation)) {
-                        wpe_view_backend_dispatch_set_size(wpe_view_data.backend,
-                                                           drm_data.height / drm_data.device_scale,
-                                                           drm_data.width / drm_data.device_scale);
-                    } else {
-                        wpe_view_backend_dispatch_set_size(wpe_view_data.backend,
-                                                           drm_data.width / drm_data.device_scale,
-                                                           drm_data.height / drm_data.device_scale);
-                    }
-                }
+            /*
+             * Properties can be set during construction while there
+             * is no view and the video mode has not been chosen yet.
+             */
+            if (!(wpe_view_data.backend && drm_data.mode)) {
+                g_debug("%s: Set initial rotation to %u (%u CCW)",
+                        __func__, rotation, rotation * 90);
+                self->rotation = rotation;
+                return;
             }
+                
+            uint32_t prev_width, prev_height;
+            effective_resolution(self, &prev_width, &prev_height);
+
+            g_debug("%s: Set rotation from %u (%u CCW) to %u (%u CCW)", __func__,
+                    self->rotation, self->rotation * 90,
+                    rotation, rotation * 90);
 
             self->rotation = rotation;
-            self->rotation_set = false;
+            uint32_t width, height;
+            effective_resolution(self, &width, &height);
+
+            const bool changed = (prev_width != width || prev_height != height);
+            if (changed) {
+                wpe_view_backend_dispatch_set_size(wpe_view_data.backend, width, height);
+                wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_data.backend, drm_data.device_scale);
+                g_debug("%s: Dispatched resize from %" PRIu32 "x%" PRIu32 "@%.2fx to"
+                        "to %" PRIu32 "x%" PRIu32 "@%.2fx.", __func__,
+                        prev_width, prev_height, drm_data.device_scale,
+                        width, height, drm_data.device_scale);
+            } else {
+                g_debug("%s: Effective resolution unchanged at "
+                        "%" PRIu32 "x%" PRIu32 "@%.2f.", __func__,
+                        width, height, drm_data.device_scale);
+            }
             break;
         }
         default:
@@ -2048,14 +2070,19 @@ cog_drm_platform_class_init(CogDrmPlatformClass *klass)
     /**
      * CogDrmPlatform:rotation:
      *
-     * Clockwise rotation applied to outputs, in degrees.
-     * Only multiples of 90 degrees are guaranteed to work.
+     * Rotation applied to outputs. The value is the number of 90 degree
+     * increments applied clockwise, which means the possible values are:
+     *
+     * - `0`: No rotation.
+     * - `1`: 90 degrees.
+     * - `2`: 180 degrees.
+     * - `3`: 279 degrees.
      */
     s_properties[PROP_ROTATION] =
         g_param_spec_uint("rotation",
                           "Output rotation",
                           "Amount of clockwise rotation in degrees applied to the output",
-                          0, 359, 0,
+                          ROTATE_VALUE_INDEX_0, ROTATE_VALUE_INDEX_270, ROTATE_VALUE_INDEX_0,
                           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
     g_object_class_install_properties(object_class, N_PROPERTIES, s_properties);
