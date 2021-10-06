@@ -124,6 +124,7 @@ static struct {
     double device_scale;
 
     bool atomic_modesetting;
+    bool universal_planes;
     bool mode_set;
     struct wl_list buffer_list;
     struct buffer_object *committed_buffer;
@@ -412,6 +413,8 @@ init_drm(void)
     if (!drm_data.base_resources)
         return FALSE;
 
+    drm_data.universal_planes = drmSetClientCap(drm_data.fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1) == 0;
+
     if (drm_data.atomic_modesetting) {
         int ret = drmSetClientCap (drm_data.fd, DRM_CLIENT_CAP_ATOMIC, 1);
         if (ret) {
@@ -662,9 +665,8 @@ clear_cursor (void) {
 static gboolean
 init_cursor (void)
 {
-    bool cursor_supported = drmSetClientCap(drm_data.fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1) == 0;
-    if (!cursor_supported) {
-        g_warning("cursor not supported");
+    if (!drm_data.universal_planes) {
+        g_warning("cursor not supported: no universal planes");
         return FALSE;
     }
 
