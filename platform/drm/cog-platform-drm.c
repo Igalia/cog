@@ -21,6 +21,11 @@
 
 #include "../common/egl-proc-address.h"
 
+#ifndef LIBINPUT_CHECK_VERSION
+#    define LIBINPUT_CHECK_VERSION(a, b, c)                                                         \
+        ((LIBINPUT_VER_MAJOR > (a)) || (LIBINPUT_VER_MAJOR == (a) && (LIBINPUT_VER_MINOR > (b))) || \
+         (LIBINPUT_VER_MAJOR == (a) && (LIBINPUT_VER_MINOR == (b)) && (LIBINPUT_VER_MICRO >= (c))))
+#endif /* !LIBINPUT_CHECK_VERSION */
 
 #if !defined(EGL_EXT_platform_base)
 typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platform, void *native_display, const EGLint *attrib_list);
@@ -1219,26 +1224,111 @@ input_process_events (void)
 
         enum libinput_event_type event_type = libinput_event_get_type (event);
         switch (event_type) {
-            case LIBINPUT_EVENT_KEYBOARD_KEY:
-                input_handle_key_event (libinput_event_get_keyboard_event (event));
-                break;
-            case LIBINPUT_EVENT_TOUCH_DOWN:
-            case LIBINPUT_EVENT_TOUCH_UP:
-            case LIBINPUT_EVENT_TOUCH_MOTION:
-            case LIBINPUT_EVENT_TOUCH_FRAME:
-                input_handle_touch_event(event_type, libinput_event_get_touch_event(event));
-                break;
-            case LIBINPUT_EVENT_POINTER_MOTION:
-                input_handle_pointer_motion_event(libinput_event_get_pointer_event(event), false);
-                break;
-            case LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE:
-                input_handle_pointer_motion_event(libinput_event_get_pointer_event(event), true);
-                break;
-            case LIBINPUT_EVENT_POINTER_BUTTON:
-                input_handle_pointer_button_event(libinput_event_get_pointer_event(event));
-                break;
-            default:
-                break;
+        case LIBINPUT_EVENT_NONE:
+            return;
+
+        case LIBINPUT_EVENT_DEVICE_ADDED:
+        case LIBINPUT_EVENT_DEVICE_REMOVED:
+            break;
+
+        case LIBINPUT_EVENT_KEYBOARD_KEY:
+            input_handle_key_event(libinput_event_get_keyboard_event(event));
+            break;
+
+        case LIBINPUT_EVENT_TOUCH_CANCEL:
+            break;
+        case LIBINPUT_EVENT_TOUCH_DOWN:
+        case LIBINPUT_EVENT_TOUCH_UP:
+        case LIBINPUT_EVENT_TOUCH_MOTION:
+        case LIBINPUT_EVENT_TOUCH_FRAME:
+            input_handle_touch_event(event_type, libinput_event_get_touch_event(event));
+            break;
+
+        case LIBINPUT_EVENT_POINTER_MOTION:
+            input_handle_pointer_motion_event(libinput_event_get_pointer_event(event), false);
+            break;
+        case LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE:
+            input_handle_pointer_motion_event(libinput_event_get_pointer_event(event), true);
+            break;
+
+        case LIBINPUT_EVENT_POINTER_BUTTON:
+            input_handle_pointer_button_event(libinput_event_get_pointer_event(event));
+            break;
+
+        case LIBINPUT_EVENT_GESTURE_SWIPE_BEGIN:
+        case LIBINPUT_EVENT_GESTURE_SWIPE_UPDATE:
+        case LIBINPUT_EVENT_GESTURE_SWIPE_END:
+            g_debug("%s: GESTURE_SWIPE_{BEGIN,UPDATE,END} unimplemented", __func__);
+            break;
+
+        case LIBINPUT_EVENT_GESTURE_PINCH_BEGIN:
+        case LIBINPUT_EVENT_GESTURE_PINCH_UPDATE:
+        case LIBINPUT_EVENT_GESTURE_PINCH_END:
+            g_debug("%s: GESTURE_PINCH_{BEGIN,UPDATE,END} unimplemented", __func__);
+            break;
+
+#if LIBINPUT_CHECK_VERSION(1, 2, 0)
+        case LIBINPUT_EVENT_TABLET_TOOL_AXIS:
+            g_debug("%s: TABLET_TOOL_AXIS unimplemented", __func__);
+            break;
+        case LIBINPUT_EVENT_TABLET_TOOL_PROXIMITY:
+            g_debug("%s: TABLET_TOOL_PROXIMITY unimplemented", __func__);
+            break;
+        case LIBINPUT_EVENT_TABLET_TOOL_TIP:
+            g_debug("%s: TABLET_TOOL_TIP unimplemented", __func__);
+            break;
+        case LIBINPUT_EVENT_TABLET_TOOL_BUTTON:
+            g_debug("%s: TABLET_TOOL_BUTTON unimplemented", __func__);
+            break;
+#endif /* LIBINPUT_CHECK_VERSION(1, 2, 0) */
+
+#if LIBINPUT_CHECK_VERSION(1, 3, 0)
+        case LIBINPUT_EVENT_TABLET_PAD_BUTTON:
+            g_debug("%s: TABLET_PAD_BUTTON unimplemented", __func__);
+            break;
+        case LIBINPUT_EVENT_TABLET_PAD_RING:
+            g_debug("%s: TABLET_PAD_RING unimplemented", __func__);
+            break;
+        case LIBINPUT_EVENT_TABLET_PAD_STRIP:
+            g_debug("%s: TABLET_PAD_STRIP unimplemented", __func__);
+            break;
+#endif /* LIBINPUT_CHECK_VERSION(1, 3, 0) */
+
+#if LIBINPUT_CHECK_VERSION(1, 7, 0)
+        case LIBINPUT_EVENT_SWITCH_TOGGLE:
+            g_debug("%s: SWITCH_TOGGLE unimplemented", __func__);
+            break;
+#endif /* LIBINPUT_CHECK_VERSION(1, 7, 0) */
+
+#if LIBINPUT_CHECK_VERSION(1, 15, 0)
+        case LIBINPUT_EVENT_TABLET_PAD_KEY:
+            g_debug("%s: TABLET_PAD_KEY unimplemented", __func__);
+            break;
+#endif /* LIBINPUT_CHECK_VERSION(1, 15, 0) */
+
+#if LIBINPUT_CHECK_VERSION(1, 19, 0)
+        case LIBINPUT_EVENT_POINTER_AXIS:
+            /* Deprecated, use _SCROLL_{WHEEL,FINGER,CONTINUOUS} below. */
+            break;
+        case LIBINPUT_EVENT_POINTER_SCROLL_WHEEL:
+            g_debug("%s: POINTER_SCROLL_WHEEL unimplemented", __func__);
+            break;
+        case LIBINPUT_EVENT_POINTER_SCROLL_FINGER:
+            g_debug("%s: POINTER_SCROLL_FINGER unimplemented", __func__);
+            break;
+        case LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS:
+            g_debug("%s: POINTER_SCROLL_CONTINUOUS unimplemented", __func__);
+            break;
+
+        case LIBINPUT_EVENT_GESTURE_HOLD_BEGIN:
+        case LIBINPUT_EVENT_GESTURE_HOLD_END:
+            g_debug("%s: GESTURE_HOLD_{BEGIN,END} unimplemented", __func__);
+            break;
+#else
+        case LIBINPUT_EVENT_POINTER_AXIS:
+            g_debug("%s: POINTER_AXIS unimplemented", __func__);
+            break;
+#endif /* LIBINPUT_CHECK_VERSION(1, 19, 0) */
         }
 
         libinput_event_destroy (event);
