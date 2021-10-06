@@ -1212,6 +1212,26 @@ input_handle_pointer_button_event (struct libinput_event_pointer *pointer_event)
 }
 
 static void
+input_handle_device_added(struct libinput_device *device)
+{
+    g_debug("Input device %p added: %s (%04x:%04x)",
+            device,
+            libinput_device_get_name(device),
+            libinput_device_get_id_vendor(device),
+            libinput_device_get_id_product(device));
+}
+
+static void
+input_handle_device_removed(struct libinput_device *device)
+{
+    g_debug("Input device %p removed: %s (%04x:%04x)",
+            device,
+            libinput_device_get_name(device),
+            libinput_device_get_id_vendor(device),
+            libinput_device_get_id_product(device));
+}
+
+static void
 input_process_events (void)
 {
     g_assert (input_data.libinput);
@@ -1228,7 +1248,10 @@ input_process_events (void)
             return;
 
         case LIBINPUT_EVENT_DEVICE_ADDED:
+            input_handle_device_added(libinput_event_get_device(event));
+            break;
         case LIBINPUT_EVENT_DEVICE_REMOVED:
+            input_handle_device_removed(libinput_event_get_device(event));
             break;
 
         case LIBINPUT_EVENT_KEYBOARD_KEY:
