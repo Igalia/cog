@@ -17,7 +17,6 @@ set_target_properties(cogplatform-drm PROPERTIES
     C_STANDARD 99
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/modules
 )
-target_compile_definitions(cogplatform-drm PRIVATE G_LOG_DOMAIN=\"Cog-DRM\")
 target_link_libraries(cogplatform-drm PRIVATE
     cogcore
     PkgConfig::EGL
@@ -28,6 +27,14 @@ target_link_libraries(cogplatform-drm PRIVATE
     PkgConfig::WaylandServer
     PkgConfig::WebKit
     PkgConfig::WpeFDO
+)
+
+string(REGEX MATCH "^([0-9]+)\.([0-9]+)\.([0-9]+)" _ "${LibInput_VERSION}")
+target_compile_definitions(cogplatform-drm PRIVATE
+    G_LOG_DOMAIN=\"Cog-DRM\"
+    LIBINPUT_VER_MAJOR=${CMAKE_MATCH_1}
+    LIBINPUT_VER_MINOR=${CMAKE_MATCH_2}
+    LIBINPUT_VER_MICRO=${CMAKE_MATCH_3}
 )
 
 install(TARGETS cogplatform-drm
