@@ -1211,6 +1211,87 @@ input_handle_pointer_button_event (struct libinput_event_pointer *pointer_event)
     wpe_view_backend_dispatch_pointer_event(wpe_view_data.backend, &event);
 }
 
+#if LIBINPUT_CHECK_VERSION(1, 19, 0)
+static void
+input_handle_pointer_discrete_scroll_event(struct libinput_event_pointer *pointer_event)
+{
+    struct wpe_input_axis_2d_event event = {
+        .base.type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion,
+        .base.time = libinput_event_pointer_get_time(pointer_event),
+        .base.x = cursor.x,
+        .base.y = cursor.y,
+        .x_axis = 0.0,
+        .y_axis = 0.0,
+    };
+
+    if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL))
+        event.y_axis = -drm_data.device_scale * libinput_event_pointer_get_scroll_value_v120(
+                                                    pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+    if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL))
+        event.x_axis = drm_data.device_scale * libinput_event_pointer_get_scroll_value_v120(
+                                                   pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+
+    wpe_view_backend_dispatch_axis_event(wpe_view_data.backend, &event.base);
+}
+
+static void
+input_handle_pointer_smooth_scroll_event(struct libinput_event_pointer *pointer_event)
+{
+    struct wpe_input_axis_2d_event event = {
+        .base.type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion_smooth,
+        .base.time = libinput_event_pointer_get_time(pointer_event),
+        .base.x = cursor.x,
+        .base.y = cursor.y,
+        .x_axis = 0.0,
+        .y_axis = 0.0,
+    };
+
+    if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL))
+        event.y_axis = drm_data.device_scale *
+                       libinput_event_pointer_get_scroll_value(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+    if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL))
+        event.x_axis = drm_data.device_scale *
+                       libinput_event_pointer_get_scroll_value(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+
+    wpe_view_backend_dispatch_axis_event(wpe_view_data.backend, &event.base);
+}
+#else
+static void
+input_handle_pointer_axis_event(struct libinput_event_pointer *pointer_event)
+{
+    struct wpe_input_axis_2d_event event = {
+        .base.type = wpe_input_axis_event_type_mask_2d,
+        .base.time = libinput_event_pointer_get_time(pointer_event),
+        .base.x = cursor.x,
+        .base.y = cursor.y,
+        .x_axis = 0.0,
+        .y_axis = 0.0,
+    };
+
+    if (libinput_event_pointer_get_axis_source(pointer_event) == LIBINPUT_POINTER_AXIS_SOURCE_WHEEL) {
+        event.base.type |= wpe_input_axis_event_type_motion;
+        if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL))
+            event.y_axis = -120.0 * libinput_event_pointer_get_axis_value_discrete(
+                                        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+        if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL))
+            event.x_axis = 120.0 * libinput_event_pointer_get_axis_value_discrete(
+                                       pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+    } else {
+        event.base.type |= wpe_input_axis_event_type_motion_smooth;
+        if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL))
+            event.y_axis = libinput_event_pointer_get_axis_value(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+        if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL))
+            event.x_axis =
+                libinput_event_pointer_get_axis_value(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+    }
+
+    event.x_axis *= drm_data.device_scale;
+    event.y_axis *= drm_data.device_scale;
+
+    wpe_view_backend_dispatch_axis_event(wpe_view_data.backend, &event.base);
+}
+#endif /* !LIBINPUT_CHECK_VERSION(1, 19, 0) */
+
 static void
 input_handle_device_added(struct libinput_device *device)
 {
@@ -1334,13 +1415,11 @@ input_process_events (void)
             /* Deprecated, use _SCROLL_{WHEEL,FINGER,CONTINUOUS} below. */
             break;
         case LIBINPUT_EVENT_POINTER_SCROLL_WHEEL:
-            g_debug("%s: POINTER_SCROLL_WHEEL unimplemented", __func__);
+            input_handle_pointer_discrete_scroll_event(libinput_event_get_pointer_event(event));
             break;
         case LIBINPUT_EVENT_POINTER_SCROLL_FINGER:
-            g_debug("%s: POINTER_SCROLL_FINGER unimplemented", __func__);
-            break;
         case LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS:
-            g_debug("%s: POINTER_SCROLL_CONTINUOUS unimplemented", __func__);
+            input_handle_pointer_smooth_scroll_event(libinput_event_get_pointer_event(event));
             break;
 
         case LIBINPUT_EVENT_GESTURE_HOLD_BEGIN:
@@ -1349,7 +1428,7 @@ input_process_events (void)
             break;
 #else
         case LIBINPUT_EVENT_POINTER_AXIS:
-            g_debug("%s: POINTER_AXIS unimplemented", __func__);
+            input_handle_pointer_axis_event(libinput_event_get_pointer_event(event));
             break;
 #endif /* LIBINPUT_CHECK_VERSION(1, 19, 0) */
         }
