@@ -44,6 +44,17 @@ typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platf
 #define KEY_STARTUP_DELAY 500000
 #define KEY_REPEAT_DELAY 100000
 
+#ifndef g_debug_once
+#    define g_debug_once(...)                                                                     \
+        G_STMT_START                                                                              \
+        {                                                                                         \
+            static int G_PASTE(_GDebugOnceBoolean_, __LINE__) = 0; /* (atomic) */                 \
+            if (g_atomic_int_compare_and_exchange(&G_PASTE(_GDebugOnceBoolean_, __LINE__), 0, 1)) \
+                g_debug(__VA_ARGS__);                                                             \
+        }                                                                                         \
+        G_STMT_END
+#endif /* !g_debug_once */
+
 struct _CogDrmPlatformClass {
     CogPlatformClass parent_class;
 };
@@ -1211,6 +1222,87 @@ input_handle_pointer_button_event (struct libinput_event_pointer *pointer_event)
     wpe_view_backend_dispatch_pointer_event(wpe_view_data.backend, &event);
 }
 
+#if LIBINPUT_CHECK_VERSION(1, 19, 0)
+static void
+input_handle_pointer_discrete_scroll_event(struct libinput_event_pointer *pointer_event)
+{
+    struct wpe_input_axis_2d_event event = {
+        .base.type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion,
+        .base.time = libinput_event_pointer_get_time(pointer_event),
+        .base.x = cursor.x,
+        .base.y = cursor.y,
+        .x_axis = 0.0,
+        .y_axis = 0.0,
+    };
+
+    if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL))
+        event.y_axis = -drm_data.device_scale * libinput_event_pointer_get_scroll_value_v120(
+                                                    pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+    if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL))
+        event.x_axis = drm_data.device_scale * libinput_event_pointer_get_scroll_value_v120(
+                                                   pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+
+    wpe_view_backend_dispatch_axis_event(wpe_view_data.backend, &event.base);
+}
+
+static void
+input_handle_pointer_smooth_scroll_event(struct libinput_event_pointer *pointer_event)
+{
+    struct wpe_input_axis_2d_event event = {
+        .base.type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion_smooth,
+        .base.time = libinput_event_pointer_get_time(pointer_event),
+        .base.x = cursor.x,
+        .base.y = cursor.y,
+        .x_axis = 0.0,
+        .y_axis = 0.0,
+    };
+
+    if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL))
+        event.y_axis = drm_data.device_scale *
+                       libinput_event_pointer_get_scroll_value(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+    if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL))
+        event.x_axis = drm_data.device_scale *
+                       libinput_event_pointer_get_scroll_value(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+
+    wpe_view_backend_dispatch_axis_event(wpe_view_data.backend, &event.base);
+}
+#else
+static void
+input_handle_pointer_axis_event(struct libinput_event_pointer *pointer_event)
+{
+    struct wpe_input_axis_2d_event event = {
+        .base.type = wpe_input_axis_event_type_mask_2d,
+        .base.time = libinput_event_pointer_get_time(pointer_event),
+        .base.x = cursor.x,
+        .base.y = cursor.y,
+        .x_axis = 0.0,
+        .y_axis = 0.0,
+    };
+
+    if (libinput_event_pointer_get_axis_source(pointer_event) == LIBINPUT_POINTER_AXIS_SOURCE_WHEEL) {
+        event.base.type |= wpe_input_axis_event_type_motion;
+        if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL))
+            event.y_axis = -120.0 * libinput_event_pointer_get_axis_value_discrete(
+                                        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+        if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL))
+            event.x_axis = 120.0 * libinput_event_pointer_get_axis_value_discrete(
+                                       pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+    } else {
+        event.base.type |= wpe_input_axis_event_type_motion_smooth;
+        if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL))
+            event.y_axis = libinput_event_pointer_get_axis_value(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+        if (libinput_event_pointer_has_axis(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL))
+            event.x_axis =
+                libinput_event_pointer_get_axis_value(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+    }
+
+    event.x_axis *= drm_data.device_scale;
+    event.y_axis *= drm_data.device_scale;
+
+    wpe_view_backend_dispatch_axis_event(wpe_view_data.backend, &event.base);
+}
+#endif /* !LIBINPUT_CHECK_VERSION(1, 19, 0) */
+
 static void
 input_handle_device_added(struct libinput_device *device)
 {
@@ -1281,51 +1373,51 @@ input_process_events (void)
         case LIBINPUT_EVENT_GESTURE_SWIPE_BEGIN:
         case LIBINPUT_EVENT_GESTURE_SWIPE_UPDATE:
         case LIBINPUT_EVENT_GESTURE_SWIPE_END:
-            g_debug("%s: GESTURE_SWIPE_{BEGIN,UPDATE,END} unimplemented", __func__);
+            g_debug_once("%s: GESTURE_SWIPE_{BEGIN,UPDATE,END} unimplemented", __func__);
             break;
 
         case LIBINPUT_EVENT_GESTURE_PINCH_BEGIN:
         case LIBINPUT_EVENT_GESTURE_PINCH_UPDATE:
         case LIBINPUT_EVENT_GESTURE_PINCH_END:
-            g_debug("%s: GESTURE_PINCH_{BEGIN,UPDATE,END} unimplemented", __func__);
+            g_debug_once("%s: GESTURE_PINCH_{BEGIN,UPDATE,END} unimplemented", __func__);
             break;
 
 #if LIBINPUT_CHECK_VERSION(1, 2, 0)
         case LIBINPUT_EVENT_TABLET_TOOL_AXIS:
-            g_debug("%s: TABLET_TOOL_AXIS unimplemented", __func__);
+            g_debug_once("%s: TABLET_TOOL_AXIS unimplemented", __func__);
             break;
         case LIBINPUT_EVENT_TABLET_TOOL_PROXIMITY:
-            g_debug("%s: TABLET_TOOL_PROXIMITY unimplemented", __func__);
+            g_debug_once("%s: TABLET_TOOL_PROXIMITY unimplemented", __func__);
             break;
         case LIBINPUT_EVENT_TABLET_TOOL_TIP:
-            g_debug("%s: TABLET_TOOL_TIP unimplemented", __func__);
+            g_debug_once("%s: TABLET_TOOL_TIP unimplemented", __func__);
             break;
         case LIBINPUT_EVENT_TABLET_TOOL_BUTTON:
-            g_debug("%s: TABLET_TOOL_BUTTON unimplemented", __func__);
+            g_debug_once("%s: TABLET_TOOL_BUTTON unimplemented", __func__);
             break;
 #endif /* LIBINPUT_CHECK_VERSION(1, 2, 0) */
 
 #if LIBINPUT_CHECK_VERSION(1, 3, 0)
         case LIBINPUT_EVENT_TABLET_PAD_BUTTON:
-            g_debug("%s: TABLET_PAD_BUTTON unimplemented", __func__);
+            g_debug_once("%s: TABLET_PAD_BUTTON unimplemented", __func__);
             break;
         case LIBINPUT_EVENT_TABLET_PAD_RING:
-            g_debug("%s: TABLET_PAD_RING unimplemented", __func__);
+            g_debug_once("%s: TABLET_PAD_RING unimplemented", __func__);
             break;
         case LIBINPUT_EVENT_TABLET_PAD_STRIP:
-            g_debug("%s: TABLET_PAD_STRIP unimplemented", __func__);
+            g_debug_once("%s: TABLET_PAD_STRIP unimplemented", __func__);
             break;
 #endif /* LIBINPUT_CHECK_VERSION(1, 3, 0) */
 
 #if LIBINPUT_CHECK_VERSION(1, 7, 0)
         case LIBINPUT_EVENT_SWITCH_TOGGLE:
-            g_debug("%s: SWITCH_TOGGLE unimplemented", __func__);
+            g_debug_once("%s: SWITCH_TOGGLE unimplemented", __func__);
             break;
 #endif /* LIBINPUT_CHECK_VERSION(1, 7, 0) */
 
 #if LIBINPUT_CHECK_VERSION(1, 15, 0)
         case LIBINPUT_EVENT_TABLET_PAD_KEY:
-            g_debug("%s: TABLET_PAD_KEY unimplemented", __func__);
+            g_debug_once("%s: TABLET_PAD_KEY unimplemented", __func__);
             break;
 #endif /* LIBINPUT_CHECK_VERSION(1, 15, 0) */
 
@@ -1334,22 +1426,20 @@ input_process_events (void)
             /* Deprecated, use _SCROLL_{WHEEL,FINGER,CONTINUOUS} below. */
             break;
         case LIBINPUT_EVENT_POINTER_SCROLL_WHEEL:
-            g_debug("%s: POINTER_SCROLL_WHEEL unimplemented", __func__);
+            input_handle_pointer_discrete_scroll_event(libinput_event_get_pointer_event(event));
             break;
         case LIBINPUT_EVENT_POINTER_SCROLL_FINGER:
-            g_debug("%s: POINTER_SCROLL_FINGER unimplemented", __func__);
-            break;
         case LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS:
-            g_debug("%s: POINTER_SCROLL_CONTINUOUS unimplemented", __func__);
+            input_handle_pointer_smooth_scroll_event(libinput_event_get_pointer_event(event));
             break;
 
         case LIBINPUT_EVENT_GESTURE_HOLD_BEGIN:
         case LIBINPUT_EVENT_GESTURE_HOLD_END:
-            g_debug("%s: GESTURE_HOLD_{BEGIN,END} unimplemented", __func__);
+            g_debug_once("%s: GESTURE_HOLD_{BEGIN,END} unimplemented", __func__);
             break;
 #else
         case LIBINPUT_EVENT_POINTER_AXIS:
-            g_debug("%s: POINTER_AXIS unimplemented", __func__);
+            input_handle_pointer_axis_event(libinput_event_get_pointer_event(event));
             break;
 #endif /* LIBINPUT_CHECK_VERSION(1, 19, 0) */
         }
