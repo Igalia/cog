@@ -63,6 +63,7 @@ struct _CogDrmPlatform {
     CogPlatform            parent;
     CogDrmRenderer        *renderer;
     CogDrmRendererRotation rotation;
+    GList                 *rotatable_input_devices;
     bool                   use_gles;
 };
 
@@ -918,6 +919,44 @@ input_handle_pointer_axis_event(struct libinput_event_pointer *pointer_event)
 }
 #endif /* !LIBINPUT_CHECK_VERSION(1, 19, 0) */
 
+static bool
+input_device_needs_config(struct libinput_device *device)
+{
+    static const enum libinput_device_capability device_caps[] = {
+        LIBINPUT_DEVICE_CAP_GESTURE,     LIBINPUT_DEVICE_CAP_POINTER, LIBINPUT_DEVICE_CAP_TABLET_PAD,
+        LIBINPUT_DEVICE_CAP_TABLET_TOOL, LIBINPUT_DEVICE_CAP_TOUCH,
+    };
+
+    for (unsigned i = 0; i < G_N_ELEMENTS(device_caps); i++)
+        if (libinput_device_has_capability(device, device_caps[i]))
+            return !!libinput_device_config_rotation_is_available(device);
+
+    return false;
+}
+
+static void
+input_configure_device(struct libinput_device *device, CogDrmPlatform *platform)
+{
+    enum libinput_config_status status = libinput_device_config_rotation_set_angle(device, platform->rotation * 90);
+
+    const char *name = libinput_device_get_name(device);
+    const int   id_vendor = libinput_device_get_id_vendor(device);
+    const int   id_product = libinput_device_get_id_product(device);
+
+    switch (status) {
+    case LIBINPUT_CONFIG_STATUS_SUCCESS:
+        g_debug("%s: Rotation set for %s (%04x:%04x)", __func__, name, id_vendor, id_product);
+        break;
+    case LIBINPUT_CONFIG_STATUS_UNSUPPORTED:
+        g_debug("%s: Rotation unsupported for %s (%04x:%04x)", __func__, name, id_vendor, id_product);
+        break;
+    case LIBINPUT_CONFIG_STATUS_INVALID:
+        g_debug("%s: Rotation %u invalid for %s (%04x:%04x)", __func__, platform->rotation * 90, name, id_vendor,
+                id_product);
+        break;
+    }
+}
+
 static void
 input_handle_device_added(struct libinput_device *device)
 {
@@ -926,6 +965,13 @@ input_handle_device_added(struct libinput_device *device)
             libinput_device_get_name(device),
             libinput_device_get_id_vendor(device),
             libinput_device_get_id_product(device));
+
+    if (input_device_needs_config(device)) {
+        CogDrmPlatform *platform = libinput_get_user_data(libinput_device_get_context(device));
+        platform->rotatable_input_devices =
+            g_list_append(platform->rotatable_input_devices, libinput_device_ref(device));
+        input_configure_device(device, platform);
+    }
 }
 
 static void
@@ -936,6 +982,14 @@ input_handle_device_removed(struct libinput_device *device)
             libinput_device_get_name(device),
             libinput_device_get_id_vendor(device),
             libinput_device_get_id_product(device));
+
+    CogDrmPlatform *platform = libinput_get_user_data(libinput_device_get_context(device));
+
+    GList *item = g_list_find(platform->rotatable_input_devices, device);
+    if (item) {
+        platform->rotatable_input_devices = g_list_remove_link(platform->rotatable_input_devices, item);
+        g_list_free_full(item, (GDestroyNotify) libinput_device_unref);
+    }
 }
 
 static void
@@ -1076,14 +1130,18 @@ input_interface_close_restricted (int fd, void *user_data)
 }
 
 static void
-clear_input (void)
+clear_input(CogDrmPlatform *platform)
 {
+    if (platform->rotatable_input_devices) {
+        g_list_free_full(platform->rotatable_input_devices, (GDestroyNotify) libinput_device_unref);
+        platform->rotatable_input_devices = NULL;
+    }
     g_clear_pointer (&input_data.libinput, libinput_unref);
     g_clear_pointer (&input_data.udev, udev_unref);
 }
 
 static gboolean
-init_input (void)
+init_input(CogDrmPlatform *platform)
 {
     static struct libinput_interface interface = {
         .open_restricted = input_interface_open_restricted,
@@ -1094,9 +1152,7 @@ init_input (void)
     if (!input_data.udev)
         return FALSE;
 
-    input_data.libinput = libinput_udev_create_context (&interface,
-                                                        NULL,
-                                                        input_data.udev);
+    input_data.libinput = libinput_udev_create_context(&interface, platform, input_data.udev);
     if (!input_data.libinput)
         return FALSE;
 
@@ -1303,7 +1359,7 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
         self->rotation = COG_DRM_RENDERER_ROTATION_0;
     }
 
-    if (!init_input ()) {
+    if (!init_input(COG_DRM_PLATFORM(platform))) {
         g_set_error_literal (error,
                              COG_PLATFORM_WPE_ERROR,
                              COG_PLATFORM_WPE_ERROR_INIT,
@@ -1338,7 +1394,7 @@ cog_drm_platform_finalize(GObject *object)
     g_clear_pointer(&self->renderer, cog_drm_renderer_destroy);
 
     clear_glib ();
-    clear_input ();
+    clear_input(self);
     clear_egl ();
     clear_gbm ();
     clear_cursor ();
@@ -1385,8 +1441,12 @@ cog_drm_platform_set_property(GObject *object, unsigned prop_id, const GValue *v
         if (rotation == self->rotation)
             return;
 
-        if (!self->renderer || cog_drm_renderer_set_rotation(self->renderer, rotation)) {
+        if (!self->renderer) {
             self->rotation = rotation;
+        } else if (cog_drm_renderer_set_rotation(self->renderer, rotation)) {
+            self->rotation = rotation;
+            if (self->rotatable_input_devices)
+                g_list_foreach(self->rotatable_input_devices, (GFunc) input_configure_device, self);
         } else {
             g_critical("%s: Could not set %u rotation (%u degrees), unsupported", __func__, rotation, rotation * 90);
         }
