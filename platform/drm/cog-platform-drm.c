@@ -978,10 +978,19 @@ static int
 drm_commit_buffer_nonatomic(CogDrmPlatform *platform, struct buffer_object *buffer)
 {
     if (!drm_data.mode_set) {
-        int ret = drmModeSetCrtc (drm_data.fd, drm_data.crtc.obj_id, buffer->fb_id, 0, 0,
-                                  &drm_data.connector.obj_id, 1, drm_data.mode);
-        if (ret)
+        if (drmModeSetCrtc(drm_data.fd, drm_data.crtc.obj_id, buffer->fb_id, 0, 0,
+                           &drm_data.connector.obj_id, 1, drm_data.mode))
             return -1;
+
+        if (drm_data.plane.rotation_prop_id) {
+            if (drmModeObjectSetProperty(drm_data.fd,
+                                         drm_data.plane.obj_id,
+                                         DRM_MODE_OBJECT_PLANE,
+                                         drm_data.plane.rotation_prop_id,
+                                         drm_data.plane.rotation_values[platform->rotation])) {
+                g_debug("%s: Cannot set rotation (%s)", __func__, strerror(errno));
+            }
+        }
 
         drm_data.mode_set = true;
     }
@@ -2081,6 +2090,7 @@ cog_drm_platform_set_property(GObject      *object,
                 g_debug("%s: Set initial rotation to %u (%u CCW)",
                         __func__, rotation, rotation * 90);
                 self->rotation = rotation;
+                drm_data.mode_set = false;
                 return;
             }
                 
@@ -2097,6 +2107,7 @@ cog_drm_platform_set_property(GObject      *object,
 
             const bool changed = (prev_width != width || prev_height != height);
             if (changed) {
+                drm_data.mode_set = false;
                 wpe_view_backend_dispatch_set_size(wpe_view_data.backend, width, height);
                 wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_data.backend, drm_data.device_scale);
                 g_debug("%s: Dispatched resize from %" PRIu32 "x%" PRIu32 "@%.2fx to"
@@ -2161,7 +2172,7 @@ cog_drm_platform_class_init(CogDrmPlatformClass *klass)
      * - `0`: No rotation.
      * - `1`: 90 degrees.
      * - `2`: 180 degrees.
-     * - `3`: 279 degrees.
+     * - `3`: 270 degrees.
      */
     s_properties[PROP_ROTATION] =
         g_param_spec_uint("rotation",
