@@ -1,6 +1,6 @@
 # libcogplatform-drm
 
-pkg_check_modules(EGL IMPORTED_TARGET REQUIRED egl)
+pkg_check_modules(Epoxy IMPORTED_TARGET REQUIRED epoxy)
 pkg_check_modules(WpeFDO IMPORTED_TARGET REQUIRED wpebackend-fdo-1.0>=1.4.0)
 pkg_check_modules(LibDRM IMPORTED_TARGET REQUIRED libdrm>=2.4.71)
 pkg_check_modules(LibGBM IMPORTED_TARGET REQUIRED gbm>=13.0)
@@ -19,7 +19,7 @@ set_target_properties(cogplatform-drm PROPERTIES
 )
 target_link_libraries(cogplatform-drm PRIVATE
     cogcore
-    PkgConfig::EGL
+    PkgConfig::Epoxy
     PkgConfig::LibDRM
     PkgConfig::LibGBM
     PkgConfig::LibInput
