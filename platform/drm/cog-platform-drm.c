@@ -16,8 +16,7 @@
 #include "kms.h"
 #include "cursor-drm.h"
 
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
+#include <epoxy/egl.h>
 
 #include "../common/egl-proc-address.h"
 
