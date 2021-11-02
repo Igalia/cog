@@ -11,6 +11,7 @@ pkg_check_modules(WaylandServer IMPORTED_TARGET REQUIRED wayland-server)
 add_library(cogplatform-drm MODULE
     cog-platform-drm.c
     cog-drm-renderer.c
+    cog-drm-gles-renderer.c
     cog-drm-modeset-renderer.c
     kms.c
     cursor-drm.c

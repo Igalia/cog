@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <epoxy/egl.h>
 #include <glib.h>
 #include <inttypes.h>
 #include <stdbool.h>
@@ -48,3 +49,5 @@ CogDrmRenderer *cog_drm_modeset_renderer_new(struct gbm_device     *dev,
                                              uint32_t               connector_id,
                                              const drmModeModeInfo *mode,
                                              bool                   atomic_modesetting);
+
+CogDrmRenderer *cog_drm_gles_renderer_new(EGLDisplay display);
