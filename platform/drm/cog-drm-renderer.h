@@ -17,11 +17,20 @@ struct wpe_view_backend_exportable_fdo;
 typedef struct _drmModeModeInfo drmModeModeInfo;
 typedef struct _CogDrmRenderer  CogDrmRenderer;
 
+typedef enum {
+    COG_DRM_RENDERER_ROTATION_0 = 0,
+    COG_DRM_RENDERER_ROTATION_90 = 1,
+    COG_DRM_RENDERER_ROTATION_180 = 2,
+    COG_DRM_RENDERER_ROTATION_270 = 3,
+} CogDrmRendererRotation;
+
 struct _CogDrmRenderer {
     const char *name;
 
     bool (*initialize)(CogDrmRenderer *, GError **);
     void (*destroy)(CogDrmRenderer *);
+
+    bool (*set_rotation)(CogDrmRenderer *, CogDrmRendererRotation, bool apply);
 
     struct wpe_view_backend_exportable_fdo *(*create_exportable)(CogDrmRenderer *, uint32_t width, uint32_t height);
 };
@@ -37,6 +46,20 @@ cog_drm_renderer_initialize(CogDrmRenderer *self, GError **error)
     return true;
 }
 
+static inline bool
+cog_drm_renderer_supports_rotation(CogDrmRenderer *self, CogDrmRendererRotation rotation)
+{
+    const bool apply = false;
+    return self->set_rotation && self->set_rotation(self, rotation, apply);
+}
+
+static inline bool
+cog_drm_renderer_set_rotation(CogDrmRenderer *self, CogDrmRendererRotation rotation)
+{
+    const bool apply = true;
+    return self->set_rotation && self->set_rotation(self, rotation, apply);
+}
+
 static inline struct wpe_view_backend_exportable_fdo *
 cog_drm_renderer_create_exportable(CogDrmRenderer *self, uint32_t width, uint32_t height)
 {
@@ -50,4 +73,10 @@ CogDrmRenderer *cog_drm_modeset_renderer_new(struct gbm_device     *dev,
                                              const drmModeModeInfo *mode,
                                              bool                   atomic_modesetting);
 
-CogDrmRenderer *cog_drm_gles_renderer_new(EGLDisplay display);
+CogDrmRenderer *cog_drm_gles_renderer_new(struct gbm_device     *dev,
+                                          EGLDisplay             display,
+                                          uint32_t               plane_id,
+                                          uint32_t               crtc_id,
+                                          uint32_t               connector_id,
+                                          const drmModeModeInfo *mode,
+                                          bool                   atomic_modesetting);
