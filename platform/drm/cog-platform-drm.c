@@ -190,17 +190,17 @@ static struct {
     struct wpe_view_backend *backend;
 } wpe_view_data;
 
-
-static void
-init_config (CogShell *shell)
+static bool
+init_config(CogShell *shell)
 {
     drm_data.device_scale = cog_shell_get_device_scale_factor (shell);
     g_debug ("init_config: overriding device_scale value, using %.2f from shell",
              drm_data.device_scale);
 
+    bool      use_gles_renderer = false;
     GKeyFile *key_file = cog_shell_get_config_file (shell);
     if (!key_file)
-        return;
+        return use_gles_renderer;
 
     {
         g_autoptr(GError) lookup_error = NULL;
@@ -221,10 +221,20 @@ init_config (CogShell *shell)
                                                &lookup_error);
         if (!lookup_error) {
             drm_data.device_scale = value;
-            g_debug ("init_config:overriding device_scale value, using %.2f from config",
-                     drm_data.device_scale);
+            g_debug("init_config: overriding device_scale value, using %.2f from config", drm_data.device_scale);
         }
     }
+
+    {
+        g_autofree char *value = g_key_file_get_string(key_file, "drm", "renderer", NULL);
+        if (g_strcmp0(value, "gles") == 0)
+            use_gles_renderer = true;
+        else if (value && strcmp(value, "modeset") != 0)
+            g_warning("Invalid renderer '%s', using default.", value);
+        g_debug("%s: using '%s' renderer.", __func__, use_gles_renderer ? "gles" : "modeset");
+    }
+
+    return use_gles_renderer;
 }
 
 static void
@@ -1187,7 +1197,7 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
 
     CogDrmPlatform *self = COG_DRM_PLATFORM(platform);
 
-    init_config (shell);
+    bool use_gles_renderer = init_config(shell);
 
     if (!wpe_loader_init ("libWPEBackend-fdo-1.0.so")) {
         g_set_error_literal (error,
@@ -1219,19 +1229,23 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
         return FALSE;
     }
 
-    self->renderer = cog_drm_modeset_renderer_new(gbm_data.device,
-                                                  drm_data.plane.obj_id,
-                                                  drm_data.crtc.obj_id,
-                                                  drm_data.connector.obj_id,
-                                                  drm_data.mode,
-                                                  drm_data.atomic_modesetting);
-
     if (!init_egl ()) {
         g_set_error_literal (error,
                              COG_PLATFORM_WPE_ERROR,
                              COG_PLATFORM_WPE_ERROR_INIT,
                              "Failed to initialize EGL");
         return FALSE;
+    }
+
+    if (use_gles_renderer) {
+        self->renderer = cog_drm_gles_renderer_new(egl_data.display);
+    } else {
+        self->renderer = cog_drm_modeset_renderer_new(gbm_data.device,
+                                                      drm_data.plane.obj_id,
+                                                      drm_data.crtc.obj_id,
+                                                      drm_data.connector.obj_id,
+                                                      drm_data.mode,
+                                                      drm_data.atomic_modesetting);
     }
 
     if (!init_input ()) {
