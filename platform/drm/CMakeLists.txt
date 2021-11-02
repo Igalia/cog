@@ -9,6 +9,7 @@ pkg_check_modules(LibUdev IMPORTED_TARGET REQUIRED libudev)
 pkg_check_modules(WaylandServer IMPORTED_TARGET REQUIRED wayland-server)
 
 add_library(cogplatform-drm MODULE
+    ../common/cog-gl-utils.c
     cog-platform-drm.c
     cog-drm-renderer.c
     cog-drm-gles-renderer.c
