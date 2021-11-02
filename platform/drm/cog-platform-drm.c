@@ -1238,7 +1238,13 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
     }
 
     if (use_gles_renderer) {
-        self->renderer = cog_drm_gles_renderer_new(egl_data.display);
+        self->renderer = cog_drm_gles_renderer_new(gbm_data.device,
+                                                   egl_data.display,
+                                                   drm_data.plane.obj_id,
+                                                   drm_data.crtc.obj_id,
+                                                   drm_data.connector.obj_id,
+                                                   drm_data.mode,
+                                                   drm_data.atomic_modesetting);
     } else {
         self->renderer = cog_drm_modeset_renderer_new(gbm_data.device,
                                                       drm_data.plane.obj_id,

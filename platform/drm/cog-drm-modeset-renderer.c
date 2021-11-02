@@ -687,5 +687,8 @@ cog_drm_modeset_renderer_new(struct gbm_device     *gbm_dev,
             self->plane_props.props_info[i] = drmModeGetProperty(get_drm_fd(self), self->plane_props.props->props[i]);
     }
 
+    g_debug("%s: Using plane #%" PRIu32 ", crtc #%" PRIu32 ", connector #%" PRIu32 " (%s).", __func__, plane_id,
+            crtc_id, connector_id, atomic_modesetting ? "atomic" : "legacy");
+
     return &self->base;
 }
