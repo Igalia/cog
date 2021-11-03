@@ -33,7 +33,7 @@ def capabilities():
     return {
         "wpe:browserOptions": {
             "binary": "/usr/bin/cog",
-            "args": ["--automation", "--platform=fdo"],
+            "args": ["--automation", "--platform=wl"],
         }
     }
 
