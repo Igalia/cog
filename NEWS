@@ -1,3 +1,26 @@
+=========================
+0.11.1 - November 3, 2021
+=========================
+
+- core: Changed platform plug-ins to be able to automatically detect which
+  one should be used. Passing the "--platform=" command line option to the
+  launcher is now optional.
+- core: Added support for building against libsoup3.
+- core: Added CogHostRoutesHandler, which can route URI scheme requests
+  with different host parts to other handlers.
+- core, cog: Added support for running in WebDriver automation mode.
+- cog: New "--enable-sandbox" command line option, which allows isolating
+  rendering processes from the rest of the system.
+- cog: New "--content-filter=" command line option, which allows loading
+  a content blocker (WebKitUserContentFilter) JSON rule set.
+- drm: Implemented handling of pointer axis/wheel/finger/continuous events
+  and absolute motion events.
+- wl: Renamed "fdo" platform module to "wl" (Wayland) as it better reflects
+  its usage; the old name still works e.g. when using "cog --platform=fdo"
+  but it is considered deprecated and will cause a warning.
+- wl, gtk4: Added support for fullscreening web views.
+- gtk4: Honor the CogShell.device-scale-factor property.
+
 ======================
 0.9.1 - March 16, 2021
 ======================
