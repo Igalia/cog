@@ -204,47 +204,78 @@ static struct {
 } wpe_view_data;
 
 static void
-init_config(CogDrmPlatform *self, CogShell *shell)
+init_config(CogDrmPlatform *self, CogShell *shell, const char *params_string)
 {
     drm_data.device_scale = cog_shell_get_device_scale_factor (shell);
     g_debug ("init_config: overriding device_scale value, using %.2f from shell",
              drm_data.device_scale);
 
     GKeyFile *key_file = cog_shell_get_config_file (shell);
-    if (!key_file)
-        return;
 
-    {
-        g_autoptr(GError) lookup_error = NULL;
-        gboolean value = g_key_file_get_boolean (key_file,
-                                                 "drm", "disable-atomic-modesetting",
-                                                 &lookup_error);
-        if (!lookup_error) {
-            drm_data.atomic_modesetting = !value;
-            g_debug ("init_config: atomic modesetting reconfigured to value '%s'",
-                     drm_data.atomic_modesetting ? "true" : "false");
+    if (key_file) {
+        {
+            g_autoptr(GError) lookup_error = NULL;
+
+            gboolean value = g_key_file_get_boolean(key_file, "drm", "disable-atomic-modesetting", &lookup_error);
+            if (!lookup_error) {
+                drm_data.atomic_modesetting = !value;
+                g_debug("init_config: atomic modesetting reconfigured to value '%s'",
+                        drm_data.atomic_modesetting ? "true" : "false");
+            }
+        }
+
+        {
+            g_autoptr(GError) lookup_error = NULL;
+
+            gdouble value = g_key_file_get_double(key_file, "drm", "device-scale-factor", &lookup_error);
+            if (!lookup_error) {
+                drm_data.device_scale = value;
+                g_debug("init_config: overriding device_scale value, using %.2f from config", drm_data.device_scale);
+            }
+        }
+
+        {
+            g_autofree char *value = g_key_file_get_string(key_file, "drm", "renderer", NULL);
+            if (g_strcmp0(value, "gles") == 0)
+                self->use_gles = true;
+            else if (g_strcmp0(value, "modeset") != 0)
+                self->use_gles = false;
+            else if (value)
+                g_warning("Invalid renderer '%s', using default.", value);
         }
     }
 
-    {
-        g_autoptr(GError) lookup_error = NULL;
-        gdouble value = g_key_file_get_double (key_file,
-                                               "drm", "device-scale-factor",
-                                               &lookup_error);
-        if (!lookup_error) {
-            drm_data.device_scale = value;
-            g_debug("init_config: overriding device_scale value, using %.2f from config", drm_data.device_scale);
-        }
-    }
+    if (params_string) {
+        g_auto(GStrv) params = g_strsplit(params_string, ",", 0);
+        for (unsigned i = 0; params[i]; i++) {
+            g_auto(GStrv) kv = g_strsplit(params[i], "=", 2);
+            if (g_strv_length(kv) != 2) {
+                g_warning("Invalid parameter syntax '%s'.", params[i]);
+                continue;
+            }
 
-    {
-        g_autofree char *value = g_key_file_get_string(key_file, "drm", "renderer", NULL);
-        if (g_strcmp0(value, "gles") == 0)
-            self->use_gles = true;
-        else if (g_strcmp0(value, "modeset") != 0)
-            self->use_gles = false;
-        else if (value)
-            g_warning("Invalid renderer '%s', using default.", value);
+            const char *k = g_strstrip(kv[0]);
+            const char *v = g_strstrip(kv[1]);
+
+            if (g_strcmp0(k, "renderer") == 0) {
+                if (g_strcmp0(v, "modeset") == 0)
+                    self->use_gles = false;
+                else if (g_strcmp0(v, "gles") == 0)
+                    self->use_gles = true;
+                else
+                    g_warning("Invalid value '%s' for parameter '%s'.", v, k);
+            } else if (g_strcmp0(k, "rotation") == 0) {
+                char       *endp = NULL;
+                const char *str = v ? v : "";
+                uint64_t    val = g_ascii_strtoull(str, &endp, 10);
+                if (val > 3 || *endp != '\0')
+                    g_warning("Invalid value '%s' for parameter '%s'.", v, k);
+                else
+                    self->rotation = val;
+            } else {
+                g_warning("Invalid parameter '%s'.", k);
+            }
+        }
     }
 }
 
@@ -1208,7 +1239,7 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
 
     CogDrmPlatform *self = COG_DRM_PLATFORM(platform);
 
-    init_config(COG_DRM_PLATFORM(platform), shell);
+    init_config(COG_DRM_PLATFORM(platform), shell, params);
 
     if (!wpe_loader_init ("libWPEBackend-fdo-1.0.so")) {
         g_set_error_literal (error,
