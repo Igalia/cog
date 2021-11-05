@@ -60,8 +60,19 @@ struct _CogDrmPlatformClass {
 };
 
 struct _CogDrmPlatform {
-    CogPlatform parent;
-    CogDrmRenderer *renderer;
+    CogPlatform            parent;
+    CogDrmRenderer        *renderer;
+    CogDrmRendererRotation rotation;
+};
+
+enum {
+    PROP_0,
+    PROP_ROTATION,
+    N_PROPERTIES,
+};
+
+static GParamSpec *s_properties[N_PROPERTIES] = {
+    NULL,
 };
 
 G_DECLARE_FINAL_TYPE(CogDrmPlatform, cog_drm_platform, COG, DRM_PLATFORM, CogPlatform)
@@ -1253,6 +1264,13 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
                                                       drm_data.mode,
                                                       drm_data.atomic_modesetting);
     }
+    if (cog_drm_renderer_supports_rotation(self->renderer, self->rotation)) {
+        cog_drm_renderer_set_rotation(self->renderer, self->rotation);
+    } else {
+        g_warning("Renderer '%s' does not support rotation %u (%u degrees).", self->renderer->name, self->rotation,
+                  self->rotation * 90);
+        self->rotation = COG_DRM_RENDERER_ROTATION_0;
+    }
 
     if (!init_input ()) {
         g_set_error_literal (error,
@@ -1327,16 +1345,71 @@ cog_drm_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
 }
 
 static void
+cog_drm_platform_set_property(GObject *object, unsigned prop_id, const GValue *value, GParamSpec *pspec)
+{
+    CogDrmPlatform *self = COG_DRM_PLATFORM(object);
+    switch (prop_id) {
+    case PROP_ROTATION: {
+        CogDrmRendererRotation rotation = g_value_get_uint(value);
+        if (rotation == self->rotation)
+            return;
+
+        if (!self->renderer || cog_drm_renderer_set_rotation(self->renderer, rotation)) {
+            self->rotation = rotation;
+        } else {
+            g_critical("%s: Could not set %u rotation (%u degrees), unsupported", __func__, rotation, rotation * 90);
+        }
+        break;
+    }
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+    }
+}
+
+static void
+cog_drm_platform_get_property(GObject *object, unsigned prop_id, GValue *value, GParamSpec *pspec)
+{
+    CogDrmPlatform *self = COG_DRM_PLATFORM(object);
+    switch (prop_id) {
+    case PROP_ROTATION:
+        g_value_set_uint(value, self->rotation);
+        break;
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+    }
+}
+
+static void
 cog_drm_platform_class_init(CogDrmPlatformClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS(klass);
     object_class->finalize = cog_drm_platform_finalize;
+    object_class->set_property = cog_drm_platform_set_property;
+    object_class->get_property = cog_drm_platform_get_property;
 
     CogPlatformClass *platform_class = COG_PLATFORM_CLASS(klass);
     platform_class->is_supported = cog_drm_platform_is_supported;
     platform_class->setup = cog_drm_platform_setup;
     platform_class->get_view_backend = cog_drm_platform_get_view_backend;
     platform_class->init_web_view = cog_drm_platform_init_web_view;
+
+    /**
+     * CogDrmPlatform:rotation:
+     *
+     * Rotation applied to the output. The value is the number of 90 degree
+     * increments applied counter-clockwise, which means the possible values
+     * are:
+     *
+     * - `0`: No rotation.
+     * - `1`: 90 degrees.
+     * - `2`: 180 degrees.
+     * - `3`: 270 degrees..
+     */
+    s_properties[PROP_ROTATION] =
+        g_param_spec_uint("rotation", "Output rotation", "Number of counter-clockwise 90 degree rotation increments", 0,
+                          3, 0, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+    g_object_class_install_properties(object_class, N_PROPERTIES, s_properties);
 }
 
 static void
