@@ -63,11 +63,13 @@ struct _CogDrmPlatform {
     CogPlatform            parent;
     CogDrmRenderer        *renderer;
     CogDrmRendererRotation rotation;
+    bool                   use_gles;
 };
 
 enum {
     PROP_0,
     PROP_ROTATION,
+    PROP_RENDERER,
     N_PROPERTIES,
 };
 
@@ -201,17 +203,16 @@ static struct {
     struct wpe_view_backend *backend;
 } wpe_view_data;
 
-static bool
-init_config(CogShell *shell)
+static void
+init_config(CogDrmPlatform *self, CogShell *shell)
 {
     drm_data.device_scale = cog_shell_get_device_scale_factor (shell);
     g_debug ("init_config: overriding device_scale value, using %.2f from shell",
              drm_data.device_scale);
 
-    bool      use_gles_renderer = false;
     GKeyFile *key_file = cog_shell_get_config_file (shell);
     if (!key_file)
-        return use_gles_renderer;
+        return;
 
     {
         g_autoptr(GError) lookup_error = NULL;
@@ -239,13 +240,12 @@ init_config(CogShell *shell)
     {
         g_autofree char *value = g_key_file_get_string(key_file, "drm", "renderer", NULL);
         if (g_strcmp0(value, "gles") == 0)
-            use_gles_renderer = true;
-        else if (value && strcmp(value, "modeset") != 0)
+            self->use_gles = true;
+        else if (g_strcmp0(value, "modeset") != 0)
+            self->use_gles = false;
+        else if (value)
             g_warning("Invalid renderer '%s', using default.", value);
-        g_debug("%s: using '%s' renderer.", __func__, use_gles_renderer ? "gles" : "modeset");
     }
-
-    return use_gles_renderer;
 }
 
 static void
@@ -1208,7 +1208,7 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
 
     CogDrmPlatform *self = COG_DRM_PLATFORM(platform);
 
-    bool use_gles_renderer = init_config(shell);
+    init_config(COG_DRM_PLATFORM(platform), shell);
 
     if (!wpe_loader_init ("libWPEBackend-fdo-1.0.so")) {
         g_set_error_literal (error,
@@ -1248,7 +1248,7 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
         return FALSE;
     }
 
-    if (use_gles_renderer) {
+    if (self->use_gles) {
         self->renderer = cog_drm_gles_renderer_new(gbm_data.device,
                                                    egl_data.display,
                                                    drm_data.plane.obj_id,
@@ -1361,6 +1361,17 @@ cog_drm_platform_set_property(GObject *object, unsigned prop_id, const GValue *v
         }
         break;
     }
+    case PROP_RENDERER: {
+        const char *name = g_value_get_string(value);
+        if (g_strcmp0(name, "modeset") == 0) {
+            self->use_gles = false;
+        } else if (g_strcmp0(name, "gles") == 0) {
+            self->use_gles = true;
+        } else {
+            g_warning("%s: Invalid renderer name '%s'.", __func__, name);
+        }
+        break;
+    }
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
     }
@@ -1373,6 +1384,9 @@ cog_drm_platform_get_property(GObject *object, unsigned prop_id, GValue *value, 
     switch (prop_id) {
     case PROP_ROTATION:
         g_value_set_uint(value, self->rotation);
+        break;
+    case PROP_RENDERER:
+        g_value_set_string(value, self->use_gles ? "gles" : "modeset");
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -1408,6 +1422,23 @@ cog_drm_platform_class_init(CogDrmPlatformClass *klass)
     s_properties[PROP_ROTATION] =
         g_param_spec_uint("rotation", "Output rotation", "Number of counter-clockwise 90 degree rotation increments", 0,
                           3, 0, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+    /** CogDrmPlatform:renderer:
+     *
+     * Mechanism used to present the output. Possible values are:
+     *
+     * - `modeset`: Present content by attaching rendered buffers to a
+     *   KMS plane. Does not support rotation at the moment.
+     * - `gles`: Use OpenGL ES to present content by drawing quads textured
+     *   with the contents of rendered buffers. Supports all rotations by
+     *   modifying the texture UV-mapping.
+     */
+    s_properties[PROP_RENDERER] =
+        g_param_spec_string("renderer",
+                            "Output renderer",
+                            "Mechanism used to produce output on the screen",
+                            "modeset",
+                            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
     g_object_class_install_properties(object_class, N_PROPERTIES, s_properties);
 }
