@@ -353,13 +353,16 @@ check_drm(void)
     if (num_devices < 0)
         return FALSE;
 
-    for (int i = 0; i < num_devices; ++i) {
-        drmDevice *device = devices[i];
-        if (!!(device->available_nodes & (1 << DRM_NODE_PRIMARY)))
-            return TRUE;
+    gboolean supported = FALSE;
+    for (int i = 0; !supported && i < num_devices; ++i) {
+        if (devices[i]->available_nodes & (1 << DRM_NODE_PRIMARY)) {
+            supported = TRUE;
+            break;
+        }
     }
 
-    return FALSE;
+    drmFreeDevices(devices, num_devices);
+    return supported;
 }
 
 static gboolean
@@ -404,6 +407,8 @@ init_drm(void)
         close (drm_data.fd);
         drm_data.fd = -1;
     }
+
+    drmFreeDevices(devices, num_devices);
 
     if (!drm_data.base_resources)
         return FALSE;
