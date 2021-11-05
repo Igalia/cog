@@ -32,6 +32,7 @@ static struct {
     GStrv    dir_handlers;
     GStrv    arguments;
     char    *background_color;
+    char    *platform_params;
     union {
         char *platform_name;
         CogPlatform *platform;
@@ -73,6 +74,8 @@ static GOptionEntry s_cli_options[] = {
     {"bg-color", 'b', 0, G_OPTION_ARG_STRING, &s_options.background_color,
      "Background color, as a CSS name or in #RRGGBBAA hex syntax (default: white)", "BG_COLOR"},
     {"platform", 'P', 0, G_OPTION_ARG_STRING, &s_options.platform_name, "Platform plug-in to use.", "NAME"},
+    {"platform-params", 'O', 0, G_OPTION_ARG_STRING, &s_options.platform_params,
+     "Comma separated list of platform parameters.", "PARAMS"},
     {"web-extensions-dir", '\0', 0, G_OPTION_ARG_STRING, &s_options.web_extensions_dir,
      "Load Web Extensions from given directory.", "PATH"},
     {"ignore-tls-errors", '\0', 0, G_OPTION_ARG_NONE, &s_options.ignore_tls_errors,
@@ -327,7 +330,7 @@ platform_setup (CogShell *shell)
 
     g_clear_pointer(&s_options.platform_name, g_free);
 
-    if (!cog_platform_setup(platform, shell, "", &error)) {
+    if (!cog_platform_setup(platform, shell, s_options.platform_params ?: "", &error)) {
         g_warning ("Platform setup failed: %s", error->message);
         return FALSE;
     }
