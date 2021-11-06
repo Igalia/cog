@@ -126,11 +126,13 @@ set(COGCORE_SOURCES
 )
 
 if (USE_SOUP2)
+    set(WPEWEBKIT_PC_NAME "wpe-webkit-1.0")
     set(REQUIRED_GIO_VERSION "gio-2.0>=2.44")
     set(REQUIRED_SOUP_VERSION "libsoup-2.4")
     set(REQUIRED_WEBKIT_VERSION "wpe-webkit-1.0>=2.28.0")
     add_definitions("-DCOG_USE_SOUP2=1")
 else()
+    set(WPEWEBKIT_PC_NAME "wpe-webkit-1.1")
     set(REQUIRED_GIO_VERSION "gio-2.0>=2.67.4")
     set(REQUIRED_SOUP_VERSION "libsoup-3.0>=2.99.7")
     set(REQUIRED_WEBKIT_VERSION "wpe-webkit-1.1>=2.33.1")
