@@ -63,7 +63,7 @@ add_custom_command(
         --identifier-prefix=Cog
         --symbol-prefix=cog
         --pkg-export=cogcore
-        --pkg=wpe-webkit-1.0
+        --pkg=${WPEWEBKIT_PC_NAME}
         --pkg=gobject-2.0
         --pkg=gio-2.0
         --pkg=glib-2.0
