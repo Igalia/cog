@@ -342,13 +342,7 @@ platform_setup (CogShell *shell)
 static void
 on_shutdown (CogLauncher *launcher G_GNUC_UNUSED, void *user_data G_GNUC_UNUSED)
 {
-    g_debug ("%s: Platform = %p", __func__, s_options.platform);
-
-    if (s_options.platform) {
-        cog_platform_teardown (s_options.platform);
-        g_clear_object(&s_options.platform);
-        g_debug ("%s: Platform teardown completed.", __func__);
-    }
+    g_clear_object(&s_options.platform);
 }
 
 static void*

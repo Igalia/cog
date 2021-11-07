@@ -81,10 +81,12 @@ cog_headless_platform_setup(CogPlatform* platform, CogShell* shell G_GNUC_UNUSED
 }
 
 static void
-cog_headless_platform_teardown(CogPlatform* platform)
+cog_headless_platform_finalize(GObject* object)
 {
     g_source_remove(win.tick_source);
     wpe_view_backend_exportable_fdo_destroy(win.exportable);
+
+    G_OBJECT_CLASS(cog_headless_platform_parent_class)->finalize(object);
 }
 
 static WebKitWebViewBackend*
@@ -97,9 +99,11 @@ cog_headless_platform_get_view_backend(CogPlatform* platform, WebKitWebView* rel
 static void
 cog_headless_platform_class_init(CogHeadlessPlatformClass* klass)
 {
+    GObjectClass* object_class = G_OBJECT_CLASS(klass);
+    object_class->finalize = cog_headless_platform_finalize;
+
     CogPlatformClass* platform_class = COG_PLATFORM_CLASS(klass);
     platform_class->setup = cog_headless_platform_setup;
-    platform_class->teardown = cog_headless_platform_teardown;
     platform_class->get_view_backend = cog_headless_platform_get_view_backend;
 }
 

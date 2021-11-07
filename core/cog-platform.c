@@ -93,16 +93,6 @@ cog_platform_new(const char *name, GError **error)
     return g_steal_pointer(&self);
 }
 
-void
-cog_platform_teardown(CogPlatform *platform)
-{
-    g_return_if_fail(COG_IS_PLATFORM(platform));
-
-    CogPlatformClass *klass = COG_PLATFORM_GET_CLASS(platform);
-    if (klass->teardown)
-        klass->teardown(platform);
-}
-
 gboolean
 cog_platform_setup (CogPlatform *platform,
                     CogShell    *shell,

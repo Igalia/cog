@@ -772,12 +772,6 @@ cog_gtk4_platform_setup(CogPlatform* platform, CogShell* shell, const char* para
     return TRUE;
 }
 
-static void
-cog_gtk4_platform_teardown(CogPlatform* platform)
-{
-    g_assert_nonnull(platform);
-}
-
 static WebKitWebViewBackend*
 cog_gtk4_platform_get_view_backend(CogPlatform* platform, WebKitWebView* related_view, GError** error)
 {
@@ -865,7 +859,6 @@ cog_gtk4_platform_class_init(CogGtk4PlatformClass* klass)
     CogPlatformClass* platform_class = COG_PLATFORM_CLASS(klass);
     platform_class->is_supported = cog_gtk4_platform_is_supported;
     platform_class->setup = cog_gtk4_platform_setup;
-    platform_class->teardown = cog_gtk4_platform_teardown;
     platform_class->get_view_backend = cog_gtk4_platform_get_view_backend;
     platform_class->init_web_view = cog_gtk4_platform_init_web_view;
 }

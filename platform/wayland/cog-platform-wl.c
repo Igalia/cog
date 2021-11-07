@@ -2451,10 +2451,8 @@ cog_wl_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, cons
 }
 
 static void
-cog_wl_platform_teardown(CogPlatform *platform)
+cog_wl_platform_finalize(GObject *object)
 {
-    g_assert (platform);
-
     /* free WPE view data */
     if (wpe_view_data.frame_callback != NULL)
         wl_callback_destroy(wpe_view_data.frame_callback);
@@ -2480,6 +2478,8 @@ cog_wl_platform_teardown(CogPlatform *platform)
     destroy_window ();
     clear_egl();
     clear_wayland ();
+
+    G_OBJECT_CLASS(cog_wl_platform_parent_class)->finalize(object);
 }
 
 static WebKitWebViewBackend *
@@ -2547,10 +2547,12 @@ cog_wl_platform_create_im_context(CogPlatform *platform)
 static void
 cog_wl_platform_class_init(CogWlPlatformClass *klass)
 {
+    GObjectClass *object_class = G_OBJECT_CLASS(klass);
+    object_class->finalize = cog_wl_platform_finalize;
+
     CogPlatformClass *platform_class = COG_PLATFORM_CLASS(klass);
     platform_class->is_supported = cog_wl_platform_is_supported;
     platform_class->setup = cog_wl_platform_setup;
-    platform_class->teardown = cog_wl_platform_teardown;
     platform_class->get_view_backend = cog_wl_platform_get_view_backend;
     platform_class->init_web_view = cog_wl_platform_init_web_view;
     platform_class->create_im_context = cog_wl_platform_create_im_context;

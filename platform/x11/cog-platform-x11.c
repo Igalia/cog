@@ -863,10 +863,8 @@ cog_x11_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, con
 }
 
 static void
-cog_x11_platform_teardown(CogPlatform *platform)
+cog_x11_platform_finalize(GObject *object)
 {
-    g_assert (platform);
-
     clear_glib ();
     clear_gl ();
     clear_egl ();
@@ -875,6 +873,8 @@ cog_x11_platform_teardown(CogPlatform *platform)
 
     g_clear_pointer (&s_window, free);
     g_clear_pointer (&s_display, free);
+
+    G_OBJECT_CLASS(cog_x11_platform_parent_class)->finalize(object);
 }
 
 static WebKitWebViewBackend *
@@ -931,10 +931,12 @@ cog_x11_platform_is_supported(void)
 static void
 cog_x11_platform_class_init(CogX11PlatformClass *klass)
 {
+    GObjectClass *object_class = G_OBJECT_CLASS(klass);
+    object_class->finalize = cog_x11_platform_finalize;
+
     CogPlatformClass *platform_class = COG_PLATFORM_CLASS(klass);
     platform_class->is_supported = cog_x11_platform_is_supported;
     platform_class->setup = cog_x11_platform_setup;
-    platform_class->teardown = cog_x11_platform_teardown;
     platform_class->get_view_backend = cog_x11_platform_get_view_backend;
 }
 
