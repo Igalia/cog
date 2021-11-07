@@ -47,7 +47,6 @@ struct _CogPlatformClass {
     /*< public >*/
     gboolean (*is_supported)(void);
     gboolean (*setup)(CogPlatform *, CogShell *shell, const char *params, GError **);
-    void (*teardown)(CogPlatform *);
     WebKitWebViewBackend *(*get_view_backend)(CogPlatform *, WebKitWebView *related_view, GError **);
     void (*init_web_view)(CogPlatform *, WebKitWebView *);
     WebKitInputMethodContext *(*create_im_context)(CogPlatform *);
@@ -58,8 +57,6 @@ CogPlatform *cog_platform_get_default(void);
 CogPlatform *cog_platform_new(const char *name, GError **);
 
 gboolean cog_platform_setup(CogPlatform *platform, CogShell *shell, const char *params, GError **error);
-
-void                      cog_platform_teardown          (CogPlatform   *platform);
 
 WebKitWebViewBackend     *cog_platform_get_view_backend  (CogPlatform   *platform,
                                                           WebKitWebView *related_view,

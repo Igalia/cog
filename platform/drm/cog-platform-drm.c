@@ -1827,18 +1827,17 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
 }
 
 static void
-cog_drm_platform_teardown(CogPlatform *platform)
+cog_drm_platform_finalize(GObject *object)
 {
-    g_assert (platform);
-
     clear_buffers ();
-
     clear_glib ();
     clear_input ();
     clear_egl ();
     clear_gbm ();
     clear_cursor ();
     clear_drm ();
+
+    G_OBJECT_CLASS(cog_drm_platform_parent_class)->finalize(object);
 }
 
 static WebKitWebViewBackend *
@@ -1880,10 +1879,12 @@ cog_drm_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
 static void
 cog_drm_platform_class_init(CogDrmPlatformClass *klass)
 {
+    GObjectClass *object_class = G_OBJECT_CLASS(klass);
+    object_class->finalize = cog_drm_platform_finalize;
+
     CogPlatformClass *platform_class = COG_PLATFORM_CLASS(klass);
     platform_class->is_supported = cog_drm_platform_is_supported;
     platform_class->setup = cog_drm_platform_setup;
-    platform_class->teardown = cog_drm_platform_teardown;
     platform_class->get_view_backend = cog_drm_platform_get_view_backend;
     platform_class->init_web_view = cog_drm_platform_init_web_view;
 }
