@@ -52,8 +52,8 @@ declare -r BASE HEAD
 
 declare -ra clang_format_diff_candidates=(
     # Search in $PATH (Ubuntu, Debian, maybe others)
-    clang-format-diff-11
-    clang-format-diff-11.py
+    clang-format-diff-13
+    clang-format-diff-13.py
     clang-format-diff
     clang-format-diff.py
     # Arch Linux, Fedora.

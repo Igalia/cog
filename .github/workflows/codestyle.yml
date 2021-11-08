@@ -17,9 +17,9 @@ jobs:
           curl -sL https://apt.llvm.org/llvm-snapshot.gpg.key | \
             sudo apt-key add -
           sudo add-apt-repository \
-            'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main'
+            'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-13 main'
           sudo apt update
-          sudo apt install -y clang-format-11 diffutils
+          sudo apt install -y clang-format-13 diffutils
       - name: Check
         run: |
           data/check-style -ocode-style.diff origin/master
