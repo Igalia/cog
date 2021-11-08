@@ -1,6 +1,7 @@
 #! /bin/bash
 set -e
 
+# Info on available toolchains: https://wk-contrib.igalia.com/
 INSTALL_DIR=${1:-${HOME}/toolchain}
 BASEURL=https://wk-contrib.igalia.com/yocto/meta-perf-browser/browsers/nightly/sdk
 FILE=wandboard-mesa/browsers-glibc-x86_64-core-image-weston-browsers-cortexa9t2hf-neon-wandboard-mesa-toolchain-1.0.sh
