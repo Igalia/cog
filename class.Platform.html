@@ -110,8 +110,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
     <a class="method" href="method.Platform.setup.html">setup</a>
   
-    <a class="method" href="method.Platform.teardown.html">teardown</a>
-  
   </div>
 </div>
 
@@ -149,8 +147,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     <a class="method" href="vfunc.Platform.init_web_view.html">init_web_view</a>
   
     <a class="method" href="vfunc.Platform.setup.html">setup</a>
-  
-    <a class="method" href="vfunc.Platform.teardown.html">teardown</a>
   
   </div>
 </div>
@@ -277,14 +273,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           
         </div>
       
-        <div class="">
-          <h6><a href="method.Platform.teardown.html">cog_platform_teardown</a></h6>
-          <div class="docblock">
-            No description available.
-          </div>
-          
-        </div>
-      
       </div>
 
       
@@ -315,9 +303,6 @@ void
     CogShell* shell,
     const char* params,
     GError** error
-  );
-  void (* teardown) (
-    CogPlatform* arg0
   );
   WebKitWebViewBackend* (* get_view_backend) (
     CogPlatform* arg0,
@@ -368,17 +353,6 @@ void
     CogShell* shell,
     const char* params,
     GError** error
-  )</code></pre></td>
-        </tr>
-        <tr>
-          <td>&nbsp;</td>
-          <td style="vertical-align:top">No description available.</td>
-        </td>
-        
-        <tr>
-          <td style="vertical-align:top"><code>teardown</code></td>
-          <td style="vertical-align:top"><pre><code>void (* teardown) (
-    CogPlatform* arg0
   )</code></pre></td>
         </tr>
         <tr>
@@ -469,16 +443,6 @@ void
       
       <div class="">
         <h6 id="vfunc-setup"><a href="vfunc.Platform.setup.html">Cog.PlatformClass.setup</a></h6>
-
-        <div class="docblock">
-          No description available.
-        </div>
-
-          
-      </div>
-      
-      <div class="">
-        <h6 id="vfunc-teardown"><a href="vfunc.Platform.teardown.html">Cog.PlatformClass.teardown</a></h6>
 
         <div class="docblock">
           No description available.
