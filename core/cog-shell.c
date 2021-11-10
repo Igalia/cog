@@ -29,6 +29,9 @@ typedef struct {
     gdouble           device_scale_factor;
     GHashTable       *request_handlers;  /* (string, RequestHandlerMapEntry) */
     gboolean          automated;
+
+    WebKitMemoryPressureSettings *web_mem_settings;
+    WebKitMemoryPressureSettings *net_mem_settings;
 } CogShellPrivate;
 
 
@@ -46,6 +49,8 @@ enum {
     PROP_CONFIG_FILE,
     PROP_DEVICE_SCALE_FACTOR,
     PROP_AUTOMATED,
+    PROP_WEB_MEMORY_SETTINGS,
+    PROP_NETWORK_MEMORY_SETTINGS,
     N_PROPERTIES,
 };
 
@@ -194,6 +199,12 @@ cog_shell_get_property (GObject    *object,
         case PROP_WEB_VIEW:
             g_value_set_object (value, cog_shell_get_web_view (shell));
             break;
+        case PROP_WEB_MEMORY_SETTINGS:
+            g_value_set_boxed(value, PRIV(shell)->web_mem_settings);
+            break;
+        case PROP_NETWORK_MEMORY_SETTINGS:
+            g_value_set_boxed(value, PRIV(shell)->net_mem_settings);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
         }
@@ -205,19 +216,28 @@ cog_shell_set_property (GObject      *object,
                         const GValue *value,
                         GParamSpec   *pspec)
 {
-    CogShell *shell = COG_SHELL (object);
+    CogShell        *shell = COG_SHELL(object);
+    CogShellPrivate *priv = PRIV(shell);
     switch (prop_id) {
         case PROP_NAME:
-            PRIV (shell)->name = g_value_dup_string (value);
+            priv->name = g_value_dup_string(value);
             break;
         case PROP_CONFIG_FILE:
-            PRIV (shell)->config_file = g_value_get_boxed (value);
+            priv->config_file = g_value_get_boxed(value);
             break;
         case PROP_DEVICE_SCALE_FACTOR:
-            PRIV (shell)->device_scale_factor = g_value_get_double (value);
+            priv->device_scale_factor = g_value_get_double(value);
             break;
         case PROP_AUTOMATED:
-            PRIV(shell)->automated = g_value_get_boolean(value);
+            priv->automated = g_value_get_boolean(value);
+            break;
+        case PROP_WEB_MEMORY_SETTINGS:
+            g_clear_pointer(&priv->web_mem_settings, webkit_memory_pressure_settings_free);
+            priv->web_mem_settings = g_value_dup_boxed(value);
+            break;
+        case PROP_NETWORK_MEMORY_SETTINGS:
+            g_clear_pointer(&priv->net_mem_settings, webkit_memory_pressure_settings_free);
+            priv->net_mem_settings = g_value_dup_boxed(value);
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -245,7 +265,12 @@ cog_shell_constructed(GObject *object)
     else
         manager =
             webkit_website_data_manager_new("base-data-directory", data_dir, "base-cache-directory", cache_dir, NULL);
-    priv->web_context = webkit_web_context_new_with_website_data_manager(manager);
+
+    priv->web_context = g_object_new(WEBKIT_TYPE_WEB_CONTEXT, "memory-pressure-settings", priv->web_mem_settings,
+                                     "website-data-manager", manager, NULL);
+
+    if (priv->net_mem_settings)
+        webkit_website_data_manager_set_memory_pressure_settings(priv->net_mem_settings);
 }
 
 static void
@@ -388,6 +413,32 @@ cog_shell_class_init (CogShellClass *klass)
                                                         "Whether this session is automated",
                                                         FALSE,
                                                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY);
+
+    /**
+     * CogShell:web-memory-settings:
+     *
+     * Optional memory settings to be applied to web processes, as a
+     * `WebKitMemoryPressureSettings` instance.
+     */
+    s_properties[PROP_WEB_MEMORY_SETTINGS] =
+        g_param_spec_boxed("web-memory-settings",
+                           "Web process memory pressure settings",
+                           "Memory pressure handling setttings for web processes",
+                           WEBKIT_TYPE_MEMORY_PRESSURE_SETTINGS,
+                           G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
+
+    /**
+     * CogShell:network-memory-settings:
+     *
+     * Optional memory settings to be applied to network processes, as a
+     * `WebKitMemoryPressureSettings` instance.
+     */
+    s_properties[PROP_NETWORK_MEMORY_SETTINGS] =
+        g_param_spec_boxed("network-memory-settings",
+                           "Network process memory pressure settings",
+                           "Memory pressure handling settings for network processes",
+                           WEBKIT_TYPE_MEMORY_PRESSURE_SETTINGS,
+                           G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
     g_object_class_install_properties(object_class, N_PROPERTIES, s_properties);
 }
