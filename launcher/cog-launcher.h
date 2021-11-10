@@ -6,16 +6,9 @@
  * Distributed under terms of the MIT license.
  */
 
-#ifndef COG_LAUNCHER_H
-#define COG_LAUNCHER_H
+#pragma once
 
-#if !(defined(COG_INSIDE_COG__) && COG_INSIDE_COG__)
-# error "Do not include this header directly, use <cog.h> instead"
-#endif
-
-#include "cog-config.h"
-#include "cog-request-handler.h"
-#include "cog-shell.h"
+#include "../core/cog.h"
 
 G_BEGIN_DECLS
 
@@ -42,5 +35,3 @@ void  cog_launcher_add_web_cookies_option_entries      (CogLauncher *launcher);
 void  cog_launcher_add_web_permissions_option_entries  (CogLauncher *launcher);
 
 G_END_DECLS
-
-#endif /* !COG_LAUNCHER_H */

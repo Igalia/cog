@@ -83,7 +83,8 @@ struct _CogWlPlatformClass {
 };
 
 struct _CogWlPlatform {
-    CogPlatform parent;
+    CogPlatform    parent;
+    WebKitWebView *web_view;
 };
 
 G_DECLARE_FINAL_TYPE(CogWlPlatform, cog_wl_platform, COG, WL_PLATFORM, CogPlatform)
@@ -1079,69 +1080,70 @@ keyboard_on_leave (void *data,
 }
 
 static bool
-capture_app_key_bindings (uint32_t keysym,
-                          uint32_t unicode,
-                          uint32_t state,
-                          uint8_t modifiers)
+capture_app_key_bindings(CogWlPlatform *self, uint32_t keysym, uint32_t unicode, uint32_t state, uint8_t modifiers)
 {
-    CogLauncher *launcher = cog_launcher_get_default ();
-    WebKitWebView *web_view =
-        cog_shell_get_web_view (cog_launcher_get_shell (launcher));
+    GApplication *app = g_application_get_default();
+    if (!app || !self->web_view)
+        return false;
 
-    if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
-        /* fullscreen */
-        if (modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F11) {
+    if (state != WL_KEYBOARD_KEY_STATE_PRESSED)
+        return false;
+
+    /* fullscreen */
+    if (modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F11) {
 #if HAVE_FULLSCREEN_HANDLING
-            if (win_data.is_fullscreen && win_data.was_fullscreen_requested_from_dom) {
-                wpe_view_backend_dispatch_request_exit_fullscreen(wpe_view_data.backend);
-                return true;
-            }
+        if (win_data.is_fullscreen && win_data.was_fullscreen_requested_from_dom) {
+            wpe_view_backend_dispatch_request_exit_fullscreen(wpe_view_data.backend);
+            return true;
+        }
 #endif
-            cog_wl_set_fullscreen(0, !win_data.is_fullscreen);
-            return true;
-        }
-        /* Ctrl+W, exit the application */
-        else if (modifiers == wpe_input_keyboard_modifier_control && unicode == 0x17 && keysym == 0x77) {
-            g_application_quit (G_APPLICATION (launcher));
-            return true;
-        }
-        /* Ctrl+Plus, zoom in */
-        else if (modifiers == wpe_input_keyboard_modifier_control && unicode == XKB_KEY_equal &&
-                 keysym == XKB_KEY_equal) {
-            const double level = webkit_web_view_get_zoom_level (web_view);
-            webkit_web_view_set_zoom_level (web_view,
-                                            level + DEFAULT_ZOOM_STEP);
-            return true;
-        }
-        /* Ctrl+Minus, zoom out */
-        else if (modifiers == wpe_input_keyboard_modifier_control && unicode == 0x2D && keysym == 0x2D) {
-            const double level = webkit_web_view_get_zoom_level (web_view);
-            webkit_web_view_set_zoom_level (web_view,
-                                            level - DEFAULT_ZOOM_STEP);
-            return true;
-        }
-        /* Ctrl+0, restore zoom level to 1.0 */
-        else if (modifiers == wpe_input_keyboard_modifier_control && unicode == XKB_KEY_0 && keysym == XKB_KEY_0) {
-            webkit_web_view_set_zoom_level (web_view, 1.0f);
-            return true;
-        }
-        /* Alt+Left, navigate back */
-        else if (modifiers == wpe_input_keyboard_modifier_alt && unicode == 0 && keysym == XKB_KEY_Left) {
-            webkit_web_view_go_back (web_view);
-            return true;
-        }
-        /* Alt+Right, navigate forward */
-        else if (modifiers == wpe_input_keyboard_modifier_alt && unicode == 0 && keysym == XKB_KEY_Right) {
-            webkit_web_view_go_forward (web_view);
-            return true;
-        }
+        cog_wl_set_fullscreen(0, !win_data.is_fullscreen);
+        return true;
+    }
+
+    /* Ctrl+W, exit the application */
+    if (modifiers == wpe_input_keyboard_modifier_control && unicode == 0x17 && keysym == 0x77) {
+        g_application_quit(app);
+        return true;
+    }
+
+    /* Ctrl+Plus, zoom in */
+    if (modifiers == wpe_input_keyboard_modifier_control && unicode == XKB_KEY_equal && keysym == XKB_KEY_equal) {
+        const double level = webkit_web_view_get_zoom_level(self->web_view);
+        webkit_web_view_set_zoom_level(self->web_view, level + DEFAULT_ZOOM_STEP);
+        return true;
+    }
+
+    /* Ctrl+Minus, zoom out */
+    if (modifiers == wpe_input_keyboard_modifier_control && unicode == 0x2D && keysym == 0x2D) {
+        const double level = webkit_web_view_get_zoom_level(self->web_view);
+        webkit_web_view_set_zoom_level(self->web_view, level - DEFAULT_ZOOM_STEP);
+        return true;
+    }
+
+    /* Ctrl+0, restore zoom level to 1.0 */
+    if (modifiers == wpe_input_keyboard_modifier_control && unicode == XKB_KEY_0 && keysym == XKB_KEY_0) {
+        webkit_web_view_set_zoom_level(self->web_view, 1.0f);
+        return true;
+    }
+
+    /* Alt+Left, navigate back */
+    if (modifiers == wpe_input_keyboard_modifier_alt && unicode == 0 && keysym == XKB_KEY_Left) {
+        webkit_web_view_go_back(self->web_view);
+        return true;
+    }
+
+    /* Alt+Right, navigate forward */
+    if (modifiers == wpe_input_keyboard_modifier_alt && unicode == 0 && keysym == XKB_KEY_Right) {
+        webkit_web_view_go_forward(self->web_view);
+        return true;
     }
 
     return false;
 }
 
 static void
-handle_key_event (uint32_t key, uint32_t state, uint32_t time)
+handle_key_event(CogWlPlatform *self, uint32_t key, uint32_t state, uint32_t time)
 {
     if (xkb_data.state == NULL)
         return;
@@ -1150,7 +1152,7 @@ handle_key_event (uint32_t key, uint32_t state, uint32_t time)
     uint32_t unicode = xkb_state_key_get_utf32 (xkb_data.state, key);
 
     /* Capture app-level key-bindings here */
-    if (capture_app_key_bindings (keysym, unicode, state, xkb_data.modifiers))
+    if (capture_app_key_bindings(self, keysym, unicode, state, xkb_data.modifiers))
         return;
 
     if (xkb_data.compose_state != NULL
@@ -1169,15 +1171,15 @@ handle_key_event (uint32_t key, uint32_t state, uint32_t time)
 }
 
 static gboolean
-repeat_delay_timeout(void *data)
+repeat_delay_timeout(CogWlPlatform *self)
 {
-    handle_key_event (wl_data.keyboard.repeat_data.key,
-                      wl_data.keyboard.repeat_data.state,
-                      wl_data.keyboard.repeat_data.time);
+    handle_key_event(self,
+                     wl_data.keyboard.repeat_data.key,
+                     wl_data.keyboard.repeat_data.state,
+                     wl_data.keyboard.repeat_data.time);
 
     wl_data.keyboard.repeat_data.event_source =
-        g_timeout_add (wl_data.keyboard.repeat_info.rate,
-                       (GSourceFunc) repeat_delay_timeout, NULL);
+        g_timeout_add(wl_data.keyboard.repeat_info.rate, (GSourceFunc) repeat_delay_timeout, self);
 
     return G_SOURCE_REMOVE;
 }
@@ -1190,12 +1192,14 @@ keyboard_on_key (void *data,
                  uint32_t key,
                  uint32_t state)
 {
+    CogWlPlatform *self = data;
+
     /* @FIXME: investigate why is this necessary */
     // IDK.
     key += 8;
 
     wl_data.event_serial = serial;
-    handle_key_event (key, state, time);
+    handle_key_event(self, key, state, time);
 
     if (wl_data.keyboard.repeat_info.rate == 0)
         return;
@@ -1218,8 +1222,7 @@ keyboard_on_key (void *data,
         wl_data.keyboard.repeat_data.time = time;
         wl_data.keyboard.repeat_data.state = state;
         wl_data.keyboard.repeat_data.event_source =
-            g_timeout_add (wl_data.keyboard.repeat_info.delay,
-                           (GSourceFunc) repeat_delay_timeout, NULL);
+            g_timeout_add(wl_data.keyboard.repeat_info.delay, (GSourceFunc) repeat_delay_timeout, self);
     }
 }
 
@@ -1472,7 +1475,7 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     if (has_keyboard && wl_data.keyboard.obj == NULL) {
         wl_data.keyboard.obj = wl_seat_get_keyboard (wl_data.seat);
         g_assert (wl_data.keyboard.obj);
-        wl_keyboard_add_listener (wl_data.keyboard.obj, &keyboard_listener, NULL);
+        wl_keyboard_add_listener(wl_data.keyboard.obj, &keyboard_listener, data);
         g_debug ("  - Keyboard");
     } else if (! has_keyboard && wl_data.keyboard.obj != NULL) {
         wl_keyboard_release (wl_data.keyboard.obj);
@@ -2339,10 +2342,10 @@ update_popup (void)
 }
 
 static gboolean
-init_input (GError **error)
+init_input(CogWlPlatform *self, GError **error)
 {
     if (wl_data.seat != NULL) {
-        wl_seat_add_listener (wl_data.seat, &seat_listener, NULL);
+        wl_seat_add_listener(wl_data.seat, &seat_listener, self);
 
         xkb_data.context = xkb_context_new (XKB_CONTEXT_NO_FLAGS);
         g_assert (xkb_data.context);
@@ -2408,7 +2411,6 @@ clear_buffers(void)
 static gboolean
 cog_wl_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, const char *params, GError **error)
 {
-    g_assert (platform);
     g_return_val_if_fail (COG_IS_SHELL (shell), FALSE);
 
     if (!wpe_loader_init ("libWPEBackend-fdo-1.0.so")) {
@@ -2433,7 +2435,7 @@ cog_wl_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, cons
         return FALSE;
     }
 
-    if (!init_input(error)) {
+    if (!init_input(COG_WL_PLATFORM(platform), error)) {
         destroy_window ();
         clear_egl();
         clear_wayland ();
@@ -2532,6 +2534,7 @@ static void
 cog_wl_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
 {
     g_signal_connect (view, "show-option-menu", G_CALLBACK (on_show_option_menu), NULL);
+    COG_WL_PLATFORM(platform)->web_view = view;
 }
 
 static WebKitInputMethodContext *
