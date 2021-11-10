@@ -7,10 +7,10 @@
  * Distributed under terms of the MIT license.
  */
 
+#include "../core/cog.h"
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include "core/cog.h"
 
 enum webprocess_fail_action {
     WEBPROCESS_FAIL_UNKNOWN = 0,
