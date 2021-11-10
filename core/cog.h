@@ -15,7 +15,6 @@
 #include "cog-config.h"
 #include "cog-directory-files-handler.h"
 #include "cog-host-routes-handler.h"
-#include "cog-launcher.h"
 #include "cog-modules.h"
 #include "cog-platform.h"
 #include "cog-prefix-routes-handler.h"

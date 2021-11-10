@@ -7,11 +7,6 @@
  */
 
 #include "cog-launcher.h"
-#include "cog-shell.h"
-#include "cog-request-handler.h"
-#include "cog-webkit-utils.h"
-#include "cog-utils.h"
-
 #include <glib-unix.h>
 #include <stdlib.h>
 #include <string.h>

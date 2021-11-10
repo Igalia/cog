@@ -1,5 +1,6 @@
 add_executable(cog
     cog.c
+    cog-launcher.c
 )
 set_property(TARGET cog PROPERTY C_STANDARD 99)
 target_compile_definitions(cog PRIVATE G_LOG_DOMAIN=\"Cog\")

@@ -8,6 +8,7 @@
  */
 
 #include "../core/cog.h"
+#include "cog-launcher.h"
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>

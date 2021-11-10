@@ -100,7 +100,6 @@ find_package(PkgConfig)
 # libcogcore
 set(COGCORE_API_HEADERS
     core/cog.h
-    core/cog-launcher.h
     core/cog-request-handler.h
     core/cog-directory-files-handler.h
     core/cog-host-routes-handler.h
@@ -114,7 +113,6 @@ set(COGCORE_API_HEADERS
     ${CMAKE_CURRENT_BINARY_DIR}/cog-config.h
 )
 set(COGCORE_SOURCES
-    core/cog-launcher.c
     core/cog-request-handler.c
     core/cog-directory-files-handler.c
     core/cog-host-routes-handler.c
