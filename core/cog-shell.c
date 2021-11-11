@@ -233,7 +233,7 @@ cog_shell_set_property (GObject      *object,
             priv->web_settings = g_value_dup_object(value);
             break;
         case PROP_CONFIG_FILE:
-            priv->config_file = g_value_get_boxed(value);
+            priv->config_file = g_value_dup_boxed(value);
             break;
         case PROP_DEVICE_SCALE_FACTOR:
             priv->device_scale_factor = g_value_get_double(value);
