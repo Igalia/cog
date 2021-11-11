@@ -25,13 +25,10 @@ typedef enum {
     COG_SESSION_AUTOMATED,
 } CogSessionType;
 
-CogLauncher *cog_launcher_get_default                  (void);
-CogLauncher *cog_launcher_init_default(CogSessionType sessionType);
-CogShell    *cog_launcher_get_shell                    (CogLauncher *launcher);
-gboolean     cog_launcher_is_automated(CogLauncher *launcher);
-
-void  cog_launcher_add_web_settings_option_entries     (CogLauncher *launcher);
-void  cog_launcher_add_web_cookies_option_entries      (CogLauncher *launcher);
-void  cog_launcher_add_web_permissions_option_entries  (CogLauncher *launcher);
+CogLauncher              *cog_launcher_new(CogSessionType session_type);
+CogShell                 *cog_launcher_get_shell(CogLauncher *launcher);
+gboolean                  cog_launcher_is_automated(CogLauncher *launcher);
+WebKitSettings           *cog_launcher_get_webkit_settings(CogLauncher *launcher);
+WebKitWebsiteDataManager *cog_launcher_get_web_data_manager(CogLauncher *launcher);
 
 G_END_DECLS
