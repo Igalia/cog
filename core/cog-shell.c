@@ -32,8 +32,10 @@ typedef struct {
     WebKitWebView            *web_view;
     WebKitWebsiteDataManager *web_data_manager;
 
+#if COG_HAVE_MEM_PRESSURE
     WebKitMemoryPressureSettings *web_mem_settings;
     WebKitMemoryPressureSettings *net_mem_settings;
+#endif /* COG_HAVE_MEM_PRESSURE */
 } CogShellPrivate;
 
 
@@ -51,9 +53,11 @@ enum {
     PROP_CONFIG_FILE,
     PROP_DEVICE_SCALE_FACTOR,
     PROP_AUTOMATED,
+    PROP_WEB_DATA_MANAGER,
+#if COG_HAVE_MEM_PRESSURE
     PROP_WEB_MEMORY_SETTINGS,
     PROP_NETWORK_MEMORY_SETTINGS,
-    PROP_WEB_DATA_MANAGER,
+#endif /* COG_HAVE_MEM_PRESSURE */
     N_PROPERTIES,
 };
 
@@ -202,12 +206,14 @@ cog_shell_get_property (GObject    *object,
         case PROP_WEB_VIEW:
             g_value_set_object (value, cog_shell_get_web_view (shell));
             break;
+#if COG_HAVE_MEM_PRESSURE
         case PROP_WEB_MEMORY_SETTINGS:
             g_value_set_boxed(value, PRIV(shell)->web_mem_settings);
             break;
         case PROP_NETWORK_MEMORY_SETTINGS:
             g_value_set_boxed(value, PRIV(shell)->net_mem_settings);
             break;
+#endif /* COG_HAVE_MEM_PRESSURE */
         case PROP_WEB_DATA_MANAGER:
             g_value_set_object(value, PRIV(shell)->web_data_manager);
             break;
@@ -241,6 +247,7 @@ cog_shell_set_property (GObject      *object,
         case PROP_AUTOMATED:
             priv->automated = g_value_get_boolean(value);
             break;
+#if COG_HAVE_MEM_PRESSURE
         case PROP_WEB_MEMORY_SETTINGS:
             g_clear_pointer(&priv->web_mem_settings, webkit_memory_pressure_settings_free);
             priv->web_mem_settings = g_value_dup_boxed(value);
@@ -249,6 +256,7 @@ cog_shell_set_property (GObject      *object,
             g_clear_pointer(&priv->net_mem_settings, webkit_memory_pressure_settings_free);
             priv->net_mem_settings = g_value_dup_boxed(value);
             break;
+#endif /* COG_HAVE_MEM_PRESSURE */
         case PROP_WEB_DATA_MANAGER:
             g_clear_object(&priv->web_data_manager);
             priv->web_data_manager = g_value_dup_object(value);
@@ -283,11 +291,15 @@ cog_shell_constructed(GObject *object)
                                                                      "base-cache-directory", cache_dir, NULL);
     }
 
-    priv->web_context = g_object_new(WEBKIT_TYPE_WEB_CONTEXT, "memory-pressure-settings", priv->web_mem_settings,
-                                     "website-data-manager", priv->web_data_manager, NULL);
+#if COG_HAVE_MEM_PRESSURE
+    priv->web_context = g_object_new(WEBKIT_TYPE_WEB_CONTEXT, "website-data-manager", priv->web_data_manager,
+                                     "memory-pressure-settings", priv->web_mem_settings, NULL);
 
     if (priv->net_mem_settings)
         webkit_website_data_manager_set_memory_pressure_settings(priv->net_mem_settings);
+#else
+    priv->web_context = webkit_web_context_new_with_website_data_manager(priv->web_data_manager);
+#endif /* COG_HAVE_MEM_PRESSURE */
 }
 
 static void
@@ -431,6 +443,7 @@ cog_shell_class_init (CogShellClass *klass)
                                                         FALSE,
                                                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY);
 
+#if COG_HAVE_MEM_PRESSURE
     /**
      * CogShell:web-memory-settings:
      *
@@ -456,6 +469,7 @@ cog_shell_class_init (CogShellClass *klass)
                            "Memory pressure handling settings for network processes",
                            WEBKIT_TYPE_MEMORY_PRESSURE_SETTINGS,
                            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
+#endif /* COG_HAVE_MEM_PRESSURE */
 
     /**
      * CogShell:web-data-manager:

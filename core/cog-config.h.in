@@ -17,6 +17,7 @@
 #define COG_VERSION_EXTRA "@COG_VERSION_EXTRA@"
 #cmakedefine COG_DEFAULT_APPID "@COG_DEFAULT_APPID@"
 #cmakedefine COG_DEFAULT_HOME_URI "@COG_DEFAULT_HOME_URI@"
+#define COG_HAVE_MEM_PRESSURE @HAVE_WEBKIT_MEM_PRESSURE_API@
 
 /* FIXME: Perhaps make this a cmake define instead. */
 #define COG_DEFAULT_APPNAME "Cog"
