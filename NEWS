@@ -1,3 +1,13 @@
+===========================
+0.11.90 - November 11, 2021
+===========================
+
+- core: Removed cog_platform_teardown(), deinitilization of platform
+  plug-in implementations is now done automatically as part of object
+  finalization.
+- core: Fixed building the documentation when using libsoup3.
+- drm: Fixed two small memory leaks during initialization.
+
 =========================
 0.11.1 - November 3, 2021
 =========================
