@@ -14,7 +14,7 @@ jobs:
       - name: Install Debian Packages
         run: |
           sudo apt update
-          sudo apt install -y cmake ninja-build
+          sudo apt install -y cmake ninja-build libwayland-bin
       - name: Cache
         uses: actions/cache@v2
         id: cache
@@ -31,6 +31,7 @@ jobs:
         run: |-
           . ~/toolchain/environment-setup-*-poky-linux-gnueabi
           cmake -GNinja -S. -Bbuild \
+            -DWAYLAND_SCANNER=/usr/bin/wayland-scanner \
             -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
             -DCOG_PLATFORM_FDO=ON \
             -DCOG_PLATFORM_DRM=ON
