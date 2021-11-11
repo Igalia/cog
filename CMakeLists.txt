@@ -3,7 +3,7 @@ cmake_minimum_required (VERSION 3.3)
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/cmake")
 include(VersioningUtils)
 
-set_project_version(0 11 1)
+set_project_version(0 13 0)
 
 # Before making a release, the LT_VERSION string should be modified.
 # The string is of the form C:R:A.
@@ -12,7 +12,7 @@ set_project_version(0 11 1)
 # - If binary compatibility has been broken (eg removed or changed interfaces)
 #   change to C+1:0:0
 # - If the interface is the same as the previous version, change to C:R+1:A
-calculate_library_versions_from_libtool_triple(COGCORE 6 0 5)
+calculate_library_versions_from_libtool_triple(COGCORE 8 0 1)
 
 project(cog VERSION "${PROJECT_VERSION}" LANGUAGES C)
 include(DistTargets)
