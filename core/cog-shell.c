@@ -228,6 +228,10 @@ cog_shell_set_property (GObject      *object,
         case PROP_NAME:
             priv->name = g_value_dup_string(value);
             break;
+        case PROP_WEB_SETTINGS:
+            g_clear_object(&priv->web_settings);
+            priv->web_settings = g_value_dup_object(value);
+            break;
         case PROP_CONFIG_FILE:
             priv->config_file = g_value_get_boxed(value);
             break;
@@ -261,7 +265,8 @@ cog_shell_constructed(GObject *object)
 
     CogShellPrivate *priv = PRIV (object);
 
-    priv->web_settings = g_object_ref_sink (webkit_settings_new ());
+    if (!priv->web_settings)
+        priv->web_settings = g_object_ref_sink(webkit_settings_new());
 
     g_autofree char *data_dir =
         g_build_filename (g_get_user_data_dir (), priv->name, NULL);
@@ -366,12 +371,11 @@ cog_shell_class_init (CogShellClass *klass)
      * WebKit settings for this shell.
      */
     s_properties[PROP_WEB_SETTINGS] =
-        g_param_spec_object ("web-settings",
-                             "Web Settings",
-                             "The WebKitSettings used by the shell",
-                             WEBKIT_TYPE_SETTINGS,
-                             G_PARAM_READABLE |
-                             G_PARAM_STATIC_STRINGS);
+        g_param_spec_object("web-settings",
+                            "Web Settings",
+                            "The WebKitSettings used by the shell",
+                            WEBKIT_TYPE_SETTINGS,
+                            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
     /**
      * CogShell:web-context: (attributes org.gtk.Property.get=cog_shell_get_web_context):
