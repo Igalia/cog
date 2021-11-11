@@ -104,8 +104,10 @@ struct _CogLauncher {
     WebKitSettings           *web_settings;
     WebKitWebsiteDataManager *web_data_manager;
 
+#if COG_HAVE_MEM_PRESSURE
     WebKitMemoryPressureSettings *web_mem_settings;
     WebKitMemoryPressureSettings *net_mem_settings;
+#endif /* COG_HAVE_MEM_PRESSURE */
 
     guint sigint_source;
     guint sigterm_source;
@@ -340,9 +342,13 @@ cog_launcher_startup(GApplication *application)
     g_application_hold(application);
 
     CogLauncher *self = COG_LAUNCHER(application);
-    self->shell = g_object_new(COG_TYPE_SHELL, "name", g_get_prgname(), "automated", self->automated, "web-settings",
-                               self->web_settings, "web-data-manager", self->web_data_manager, "web-memory-settings",
-                               self->web_mem_settings, "network-memory-settings", self->net_mem_settings, NULL);
+    self->shell =
+        g_object_new(COG_TYPE_SHELL, "name", g_get_prgname(), "automated", self->automated, "web-settings",
+                     self->web_settings, "web-data-manager", self->web_data_manager,
+#if COG_HAVE_MEM_PRESSURE
+                     "web-memory-settings", self->web_mem_settings, "network-memory-settings", self->net_mem_settings,
+#endif /* COG_HAVE_MEM_PRESSURE */
+                     NULL);
     g_signal_connect_swapped(self->shell, "create-view", G_CALLBACK(cog_launcher_create_view), self);
     g_signal_connect(self->shell, "notify::web-view", G_CALLBACK(on_notify_web_view), self);
 
@@ -408,8 +414,10 @@ cog_launcher_dispose(GObject *object)
 
     g_clear_object(&launcher->web_settings);
 
+#if COG_HAVE_MEM_PRESSURE
     g_clear_pointer(&launcher->web_mem_settings, webkit_memory_pressure_settings_free);
     g_clear_pointer(&launcher->net_mem_settings, webkit_memory_pressure_settings_free);
+#endif /* COG_HAVE_MEM_PRESSURE */
 
     G_OBJECT_CLASS(cog_launcher_parent_class)->dispose(object);
 }
@@ -718,6 +726,7 @@ cog_launcher_add_web_cookies_option_entries(CogLauncher *launcher)
     g_application_add_option_group(G_APPLICATION(launcher), g_steal_pointer(&option_group));
 }
 
+#if COG_HAVE_MEM_PRESSURE
 static WebKitMemoryPressureSettings *
 mem_settings_pick(CogLauncher *launcher, const char *option)
 {
@@ -896,6 +905,7 @@ cog_launcher_add_mem_pressure_option_entries(CogLauncher *self)
     g_option_group_add_entries(group, entries);
     g_application_add_option_group(G_APPLICATION(self), group);
 }
+#endif /* COG_HAVE_MEM_PRESSURE */
 
 static gboolean
 option_entry_parse_permissions(const char *option G_GNUC_UNUSED,
@@ -1026,7 +1036,10 @@ cog_launcher_constructed(GObject *object)
     cog_launcher_add_web_settings_option_entries(launcher);
     cog_launcher_add_web_cookies_option_entries(launcher);
     cog_launcher_add_web_permissions_option_entries(launcher);
+
+#if COG_HAVE_MEM_PRESSURE
     cog_launcher_add_mem_pressure_option_entries(launcher);
+#endif /* COG_HAVE_MEM_PRESSURE */
 
     launcher->sigint_source = g_unix_signal_add(SIGINT, G_SOURCE_FUNC(on_signal_quit), launcher);
     launcher->sigterm_source = g_unix_signal_add(SIGTERM, G_SOURCE_FUNC(on_signal_quit), launcher);
@@ -1270,8 +1283,11 @@ static void
 cog_launcher_init(CogLauncher *self)
 {
     self->web_settings = g_object_ref_sink(webkit_settings_new());
+
+#if COG_HAVE_MEM_PRESSURE
     self->web_mem_settings = webkit_memory_pressure_settings_new();
     self->net_mem_settings = webkit_memory_pressure_settings_new();
+#endif /* COG_HAVE_MEM_PRESSURE */
 }
 
 CogLauncher *
