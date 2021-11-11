@@ -52,21 +52,9 @@ static struct {
     gboolean ignore_tls_errors;
     gboolean enable_sandbox;
     gboolean automation;
-    struct {
-        int64_t limit;
-        double  conservative_thr;
-        double  strict_thr;
-        double  kill_thr;
-        double  interval;
-    } mem;
 } s_options = {
     .scale_factor = 1.0,
     .device_scale_factor = 1.0,
-    .mem.limit = -1,
-    .mem.conservative_thr = NAN,
-    .mem.strict_thr = NAN,
-    .mem.kill_thr = NAN,
-    .mem.interval = NAN,
 };
 
 #if !GLIB_CHECK_VERSION(2, 56, 0)
@@ -115,6 +103,9 @@ struct _CogLauncher {
 
     WebKitSettings           *web_settings;
     WebKitWebsiteDataManager *web_data_manager;
+
+    WebKitMemoryPressureSettings *web_mem_settings;
+    WebKitMemoryPressureSettings *net_mem_settings;
 
     guint sigint_source;
     guint sigterm_source;
@@ -350,7 +341,8 @@ cog_launcher_startup(GApplication *application)
 
     CogLauncher *self = COG_LAUNCHER(application);
     self->shell = g_object_new(COG_TYPE_SHELL, "name", g_get_prgname(), "automated", self->automated, "web-settings",
-                               self->web_settings, "web-data-manager", self->web_data_manager, NULL);
+                               self->web_settings, "web-data-manager", self->web_data_manager, "web-memory-settings",
+                               self->web_mem_settings, "network-memory-settings", self->net_mem_settings, NULL);
     g_signal_connect_swapped(self->shell, "create-view", G_CALLBACK(cog_launcher_create_view), self);
     g_signal_connect(self->shell, "notify::web-view", G_CALLBACK(on_notify_web_view), self);
 
@@ -415,6 +407,9 @@ cog_launcher_dispose(GObject *object)
     g_clear_handle_id(&launcher->sigterm_source, g_source_remove);
 
     g_clear_object(&launcher->web_settings);
+
+    g_clear_pointer(&launcher->web_mem_settings, webkit_memory_pressure_settings_free);
+    g_clear_pointer(&launcher->net_mem_settings, webkit_memory_pressure_settings_free);
 
     G_OBJECT_CLASS(cog_launcher_parent_class)->dispose(object);
 }
@@ -723,6 +718,185 @@ cog_launcher_add_web_cookies_option_entries(CogLauncher *launcher)
     g_application_add_option_group(G_APPLICATION(launcher), g_steal_pointer(&option_group));
 }
 
+static WebKitMemoryPressureSettings *
+mem_settings_pick(CogLauncher *launcher, const char *option)
+{
+    if (strncmp(option, "--web-", 6) == 0)
+        return launcher->web_mem_settings;
+    if (strncmp(option, "--net-", 6) == 0)
+        return launcher->net_mem_settings;
+
+    g_assert_not_reached();
+    return NULL;
+}
+
+static gboolean
+option_entry_parse_mem_limit(const char *option, const char *value, CogLauncher *launcher, GError **error)
+{
+    errno = 0;
+    char          *endp = NULL;
+    const uint64_t v = g_ascii_strtoull(value, &endp, 0);
+    if (errno || *endp != '\0' || v <= 0) {
+        g_set_error(error, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE, "Invalid memory size value '%s'", value);
+        return FALSE;
+    }
+
+    webkit_memory_pressure_settings_set_memory_limit(mem_settings_pick(launcher, option), v);
+    return TRUE;
+}
+
+static gboolean
+parse_mem_double(const char *value, double *r, gboolean up_to_one, GError **error)
+{
+    errno = 0;
+    char        *endp = NULL;
+    const double v = g_ascii_strtod(value, &endp);
+    if (errno || *endp != '\0' || v <= 0.0 || (up_to_one && v >= 1.0)) {
+        g_set_error(error, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE, "Invalid value '%s'", value);
+        return FALSE;
+    }
+    *r = v;
+    return TRUE;
+}
+
+static void
+set_mem_double(CogLauncher *launcher, const char *option, double v)
+{
+    static const struct {
+        const char *name;
+        void (*set)(WebKitMemoryPressureSettings *, double);
+    } settings[] = {
+        {"check-interval", webkit_memory_pressure_settings_set_poll_interval},
+        {"conservative-threshold", webkit_memory_pressure_settings_set_conservative_threshold},
+        {"strict-threshold", webkit_memory_pressure_settings_set_strict_threshold},
+        {"kill-threshold", webkit_memory_pressure_settings_set_kill_threshold},
+    };
+
+    for (unsigned i = 0; i < G_N_ELEMENTS(settings); i++) {
+        if (strcmp(settings[i].name, option + 6) == 0) {
+            settings[i].set(mem_settings_pick(launcher, option), v);
+            return;
+        }
+    }
+
+    g_assert_not_reached();
+}
+
+static gboolean
+option_entry_parse_mem_double(const char *option, const char *value, CogLauncher *launcher, GError **error)
+{
+    double v;
+    if (!parse_mem_double(value, &v, FALSE, error))
+        return FALSE;
+
+    set_mem_double(launcher, option, v);
+    return TRUE;
+}
+
+static gboolean
+option_entry_parse_mem_double_01(const char *option, const char *value, CogLauncher *launcher, GError **error)
+{
+    double v;
+    if (!parse_mem_double(value, &v, TRUE, error))
+        return FALSE;
+
+    set_mem_double(launcher, option, v);
+    return TRUE;
+}
+
+static void
+cog_launcher_add_mem_pressure_option_entries(CogLauncher *self)
+{
+    static const GOptionEntry entries[] = {{
+                                               .long_name = "web-mem-limit",
+                                               .arg = G_OPTION_ARG_CALLBACK,
+                                               .arg_data = option_entry_parse_mem_limit,
+                                               .description = "Maximum amount of memory to use, in MiB.",
+                                               .arg_description = "SIZE",
+                                           },
+                                           {
+                                               .long_name = "web-check-interval",
+                                               .arg = G_OPTION_ARG_CALLBACK,
+                                               .arg_data = option_entry_parse_mem_double,
+                                               .description = "Interval of time between memory usage checks.",
+                                               .arg_description = "SECONDS",
+                                           },
+                                           {
+                                               .long_name = "web-conservative-threshold",
+                                               .arg = G_OPTION_ARG_CALLBACK,
+                                               .arg_data = option_entry_parse_mem_double_01,
+                                               .description = "Conservative threshold (default: 0.33).",
+                                               .arg_description = "(0..1)",
+                                           },
+                                           {
+                                               .long_name = "web-strict-threshold",
+                                               .arg = G_OPTION_ARG_CALLBACK,
+                                               .arg_data = option_entry_parse_mem_double_01,
+                                               .description = "Strict threshold (default: 0.5).",
+                                               .arg_description = "(0..1)",
+                                           },
+                                           {
+                                               .long_name = "web-kill-threshold",
+                                               .arg = G_OPTION_ARG_CALLBACK,
+                                               .arg_data = option_entry_parse_mem_double,
+                                               .description = "Kill threshold (default: 0).",
+                                               .arg_description = "(0..",
+                                           },
+                                           {
+                                               .long_name = "net-mem-limit",
+                                               .arg = G_OPTION_ARG_CALLBACK,
+                                               .arg_data = option_entry_parse_mem_limit,
+                                               .description = "Maximum amount of memory to use, in MiB.",
+                                               .arg_description = "SIZE",
+                                           },
+                                           {
+                                               .long_name = "net-check-interval",
+                                               .arg = G_OPTION_ARG_CALLBACK,
+                                               .arg_data = option_entry_parse_mem_double,
+                                               .description = "Interval of time between memory usage checks.",
+                                               .arg_description = "SECONDS",
+                                           },
+                                           {
+                                               .long_name = "net-conservative-threshold",
+                                               .arg = G_OPTION_ARG_CALLBACK,
+                                               .arg_data = option_entry_parse_mem_double_01,
+                                               .description = "Conservative threshold (default: 0.33).",
+                                               .arg_description = "(0..1)",
+                                           },
+                                           {
+                                               .long_name = "net-strict-threshold",
+                                               .arg = G_OPTION_ARG_CALLBACK,
+                                               .arg_data = option_entry_parse_mem_double_01,
+                                               .description = "Strict threshold (default: 0.5).",
+                                               .arg_description = "(0..1)",
+                                           },
+                                           {
+                                               .long_name = "net-kill-threshold",
+                                               .arg = G_OPTION_ARG_CALLBACK,
+                                               .arg_data = option_entry_parse_mem_double,
+                                               .description = "Kill threshold (default: 0).",
+                                               .arg_description = "(0..",
+                                           },
+                                           {NULL}};
+
+    GOptionGroup *group =
+        g_option_group_new("memory-limits",
+                           "These options allow configuring WebKit's memory pressure handling mechanism.\n"
+                           "\n"
+                           "  In particular, a limit for the maximum amount of memory to use can be set,\n"
+                           "  and thresholds relative to the limit which determine at which points memory\n"
+                           "  will be reclaimed. The conservative threshold is typically lower when reached\n"
+                           "  memory will be reclaimed; the strict threshold works in the same way but the\n"
+                           "  process is more aggresive. The kill threshold configures when worker processes\n"
+                           "  will be forcibly killed. Note that if there is no memory limit set, the other\n"
+                           "  settings are ignored.\n",
+                           "Options to configure memory usage limits",
+                           self,
+                           NULL);
+    g_option_group_add_entries(group, entries);
+    g_application_add_option_group(G_APPLICATION(self), group);
+}
+
 static gboolean
 option_entry_parse_permissions(const char *option G_GNUC_UNUSED,
                                const char        *value,
@@ -829,19 +1003,6 @@ static GOptionEntry s_cli_options[] = {
     {G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments, "", "[URL]"},
     {NULL}};
 
-static GOptionEntry s_cli_mem_options[] = {{"mem-limit", '\0', 0, G_OPTION_ARG_INT64, &s_options.mem.limit,
-                                            "Maximum amount of memory to use, in MiB.", "SIZE"},
-                                           {"mem-check-interval", '\0', 0, G_OPTION_ARG_DOUBLE, &s_options.mem.interval,
-                                            "Interval of time between memory usage checks.", "SECONDS"},
-                                           {"mem-conservative-threshold", '\0', 0, G_OPTION_ARG_DOUBLE,
-                                            &s_options.mem.conservative_thr, "Conservative threshold (default: 0.33).",
-                                            "[0..1]"},
-                                           {"mem-strict-threshold", '\0', 0, G_OPTION_ARG_DOUBLE,
-                                            &s_options.mem.strict_thr, "Strict threshold (default: 0.5).", "[0..1]"},
-                                           {"mem-kill-threshold", '\0', 0, G_OPTION_ARG_DOUBLE, &s_options.mem.kill_thr,
-                                            "Kill threshold (default: 0).", "[0.."},
-                                           {NULL}};
-
 static void
 cog_launcher_constructed(GObject *object)
 {
@@ -865,22 +1026,7 @@ cog_launcher_constructed(GObject *object)
     cog_launcher_add_web_settings_option_entries(launcher);
     cog_launcher_add_web_cookies_option_entries(launcher);
     cog_launcher_add_web_permissions_option_entries(launcher);
-    g_autoptr(GOptionGroup) mem_group =
-        g_option_group_new("mem",
-                           "These options allow configuring WebKit's memory pressure handling mechanism.\n"
-                           "\n"
-                           "  In particular, a limit for the maximum amount of memory to use can be set,\n"
-                           "  and thresholds relative to the limit which determine at which points memory\n"
-                           "  will be reclaimed. The conservative threshold is typically lower when reached\n"
-                           "  memory will be reclaimed; the strict threshold works in the same way but the\n"
-                           "  process is more aggresive. The kill threshold configures when worker processes\n"
-                           "  will be forcibly killed. Note that if there is no memory limit set, the other\n"
-                           "  settings are ignored.\n",
-                           "Options to configure memory usage limits",
-                           NULL,
-                           NULL);
-    g_option_group_add_entries(mem_group, s_cli_mem_options);
-    g_application_add_option_group(G_APPLICATION(object), mem_group);
+    cog_launcher_add_mem_pressure_option_entries(launcher);
 
     launcher->sigint_source = g_unix_signal_add(SIGINT, G_SOURCE_FUNC(on_signal_quit), launcher);
     launcher->sigterm_source = g_unix_signal_add(SIGTERM, G_SOURCE_FUNC(on_signal_quit), launcher);
@@ -1061,37 +1207,6 @@ cog_launcher_handle_local_options(GApplication *application, GVariantDict *optio
         s_options.key_file = g_steal_pointer(&key_file);
     }
 
-    if (s_options.mem.limit > 0) {
-        g_autoptr(WebKitMemoryPressureSettings) mem = webkit_memory_pressure_settings_new();
-        webkit_memory_pressure_settings_set_memory_limit(mem, s_options.mem.limit);
-
-        static const struct {
-            double *value;
-            void (*set)(WebKitMemoryPressureSettings *, double);
-            bool more_than_one;
-        } settings[] = {
-            {&s_options.mem.conservative_thr, webkit_memory_pressure_settings_set_conservative_threshold},
-            {&s_options.mem.strict_thr, webkit_memory_pressure_settings_set_strict_threshold},
-            {&s_options.mem.kill_thr, webkit_memory_pressure_settings_set_kill_threshold, true},
-            {&s_options.mem.interval, webkit_memory_pressure_settings_set_poll_interval, true},
-        };
-
-        for (unsigned i = 0; i < G_N_ELEMENTS(settings); i++) {
-            const double v = *settings[i].value;
-            if (isnan(v))
-                continue;
-
-            if (v < 0.0 || (!settings[i].more_than_one && (v > 1.0))) {
-                g_printerr("%s: Invalid value '%.f', not in the [0..%s] range.\n", g_get_prgname(), v,
-                           settings[i].more_than_one ? "" : "1");
-                return EXIT_FAILURE;
-            }
-            settings[i].set(mem, v);
-        }
-
-        webkit_website_data_manager_set_memory_pressure_settings(mem);
-    }
-
     if (s_options.filter_path) {
         WebKitWebsiteDataManager *data_manager = cog_launcher_get_web_data_manager(launcher);
         g_autofree char          *filters_path =
@@ -1155,6 +1270,8 @@ static void
 cog_launcher_init(CogLauncher *self)
 {
     self->web_settings = g_object_ref_sink(webkit_settings_new());
+    self->web_mem_settings = webkit_memory_pressure_settings_new();
+    self->net_mem_settings = webkit_memory_pressure_settings_new();
 }
 
 CogLauncher *
