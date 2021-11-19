@@ -551,7 +551,7 @@ static const struct wl_shell_surface_listener shell_popup_surface_listener = {
 static void
 wl_shell_create_popup()
 {
-    win_data.shell_context->wl_shell_data.shell_surface =
+    popup_data.shell_context->wl_shell_data.shell_surface =
         wl_shell_get_shell_surface(wl_data.shell, popup_data.wl_surface);
     g_assert(win_data.shell_context->wl_shell_data.shell_surface);
 
