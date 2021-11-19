@@ -139,6 +139,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
     <a class="property" href="property.Shell.web-context.html">web-context</a>
   
+    <a class="property" href="property.Shell.web-data-manager.html">web-data-manager</a>
+  
     <a class="property" href="property.Shell.web-settings.html">web-settings</a>
   
     <a class="property" href="property.Shell.web-view.html">web-view</a>
@@ -408,6 +410,20 @@ additional options to <a href="overview.html">platform modules</a>.</p>
 
           <div class="docblock">
             <p>The WebKit.WebContext for this shell&#8217;s&nbsp;view.</p>
+          </div>
+
+          
+        </div>
+      
+        <div class="">
+          <h6><a href="property.Shell.web-data-manager.html">Cog.Shell:web-data-manager</a></h6>
+
+          <div class="docblock">
+            <p>Optional <code>WebKitWebsiteDataManager</code> to be used by the shell. If
+specified at construction, then the Cog.Shell.automated
+property will be ignored and the provided object should have
+WebKit.WebsiteDataManager.is-ephemeral enabled for running
+in automation&nbsp;mode..</p>
           </div>
 
           

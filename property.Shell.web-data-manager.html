@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Launcher.get_default</title>
+  <title>Cog.Shell:web-data-manager</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.Launcher.get_default"/>
-  <meta property="og:description" content="Reference for Cog.Launcher.get_default"/>
-  <meta name="twitter:title" content="Cog.Launcher.get_default"/>
-  <meta name="twitter:description" content="Reference for Cog.Launcher.get_default"/>
+  <meta property="og:title" content="Cog.Shell:web-data-manager"/>
+  <meta property="og:description" content="Reference for property Cog.Shell:web-data-manager"/>
+  <meta name="twitter:title" content="Cog.Shell:web-data-manager"/>
+  <meta name="twitter:description" content="Reference for property Cog.Shell:web-data-manager"/>
 
 
   
@@ -80,16 +80,28 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <div class="section">
   <h5>Type</h5>
   <div class="links">
-    <a href="class.Launcher.html">Launcher</a>
+    <a href="class.Shell.html">Shell</a>
   </div>
 </div>
 <div class="section">
-  <h5>Functions</h5>
+  <h5>Properties</h5>
   <div class="links">
   
-    <a class="method current" href="type_func.Launcher.get_default.html">get_default</a>
+    <a class="property"href="property.Shell.automated.html">automated</a>
   
-    <a class="method" href="type_func.Launcher.init_default.html">init_default</a>
+    <a class="property"href="property.Shell.config-file.html">config-file</a>
+  
+    <a class="property"href="property.Shell.device-scale-factor.html">device-scale-factor</a>
+  
+    <a class="property"href="property.Shell.name.html">name</a>
+  
+    <a class="property"href="property.Shell.web-context.html">web-context</a>
+  
+    <a class="property current"href="property.Shell.web-data-manager.html">web-data-manager</a>
+  
+    <a class="property"href="property.Shell.web-settings.html">web-settings</a>
+  
+    <a class="property"href="property.Shell.web-view.html">web-view</a>
   
   </div>
 </div>
@@ -103,46 +115,44 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Function</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Launcher.html">Launcher</a><span class="sep"></span>get_default</h1>
+    <h3>Property</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Shell.html">Shell</a>:web-data-manager</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 id="declaration" style="display:flex;">
+      <h4 id="declaration">
         Declaration
         <a href="#declaration" class="anchor"></a>
-        
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-launcher.h#L35">[src]</a>
-        
       </h4>
 
       <div class="docblock">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">CogLauncher</span><span class="o">*</span><span class="w"></span>
-<span class="n">cog_launcher_get_default</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="kt">void</span><span class="w"></span>
-<span class="p">)</span><span class="w"></span>
-</pre></div>
-</code></pre>
+        <pre><code>property web-data-manager: none [ read, write, construct-only ]</code></pre>
       </div>
     </div>
 
     <div class="description toggle-wrapper">
-      <h4 id="description" style="display:flex;">
+      <h4 id="description">
         Description
         <a href="#description" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-launcher.c#L349">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/work/cog/cog/core/cog-shell.c#L474">[src]</a>
         
       </h4>
 
       <div class="docblock">
-        <p>Returns the <a href="class.Launcher.html"><code>CogLauncher</code></a> single instance, creating a regular
-(non-autoamted) launcher if&nbsp;needed.</p>
+        <p>Optional <code>WebKitWebsiteDataManager</code> to be used by the shell. If
+specified at construction, then the Cog.Shell.automated
+property will be ignored and the provided object should have
+WebKit.WebsiteDataManager.is-ephemeral enabled for running
+in automation&nbsp;mode..</p>
       </div>
 
       <div class="docblock">
         <table>
+          <tr><td>Type:</td>
+            <td><code>void</code></td>
+          </tr>
           
           
           
@@ -152,35 +162,22 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       
     </div>
 
-    
-
-    
-    <div class="return-value toggle-wrapper">
-      <h4 id="return-value">
-        Return value
-        <a href="#return-value" class="anchor"></a>
+    <div class="flags toggle-wrapper">
+      <h4 id="flags">
+        Flags
+        <a href="#flags" class="anchor"></a>
       </h4>
 
       <div class="docblock">
-        <table class="returns">
-          <tr class="arg-name">
-            <td>Returns:</td>
-            <td><a href="class.Launcher.html"><code>CogLauncher</code></a></td>
-          </tr>
-          <tr class="arg-description">
-            <td>&nbsp;</td>
-            <td><p>Singleton&nbsp;instance.</p></td>
-          </tr>
-          
-          
-          
-          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the called function.</td></tr>
-          
-          
-        </table>
+      <table>
+        <tr><td>Readable</td><td><b>yes</b></td></tr>
+        <tr><td>Writable</td><td><b>yes</b></td></tr>
+        <tr><td>Construct</td><td><b>no</b></td></tr>
+        <tr><td>Construct only</td><td><b>yes</b></td></tr>
+      </table>
       </div>
     </div>
-    
+
   </section>
 </section>
 
