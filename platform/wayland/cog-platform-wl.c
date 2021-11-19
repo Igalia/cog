@@ -838,7 +838,7 @@ xdg_surface_on_configure(void *data, struct xdg_surface *surface, uint32_t seria
     xdg_surface_ack_configure(surface, serial);
 
     if (popup_data.shell_context->xdg_shell_data.xdg_surface == surface && !popup_data.configured) {
-    if (win_data.shell_context->xdg_shell_data.xdg_surface == surface && !popup_data.configured) {
+    //if (win_data.shell_context->xdg_shell_data.xdg_surface == surface && !popup_data.configured) {
         popup_data.configured = true;
         display_popup();
     }
