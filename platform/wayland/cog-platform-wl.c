@@ -575,14 +575,17 @@ wl_shell_destroy_popup()
     g_clear_pointer(&popup_data.shell_context->wl_shell_data.shell_surface, wl_shell_surface_destroy);
 }
 
-wl_shell_data wayland_data = {.functions = {.enter_fullscreen = &wl_shell_enter_fullscreen,
+static const shell_functions wayland_functions = {.enter_fullscreen = &wl_shell_enter_fullscreen,
                                             .exit_fullscreen = &wl_shell_exit_fullscreen,
                                             .destroy_shell = &wl_shell_destroy_shell,
                                             .maximize_surface = &wl_shell_maximize_surface,
                                             .create_window = &wl_shell_create_window,
                                             .create_popup = &wl_shell_create_popup,
                                             .destroy_window = &wl_shell_destroy_window,
-                                            .destroy_popup = &wl_shell_destroy_popup}};
+                                            .destroy_popup = &wl_shell_destroy_popup};
+
+wl_shell_data wayland_window_data = {.functions = wayland_functions};
+wl_shell_data wayland_popup_data = {.functions = wayland_functions};
 
 // f shell operations
 static void
@@ -838,7 +841,6 @@ xdg_surface_on_configure(void *data, struct xdg_surface *surface, uint32_t seria
     xdg_surface_ack_configure(surface, serial);
 
     if (popup_data.shell_context->xdg_shell_data.xdg_surface == surface && !popup_data.configured) {
-    //if (win_data.shell_context->xdg_shell_data.xdg_surface == surface && !popup_data.configured) {
         popup_data.configured = true;
         display_popup();
     }
@@ -1059,8 +1061,8 @@ registry_global (void               *data,
         wl_data.subcompositor = wl_registry_bind(registry, name, &wl_subcompositor_interface, version);
     } else if (strcmp(interface, wl_shell_interface.name) == 0) {
         wl_data.shell = wl_registry_bind(registry, name, &wl_shell_interface, version);
-        win_data.shell_context = (shell_context *) (&wayland_data);
-        popup_data.shell_context = (shell_context *) (&wayland_data);
+        win_data.shell_context = (shell_context *) (&wayland_window_data);
+        popup_data.shell_context = (shell_context *) (&wayland_popup_data);
     } else if (strcmp(interface, wl_shm_interface.name) == 0) {
         wl_data.shm = wl_registry_bind(registry, name, &wl_shm_interface, version);
     } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
