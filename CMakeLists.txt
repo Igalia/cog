@@ -72,7 +72,7 @@ option(USE_SOUP2 "Build with libsoup2 instead of libsoup3" ON)
 set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
 
-set(COG_MODULEDIR "${CMAKE_INSTALL_PREFIX}/lib/cog/modules"
+set(COG_MODULEDIR "${CMAKE_INSTALL_LIBDIR}/cog/modules"
     CACHE STRING "Default search path for loadable modules")
 
 if (NOT COG_APPID OR COG_APPID STREQUAL "")
