@@ -1,3 +1,13 @@
+=========================
+0.13.2 - December 9, 2021
+=========================
+
+- launcher: Add new "--platform-params"/"-O" command line option, which
+  allows passing parameters to platforms plug-ins during initialization.
+- drm: Add support for output rotation by means of a new OpenGL ES based
+  renderer, which can be enabled with "cog -O renderer=gles,rotation=1".
+- drm: Rotate input device coordinates as needed to match output rotation.
+
 ==========================
 0.13.1 - November 26, 2021
 ==========================
