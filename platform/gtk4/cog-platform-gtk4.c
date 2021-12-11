@@ -747,8 +747,16 @@ setup_fdo_exportable(struct platform_window* window)
     g_assert_nonnull(window->view_backend);
 }
 
+static void
+shell_device_factor_changed(CogShell *shell, GParamSpec *param_spec, gpointer data)
+{
+
+    struct platform_window *window = (struct platform_window *) data;
+    window->device_scale_factor = cog_shell_get_device_scale_factor(shell);
+}
+
 static gboolean
-cog_gtk4_platform_setup(CogPlatform* platform, CogShell* shell, const char* params, GError** error)
+cog_gtk4_platform_setup(CogPlatform *platform, CogShell *shell, const char *params, GError **error)
 {
     g_assert_nonnull(platform);
 
@@ -759,10 +767,10 @@ cog_gtk4_platform_setup(CogPlatform* platform, CogShell* shell, const char* para
         return FALSE;
     }
 
+    g_signal_connect(shell, "notify::device-scale-factor", G_CALLBACK(shell_device_factor_changed), &win);
+
     setup_window(&win);
     setup_fdo_exportable(&win);
-
-    win.device_scale_factor = cog_shell_get_device_scale_factor(shell);
 
 #if HAVE_FULLSCREEN_HANDLING
     wpe_view_backend_set_fullscreen_handler(webkit_web_view_backend_get_wpe_backend(win.view_backend),
