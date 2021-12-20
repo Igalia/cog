@@ -92,12 +92,13 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <h2 id="requirements">Requirements<a class="md-anchor" href="#requirements" title="Permanent link"></a></h2>
 <p>The <span class="caps">DRM</span> platform plug-in additionally requires the following&nbsp;libraries:</p>
 <ul>
-<li><strong>WPEBackend-fdo</strong>:</li>
-<li><strong>Wayland</strong>:</li>
-<li><strong>libdrm</strong>:</li>
-<li><strong>libgbm</strong>:</li>
-<li><strong>libinput</strong>:</li>
-<li><strong>libudev</strong>:</li>
+<li><strong>WPEBackend-fdo</strong></li>
+<li><strong>Wayland</strong></li>
+<li><strong>GLESv2</strong></li>
+<li><strong>libdrm</strong></li>
+<li><strong>libgbm</strong></li>
+<li><strong>libinput</strong></li>
+<li><strong>libudev</strong></li>
 </ul>
 <h2 id="configuration-file-options">Configuration File Options<a class="md-anchor" href="#configuration-file-options" title="Permanent link"></a></h2>
 <p>If a section named <code>drm</code> is found in the configuration file (see
@@ -121,6 +122,11 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <td align="left">boolean</td>
 <td align="left"><em>detect</em></td>
 </tr>
+<tr>
+<td align="left"><code>renderer</code></td>
+<td align="left">string</td>
+<td align="left"><code>"modeset"</code></td>
+</tr>
 </tbody>
 </table>
 <p>The <code>device-scale-factor</code> option indicates a scaling factor to be applied to
@@ -134,6 +140,65 @@ usage of <a href="https://lwn.net/Articles/653071/">atomic mode setting</a>. Thi
 by many modern <span class="caps">GPU</span> drivers and it will be used by default when available.  In
 some rare cases—mostly buggy or incomplete drivers—it might need to be
 manually disable its usage by setting this option to <code>true</code>.</p>
+<p>The <code>renderer</code> option controls how renderer content will be displayed. The
+default value is <code>"modeset"</code>, which attaches rendered frames directly to
+the output. Using the value <code>"gles"</code> will “paint” frames onto a quad using
+OpenGL <span class="caps">ES</span>. The main reason to use the latter is that it supports <a href="#output-rotation">output
+rotation</a>.</p>
+<h2 id="parameters">Parameters<a class="md-anchor" href="#parameters" title="Permanent link"></a></h2>
+<p>The following parameters can be passed to the platform plug-in during
+initialization (e.g. using <code>cog --platform-params=…</code>):</p>
+<table>
+<thead>
+<tr>
+<th align="left">Parameter</th>
+<th align="left">Type</th>
+<th align="left">Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left"><code>renderer</code></td>
+<td align="left">string</td>
+<td align="left"><code>modeset</code></td>
+</tr>
+<tr>
+<td align="left"><code>rotation</code></td>
+<td align="left">number</td>
+<td align="left"><code>0</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>renderer</code> parameter is the same as the <a href="#configuration-file-options">configuration file
+option</a> of the same&nbsp;name.</p>
+<p>The <code>rotation</code> parameter indicates the initial <a href="#output-rotation">output
+rotation</a>&nbsp;applied.</p>
+<h2 id="output-rotation">Output Rotation<a class="md-anchor" href="#output-rotation" title="Permanent link"></a></h2>
+<p>When using the OpenGL <span class="caps">ES</span> renderer using <code>gles</code> as value for the <code>renderer</code>
+parameter, it is possible to rotate the output by multiples of 90 degrees.
+This can be set in two&nbsp;ways:</p>
+<ul>
+<li>During initialization via the <code>rotation</code> <a href="#parameters">parameter</a>.</li>
+<li>At run time by modifying the <code>CogDrmPlatform.rotation</code> object&nbsp;property.</li>
+</ul>
+<p>In both cases the value is an integer in the <em>[0, 3]</em> range, which is the
+amount 90 degree counter-clockwise turns to apply. For example a value of
+<code>3</code> would result in <code>3 × 90 = 270</code> degrees.</p>
+<p>The following example shows how to change the rotation at run&nbsp;time:</p>
+<div class="codehilite"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"></span>
+<span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">cog_modules_add_directory</span><span class="p">(</span><span class="n">COG_MODULEDIR</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">g_autoptr</span><span class="p">(</span><span class="n">CogPlatform</span><span class="p">)</span><span class="w"> </span><span class="n">plat</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_platform_new</span><span class="p">(</span><span class="s">&quot;drm&quot;</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">    </span><span class="n">g_autoptr</span><span class="p">(</span><span class="n">CogShell</span><span class="p">)</span><span class="w"> </span><span class="n">shell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_shell_new</span><span class="p">(</span><span class="s">&quot;example&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">FALSE</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">cog_platform_setup</span><span class="p">(</span><span class="n">plat</span><span class="p">,</span><span class="w"> </span><span class="n">shell</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;renderer=gles&quot;</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">    </span><span class="cm">/* Set the rotation. */</span><span class="w"></span>
+<span class="w">    </span><span class="n">g_object_set</span><span class="p">(</span><span class="n">plat</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;rotation&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">    </span><span class="cm">/* Now proceed to run a GMainLoop normally… */</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div>
     </div>
   </section>
 </section>
