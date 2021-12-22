@@ -73,7 +73,19 @@ set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
 
 set(COG_MODULEDIR "${CMAKE_INSTALL_LIBDIR}/cog/modules"
-    CACHE STRING "Default search path for loadable modules")
+    CACHE PATH "Default search path for loadable modules")
+
+# Make sure that the module path is always absolute. If the specified
+# value is relative, this makes it a child of CMAKE_INSTALL_PREFIX.
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
+    cmake_path(ABSOLUTE_PATH COG_MODULEDIR BASE_DIRECTORY ${CMAKE_INSTALL_PREFIX} NORMALIZE)
+elseif (NOT IS_ABSOLUTE ${COG_MODULEDIR})
+    set(COG_MODULEDIR "${CMAKE_INSTALL_PREFIX}/${COG_MODULEDIR}")
+endif ()
+if (NOT IS_ABSOLUTE ${COG_MODULEDIR})
+    message(FATAL_ERROR "Cog module location '${COG_MODULEDIR}' is not an absolute path")
+endif ()
+message(STATUS "Cog module path: ${COG_MODULEDIR}")
 
 if (NOT COG_APPID OR COG_APPID STREQUAL "")
     set(COG_DEFAULT_APPID com.igalia.Cog)
