@@ -11,6 +11,7 @@
 # error "Do not include this header directly, use <cog.h> instead"
 #endif
 
+#include "cog-export.h"
 #include <glib-object.h>
 
 G_BEGIN_DECLS
@@ -19,14 +20,16 @@ G_BEGIN_DECLS
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (GEnumClass, g_type_class_unref)
 #endif // !GLIB_CHECK_VERSION
 
-
+COG_API
 char* cog_appid_to_dbus_object_path (const char *appid)
     G_GNUC_WARN_UNUSED_RESULT;
 
+COG_API
 char* cog_uri_guess_from_user_input (const char *uri_like,
                                      gboolean    is_cli_arg,
                                      GError    **error);
 
+COG_API
 GOptionEntry* cog_option_entries_from_class (GObjectClass *klass);
 
 

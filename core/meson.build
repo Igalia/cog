@@ -68,6 +68,7 @@ cogcore_lib = shared_library('cogcore',
     dependencies: cogcore_dependencies,
     version: cogcore_soversion,
     soversion: cogcore_soversion_major,
+    gnu_symbol_visibility: 'hidden',
     install: true,
 )
 

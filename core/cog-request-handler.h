@@ -18,7 +18,8 @@ G_BEGIN_DECLS
 
 #define COG_TYPE_REQUEST_HANDLER  (cog_request_handler_get_type ())
 
-G_DECLARE_INTERFACE (CogRequestHandler, cog_request_handler, COG, REQUEST_HANDLER, GObject)
+COG_API
+G_DECLARE_INTERFACE(CogRequestHandler, cog_request_handler, COG, REQUEST_HANDLER, GObject)
 
 struct _CogRequestHandlerInterface {
     GTypeInterface g_iface;
@@ -27,9 +28,8 @@ struct _CogRequestHandlerInterface {
     void (*run) (CogRequestHandler *handler, WebKitURISchemeRequest *request);
 };
 
-
+COG_API
 void cog_request_handler_run (CogRequestHandler *handler, WebKitURISchemeRequest *request);
-
 
 G_END_DECLS
 
