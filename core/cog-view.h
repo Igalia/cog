@@ -21,6 +21,7 @@ struct wpe_view_backend;
 
 #define COG_TYPE_VIEW (cog_view_get_type())
 
+COG_API
 G_DECLARE_DERIVABLE_TYPE(CogView, cog_view, COG, VIEW, WebKitWebView)
 
 struct _CogViewClass {
@@ -32,11 +33,22 @@ struct _CogViewClass {
 
 #define COG_TYPE_VIEW_IMPL (cog_view_get_impl_type())
 
+COG_API
 GType                    cog_view_get_impl_type(void);
+
+COG_API
 CogView                 *cog_view_new(const char *first_property_name, ...);
+
+COG_API
 struct wpe_view_backend *cog_view_get_backend(CogView *view);
+
+COG_API
 void                     cog_view_handle_key_event(CogView *self, const struct wpe_input_keyboard_event *event);
+
+COG_API
 void                     cog_view_set_use_key_bindings(CogView *self, gboolean enable);
+
+COG_API
 gboolean                 cog_view_get_use_key_bindings(CogView *self);
 
 G_END_DECLS

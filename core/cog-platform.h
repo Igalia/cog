@@ -25,10 +25,10 @@ typedef enum {
 } CogPlatformError;
 
 #define COG_PLATFORM_EGL_ERROR  (cog_platform_egl_error_quark ())
-GQuark cog_platform_egl_error_quark (void);
+COG_API GQuark cog_platform_egl_error_quark(void);
 
 #define COG_PLATFORM_WPE_ERROR  (cog_platform_wpe_error_quark ())
-GQuark cog_platform_wpe_error_quark (void);
+COG_API GQuark cog_platform_wpe_error_quark(void);
 
 typedef enum {
     COG_PLATFORM_WPE_ERROR_INIT,
@@ -36,6 +36,7 @@ typedef enum {
 
 #define COG_TYPE_PLATFORM (cog_platform_get_type())
 
+COG_API
 G_DECLARE_DERIVABLE_TYPE(CogPlatform, cog_platform, COG, PLATFORM, GObject)
 
 struct _CogPlatformClass {
@@ -51,22 +52,25 @@ struct _CogPlatformClass {
     GType (*get_view_type)(void);
 };
 
-void cog_platform_set_default(CogPlatform *);
-CogPlatform *cog_platform_get_default(void);
-CogPlatform *cog_platform_new(const char *name, GError **);
+COG_API void         cog_platform_set_default(CogPlatform *);
+COG_API CogPlatform *cog_platform_get_default(void);
+COG_API CogPlatform *cog_platform_new(const char *name, GError **);
 
-gboolean cog_platform_setup(CogPlatform *platform, CogShell *shell, const char *params, GError **error);
+COG_API gboolean cog_platform_setup(CogPlatform *platform, CogShell *shell, const char *params, GError **error);
 
+COG_API
 WebKitWebViewBackend     *cog_platform_get_view_backend  (CogPlatform   *platform,
                                                           WebKitWebView *related_view,
                                                           GError       **error);
 
+COG_API
 void                      cog_platform_init_web_view     (CogPlatform   *platform,
                                                           WebKitWebView *view);
 
+COG_API
 WebKitInputMethodContext *cog_platform_create_im_context (CogPlatform   *platform);
 
-CogPlatform *
+COG_API CogPlatform *
 cog_platform_configure(const char *name, const char *params, const char *env_prefix, CogShell *shell, GError **error);
 
 G_END_DECLS

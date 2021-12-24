@@ -11,8 +11,10 @@
 #    error "Do not include this header directly, use <cog.h> instead" +
 #endif
 
+#include "cog-export.h"
+
 typedef struct wpe_view_backend *(GamepadProviderGetViewBackend) (void *, void *);
 
-gboolean cog_gamepad_parse_backend(const char *name, GError **error);
-void     cog_gamepad_set_backend(const char *name);
-void     cog_gamepad_setup(GamepadProviderGetViewBackend *gamepad_get_view);
+COG_API gboolean cog_gamepad_parse_backend(const char *name, GError **error);
+COG_API void     cog_gamepad_set_backend(const char *name);
+COG_API void     cog_gamepad_setup(GamepadProviderGetViewBackend *gamepad_get_view);
