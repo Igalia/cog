@@ -84,7 +84,8 @@ static struct platform_window win = {
     .device_scale_factor = 1,
 };
 
-static const char s_vertex_shader[] = "attribute vec2 pos;\n"
+static const char s_vertex_shader[] = "#version 100\n"
+                                      "attribute vec2 pos;\n"
                                       "attribute vec2 texture;\n"
                                       "varying vec2 v_texture;\n"
                                       "void main() {\n"
@@ -92,7 +93,8 @@ static const char s_vertex_shader[] = "attribute vec2 pos;\n"
                                       "  gl_Position = vec4(pos, 0, 1);\n"
                                       "}\n";
 
-static const char s_fragment_shader[] = "precision mediump float;\n"
+static const char s_fragment_shader[] = "#version 100\n"
+                                        "precision mediump float;\n"
                                         "uniform sampler2D u_tex;\n"
                                         "varying vec2 v_texture;\n"
                                         "void main() {\n"
