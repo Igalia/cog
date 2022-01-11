@@ -1,14 +1,11 @@
 /*
  * cog-platform-x11.c
- * Copyright (C) 2020-2021 Igalia S.L.
+ * Copyright (C) 2020-2022 Igalia S.L.
  *
  * Distributed under terms of the MIT license.
  */
 
 #include "../../core/cog.h"
-
-#include <epoxy/egl.h>
-#include <epoxy/gl.h>
 
 #include <assert.h>
 #include <stdlib.h>
@@ -22,28 +19,18 @@
 #include <X11/Xlib.h>
 #include <X11/Xlib-xcb.h>
 
+#include "../common/cog-gl-utils.h"
 #include "../common/egl-proc-address.h"
 
 
 #ifndef EGL_EXT_platform_base
 #define EGL_EXT_platform_base 1
 typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platform, void *native_display, const EGLint *attrib_list);
-typedef EGLSurface (EGLAPIENTRYP PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC) (EGLDisplay dpy, EGLConfig config, void *native_window, const EGLint *attrib_list);
-typedef EGLSurface (EGLAPIENTRYP PFNEGLCREATEPLATFORMPIXMAPSURFACEEXTPROC) (EGLDisplay dpy, EGLConfig config, void *native_pixmap, const EGLint *attrib_list);
 #endif
 
-#ifndef EGL_EXT_platform_x11
-#define EGL_EXT_platform_x11 1
-#define EGL_PLATFORM_X11_EXT              0x31D5
-#define EGL_PLATFORM_X11_SCREEN_EXT       0x31D6
-#endif /* EGL_EXT_platform_x11 */
-
-#ifndef GL_OES_EGL_image
-#define GL_OES_EGL_image 1
-typedef void *GLeglImageOES;
-typedef void (GL_APIENTRYP PFNGLEGLIMAGETARGETTEXTURE2DOESPROC) (GLenum target, GLeglImageOES image);
-typedef void (GL_APIENTRYP PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC) (GLenum target, GLeglImageOES image);
-#endif
+#ifndef EGL_PLATFORM_X11_EXT
+#    define EGL_PLATFORM_X11_EXT 0x31D5
+#endif /* !EGL_PLATFORM_X11_EXT */
 
 #define DEFAULT_WIDTH  1024
 #define DEFAULT_HEIGHT  768
@@ -98,13 +85,13 @@ struct CogX11Display {
 
     struct {
         PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display;
-        PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC create_platform_window_surface;
-        PFNGLEGLIMAGETARGETTEXTURE2DOESPROC image_target_texture;
 
         EGLDisplay display;
         EGLConfig config;
         EGLContext context;
     } egl;
+
+    CogGLRenderer gl_render;
 };
 
 struct CogX11Window {
@@ -120,18 +107,6 @@ struct CogX11Window {
     struct {
         EGLSurface surface;
     } egl;
-
-    struct {
-        GLint vertex_shader;
-        GLint fragment_shader;
-        GLint program;
-
-        GLuint texture;
-
-        GLint attr_pos;
-        GLint attr_texture;
-        GLint uniform_texture;
-    } gl;
 
     struct {
         struct wpe_view_backend_exportable_fdo *exportable;
@@ -175,39 +150,14 @@ xcb_initial_paint (void)
 static void
 xcb_paint_image (struct wpe_fdo_egl_exported_image *image)
 {
-    static const float position_coords[4][2] = {
-        { -1,  1 }, { 1,  1 },
-        { -1, -1 }, { 1, -1 },
-    };
-    static const float texture_coords[4][2] = {
-        { 0, 0 }, { 1, 0 },
-        { 0, 1 }, { 1, 1 },
-    };
-
     eglMakeCurrent (s_display->egl.display, s_window->egl.surface, s_window->egl.surface, s_display->egl.context);
 
     glViewport (0, 0, s_window->xcb.width, s_window->xcb.height);
     glClearColor (1, 1, 1, 1);
     glClear (GL_COLOR_BUFFER_BIT);
 
-    glUseProgram (s_window->gl.program);
-
-    glActiveTexture (GL_TEXTURE0);
-    glBindTexture (GL_TEXTURE_2D, s_window->gl.texture);
-    s_display->egl.image_target_texture (GL_TEXTURE_2D,
-                                         wpe_fdo_egl_exported_image_get_egl_image (image));
-    glUniform1i (s_window->gl.uniform_texture, 0);
-
-    glVertexAttribPointer (s_window->gl.attr_pos, 2, GL_FLOAT, GL_FALSE, 0, position_coords);
-    glVertexAttribPointer (s_window->gl.attr_texture, 2, GL_FLOAT, GL_FALSE, 0, texture_coords);
-
-    glEnableVertexAttribArray (s_window->gl.attr_pos);
-    glEnableVertexAttribArray (s_window->gl.attr_texture);
-
-    glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
-
-    glDisableVertexAttribArray (s_window->gl.attr_pos);
-    glDisableVertexAttribArray (s_window->gl.attr_texture);
+    cog_gl_renderer_paint(&s_display->gl_render, wpe_fdo_egl_exported_image_get_egl_image(image),
+                          COG_GL_RENDERER_ROTATION_0);
 
     eglSwapBuffers (s_display->egl.display, s_window->egl.surface);
 
@@ -588,10 +538,20 @@ clear_xkb (void)
 static gboolean
 init_egl (void)
 {
-    s_display->egl.get_platform_display = load_egl_proc_address ("eglGetPlatformDisplayEXT");
-    if (s_display->egl.get_platform_display) {
-        s_display->egl.display = s_display->egl.get_platform_display (EGL_PLATFORM_X11_KHR, s_display->display, NULL);
+    if (!(s_display->egl.get_platform_display = load_egl_proc_address("eglGetPlatformDisplayEXT"))) {
+        g_warning("EGL_EXT_platform_x11 extension unavailable?");
+        return FALSE;
     }
+
+    s_display->egl.display = s_display->egl.get_platform_display(EGL_PLATFORM_X11_EXT, s_display->display, NULL);
+    if (s_display->egl.display == EGL_NO_DISPLAY) {
+        g_warning("Cannot open EGL display (error %#04x)", eglGetError());
+        return FALSE;
+    }
+
+    if (!epoxy_has_egl_extension(s_display->egl.display, "EGL_EXT_platform_x11"))
+        g_warning("eglGetPlatformDisplayEXT() returned a display, but "
+                  "EGL_EXT_platform_x11 is mising. Continuing anyway, but things may break unexpectedly.");
 
     if (!eglInitialize (s_display->egl.display, NULL, NULL))
         return FALSE;
@@ -641,15 +601,10 @@ init_egl (void)
         return FALSE;
 
     Window win = (Window) s_window->xcb.window;
-    s_display->egl.create_platform_window_surface = load_egl_proc_address ("eglCreatePlatformWindowSurfaceEXT");
-    if (s_display->egl.create_platform_window_surface)
-        s_window->egl.surface = s_display->egl.create_platform_window_surface (s_display->egl.display,
-                                                                               s_display->egl.config,
-                                                                               &win, NULL);
+    s_window->egl.surface =
+        eglCreatePlatformWindowSurfaceEXT(s_display->egl.display, s_display->egl.config, &win, NULL);
     if (s_window->egl.surface == EGL_NO_SURFACE)
         return FALSE;
-
-    s_display->egl.image_target_texture = load_egl_proc_address ("glEGLImageTargetTexture2DOES");
 
     eglMakeCurrent (s_display->egl.display, s_window->egl.surface, s_window->egl.surface, s_display->egl.context);
     return TRUE;
@@ -664,102 +619,6 @@ clear_egl (void)
         eglTerminate(s_display->egl.display);
         s_display->egl.display = EGL_NO_DISPLAY;
     }
-}
-
-static gboolean
-init_gl (void)
-{
-    static const char *vertex_shader_source =
-        "attribute vec2 pos;\n"
-        "attribute vec2 texture;\n"
-        "varying vec2 v_texture;\n"
-        "void main() {\n"
-        "  v_texture = texture;\n"
-        "  gl_Position = vec4(pos, 0, 1);\n"
-        "}\n";
-    static const char *fragment_shader_source =
-        "precision mediump float;\n"
-        "uniform sampler2D u_texture;\n"
-        "varying vec2 v_texture;\n"
-        "void main() {\n"
-        "  gl_FragColor = texture2D(u_texture, v_texture);\n"
-        "}\n";
-
-    s_window->gl.vertex_shader = glCreateShader (GL_VERTEX_SHADER);
-    glShaderSource (s_window->gl.vertex_shader, 1, &vertex_shader_source, NULL);
-    glCompileShader (s_window->gl.vertex_shader);
-
-    GLint vertex_shader_compile_status = 0;
-    glGetShaderiv (s_window->gl.vertex_shader, GL_COMPILE_STATUS, &vertex_shader_compile_status);
-    if (!vertex_shader_compile_status) {
-        GLsizei vertex_shader_info_log_length = 0;
-        char vertex_shader_info_log[1024];
-        glGetShaderInfoLog (s_window->gl.vertex_shader, 1023,
-                            &vertex_shader_info_log_length, vertex_shader_info_log);
-        vertex_shader_info_log[vertex_shader_info_log_length] = 0;
-        g_warning ("Unable to compile vertex shader:\n%s", vertex_shader_info_log);
-    }
-
-    s_window->gl.fragment_shader = glCreateShader (GL_FRAGMENT_SHADER);
-    glShaderSource (s_window->gl.fragment_shader, 1, &fragment_shader_source, NULL);
-    glCompileShader (s_window->gl.fragment_shader);
-
-    GLint fragment_shader_compile_status = 0;
-    glGetShaderiv (s_window->gl.fragment_shader, GL_COMPILE_STATUS, &fragment_shader_compile_status);
-    if (!fragment_shader_compile_status) {
-        GLsizei fragment_shader_info_log_length = 0;
-        char fragment_shader_info_log[1024];
-        glGetShaderInfoLog (s_window->gl.fragment_shader, 1023,
-                            &fragment_shader_info_log_length, fragment_shader_info_log);
-        fragment_shader_info_log[fragment_shader_info_log_length] = 0;
-        g_warning ("Unable to compile fragment shader:\n%s", fragment_shader_info_log);
-    }
-
-    s_window->gl.program = glCreateProgram ();
-    glAttachShader (s_window->gl.program, s_window->gl.vertex_shader);
-    glAttachShader (s_window->gl.program, s_window->gl.fragment_shader);
-    glLinkProgram (s_window->gl.program);
-
-    GLint link_status = 0;
-    glGetProgramiv (s_window->gl.program, GL_LINK_STATUS, &link_status);
-    if (!link_status) {
-        GLsizei program_info_log_length = 0;
-        char program_info_log[1024];
-        glGetProgramInfoLog (s_window->gl.program, 1023,
-                             &program_info_log_length, program_info_log);
-        program_info_log[program_info_log_length] = 0;
-        g_warning ("Unable to link program:\n%s", program_info_log);
-        return FALSE;
-    }
-
-    s_window->gl.attr_pos = glGetAttribLocation (s_window->gl.program, "pos");
-    s_window->gl.attr_texture = glGetAttribLocation (s_window->gl.program, "texture");
-    s_window->gl.uniform_texture = glGetUniformLocation (s_window->gl.program, "u_texture");
-
-    glGenTextures (1, &s_window->gl.texture);
-    glBindTexture (GL_TEXTURE_2D, s_window->gl.texture);
-    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA, s_window->xcb.width, s_window->xcb.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-    glBindTexture (GL_TEXTURE_2D, 0);
-
-    return TRUE;
-}
-
-static void
-clear_gl ()
-{
-    if (s_window->gl.texture)
-        glDeleteTextures (1, &s_window->gl.texture);
-
-    if (s_window->gl.vertex_shader)
-        glDeleteShader (s_window->gl.vertex_shader);
-    if (s_window->gl.fragment_shader)
-        glDeleteShader (s_window->gl.fragment_shader);
-    if (s_window->gl.program)
-        glDeleteProgram (s_window->gl.program);
 }
 
 static gboolean
@@ -838,13 +697,12 @@ cog_x11_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, con
         return FALSE;
     }
 
-    if (!init_gl ()) {
-        g_set_error_literal (error,
-                             COG_PLATFORM_WPE_ERROR,
-                             COG_PLATFORM_WPE_ERROR_INIT,
-                             "Failed to initialize GL");
+    /*
+     * The call to init_egl() right above leaves the EGLContext active,
+     * which means the renderer can be initialized right away.
+     */
+    if (!cog_gl_renderer_initialize(&s_display->gl_render, error))
         return FALSE;
-    }
 
     if (!init_glib ()) {
         g_set_error_literal (error,
@@ -864,7 +722,7 @@ static void
 cog_x11_platform_finalize(GObject *object)
 {
     clear_glib ();
-    clear_gl ();
+    cog_gl_renderer_finalize(&s_display->gl_render);
     clear_egl ();
     clear_xkb ();
     clear_xcb ();
