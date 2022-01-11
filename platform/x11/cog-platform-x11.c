@@ -7,10 +7,8 @@
 
 #include "../../core/cog.h"
 
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
+#include <epoxy/egl.h>
+#include <epoxy/gl.h>
 
 #include <assert.h>
 #include <stdlib.h>
@@ -661,11 +659,11 @@ static void
 clear_egl (void)
 {
     if (s_display->egl.display != EGL_NO_DISPLAY) {
-        eglTerminate (s_display->egl.display);
+        if (epoxy_egl_version(s_display->egl.display) >= 12)
+            eglReleaseThread();
+        eglTerminate(s_display->egl.display);
         s_display->egl.display = EGL_NO_DISPLAY;
     }
-
-    eglReleaseThread ();
 }
 
 static gboolean
