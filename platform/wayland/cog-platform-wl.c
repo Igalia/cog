@@ -86,10 +86,10 @@ struct _CogWlPlatform {
     CogPlatform    parent;
     WebKitWebView *web_view;
 };
-static void resize_to_largest_output();
-static void resize_window();
+static void resize_to_largest_output(void);
+static void resize_window(void);
 
-static void configure_surface_geometry();
+static void configure_surface_geometry(int32_t width, int32_t height);
 static void xdg_surface_on_configure(void *data, struct xdg_surface *surface, uint32_t serial);
 static void xdg_toplevel_on_configure(void                *data,
                                       struct xdg_toplevel *toplevel,
@@ -165,14 +165,14 @@ typedef struct wl_buffer *(EGLAPIENTRYP PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)(EG
 #endif
 
 typedef struct {
-    void (*enter_fullscreen)();
-    void (*exit_fullscreen)();
-    void (*maximize_surface)();
-    void (*destroy_shell)();
-    void (*create_window)();
-    void (*create_popup)();
-    void (*destroy_window)();
-    void (*destroy_popup)();
+    void (*enter_fullscreen)(void);
+    void (*exit_fullscreen)(void);
+    void (*maximize_surface)(void);
+    void (*destroy_shell)(void);
+    void (*create_window)(void);
+    void (*create_popup)(void);
+    void (*destroy_window)(void);
+    void (*destroy_popup)(void);
 } shell_functions;
 
 typedef struct {
@@ -199,14 +199,14 @@ typedef union {
     xdg_shell_data  xdg_shell_data;
 } shell_context;
 
-static void no_shell_enter_fullscreen();
-static void no_shell_exit_fullscreen();
-static void no_shell_maximize();
-static void no_shell_destroy_shell();
-static void no_shell_create_window();
-static void no_shell_create_popup();
-static void no_shell_destroy_window();
-static void no_shell_destroy_popup();
+static void no_shell_enter_fullscreen(void);
+static void no_shell_exit_fullscreen(void);
+static void no_shell_maximize(void);
+static void no_shell_destroy_shell(void);
+static void no_shell_create_window(void);
+static void no_shell_create_popup(void);
+static void no_shell_destroy_window(void);
+static void no_shell_destroy_popup(void);
 
 static const shell_functions no_shell_functions_window = {.enter_fullscreen = &no_shell_enter_fullscreen,
                                                           .exit_fullscreen = &no_shell_exit_fullscreen,
@@ -353,44 +353,44 @@ static struct {
 
 //default executed when no shell exist
 static void
-no_shell_enter_fullscreen()
+no_shell_enter_fullscreen(void)
 {
     g_warning("No available shell capable of fullscreening.");
     win_data.is_fullscreen = false;
 }
 static void
-no_shell_exit_fullscreen()
+no_shell_exit_fullscreen(void)
 {
     g_assert_not_reached();
 }
 static void
-no_shell_maximize()
+no_shell_maximize(void)
 {
     g_warning("No available shell capable of maximizing.");
     win_data.is_maximized = false;
 }
 static void
-no_shell_destroy_shell()
+no_shell_destroy_shell(void)
 {
     g_warning("No available shell to be destroyed.");
 }
 static void
-no_shell_create_window()
+no_shell_create_window(void)
 {
     g_warning("No available shell to allow you create a window.");
 }
 static void
-no_shell_create_popup()
+no_shell_create_popup(void)
 {
     g_warning("No available shell to allow you create a popup.");
 }
 static void
-no_shell_destroy_window()
+no_shell_destroy_window(void)
 {
     g_warning("No available shell whose window can be destroyed");
 }
 static void
-no_shell_destroy_popup()
+no_shell_destroy_popup(void)
 {
     g_warning("No available shell to allow you destroy a popup.");
 }
@@ -398,22 +398,22 @@ no_shell_destroy_popup()
 //shell operation functions
 //TODO: put in a separate file
 static void
-xdg_shell_enter_fullscreen()
+xdg_shell_enter_fullscreen(void)
 {
     xdg_toplevel_set_fullscreen(win_data.shell_context->xdg_shell_data.xdg_toplevel, NULL);
 }
 static void
-xdg_shell_exit_fullscreen()
+xdg_shell_exit_fullscreen(void)
 {
     xdg_toplevel_unset_fullscreen(win_data.shell_context->xdg_shell_data.xdg_toplevel);
 }
 static void
-xdg_shell_destroy_shell()
+xdg_shell_destroy_shell(void)
 {
     xdg_wm_base_destroy(wl_data.xdg_shell);
 }
 static void
-xdg_shell_maximize_surface()
+xdg_shell_maximize_surface(void)
 {
     xdg_toplevel_set_maximized(win_data.shell_context->xdg_shell_data.xdg_toplevel);
 }
@@ -431,7 +431,7 @@ static const struct xdg_popup_listener xdg_popup_listener = {
 };
 
 static void
-xdg_shell_create_window()
+xdg_shell_create_window(void)
 {
     xdg_shell_data *data = &win_data.shell_context->xdg_shell_data;
     data->xdg_surface = xdg_wm_base_get_xdg_surface(wl_data.xdg_shell, win_data.wl_surface);
@@ -452,7 +452,7 @@ xdg_shell_create_window()
     wl_surface_commit(win_data.wl_surface);
 }
 static void
-xdg_shell_create_popup()
+xdg_shell_create_popup(void)
 {
     xdg_shell_data *data = &popup_data.shell_context->xdg_shell_data;
 
@@ -476,14 +476,14 @@ xdg_shell_create_popup()
 }
 
 static void
-xdg_shell_destroy_window()
+xdg_shell_destroy_window(void)
 {
     g_clear_pointer(&win_data.shell_context->xdg_shell_data.xdg_toplevel, xdg_toplevel_destroy);
     g_clear_pointer(&win_data.shell_context->xdg_shell_data.xdg_surface, xdg_surface_destroy);
 }
 
 static void
-xdg_shell_destroy_popup()
+xdg_shell_destroy_popup(void)
 {
     g_clear_pointer(&popup_data.shell_context->xdg_shell_data.xdg_surface, xdg_surface_destroy);
     g_clear_pointer(&popup_data.shell_context->xdg_shell_data.xdg_popup, xdg_popup_destroy);
@@ -501,25 +501,25 @@ xdg_shell_data xdg_data = {.functions = {.enter_fullscreen = &xdg_shell_enter_fu
 
 // wl shell operations
 static void
-wl_shell_enter_fullscreen()
+wl_shell_enter_fullscreen(void)
 {
     wl_shell_surface_set_fullscreen(win_data.shell_context->wl_shell_data.shell_surface,
                                     WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE, 0, NULL);
 }
 static void
-wl_shell_exit_fullscreen()
+wl_shell_exit_fullscreen(void)
 {
     wl_shell_surface_set_toplevel(win_data.shell_context->wl_shell_data.shell_surface);
     configure_surface_geometry(win_data.width_before_fullscreen, win_data.height_before_fullscreen);
     resize_window();
 }
 static void
-wl_shell_destroy_shell()
+wl_shell_destroy_shell(void)
 {
     wl_shell_destroy(wl_data.shell);
 }
 static void
-wl_shell_maximize_surface()
+wl_shell_maximize_surface(void)
 {
     wl_shell_surface_set_maximized(win_data.shell_context->wl_shell_data.shell_surface, NULL);
 }
@@ -530,7 +530,7 @@ static const struct wl_shell_surface_listener shell_surface_listener = {
 };
 
 static void
-wl_shell_create_window()
+wl_shell_create_window(void)
 {
     win_data.shell_context->wl_shell_data.shell_surface =
         wl_shell_get_shell_surface(wl_data.shell, win_data.wl_surface);
@@ -550,7 +550,7 @@ static const struct wl_shell_surface_listener shell_popup_surface_listener = {
 };
 
 static void
-wl_shell_create_popup()
+wl_shell_create_popup(void)
 {
     win_data.shell_context->wl_shell_data.shell_surface =
         wl_shell_get_shell_surface(wl_data.shell, popup_data.wl_surface);
@@ -565,13 +565,13 @@ wl_shell_create_popup()
 }
 
 static void
-wl_shell_destroy_window()
+wl_shell_destroy_window(void)
 {
     g_clear_pointer(&win_data.shell_context->wl_shell_data.shell_surface, wl_shell_surface_destroy);
 }
 
 static void
-wl_shell_destroy_popup()
+wl_shell_destroy_popup(void)
 {
     g_clear_pointer(&popup_data.shell_context->wl_shell_data.shell_surface, wl_shell_surface_destroy);
 }
@@ -590,24 +590,24 @@ wl_shell_data wayland_popup_data = {.functions = wayland_functions};
 
 // f shell operations
 static void
-f_shell_enter_fullscreen()
+f_shell_enter_fullscreen(void)
 {
     win_data.should_resize_to_largest_output = true;
     resize_to_largest_output();
 }
 static void
-f_shell_exit_fullscreen()
+f_shell_exit_fullscreen(void)
 {
     configure_surface_geometry(win_data.width_before_fullscreen, win_data.height_before_fullscreen);
     resize_window();
 }
 static void
-f_shell_destroy_shell()
+f_shell_destroy_shell(void)
 {
     zwp_fullscreen_shell_v1_destroy(wl_data.fshell);
 }
 static void
-f_shell_create_window()
+f_shell_create_window(void)
 {
     zwp_fullscreen_shell_v1_present_surface(wl_data.fshell,
                                             win_data.wl_surface,
@@ -879,7 +879,7 @@ xdg_popup_on_popup_done(void *data, struct xdg_popup *xdg_popup)
 }
 
 static void
-resize_to_largest_output()
+resize_to_largest_output(void)
 {
     /* Find the largest output and resize the surface to match */
     int32_t width = 0;
@@ -957,7 +957,7 @@ cog_wl_does_image_match_win_size(struct wpe_fdo_egl_exported_image *image)
 }
 
 static void
-cog_wl_fullscreen_image_ready()
+cog_wl_fullscreen_image_ready(void)
 {
     win_data.shell_context->functions.enter_fullscreen();
 
@@ -1229,7 +1229,7 @@ pointer_on_button(void *data,
 }
 
 static void
-dispatch_axis_event()
+dispatch_axis_event(void)
 {
     if (!wl_data.axis.has_delta)
         return;
