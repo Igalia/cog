@@ -1,6 +1,6 @@
 /*
  * cog-drm-gles-renderer.c
- * Copyright (C) 2021 Igalia S.L.
+ * Copyright (C) 2021-2022 Igalia S.L.
  *
  * Distributed under terms of the MIT license.
  */
@@ -39,27 +39,14 @@ typedef struct {
      */
     uint32_t width, height;
 
-    CogDrmRendererRotation rotation;
+    CogGLRendererRotation rotation;
 
     EGLDisplay egl_display;
     EGLConfig  egl_config;
     EGLContext egl_context;
     EGLSurface egl_surface;
 
-    /*
-     * The renderer wraps frames provided by wpebackend-fdo into a texture,
-     * then paints a quad which samples said texture. A simple GLSL shader
-     * program uses the "position" attribute to fetch the coordinates of
-     * the quad, and the "texture" attribute the UV mapping coordinates for
-     * the texture. Rotation is achieved by changing the UV mapping. The
-     * "texture" uniform is used to reference the texture unit where the
-     * frame textures get loaded.
-     */
-    GLuint gl_program;
-    GLuint gl_texture;
-    GLint  gl_attrib_position;
-    GLint  gl_attrib_texture;
-    GLint  gl_uniform_texture;
+    CogGLRenderer gl_render;
 
     struct wpe_view_backend_exportable_fdo *exportable;
 
@@ -92,47 +79,7 @@ cog_drm_gles_renderer_handle_egl_image(void *data, struct wpe_fdo_egl_exported_i
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    glUseProgram(self->gl_program);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, self->gl_texture);
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, wpe_fdo_egl_exported_image_get_egl_image(image));
-    glUniform1i(self->gl_uniform_texture, 0);
-
-    /* clang-format off */
-    static const float position_coords[4][2] = {
-        { -1,  1 }, { 1,  1 },
-        { -1, -1 }, { 1, -1 },
-    };
-    static const float texture_coords[4][4][2] = {
-        [COG_DRM_RENDERER_ROTATION_0] = {
-            { 0, 0 }, { 1, 0 },
-            { 0, 1 }, { 1, 1 },
-        },
-        [COG_DRM_RENDERER_ROTATION_90] = {
-            { 1, 0 }, { 1, 1 },
-            { 0, 0 }, { 0, 1 },
-        },
-        [COG_DRM_RENDERER_ROTATION_180] = {
-            { 1, 1 }, { 0, 1 },
-            { 1, 0 }, { 0, 0 },
-        },
-        [COG_DRM_RENDERER_ROTATION_270] = {
-            { 0, 1 }, { 0, 0 },
-            { 1, 1 }, { 1, 0 },
-        },
-    };
-    /* clang-format on */
-
-    glVertexAttribPointer(self->gl_attrib_position, 2, GL_FLOAT, GL_FALSE, 0, position_coords);
-    glVertexAttribPointer(self->gl_attrib_texture, 2, GL_FLOAT, GL_FALSE, 0, texture_coords[self->rotation]);
-
-    glEnableVertexAttribArray(self->gl_attrib_position);
-    glEnableVertexAttribArray(self->gl_attrib_texture);
-
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-    glDisableVertexAttribArray(self->gl_attrib_position);
-    glDisableVertexAttribArray(self->gl_attrib_texture);
+    cog_gl_renderer_paint(&self->gl_render, wpe_fdo_egl_exported_image_get_egl_image(image), self->rotation);
 
     if (G_UNLIKELY(!eglSwapBuffers(self->egl_display, self->egl_surface))) {
         g_critical("%s: eglSwapBuffers failed (%#04x)", __func__, eglGetError());
@@ -213,68 +160,6 @@ cog_drm_gles_renderer_handle_page_flip(int fd, unsigned frame, unsigned sec, uns
     self->current_bo = g_steal_pointer(&self->next_bo);
 
     wpe_view_backend_exportable_fdo_dispatch_frame_complete(self->exportable);
-}
-
-static bool
-cog_drm_gles_renderer_initialize_shaders(CogDrmGlesRenderer *self, GError **error)
-{
-    static const char vertex_shader_source[] = "attribute vec2 position;\n"
-                                               "attribute vec2 texture;\n"
-                                               "varying vec2 v_texture;\n"
-                                               "void main() {\n"
-                                               "  v_texture = texture;\n"
-                                               "  gl_Position = vec4(position, 0, 1);\n"
-                                               "}\n";
-    static const char fragment_shader_source[] = "precision mediump float;\n"
-                                                 "uniform sampler2D u_texture;\n"
-                                                 "varying vec2 v_texture;\n"
-                                                 "void main() {\n"
-                                                 "  gl_FragColor = texture2D(u_texture, v_texture);\n"
-                                                 "}\n";
-
-    g_auto(CogGLShaderId) vertex_shader = cog_gl_load_shader(vertex_shader_source, GL_VERTEX_SHADER, error);
-    if (!vertex_shader)
-        return false;
-
-    g_auto(CogGLShaderId) fragment_shader = cog_gl_load_shader(fragment_shader_source, GL_FRAGMENT_SHADER, error);
-    if (!fragment_shader)
-        return false;
-
-    if (!(self->gl_program = glCreateProgram())) {
-        g_set_error_literal(error, COG_PLATFORM_EGL_ERROR, glGetError(), "Cannot create shader program");
-        return false;
-    }
-
-    glAttachShader(self->gl_program, vertex_shader);
-    glAttachShader(self->gl_program, fragment_shader);
-    glBindAttribLocation(self->gl_program, 0, "position");
-    glBindAttribLocation(self->gl_program, 1, "texture");
-
-    if (!cog_gl_link_program(self->gl_program, error)) {
-        glDeleteProgram(self->gl_program);
-        self->gl_program = 0;
-        return false;
-    }
-
-    self->gl_attrib_position = glGetAttribLocation(self->gl_program, "position");
-    self->gl_attrib_texture = glGetAttribLocation(self->gl_program, "texture");
-    g_assert(self->gl_attrib_position >= 0 && self->gl_attrib_texture >= 0 && self->gl_uniform_texture >= 0);
-
-    return true;
-}
-
-static bool
-cog_drm_gles_renderer_initialize_texture(CogDrmGlesRenderer *self, GError **error)
-{
-    glGenTextures(1, &self->gl_texture);
-    glBindTexture(GL_TEXTURE_2D, self->gl_texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    return true;
 }
 
 static gboolean
@@ -409,26 +294,14 @@ cog_drm_gles_renderer_initialize(CogDrmRenderer *renderer, GError **error)
         return false;
     }
 
-    /* An active context is needed in order to check for GL extensions. */
+    /* An active context is needed in order to initialize the renderer. */
     if (!eglMakeCurrent(self->egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, self->egl_context)) {
         g_set_error_literal(error, COG_PLATFORM_EGL_ERROR, eglGetError(),
                             "Could not activate EGL context for shader compilation");
         return false;
     }
 
-    static const char *required_gl_extensions[] = {
-        "GL_OES_EGL_image",
-    };
-    for (unsigned i = 0; i < G_N_ELEMENTS(required_gl_extensions); i++) {
-        if (!epoxy_has_gl_extension(required_gl_extensions[i])) {
-            g_set_error(error, COG_PLATFORM_WPE_ERROR, COG_PLATFORM_WPE_ERROR_INIT, "GL extension %s missing",
-                        required_gl_extensions[i]);
-            return false;
-        }
-    }
-
-    bool ok =
-        cog_drm_gles_renderer_initialize_shaders(self, error) && cog_drm_gles_renderer_initialize_texture(self, error);
+    bool ok = cog_gl_renderer_initialize(&self->gl_render, error);
 
     eglMakeCurrent(self->egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
@@ -450,6 +323,8 @@ cog_drm_gles_renderer_destroy(CogDrmRenderer *renderer)
         self->egl_surface = EGL_NO_SURFACE;
     }
 
+    cog_gl_renderer_finalize(&self->gl_render);
+
     g_clear_pointer(&self->gbm_surface, gbm_surface_destroy);
 
     if (self->egl_context) {
@@ -462,13 +337,13 @@ static void
 cog_drm_gles_renderer_transformed_logical_size(const CogDrmGlesRenderer *self, uint32_t *width, uint32_t *height)
 {
     switch (self->rotation) {
-    case COG_DRM_RENDERER_ROTATION_0:
-    case COG_DRM_RENDERER_ROTATION_180:
+    case COG_GL_RENDERER_ROTATION_0:
+    case COG_GL_RENDERER_ROTATION_180:
         *width = self->width;
         *height = self->height;
         break;
-    case COG_DRM_RENDERER_ROTATION_90:
-    case COG_DRM_RENDERER_ROTATION_270:
+    case COG_GL_RENDERER_ROTATION_90:
+    case COG_GL_RENDERER_ROTATION_270:
         *width = self->height;
         *height = self->width;
         break;
@@ -478,10 +353,10 @@ cog_drm_gles_renderer_transformed_logical_size(const CogDrmGlesRenderer *self, u
 }
 
 static bool
-cog_drm_gles_renderer_set_rotation(CogDrmRenderer *renderer, CogDrmRendererRotation rotation, bool apply)
+cog_drm_gles_renderer_set_rotation(CogDrmRenderer *renderer, CogGLRendererRotation rotation, bool apply)
 {
-    const bool supported = (rotation == COG_DRM_RENDERER_ROTATION_0 || rotation == COG_DRM_RENDERER_ROTATION_90 ||
-                            rotation == COG_DRM_RENDERER_ROTATION_180 || rotation == COG_DRM_RENDERER_ROTATION_270);
+    const bool supported = (rotation == COG_GL_RENDERER_ROTATION_0 || rotation == COG_GL_RENDERER_ROTATION_90 ||
+                            rotation == COG_GL_RENDERER_ROTATION_180 || rotation == COG_GL_RENDERER_ROTATION_270);
 
     if (!apply)
         return supported;
@@ -536,7 +411,7 @@ cog_drm_gles_renderer_new(struct gbm_device     *gbm_device,
         .base.set_rotation = cog_drm_gles_renderer_set_rotation,
         .base.create_exportable = cog_drm_gles_renderer_create_exportable,
 
-        .rotation = COG_DRM_RENDERER_ROTATION_0,
+        .rotation = COG_GL_RENDERER_ROTATION_0,
 
         .gbm_device = gbm_device,
         .egl_display = egl_display,

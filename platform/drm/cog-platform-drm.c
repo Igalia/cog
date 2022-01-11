@@ -1,3 +1,11 @@
+/*
+ * cog-platform-x11.c
+ * Copyright (C) 2019-2022 Igalia S.L.
+ * Copyright (C) 2020 Michal Artazov <michal@artazov.cz>
+ *
+ * Distributed under terms of the MIT license.
+ */
+
 #include "../../core/cog.h"
 
 #include "cog-drm-renderer.h"
@@ -62,7 +70,7 @@ struct _CogDrmPlatformClass {
 struct _CogDrmPlatform {
     CogPlatform            parent;
     CogDrmRenderer        *renderer;
-    CogDrmRendererRotation rotation;
+    CogGLRendererRotation  rotation;
     GList                 *rotatable_input_devices;
     bool                   use_gles;
 };
@@ -1356,7 +1364,7 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
     } else {
         g_warning("Renderer '%s' does not support rotation %u (%u degrees).", self->renderer->name, self->rotation,
                   self->rotation * 90);
-        self->rotation = COG_DRM_RENDERER_ROTATION_0;
+        self->rotation = COG_GL_RENDERER_ROTATION_0;
     }
 
     if (!init_input(COG_DRM_PLATFORM(platform))) {
@@ -1437,7 +1445,7 @@ cog_drm_platform_set_property(GObject *object, unsigned prop_id, const GValue *v
     CogDrmPlatform *self = COG_DRM_PLATFORM(object);
     switch (prop_id) {
     case PROP_ROTATION: {
-        CogDrmRendererRotation rotation = g_value_get_uint(value);
+        CogGLRendererRotation rotation = g_value_get_uint(value);
         if (rotation == self->rotation)
             return;
 
