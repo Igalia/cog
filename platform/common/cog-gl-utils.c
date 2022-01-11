@@ -1,6 +1,6 @@
 /*
  * cog-gl-utils.c
- * Copyright (C) 2021 Igalia S.L.
+ * Copyright (C) 2021-2022 Igalia S.L.
  *
  * Distributed under terms of the MIT license.
  */
@@ -77,4 +77,151 @@ cog_gl_link_program(GLuint program, GError **error)
     glGetProgramInfoLog(program, log_length, NULL, log);
     g_set_error(error, COG_PLATFORM_EGL_ERROR, 0, "Shader linking: %s", log);
     return false;
+}
+
+bool
+cog_gl_renderer_initialize(CogGLRenderer *self, GError **error)
+{
+    g_assert(self);
+    g_assert(!self->program);
+    g_assert(eglGetCurrentContext() != EGL_NO_CONTEXT);
+
+    static const char *required_gl_extensions[] = {
+        "GL_OES_EGL_image",
+    };
+    for (unsigned i = 0; i < G_N_ELEMENTS(required_gl_extensions); i++) {
+        if (!epoxy_has_gl_extension(required_gl_extensions[i])) {
+            g_set_error(error, COG_PLATFORM_WPE_ERROR, COG_PLATFORM_WPE_ERROR_INIT, "GL extension %s missing",
+                        required_gl_extensions[i]);
+            return false;
+        }
+    }
+
+    static const char vertex_shader_source[] = "#version 100\n"
+                                               "attribute vec2 position;\n"
+                                               "attribute vec2 texture;\n"
+                                               "varying vec2 v_texture;\n"
+                                               "void main() {\n"
+                                               "  v_texture = texture;\n"
+                                               "  gl_Position = vec4(position, 0, 1);\n"
+                                               "}\n";
+    static const char fragment_shader_source[] = "#version 100\n"
+                                                 "precision mediump float;\n"
+                                                 "uniform sampler2D u_texture;\n"
+                                                 "varying vec2 v_texture;\n"
+                                                 "void main() {\n"
+                                                 "  gl_FragColor = texture2D(u_texture, v_texture);\n"
+                                                 "}\n";
+
+    g_auto(CogGLShaderId) vertex_shader = cog_gl_load_shader(vertex_shader_source, GL_VERTEX_SHADER, error);
+    if (!vertex_shader)
+        return false;
+
+    g_auto(CogGLShaderId) fragment_shader = cog_gl_load_shader(fragment_shader_source, GL_FRAGMENT_SHADER, error);
+    if (!fragment_shader)
+        return false;
+
+    if (!(self->program = glCreateProgram())) {
+        g_set_error_literal(error, COG_PLATFORM_EGL_ERROR, glGetError(), "Cannot create shader program");
+        return false;
+    }
+
+    glAttachShader(self->program, vertex_shader);
+    glAttachShader(self->program, fragment_shader);
+    glBindAttribLocation(self->program, 0, "position");
+    glBindAttribLocation(self->program, 1, "texture");
+
+    if (!cog_gl_link_program(self->program, error)) {
+        glDeleteProgram(self->program);
+        self->program = 0;
+        return false;
+    }
+
+    self->attrib_position = glGetAttribLocation(self->program, "position");
+    self->attrib_texture = glGetAttribLocation(self->program, "texture");
+
+    g_assert(self->attrib_position >= 0 && self->attrib_texture >= 0 && self->uniform_texture >= 0);
+
+    /* Create texture. */
+    glGenTextures(1, &self->texture);
+    glBindTexture(GL_TEXTURE_2D, self->texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    return true;
+}
+
+void
+cog_gl_renderer_finalize(CogGLRenderer *self)
+{
+    g_assert(self);
+
+    if (self->texture) {
+        glDeleteTextures(1, &self->texture);
+        self->texture = 0;
+    }
+
+    if (self->program) {
+        glDeleteProgram(self->program);
+        self->program = 0;
+    }
+
+    self->attrib_position = 0;
+    self->attrib_texture = 0;
+    self->uniform_texture = 0;
+}
+
+void
+cog_gl_renderer_paint(CogGLRenderer *self, EGLImage *image, CogGLRendererRotation rotation)
+{
+    g_assert(self);
+    g_assert(image != EGL_NO_IMAGE);
+    g_assert(eglGetCurrentContext() != EGL_NO_CONTEXT);
+    g_assert(rotation == COG_GL_RENDERER_ROTATION_0 || rotation == COG_GL_RENDERER_ROTATION_90 ||
+             rotation == COG_GL_RENDERER_ROTATION_180 || rotation <= COG_GL_RENDERER_ROTATION_270);
+
+    glUseProgram(self->program);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, self->texture);
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
+    glUniform1i(self->uniform_texture, 0);
+
+    /* clang-format off */
+    static const float position_coords[4][2] = {
+        { -1,  1 }, { 1,  1 },
+        { -1, -1 }, { 1, -1 },
+    };
+    static const float texture_coords[4][4][2] = {
+        [COG_GL_RENDERER_ROTATION_0] = {
+            { 0, 0 }, { 1, 0 },
+            { 0, 1 }, { 1, 1 },
+        },
+        [COG_GL_RENDERER_ROTATION_90] = {
+            { 1, 0 }, { 1, 1 },
+            { 0, 0 }, { 0, 1 },
+        },
+        [COG_GL_RENDERER_ROTATION_180] = {
+            { 1, 1 }, { 0, 1 },
+            { 1, 0 }, { 0, 0 },
+        },
+        [COG_GL_RENDERER_ROTATION_270] = {
+            { 0, 1 }, { 0, 0 },
+            { 1, 1 }, { 1, 0 },
+        },
+    };
+    /* clang-format on */
+
+    glVertexAttribPointer(self->attrib_position, 2, GL_FLOAT, FALSE, 0, position_coords);
+    glVertexAttribPointer(self->attrib_texture, 2, GL_FLOAT, FALSE, 0, texture_coords[rotation]);
+
+    glEnableVertexAttribArray(self->attrib_position);
+    glEnableVertexAttribArray(self->attrib_texture);
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    glDisableVertexAttribArray(self->attrib_position);
+    glDisableVertexAttribArray(self->attrib_texture);
 }
