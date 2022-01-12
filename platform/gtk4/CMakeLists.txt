@@ -1,6 +1,7 @@
 pkg_check_modules(COGPLATFORM_GTK4_DEPS REQUIRED
     IMPORTED_TARGET gtk4 wpebackend-fdo-1.0)
 add_library(cogplatform-gtk4 MODULE
+    ../common/cog-gl-utils.c
     cog-platform-gtk4.c
     cog-gtk-settings-dialog.c
     cog-gtk-settings-cell-renderer-variant.c)

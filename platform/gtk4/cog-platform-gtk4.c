@@ -1,16 +1,16 @@
 /*
  * cog-platform-gtk4.c
- * Copyright (C) 2021 Igalia S.L.
+ * Copyright (C) 2021-2022 Igalia S.L.
  *
  * Distributed under terms of the MIT license.
  */
 
-#include <epoxy/egl.h>
 #include <gtk/gtk.h>
 #include <wpe/fdo-egl.h>
 #include <wpe/fdo.h>
 
 #include "../../core/cog.h"
+#include "../common/cog-gl-utils.h"
 #include "../common/egl-proc-address.h"
 #include "cog-gtk-settings-dialog.h"
 
@@ -41,8 +41,12 @@ G_DEFINE_DYNAMIC_TYPE_EXTENDED(
     g_io_extension_point_implement(COG_MODULES_PLATFORM_EXTENSION_POINT, g_define_type_id, "gtk4", 400);)
 
 /*
- * TODO
- * - multi-views
+ * TODO:
+ * - Multiple views.
+ * - Call cog_gl_renderer_finalize() when GL area is being destroyed.
+ * - Implement an actual widget that wraps exported EGLImages into a
+ *   GdkTexture and uses gtk_snapshot_append_texture() to participate in
+ *   the GTK scene graph directly and avoid CogGLRenderer.
  */
 
 struct platform_window {
@@ -56,10 +60,7 @@ struct platform_window {
     GtkWidget* popover_menu;
     GtkWidget* settings_dialog;
 
-    PFNGLEGLIMAGETARGETTEXTURE2DOESPROC ext_glEGLImageTargetTexture2DOES;
-    GLuint gl_program;
-    GLint gl_texture_location;
-    GLuint gl_texture;
+    CogGLRenderer gl_render;
 
     int width;
     int height;
@@ -84,87 +85,6 @@ static struct platform_window win = {
     .device_scale_factor = 1,
 };
 
-static const char s_vertex_shader[] = "#version 100\n"
-                                      "attribute vec2 pos;\n"
-                                      "attribute vec2 texture;\n"
-                                      "varying vec2 v_texture;\n"
-                                      "void main() {\n"
-                                      "  v_texture = texture;\n"
-                                      "  gl_Position = vec4(pos, 0, 1);\n"
-                                      "}\n";
-
-static const char s_fragment_shader[] = "#version 100\n"
-                                        "precision mediump float;\n"
-                                        "uniform sampler2D u_tex;\n"
-                                        "varying vec2 v_texture;\n"
-                                        "void main() {\n"
-                                        "  gl_FragColor = texture2D(u_tex, v_texture);\n"
-                                        "}\n";
-
-/*
- * The Shader loading code was originally authored by Adrian Perez de Castro.
- * TODO: Refactor it to common/ (see #275)
- */
-
-typedef GLuint ShaderId;
-
-static void
-shader_id_destroy(ShaderId* shader_id)
-{
-    if (shader_id && *shader_id) {
-        glDeleteShader(*shader_id);
-        *shader_id = 0;
-    }
-}
-
-static inline ShaderId
-shader_id_steal(ShaderId* shader_id)
-{
-    g_assert(shader_id != NULL);
-    ShaderId result = *shader_id;
-    *shader_id = 0;
-    return result;
-}
-
-G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(ShaderId, shader_id_destroy)
-
-static GLuint
-load_shader(const char* source, GLenum kind, GError** error)
-{
-    g_assert(source != NULL);
-    g_assert(kind == GL_VERTEX_SHADER || kind == GL_FRAGMENT_SHADER);
-
-    GLenum err;
-    g_auto(ShaderId) shader = glCreateShader(kind);
-
-    glShaderSource(shader, 1, &source, NULL);
-    if ((err = glGetError()) != GL_NO_ERROR) {
-        g_set_error_literal(error, COG_PLATFORM_EGL_ERROR, err,
-            "Cannot set shader source");
-        return 0;
-    }
-
-    glCompileShader(shader);
-    if ((err = glGetError()) != GL_NO_ERROR) {
-        g_set_error_literal(error, COG_PLATFORM_EGL_ERROR, err,
-            "Cannot compile shader");
-        return 0;
-    }
-
-    GLint ok = GL_FALSE;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
-    if (ok == GL_TRUE)
-        return shader_id_steal(&shader);
-
-    char buffer[4096] = {
-        '\0',
-    };
-    glGetShaderInfoLog(shader, G_N_ELEMENTS(buffer), NULL, buffer);
-    g_set_error(error, COG_PLATFORM_EGL_ERROR, 0, "Shader compilation: %s",
-        buffer);
-    return 0;
-}
-
 static bool
 setup_shader(struct platform_window* window, GError** error)
 {
@@ -184,59 +104,11 @@ setup_shader(struct platform_window* window, GError** error)
         return false;
     }
 
-    if (!(window->ext_glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)load_egl_proc_address(
-              "glEGLImageTargetTexture2DOES"))) {
-        g_set_error_literal(error, COG_PLATFORM_EGL_ERROR, eglGetError(),
-            "Cannot obtain glEGLImageTargetTexture2DOES function");
+    if (!cog_gl_renderer_initialize(&window->gl_render, error))
         return false;
-    }
-
-    g_auto(ShaderId) vertex_shader = load_shader(s_vertex_shader, GL_VERTEX_SHADER, error);
-    if (!vertex_shader)
-        return false;
-
-    g_auto(ShaderId) fragment_shader = load_shader(s_fragment_shader, GL_FRAGMENT_SHADER, error);
-    if (!fragment_shader)
-        return false;
-
-    if (!(window->gl_program = glCreateProgram())) {
-        g_set_error_literal(error, COG_PLATFORM_EGL_ERROR, glGetError(),
-            "Cannot create shader program");
-        return false;
-    }
-
-    glAttachShader(window->gl_program, vertex_shader);
-    glAttachShader(window->gl_program, fragment_shader);
-    glBindAttribLocation(window->gl_program, 0, "pos");
-    glBindAttribLocation(window->gl_program, 1, "texture");
-    glLinkProgram(window->gl_program);
-
-    GLuint err;
-    if ((err = glGetError()) != GL_NO_ERROR) {
-        g_set_error_literal(error, COG_PLATFORM_EGL_ERROR, err,
-            "Cannot link shader program");
-        return false;
-    }
-    glUseProgram(window->gl_program);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    if ((window->gl_texture_location = glGetUniformLocation(window->gl_program, "u_tex")) < 0) {
-        g_set_error_literal(error, COG_PLATFORM_EGL_ERROR, glGetError(),
-            "Cannot obtain 'u_tex' uniform location");
-        return false;
-    }
-
-    glGenTextures(1, &window->gl_texture);
-    glBindTexture(GL_TEXTURE_2D, window->gl_texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    glActiveTexture(GL_TEXTURE0);
-    glUniform1i(window->gl_texture_location, 0);
 
     /* Configuration for the FDO backend. */
     EGLDisplay display = eglGetCurrentDisplay();
@@ -282,43 +154,10 @@ render(GtkGLArea* area, GdkGLContext* context, gpointer user_data)
         return TRUE;
     }
 
-    glUseProgram(win->gl_program);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, win->gl_texture);
-    win->ext_glEGLImageTargetTexture2DOES(
-        GL_TEXTURE_2D,
-        wpe_fdo_egl_exported_image_get_egl_image(win->current_image));
-    glUniform1i(win->gl_texture_location, 0);
+    cog_gl_renderer_paint(&win->gl_render, wpe_fdo_egl_exported_image_get_egl_image(win->current_image),
+                          COG_GL_RENDERER_ROTATION_0);
 
     win->commited_image = win->current_image;
-
-    static const GLfloat vertices[4][2] = {
-        { -1.0, 1.0 },
-        { 1.0, 1.0 },
-        { -1.0, -1.0 },
-        { 1.0, -1.0 },
-    };
-
-    static const GLfloat texturePos[4][2] = {
-        { 0, 0 },
-        { 1, 0 },
-        { 0, 1 },
-        { 1, 1 },
-    };
-
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, texturePos);
-
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-    glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
 
     wpe_view_backend_exportable_fdo_dispatch_frame_complete(win->exportable);
     return TRUE;
