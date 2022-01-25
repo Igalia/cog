@@ -71,13 +71,6 @@
 #    define HAVE_FULLSCREEN_HANDLING 0
 #endif
 
-#if defined(WAYLAND_VERSION_MAJOR) && defined(WAYLAND_VERSION_MINOR)
-# define WAYLAND_1_10_OR_GREATER ((WAYLAND_VERSION_MAJOR >= 2) || \
-                                  (WAYLAND_VERSION_MAJOR == 1 && WAYLAND_VERSION_MINOR >= 10))
-#else
-# define WAYLAND_1_10_OR_GREATER 0
-#endif
-
 struct _CogWlPlatformClass {
     CogPlatformClass parent_class;
 };
@@ -766,7 +759,7 @@ registry_global (void               *data,
     } else if (strcmp(interface, zwp_fullscreen_shell_v1_interface.name) == 0) {
         wl_data.fshell = wl_registry_bind(registry, name, &zwp_fullscreen_shell_v1_interface, version);
     } else if (strcmp(interface, wl_seat_interface.name) == 0) {
-        wl_data.seat = wl_registry_bind(registry, name, &wl_seat_interface, version);
+        wl_data.seat = wl_registry_bind(registry, name, &wl_seat_interface, MAX(3, MAX(version, 7)));
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     } else if (strcmp(interface, zwp_linux_dmabuf_v1_interface.name) == 0) {
         if (version < 3) {
@@ -939,6 +932,16 @@ dispatch_axis_event()
     wl_data.axis.x_delta = wl_data.axis.y_delta = 0;
 }
 
+static inline bool
+pointer_uses_frame_event(struct wl_pointer *pointer)
+{
+#ifdef WL_POINTER_FRAME_SINCE_VERSION
+    return wl_pointer_get_version(pointer) >= WL_POINTER_FRAME_SINCE_VERSION;
+#else
+    return false;
+#endif
+}
+
 static void
 pointer_on_axis (void* data,
                  struct wl_pointer *pointer,
@@ -958,14 +961,11 @@ pointer_on_axis (void* data,
         wl_data.axis.x_delta += value;
     }
 
-#if !WAYLAND_1_10_OR_GREATER
-    // No 'frame' event in this case, so dispatch immediately.
-    dispatch_axis_event ();
-#endif
+    if (!pointer_uses_frame_event(pointer))
+        dispatch_axis_event();
 }
 
-#if WAYLAND_1_10_OR_GREATER
-
+#ifdef WL_POINTER_FRAME_SINCE_VERSION
 static void
 pointer_on_frame (void* data,
                   struct wl_pointer *pointer)
@@ -976,31 +976,7 @@ pointer_on_frame (void* data,
 
     dispatch_axis_event();
 }
-
-static void
-pointer_on_axis_source (void *data,
-                        struct wl_pointer *wl_pointer,
-                        uint32_t axis_source)
-{
-}
-
-static void
-pointer_on_axis_stop (void *data,
-                      struct wl_pointer *wl_pointer,
-                      uint32_t time,
-                      uint32_t axis)
-{
-}
-
-static void
-pointer_on_axis_discrete (void *data,
-                          struct wl_pointer *wl_pointer,
-                          uint32_t axis,
-                          int32_t discrete)
-{
-}
-
-#endif /* WAYLAND_1_10_OR_GREATER */
+#endif /* WL_POINTER_FRAME_SINCE_VERSION */
 
 static const struct wl_pointer_listener pointer_listener = {
     .enter = pointer_on_enter,
@@ -1009,12 +985,12 @@ static const struct wl_pointer_listener pointer_listener = {
     .button = pointer_on_button,
     .axis = pointer_on_axis,
 
-#if WAYLAND_1_10_OR_GREATER
+#ifdef WL_POINTER_FRAME_SINCE_VERSION
     .frame = pointer_on_frame,
-    .axis_source = pointer_on_axis_source,
-    .axis_stop = pointer_on_axis_stop,
-    .axis_discrete = pointer_on_axis_discrete,
-#endif /* WAYLAND_1_10_OR_GREATER */
+    .axis_source = noop,
+    .axis_stop = noop,
+    .axis_discrete = noop,
+#endif /* WL_POINTER_FRAME_SINCE_VERSION */
 };
 
 static void
@@ -1029,7 +1005,7 @@ keyboard_on_keymap (void *data,
         return;
     }
 
-    int map_mode = wl_seat_interface.version > 6 ? MAP_PRIVATE : MAP_SHARED;
+    const int map_mode = wl_seat_get_version(wl_data.seat) > 6 ? MAP_PRIVATE : MAP_SHARED;
     void* mapping = mmap (NULL, size, PROT_READ, map_mode, fd, 0);
     if (mapping == MAP_FAILED) {
         close (fd);
