@@ -756,30 +756,30 @@ registry_global (void               *data,
         /* Version 3 introduced wl_surface_set_buffer_scale() */
         wl_data.compositor = wl_registry_bind(registry, name, &wl_compositor_interface, MIN(3, version));
     } else if (strcmp(interface, wl_subcompositor_interface.name) == 0) {
-        wl_data.subcompositor = wl_registry_bind(registry, name, &wl_subcompositor_interface, version);
+        wl_data.subcompositor = wl_registry_bind(registry, name, &wl_subcompositor_interface, 1);
     } else if (strcmp(interface, wl_shell_interface.name) == 0) {
-        wl_data.shell = wl_registry_bind(registry, name, &wl_shell_interface, version);
+        wl_data.shell = wl_registry_bind(registry, name, &wl_shell_interface, 1);
     } else if (strcmp(interface, wl_shm_interface.name) == 0) {
-        wl_data.shm = wl_registry_bind(registry, name, &wl_shm_interface, version);
+        wl_data.shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
     } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
-        wl_data.xdg_shell = wl_registry_bind(registry, name, &xdg_wm_base_interface, version);
+        wl_data.xdg_shell = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
         g_assert(wl_data.xdg_shell);
         xdg_wm_base_add_listener(wl_data.xdg_shell, &xdg_shell_listener, NULL);
     } else if (strcmp(interface, zwp_fullscreen_shell_v1_interface.name) == 0) {
-        wl_data.fshell = wl_registry_bind(registry, name, &zwp_fullscreen_shell_v1_interface, version);
+        wl_data.fshell = wl_registry_bind(registry, name, &zwp_fullscreen_shell_v1_interface, 1);
     } else if (strcmp(interface, wl_seat_interface.name) == 0) {
-        wl_data.seat = wl_registry_bind(registry, name, &wl_seat_interface, MAX(3, MAX(version, 7)));
+        wl_data.seat = wl_registry_bind(registry, name, &wl_seat_interface, MAX(3, MIN(version, 7)));
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     } else if (strcmp(interface, zwp_linux_dmabuf_v1_interface.name) == 0) {
         if (version < 3) {
             g_warning("Version %d of the zwp_linux_dmabuf_v1 protocol is not supported", version);
             return;
         }
-        wl_data.dmabuf = wl_registry_bind(registry, name, &zwp_linux_dmabuf_v1_interface, version);
+        wl_data.dmabuf = wl_registry_bind(registry, name, &zwp_linux_dmabuf_v1_interface, 3);
     } else if (strcmp(interface, weston_direct_display_v1_interface.name) == 0) {
-        wl_data.direct_display = wl_registry_bind(registry, name, &weston_direct_display_v1_interface, version);
+        wl_data.direct_display = wl_registry_bind(registry, name, &weston_direct_display_v1_interface, 1);
     } else if (strcmp(interface, weston_content_protection_interface.name) == 0) {
-        wl_data.protection = wl_registry_bind(registry, name, &weston_content_protection_interface, version);
+        wl_data.protection = wl_registry_bind(registry, name, &weston_content_protection_interface, 1);
 #endif /* COG_ENABLE_WESTON_DIRECT_DISPLAY */
     } else if (strcmp(interface, wl_output_interface.name) == 0) {
         /* Version 2 introduced the wl_output_listener::scale. */
@@ -798,15 +798,11 @@ registry_global (void               *data,
             g_warning("Exceeded %" G_GSIZE_FORMAT " connected outputs(!)", G_N_ELEMENTS(wl_data.metrics));
         }
     } else if (strcmp(interface, zwp_text_input_manager_v3_interface.name) == 0) {
-        wl_data.text_input_manager = wl_registry_bind(registry, name, &zwp_text_input_manager_v3_interface, version);
+        wl_data.text_input_manager = wl_registry_bind(registry, name, &zwp_text_input_manager_v3_interface, 1);
     } else if (strcmp(interface, zwp_text_input_manager_v1_interface.name) == 0) {
-        wl_data.text_input_manager_v1 = wl_registry_bind(registry, name, &zwp_text_input_manager_v1_interface, version);
-#ifdef COG_USE_WAYLAND_CURSOR
-    } else if (strcmp(interface, wl_shm_interface.name) == 0) {
-        wl_data.wl_shm = wl_registry_bind(registry, name, &wl_shm_interface, version);
-#endif /* COG_USE_WAYLAND_CURSOR */
+        wl_data.text_input_manager_v1 = wl_registry_bind(registry, name, &zwp_text_input_manager_v1_interface, 1);
     } else if (strcmp(interface, wp_presentation_interface.name) == 0) {
-        wl_data.presentation = wl_registry_bind(registry, name, &wp_presentation_interface, version);
+        wl_data.presentation = wl_registry_bind(registry, name, &wp_presentation_interface, 1);
     } else {
         interface_used = FALSE;
     }
