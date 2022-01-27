@@ -98,8 +98,9 @@ struct CogX11Window {
     struct {
         xcb_window_t window;
 
-        bool needs_initial_paint;
+        bool needs_repaint;
         bool needs_frame_completion;
+
         unsigned width;
         unsigned height;
     } xcb;
@@ -119,10 +120,13 @@ struct CogX11Window {
 static struct CogX11Display *s_display = NULL;
 static struct CogX11Window *s_window = NULL;
 
-
 static void
-xcb_schedule_repaint (void)
+xcb_schedule_notice(void)
 {
+    /* There is a notice message already scheduled, do not queue another. */
+    if (s_window->xcb.needs_repaint || s_window->xcb.needs_frame_completion)
+        return;
+
     xcb_client_message_event_t client_message = {
         .response_type = XCB_CLIENT_MESSAGE,
         .format = 32,
@@ -135,16 +139,11 @@ xcb_schedule_repaint (void)
     xcb_flush (s_display->xcb.connection);
 }
 
-static void
-xcb_initial_paint (void)
+static inline void
+xcb_schedule_repaint(void)
 {
-    eglMakeCurrent (s_display->egl.display, s_window->egl.surface, s_window->egl.surface, s_display->egl.context);
-
-    glViewport (0, 0, s_window->xcb.width, s_window->xcb.height);
-    glClearColor (1, 1, 1, 1);
-    glClear (GL_COLOR_BUFFER_BIT);
-
-    eglSwapBuffers (s_display->egl.display, s_window->egl.surface);
+    xcb_schedule_notice();
+    s_window->xcb.needs_repaint = true;
 }
 
 static void
@@ -155,27 +154,24 @@ xcb_paint_image (struct wpe_fdo_egl_exported_image *image)
     glViewport (0, 0, s_window->xcb.width, s_window->xcb.height);
     glClearColor (1, 1, 1, 1);
     glClear (GL_COLOR_BUFFER_BIT);
+    s_window->xcb.needs_repaint = false;
 
-    cog_gl_renderer_paint(&s_display->gl_render, wpe_fdo_egl_exported_image_get_egl_image(image),
-                          COG_GL_RENDERER_ROTATION_0);
+    if (image != EGL_NO_IMAGE) {
+        if (s_window->wpe.image != image) {
+            if (s_window->wpe.image)
+                wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image(s_window->wpe.exportable,
+                                                                                    s_window->wpe.image);
 
-    eglSwapBuffers (s_display->egl.display, s_window->egl.surface);
+            s_window->wpe.image = image;
+            xcb_schedule_notice();
+            s_window->xcb.needs_frame_completion = true;
+        }
 
-    s_window->wpe.image = image;
-    s_window->xcb.needs_initial_paint = false;
-    s_window->xcb.needs_frame_completion = true;
-    xcb_schedule_repaint ();
-}
-
-static void
-xcb_frame_completion (void)
-{
-    if (s_window->wpe.image) {
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image (s_window->wpe.exportable, s_window->wpe.image);
-        s_window->wpe.image = NULL;
+        cog_gl_renderer_paint(&s_display->gl_render, wpe_fdo_egl_exported_image_get_egl_image(s_window->wpe.image),
+                              COG_GL_RENDERER_ROTATION_0);
     }
 
-    wpe_view_backend_exportable_fdo_dispatch_frame_complete (s_window->wpe.exportable);
+    eglSwapBuffers(s_display->egl.display, s_window->egl.surface);
 }
 
 static void
@@ -341,12 +337,14 @@ xcb_handle_visibility_event(const xcb_visibility_notify_event_t *event)
 static void
 on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 {
-    xcb_paint_image (image);
+    xcb_paint_image(image);
 }
 
 static void
 xcb_process_events (void)
 {
+    bool repaint_needed = false;
+
     xcb_generic_event_t *event = NULL;
 
     while ((event = xcb_poll_for_event (s_display->xcb.connection))) {
@@ -364,7 +362,7 @@ xcb_process_events (void)
             wpe_view_backend_dispatch_set_size (s_window->wpe.backend,
                                                 s_window->xcb.width,
                                                 s_window->xcb.height);
-            xcb_schedule_repaint ();
+            repaint_needed = true;
             break;
         }
         case XCB_CLIENT_MESSAGE:
@@ -380,16 +378,13 @@ xcb_process_events (void)
             }
 
             if (client_message->type == XCB_ATOM_NOTICE) {
-                if (s_window->xcb.needs_initial_paint) {
-                    xcb_initial_paint ();
-                    s_window->xcb.needs_initial_paint = false;
+                if (s_window->xcb.needs_frame_completion) {
+                    s_window->xcb.needs_frame_completion = false;
+                    wpe_view_backend_exportable_fdo_dispatch_frame_complete(s_window->wpe.exportable);
                 }
 
-                if (s_window->xcb.needs_frame_completion) {
-                    xcb_frame_completion ();
-                    s_window->xcb.needs_frame_completion = false;
-                }
-                break;
+                if (s_window->xcb.needs_repaint)
+                    xcb_paint_image(s_window->wpe.image);
             }
             break;
         }
@@ -432,11 +427,19 @@ xcb_process_events (void)
         case XCB_VISIBILITY_NOTIFY:
             xcb_handle_visibility_event((xcb_visibility_notify_event_t *) event);
             break;
+        case XCB_EXPOSE: {
+            const xcb_expose_event_t *ev = (const xcb_expose_event_t *) event;
+            repaint_needed = (ev->window == s_window->xcb.window && !ev->count);
+            break;
+        }
 
         default:
             break;
         }
     }
+
+    if (repaint_needed)
+        xcb_schedule_repaint();
 };
 
 struct xcb_source {
@@ -537,8 +540,7 @@ init_xcb ()
     xcb_map_window (s_display->xcb.connection, s_window->xcb.window);
     xcb_flush (s_display->xcb.connection);
 
-    s_window->xcb.needs_initial_paint = true;
-    xcb_schedule_repaint ();
+    xcb_schedule_repaint();
 
     return TRUE;
 }
