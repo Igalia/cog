@@ -1,7 +1,7 @@
 # libcogplaform-x11
 
 pkg_check_modules(COGPLATFORM_X11_DEPS IMPORTED_TARGET
-    REQUIRED wpebackend-fdo-1.0>=1.6.0 egl xcb xkbcommon-x11)
+    REQUIRED wpebackend-fdo-1.0>=1.6.0 egl xcb xkbcommon-x11 x11-xcb)
 
 add_library(cogplatform-x11 MODULE cog-platform-x11.c)
 set_target_properties(cogplatform-x11 PROPERTIES
