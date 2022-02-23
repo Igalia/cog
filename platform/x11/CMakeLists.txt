@@ -2,7 +2,7 @@
 
 pkg_check_modules(Epoxy IMPORTED_TARGET REQUIRED epoxy)
 pkg_check_modules(COGPLATFORM_X11_DEPS IMPORTED_TARGET
-    REQUIRED egl xcb xkbcommon-x11)
+    REQUIRED egl xcb xkbcommon-x11 x11-xcb)
 find_package(WpeFDO REQUIRED)
 
 add_library(cogplatform-x11 MODULE
