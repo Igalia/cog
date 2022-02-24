@@ -1,4 +1,13 @@
 ==========================
+0.12.1 - February 24, 2022
+==========================
+
+- wl: Fixed handling of supported Wayland protocol versions, preventing a
+  crash with certain compositors which advertise support for newer versions
+  than actually supported by the client.
+- Fixed the location used by CMake to install platform plug-ins.
+
+==========================
 0.12.0 - November 24, 2021
 ==========================
 
