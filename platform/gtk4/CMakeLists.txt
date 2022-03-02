@@ -1,5 +1,8 @@
 pkg_check_modules(COGPLATFORM_GTK4_DEPS REQUIRED
-    IMPORTED_TARGET gtk4 wpebackend-fdo-1.0)
+    IMPORTED_TARGET gtk4)
+if (NOT TARGET Wpe::FDO)
+  find_package(WpeFDO REQUIRED)
+endif()
 add_library(cogplatform-gtk4 MODULE
     ../common/cog-gl-utils.c
     cog-platform-gtk4.c
@@ -8,6 +11,7 @@ add_library(cogplatform-gtk4 MODULE
 target_link_libraries(cogplatform-gtk4 PRIVATE
     PkgConfig::COGPLATFORM_GTK4_DEPS
     PkgConfig::WebKit
+    Wpe::FDO
 )
 set_target_properties(cogplatform-gtk4 PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/modules

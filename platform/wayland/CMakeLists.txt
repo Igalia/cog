@@ -24,8 +24,10 @@ add_wayland_protocol(cogplatform-wl CLIENT xdg-shell)
 pkg_check_modules(Cairo IMPORTED_TARGET cairo)
 pkg_check_modules(EGL IMPORTED_TARGET REQUIRED egl)
 pkg_check_modules(WAYLAND IMPORTED_TARGET REQUIRED wayland-client)
-pkg_check_modules(WpeFDO IMPORTED_TARGET REQUIRED wpebackend-fdo-1.0>=1.6.0)
 pkg_check_modules(XkbCommon IMPORTED_TARGET REQUIRED xkbcommon)
+if (NOT TARGET Wpe::FDO)
+  find_package(WpeFDO REQUIRED)
+endif()
 
 target_link_libraries(cogplatform-wl PRIVATE
     cogcore
@@ -33,9 +35,8 @@ target_link_libraries(cogplatform-wl PRIVATE
     PkgConfig::EGL
     PkgConfig::WAYLAND
     PkgConfig::WebKit
-    PkgConfig::WpeFDO
+    Wpe::FDO
 )
-
 
 pkg_check_modules(WAYLAND_EGL IMPORTED_TARGET wayland-egl)
 if (TARGET PkgConfig::WAYLAND_EGL)
