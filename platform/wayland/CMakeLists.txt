@@ -25,9 +25,7 @@ pkg_check_modules(Cairo IMPORTED_TARGET cairo)
 pkg_check_modules(EGL IMPORTED_TARGET REQUIRED egl)
 pkg_check_modules(WAYLAND IMPORTED_TARGET REQUIRED wayland-client)
 pkg_check_modules(XkbCommon IMPORTED_TARGET REQUIRED xkbcommon)
-if (NOT TARGET Wpe::FDO)
-  find_package(WpeFDO REQUIRED)
-endif()
+find_package(WpeFDO REQUIRED)
 
 target_link_libraries(cogplatform-wl PRIVATE
     cogcore

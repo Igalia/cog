@@ -1,7 +1,5 @@
+find_package(WpeFDO REQUIRED)
 
-if (NOT TARGET Wpe::FDO)
-  find_package(WpeFDO REQUIRED)
-endif()
 add_library(cogplatform-headless MODULE cog-platform-headless.c)
 set_target_properties(cogplatform-headless PROPERTIES
     C_STANDARD 99

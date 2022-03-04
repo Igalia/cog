@@ -6,9 +6,7 @@ pkg_check_modules(LibGBM IMPORTED_TARGET REQUIRED gbm>=13.0)
 pkg_check_modules(LibInput IMPORTED_TARGET REQUIRED libinput)
 pkg_check_modules(LibUdev IMPORTED_TARGET REQUIRED libudev)
 pkg_check_modules(WaylandServer IMPORTED_TARGET REQUIRED wayland-server)
-if (NOT TARGET Wpe::FDO)
-  find_package(WpeFDO REQUIRED)
-endif()
+find_package(WpeFDO REQUIRED)
 
 add_library(cogplatform-drm MODULE
     ../common/cog-gl-utils.c

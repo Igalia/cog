@@ -1,8 +1,7 @@
 pkg_check_modules(COGPLATFORM_GTK4_DEPS REQUIRED
     IMPORTED_TARGET gtk4)
-if (NOT TARGET Wpe::FDO)
-  find_package(WpeFDO REQUIRED)
-endif()
+find_package(WpeFDO REQUIRED)
+
 add_library(cogplatform-gtk4 MODULE
     ../common/cog-gl-utils.c
     cog-platform-gtk4.c
