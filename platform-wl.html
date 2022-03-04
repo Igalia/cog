@@ -93,12 +93,57 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <p>The <code>wl</code> (Wayland) platform plug-in additionally requires the following
 libraries and&nbsp;packages:</p>
 <ul>
-<li><strong>WPEBackend-fdo</strong>:</li>
-<li><strong>Wayland</strong>:</li>
-<li><strong>libxkbcommon</strong>:</li>
-<li><strong>wayland-protocols</strong>:</li>
-<li><strong>wayland-scanner</strong>:</li>
+<li><strong>WPEBackend-fdo</strong></li>
+<li><strong>Wayland</strong></li>
+<li><strong>libxkbcommon</strong></li>
+<li><strong>wayland-protocols</strong></li>
+<li><strong>wayland-scanner</strong></li>
 </ul>
+<h2 id="environment-variables">Environment Variables<a class="md-anchor" href="#environment-variables" title="Permanent link"></a></h2>
+<p>The following environment variables can be set to change how the Wayland
+surface used for output will be&nbsp;configured:</p>
+<table>
+<thead>
+<tr>
+<th align="left">Variable</th>
+<th align="left">Type</th>
+<th align="right">Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left"><code>COG_PLATFORM_WL_VIEW_FULLSCREEN</code></td>
+<td align="left">boolean</td>
+<td align="right"><code>0</code></td>
+</tr>
+<tr>
+<td align="left"><code>COG_PLATFORM_WL_VIEW_MAXIMIZE</code></td>
+<td align="left">boolean</td>
+<td align="right"><code>0</code></td>
+</tr>
+<tr>
+<td align="left"><code>COG_PLATFORM_WL_VIEW_WIDTH</code></td>
+<td align="left">number</td>
+<td align="right"><code>1024</code></td>
+</tr>
+<tr>
+<td align="left"><code>COG_PLATFORM_WL_VIEW_HEIGHT</code></td>
+<td align="left">number</td>
+<td align="right"><code>768</code></td>
+</tr>
+</tbody>
+</table>
+<p>Setting <code>COG_PLATFORM_WL_VIEW_FULLSCREEN</code> will take precedence over
+<code>COG_PLATFORM_WL_VIEW_MAXIMIZE</code>, and if either of those are enabled the size
+specified with <code>COG_PLATFORM_WL_VIEW_WIDTH</code> and <code>COG_PLATFORM_WL_VIEW_HEIGHT</code>
+will be&nbsp;ignored.</p>
+<p>Note that these are <em>requests</em> made to the Wayland compositor, which has the
+final say in how the surface is presented to the user. In general, surfaces
+which have been fullscreened completely cover the output (i.e. they take the
+whole screen), while for maximized surfaces the compositor my still show
+some user interface elements (like borders or buttons) while trying to make
+the surface as big as possible. Some compositors take faster approaches when
+there is only a single fullscreen surface being&nbsp;displayed.</p>
     </div>
   </section>
 </section>
