@@ -608,6 +608,7 @@ output_handle_done(void *data, struct wl_output *output)
     }
 }
 
+#ifdef WL_OUTPUT_SCALE_SINCE_VERSION
 static void
 output_handle_scale(void *data, struct wl_output *output, int32_t factor)
 {
@@ -619,6 +620,7 @@ output_handle_scale(void *data, struct wl_output *output, int32_t factor)
     metrics->scale = factor;
     g_info("Got scale factor %i for output %p\n", factor, output);
 }
+#endif /* WL_OUTPUT_SCALE_SINCE_VERSION */
 
 static bool
 cog_wl_does_image_match_win_size(struct wpe_fdo_egl_exported_image *image)
@@ -707,12 +709,15 @@ static const struct wl_output_listener output_listener = {
     .geometry = noop,
     .mode = output_handle_mode,
     .done = output_handle_done,
+#ifdef WL_OUTPUT_SCALE_SINCE_VERSION
     .scale = output_handle_scale,
+#endif /* WL_OUTPUT_SCALE_SINCE_VERSION */
 };
 
 static void
 surface_handle_enter(void *data, struct wl_surface *surface, struct wl_output *output)
 {
+#ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
     int32_t scale_factor = -1;
 
     for (int i = 0; i < G_N_ELEMENTS(wl_data.metrics); i++) {
@@ -725,9 +730,12 @@ surface_handle_enter(void *data, struct wl_surface *surface, struct wl_output *o
         return;
     }
     g_debug("Surface entered output %p with scale factor %i\n", output, scale_factor);
-    wl_surface_set_buffer_scale(surface, scale_factor);
-    wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_data.backend, scale_factor);
-    wl_data.current_output.scale = scale_factor;
+    if (wl_surface_get_version(surface) >= WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION) {
+        wl_surface_set_buffer_scale(surface, scale_factor);
+        wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_data.backend, scale_factor);
+        wl_data.current_output.scale = scale_factor;
+    }
+#endif /* WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION */
 }
 
 static const struct wl_surface_listener surface_listener = {
@@ -745,7 +753,8 @@ registry_global (void               *data,
     gboolean interface_used = TRUE;
 
     if (strcmp(interface, wl_compositor_interface.name) == 0) {
-        wl_data.compositor = wl_registry_bind(registry, name, &wl_compositor_interface, version);
+        /* Version 3 introduced wl_surface_set_buffer_scale() */
+        wl_data.compositor = wl_registry_bind(registry, name, &wl_compositor_interface, MIN(3, version));
     } else if (strcmp(interface, wl_subcompositor_interface.name) == 0) {
         wl_data.subcompositor = wl_registry_bind(registry, name, &wl_subcompositor_interface, version);
     } else if (strcmp(interface, wl_shell_interface.name) == 0) {
@@ -773,7 +782,8 @@ registry_global (void               *data,
         wl_data.protection = wl_registry_bind(registry, name, &weston_content_protection_interface, version);
 #endif /* COG_ENABLE_WESTON_DIRECT_DISPLAY */
     } else if (strcmp(interface, wl_output_interface.name) == 0) {
-        struct wl_output *output = wl_registry_bind(registry, name, &wl_output_interface, version);
+        /* Version 2 introduced the wl_output_listener::scale. */
+        struct wl_output *output = wl_registry_bind(registry, name, &wl_output_interface, MIN(2, version));
         wl_output_add_listener(output, &output_listener, NULL);
         bool inserted = false;
         for (int i = 0; i < G_N_ELEMENTS(wl_data.metrics); i++) {
@@ -2221,7 +2231,11 @@ create_popup (WebKitOptionMenu *option_menu)
 
     popup_data.wl_surface = wl_compositor_create_surface (wl_data.compositor);
     g_assert (popup_data.wl_surface);
-    wl_surface_set_buffer_scale (popup_data.wl_surface, wl_data.current_output.scale);
+
+#ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
+    if (wl_surface_get_version(popup_data.wl_surface) >= WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION)
+        wl_surface_set_buffer_scale(popup_data.wl_surface, wl_data.current_output.scale);
+#endif /* WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION */
 
     if (wl_data.xdg_shell != NULL) {
         popup_data.xdg_positioner = xdg_wm_base_create_positioner (wl_data.xdg_shell);
