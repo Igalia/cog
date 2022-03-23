@@ -1,3 +1,10 @@
+=======================
+0.12.3 - March 23, 2022
+=======================
+
+- Fixed the location passed by CMake to the compiler with the platform
+  plug-ins to ensure it is always an absolute path.
+
 ==========================
 0.12.1 - February 24, 2022
 ==========================
