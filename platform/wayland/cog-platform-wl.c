@@ -1476,15 +1476,19 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     g_debug ("Done enumerating seat capabilities.");
 }
 
+#ifdef WL_SEAT_NAME_SINCE_VERSION
 static void
 seat_on_name (void *data, struct wl_seat *seat, const char *name)
 {
     g_debug ("Seat name: '%s'", name);
 }
+#endif /* WL_SEAT_NAME_SINCE_VERSION */
 
 static const struct wl_seat_listener seat_listener = {
     .capabilities = seat_on_capabilities,
+#ifdef WL_SEAT_NAME_SINCE_VERSION
     .name = seat_on_name,
+#endif /* WL_SEAT_NAME_SINCE_VERSION */
 };
 
 static void
