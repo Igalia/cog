@@ -769,7 +769,7 @@ registry_global (void               *data,
     } else if (strcmp(interface, zwp_fullscreen_shell_v1_interface.name) == 0) {
         wl_data.fshell = wl_registry_bind(registry, name, &zwp_fullscreen_shell_v1_interface, 1);
     } else if (strcmp(interface, wl_seat_interface.name) == 0) {
-        wl_data.seat = wl_registry_bind(registry, name, &wl_seat_interface, MAX(3, MAX(version, 7)));
+        wl_data.seat = wl_registry_bind(registry, name, &wl_seat_interface, MAX(3, MIN(version, 7)));
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     } else if (strcmp(interface, zwp_linux_dmabuf_v1_interface.name) == 0) {
         if (version < 3) {
@@ -1479,15 +1479,19 @@ seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
     g_debug ("Done enumerating seat capabilities.");
 }
 
+#ifdef WL_SEAT_NAME_SINCE_VERSION
 static void
 seat_on_name (void *data, struct wl_seat *seat, const char *name)
 {
     g_debug ("Seat name: '%s'", name);
 }
+#endif /* WL_SEAT_NAME_SINCE_VERSION */
 
 static const struct wl_seat_listener seat_listener = {
     .capabilities = seat_on_capabilities,
+#ifdef WL_SEAT_NAME_SINCE_VERSION
     .name = seat_on_name,
+#endif /* WL_SEAT_NAME_SINCE_VERSION */
 };
 
 static void
