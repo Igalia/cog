@@ -1,4 +1,11 @@
 =======================
+0.12.4 - March 23, 2022
+=======================
+
+- wl: Fixed a crash related to usage of features not available in
+  versions of interfaces negotiated with the Wayland compositor.
+
+=======================
 0.12.3 - March 23, 2022
 =======================
 
