@@ -63,7 +63,7 @@
 
 #define DEFAULT_ZOOM_STEP 0.1f
 
-#if defined(WPE_WL_CHECK_VERSION)
+#if defined(WPE_FDO_CHECK_VERSION)
 #    define HAVE_SHM_EXPORTED_BUFFER WPE_FDO_CHECK_VERSION(1, 9, 0)
 #    define HAVE_FULLSCREEN_HANDLING WPE_FDO_CHECK_VERSION(1, 11, 1)
 #else
@@ -1705,8 +1705,8 @@ static void
 shm_buffer_destroy(struct shm_buffer *buffer)
 {
     if (buffer->exported_buffer) {
-        wpe_view_backend_exportable_wl_egl_dispatch_release_shm_exported_buffer(wpe_host_data.exportable,
-                                                                                buffer->exported_buffer);
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_shm_exported_buffer(wpe_host_data.exportable,
+                                                                                 buffer->exported_buffer);
     }
 
     wl_buffer_destroy(buffer->buffer);
