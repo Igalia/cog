@@ -1,12 +1,19 @@
 =======================
-0.12.4 - March 23, 2022
+0.12.4 - March 30, 2022
+=======================
+
+- wl: Fix software rendering support.
+- x11: Fix underlinking when passing the --as-needed flag to the linker.
+
+=======================
+0.12.3 - March 23, 2022
 =======================
 
 - wl: Fixed a crash related to usage of features not available in
   versions of interfaces negotiated with the Wayland compositor.
 
 =======================
-0.12.3 - March 23, 2022
+0.12.2 - March 23, 2022
 =======================
 
 - Fixed the location passed by CMake to the compiler with the platform
