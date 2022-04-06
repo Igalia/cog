@@ -85,17 +85,43 @@ static struct platform_window win = {
     .device_scale_factor = 1,
 };
 
+static char *
+get_extensions(void)
+{
+    if (epoxy_gl_version() < 30) {
+        return g_strdup((const char *) glGetString(GL_EXTENSIONS));
+    } else {
+        GLint                   i, num_extensions = 0;
+        g_autoptr(GStrvBuilder) extensions = g_strv_builder_new();
+        g_auto(GStrv)           strv;
+
+        glGetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
+        if (num_extensions == 0)
+            return NULL;
+
+        for (i = 0; i < num_extensions; i++)
+            g_strv_builder_add(extensions, (const char *) glGetStringi(GL_EXTENSIONS, i));
+
+        strv = g_strv_builder_end(extensions);
+        return g_strjoinv(" ", strv);
+    }
+}
+
 static bool
 setup_shader(struct platform_window* window, GError** error)
 {
+    char *extensions = NULL;
+
     g_assert_nonnull(window);
 
     gtk_gl_area_make_current(GTK_GL_AREA(window->gl_drawing_area));
     g_debug("GL vendor: %s", glGetString(GL_VENDOR));
     g_debug("GL renderer: %s", glGetString(GL_RENDERER));
-    g_debug("GL extensions: %s", glGetString(GL_EXTENSIONS));
+    g_debug("GL extensions: %s", (extensions = get_extensions(), extensions));
     g_debug("GL version: %s", glGetString(GL_VERSION));
     g_debug("GLSL version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
+
+    g_free(extensions);
 
     /* if the GtkGLArea is in an error state we don't do anything */
     if (gtk_gl_area_get_error(GTK_GL_AREA(window->gl_drawing_area)) != NULL) {
