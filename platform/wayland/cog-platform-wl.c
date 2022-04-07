@@ -1777,8 +1777,15 @@ on_export_shm_buffer (void* data, struct wpe_fdo_shm_exported_buffer* exported_b
 
     struct shm_buffer *buffer = shm_buffer_for_resource (exported_resource);
     if (!buffer) {
-        int32_t width = wl_shm_buffer_get_width (exported_shm_buffer);
-        int32_t height = wl_shm_buffer_get_height (exported_shm_buffer);
+        int32_t width;
+        int32_t height;
+        if (win_data.is_fullscreen) {
+            width = win_data.width;
+            height = win_data.height;
+        } else {
+            width = wl_shm_buffer_get_width(exported_shm_buffer);
+            height = wl_shm_buffer_get_height(exported_shm_buffer);
+        }
         int32_t stride = wl_shm_buffer_get_stride (exported_shm_buffer);
         uint32_t format = wl_shm_buffer_get_format (exported_shm_buffer);
 
