@@ -64,8 +64,10 @@ bool cog_gl_link_program(GLuint program, GError **);
  */
 
 typedef struct {
+    GLuint vao;
     GLuint program;
     GLuint texture;
+    GLuint buffer_vertex;
     GLint  attrib_position;
     GLint  attrib_texture;
     GLint  uniform_texture;
