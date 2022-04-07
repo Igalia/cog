@@ -48,10 +48,13 @@
 #include "xdg-shell-client.h"
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
-#include <drm_fourcc.h>
-#include <wpe/extensions/video-plane-display-dmabuf.h>
-#include "weston-direct-display-client-protocol.h"
-#include "weston-content-protection-client-protocol.h"
+#    include "weston-direct-display-client.h"
+#    include <drm_fourcc.h>
+#    include <wpe/extensions/video-plane-display-dmabuf.h>
+#endif
+
+#if COG_ENABLE_WESTON_CONTENT_PROTECTION
+#    include "weston-content-protection-client.h"
 #endif
 
 #ifdef COG_USE_WAYLAND_CURSOR
@@ -104,7 +107,9 @@ struct video_buffer {
 };
 
 struct video_surface {
+#    if COG_ENABLE_WESTON_CONTENT_PROTECTION
     struct weston_protected_surface *protected_surface;
+#    endif
     struct wl_surface *wl_surface;
     struct wl_subsurface *wl_subsurface;
 };
@@ -155,6 +160,9 @@ static struct {
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     struct zwp_linux_dmabuf_v1 *dmabuf;
     struct weston_direct_display_v1 *direct_display;
+#endif
+
+#if COG_ENABLE_WESTON_CONTENT_PROTECTION
     struct weston_content_protection *protection;
 #endif
 
@@ -779,9 +787,11 @@ registry_global (void               *data,
         wl_data.dmabuf = wl_registry_bind(registry, name, &zwp_linux_dmabuf_v1_interface, 3);
     } else if (strcmp(interface, weston_direct_display_v1_interface.name) == 0) {
         wl_data.direct_display = wl_registry_bind(registry, name, &weston_direct_display_v1_interface, 1);
+#endif /* COG_ENABLE_WESTON_DIRECT_DISPLAY */
+#if COG_ENABLE_WESTON_CONTENT_PROTECTION
     } else if (strcmp(interface, weston_content_protection_interface.name) == 0) {
         wl_data.protection = wl_registry_bind(registry, name, &weston_content_protection_interface, 1);
-#endif /* COG_ENABLE_WESTON_DIRECT_DISPLAY */
+#endif /* COG_ENABLE_WESTON_CONTENT_PROTECTION */
     } else if (strcmp(interface, wl_output_interface.name) == 0) {
         /* Version 2 introduced the wl_output_listener::scale. */
         struct wl_output *output = wl_registry_bind(registry, name, &wl_output_interface, MIN(2, version));
@@ -1821,7 +1831,9 @@ destroy_video_surface (gpointer data)
 {
     struct video_surface *surface = (struct video_surface*) data;
 
+#    if COG_ENABLE_WESTON_CONTENT_PROTECTION
     g_clear_pointer (&surface->protected_surface, weston_protected_surface_destroy);
+#    endif
     g_clear_pointer (&surface->wl_subsurface, wl_subsurface_destroy);
     g_clear_pointer (&surface->wl_surface, wl_surface_destroy);
     g_slice_free (struct video_surface, surface);
@@ -1854,12 +1866,14 @@ on_video_plane_display_dmabuf_receiver_handle_dmabuf (void* data, struct wpe_vid
         surf->wl_subsurface = NULL;
         surf->wl_surface = wl_compositor_create_surface (wl_data.compositor);
 
+#    if COG_ENABLE_WESTON_CONTENT_PROTECTION
         if (wl_data.protection) {
             surf->protected_surface = weston_content_protection_get_protection (wl_data.protection, surf->wl_surface);
             //weston_protected_surface_set_type(surf->protected_surface, WESTON_PROTECTED_SURFACE_TYPE_DC_ONLY);
 
             weston_protected_surface_enforce (surf->protected_surface);
         }
+#    endif
         g_hash_table_insert (win_data.video_surfaces, GUINT_TO_POINTER (id), surf);
     }
 
@@ -1972,8 +1986,11 @@ clear_wayland (void)
     g_clear_pointer (&wl_data.subcompositor, wl_subcompositor_destroy);
     g_clear_pointer (&wl_data.compositor, wl_compositor_destroy);
 
-#if COG_ENABLE_WESTON_DIRECT_DISPLAY
+#if COG_ENABLE_WESTON_CONTENT_PROTECTION
     g_clear_pointer (&wl_data.protection, weston_content_protection_destroy);
+#endif
+
+#if COG_ENABLE_WESTON_DIRECT_DISPLAY
     g_clear_pointer (&wl_data.direct_display, weston_direct_display_v1_destroy);
 #endif
 

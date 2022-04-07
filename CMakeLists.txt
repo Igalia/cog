@@ -15,6 +15,7 @@ set_project_version(0 13 3)
 calculate_library_versions_from_libtool_triple(COGCORE 9 2 0)
 
 project(cog VERSION "${PROJECT_VERSION}" LANGUAGES C)
+include(CMakeDependentOption)
 include(DistTargets)
 include(GNUInstallDirs)
 
@@ -65,6 +66,7 @@ option(COG_PLATFORM_GTK4 "Build the GTK4 platform module" OFF)
 option(COG_BUILD_PROGRAMS "Build and install programs as well" ON)
 option(INSTALL_MAN_PAGES "Install the man(1) pages if COG_BUILD_PROGRAMS is enabled" ON)
 option(COG_WESTON_DIRECT_DISPLAY "Build direct display support for the Wayland platform module" OFF)
+cmake_dependent_option(COG_WESTON_CONTENT_PROTECTION "Build direct content protection for the Wayland platform module" OFF "COG_WESTON_DIRECT_DISPLAY" OFF)
 option(BUILD_DOCS "Build the documentation" OFF)
 
 option(USE_SOUP2 "Build with libsoup2 instead of libsoup3" ON)
