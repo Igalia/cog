@@ -151,6 +151,43 @@ cog_gl_renderer_initialize(CogGLRenderer *self, GError **error)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glBindTexture(GL_TEXTURE_2D, 0);
 
+    /* Create vertex buffer */
+    if (epoxy_is_desktop_gl() || epoxy_gl_version() >= 30) {
+        glGenVertexArrays(1, &self->vao);
+        glBindVertexArray(self->vao);
+    } else {
+        self->vao = 0;
+    }
+
+    /* clang-format off */
+    static const GLfloat vertices[] = {
+        /* position */
+        -1.0f,  1.0f, 1.0f,  1.0f,
+        -1.0f, -1.0f, 1.0f, -1.0f,
+        /* texture */
+        /* COG_GL_RENDERER_ROTATION_0 */
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 1.0f, 1.0f, 1.0f,
+        /* COG_GL_RENDERER_ROTATION_90 */
+        1.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 0.0f, 1.0f,
+        /* COG_GL_RENDERER_ROTATION_180 */
+        1.0f, 1.0f, 0.0f, 1.0f,
+        1.0f, 0.0f, 0.0f, 0.0f,
+        /* COG_GL_RENDERER_ROTATION_270 */
+        0.0f, 1.0f, 0.0f, 0.0f,
+        1.0f, 1.0f, 1.0f, 0.0f,
+    };
+    /* clang-format on */
+
+    glGenBuffers(1, &self->buffer_vertex);
+    glBindBuffer(GL_ARRAY_BUFFER, self->buffer_vertex);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    if (self->vao > 0)
+        glBindVertexArray(0);
+
     return true;
 }
 
@@ -167,6 +204,16 @@ cog_gl_renderer_finalize(CogGLRenderer *self)
     if (self->program) {
         glDeleteProgram(self->program);
         self->program = 0;
+    }
+
+    if (self->vao > 0) {
+        glDeleteVertexArrays(1, &self->vao);
+        self->vao = 0;
+    }
+
+    if (self->buffer_vertex) {
+        glDeleteBuffers(1, &self->buffer_vertex);
+        self->buffer_vertex = 0;
     }
 
     self->attrib_position = 0;
@@ -189,39 +236,25 @@ cog_gl_renderer_paint(CogGLRenderer *self, EGLImage *image, CogGLRendererRotatio
     glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
     glUniform1i(self->uniform_texture, 0);
 
-    /* clang-format off */
-    static const float position_coords[4][2] = {
-        { -1,  1 }, { 1,  1 },
-        { -1, -1 }, { 1, -1 },
-    };
-    static const float texture_coords[4][4][2] = {
-        [COG_GL_RENDERER_ROTATION_0] = {
-            { 0, 0 }, { 1, 0 },
-            { 0, 1 }, { 1, 1 },
-        },
-        [COG_GL_RENDERER_ROTATION_90] = {
-            { 1, 0 }, { 1, 1 },
-            { 0, 0 }, { 0, 1 },
-        },
-        [COG_GL_RENDERER_ROTATION_180] = {
-            { 1, 1 }, { 0, 1 },
-            { 1, 0 }, { 0, 0 },
-        },
-        [COG_GL_RENDERER_ROTATION_270] = {
-            { 0, 1 }, { 0, 0 },
-            { 1, 1 }, { 1, 0 },
-        },
-    };
-    /* clang-format on */
+    if (self->vao > 0)
+        glBindVertexArray(self->vao);
 
-    glVertexAttribPointer(self->attrib_position, 2, GL_FLOAT, FALSE, 0, position_coords);
-    glVertexAttribPointer(self->attrib_texture, 2, GL_FLOAT, FALSE, 0, texture_coords[rotation]);
+    glBindBuffer(GL_ARRAY_BUFFER, self->buffer_vertex);
+
+    glVertexAttribPointer(self->attrib_position, 2, GL_FLOAT, GL_FALSE, 0, (void *) 0);
+    glVertexAttribPointer(self->attrib_texture, 2, GL_FLOAT, GL_FALSE, 0,
+                          (void *) ((rotation + 1) * 2 * 4 * sizeof(GLfloat)));
 
     glEnableVertexAttribArray(self->attrib_position);
     glEnableVertexAttribArray(self->attrib_texture);
 
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
     glDisableVertexAttribArray(self->attrib_position);
     glDisableVertexAttribArray(self->attrib_texture);
+
+    if (self->vao > 0)
+        glBindVertexArray(0);
 }
