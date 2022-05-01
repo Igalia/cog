@@ -37,3 +37,20 @@ whole screen), while for maximized surfaces the compositor my still show
 some user interface elements (like borders or buttons) while trying to make
 the surface as big as possible. Some compositors take faster approaches when
 there is only a single fullscreen surface being displayed.
+
+
+## Key Bindings
+
+The following key bindings are available:
+
+| Binding     | Action                          |
+|:------------|:--------------------------------|
+| `F11`       | Toggle fullscreen.              |
+| `Ctrl-W`    | Exit the application.           |
+| `Ctrl-+`    | Zoom in.                        |
+| `Ctrl--`    | Zoom out.                       |
+| `Ctrl-0`    | Restore default zoom level.     |
+| `Alt-Left`  | Go to previous page in history. |
+| `Alt-Right` | Go to next page in history.     |
+
+Currently there is no mechanism to modify or disable these key bindings.
