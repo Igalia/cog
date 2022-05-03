@@ -5,6 +5,7 @@
  * Distributed under terms of the MIT license.
  */
 
+#include <gdk/gdk.h>
 #include <gtk/gtk.h>
 #include <wpe/fdo-egl.h>
 #include <wpe/fdo.h>
@@ -153,20 +154,32 @@ setup_shader(struct platform_window* window, GError** error)
 }
 
 static void
-realize(GtkWidget* widget, gpointer user_data)
+enter_monitor(GdkSurface *surface, GdkMonitor *monitor, gpointer user_data)
 {
-    struct platform_window* win = user_data;
+    struct platform_window *win = user_data;
+    wpe_view_backend_set_target_refresh_rate(wpe_view_backend_exportable_fdo_get_view_backend(win->exportable),
+                                             gdk_monitor_get_refresh_rate(monitor));
+}
+
+static void
+realize(GtkWidget *widget, gpointer user_data)
+{
+    struct platform_window *win = user_data;
+
     g_autoptr(GError) error = NULL;
     if (!setup_shader(win, &error)) {
         g_warning("Shader setup failed: %s", error->message);
         g_application_quit(g_application_get_default());
     }
+
+    g_signal_connect(gtk_native_get_surface(gtk_widget_get_native(win->gtk_window)), "enter-monitor",
+                     G_CALLBACK(enter_monitor), user_data);
 }
 
 static gboolean
-render(GtkGLArea* area, GdkGLContext* context, gpointer user_data)
+render(GtkGLArea *area, GdkGLContext *context, gpointer user_data)
 {
-    struct platform_window* win = user_data;
+    struct platform_window *win = user_data;
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
     glViewport(0, 0, win->width, win->height);

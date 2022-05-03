@@ -119,7 +119,8 @@ static struct {
 
     uint32_t width;
     uint32_t height;
-    double device_scale;
+    uint32_t refresh;
+    double   device_scale;
 
     bool atomic_modesetting;
     bool mode_set;
@@ -127,13 +128,27 @@ static struct {
     .fd = -1,
     .base_resources = NULL,
     .plane_resources = NULL,
-    .connector = { NULL, 0, },
-    .crtc = { NULL, 0, 0, },
-    .plane = { NULL, 0, },
+    .connector =
+        {
+            NULL,
+            0,
+        },
+    .crtc =
+        {
+            NULL,
+            0,
+            0,
+        },
+    .plane =
+        {
+            NULL,
+            0,
+        },
     .mode = NULL,
     .encoder = NULL,
     .width = 0,
     .height = 0,
+    .refresh = 0,
     .device_scale = 1.0,
     .atomic_modesetting = true,
     .mode_set = false,
@@ -417,20 +432,23 @@ init_drm(void)
     if (!drm_data.connector.obj)
         return FALSE;
 
-    g_debug ("init_drm: using connector id %d, type %d",
-             drm_data.connector.obj->connector_id, drm_data.connector.obj->connector_type);
+    g_debug("init_drm: using connector id %d, type %d", drm_data.connector.obj->connector_id,
+            drm_data.connector.obj->connector_type);
 
-    const char* user_selected_mode = g_getenv("COG_PLATFORM_DRM_VIDEO_MODE");
+    const char *user_selected_mode = g_getenv("COG_PLATFORM_DRM_VIDEO_MODE");
 
     int user_max_width = 0;
     int user_max_height = 0;
+    int user_max_refresh = 0;
+
     const char *user_mode_max = g_getenv("COG_PLATFORM_DRM_MODE_MAX");
     if (user_mode_max) {
-        if (sscanf(user_mode_max, "%dx%d", &user_max_width, &user_max_height) != 2 ||
-            user_max_width < 0 || user_max_height < 0) {
+        if (sscanf(user_mode_max, "%dx%d@%d", &user_max_width, &user_max_height, &user_max_refresh) < 2 ||
+            user_max_width < 0 || user_max_height < 0 || user_max_refresh < 0) {
             fprintf(stderr, "invalid value for COG_PLATFORM_DRM_MODE_MAX\n");
             user_max_width = 0;
             user_max_height = 0;
+            user_max_refresh = 0;
         }
     }
 
@@ -444,6 +462,9 @@ init_drm(void)
             continue;
         }
         if (user_max_height && current_mode->vdisplay > user_max_height) {
+            continue;
+        }
+        if (user_max_refresh && current_mode->vrefresh > user_max_refresh) {
             continue;
         }
 
@@ -461,12 +482,12 @@ init_drm(void)
     if (!drm_data.mode)
         return FALSE;
 
-    g_debug ("init_drm: using mode [%ld] '%s'",
-             (drm_data.mode - drm_data.connector.obj->modes) / sizeof (drmModeModeInfo *),
-             drm_data.mode->name);
+    g_debug("init_drm: using mode [%ld] '%s' @ %dHz",
+            (drm_data.mode - drm_data.connector.obj->modes) / sizeof(drmModeModeInfo *), drm_data.mode->name,
+            drm_data.mode->vrefresh);
 
     for (int i = 0; i < drm_data.base_resources->count_encoders; ++i) {
-        drm_data.encoder = drmModeGetEncoder (drm_data.fd, drm_data.base_resources->encoders[i]);
+        drm_data.encoder = drmModeGetEncoder(drm_data.fd, drm_data.base_resources->encoders[i]);
         if (drm_data.encoder->encoder_id == drm_data.connector.obj->encoder_id)
             break;
 
@@ -526,12 +547,12 @@ init_drm(void)
             break;
     }
 
-
     drm_data.width = drm_data.mode->hdisplay;
     drm_data.height = drm_data.mode->vdisplay;
+    drm_data.refresh = drm_data.mode->vrefresh;
 
-    g_clear_pointer (&drm_data.base_resources, drmModeFreeResources);
-    g_clear_pointer (&drm_data.plane_resources, drmModeFreePlaneResources);
+    g_clear_pointer(&drm_data.base_resources, drmModeFreeResources);
+    g_clear_pointer(&drm_data.plane_resources, drmModeFreePlaneResources);
 
     return TRUE;
 }
@@ -1399,14 +1420,16 @@ cog_drm_platform_finalize(GObject *object)
 {
     CogDrmPlatform *self = COG_DRM_PLATFORM(object);
 
+    g_idle_remove_by_data(&wpe_view_data);
+
     g_clear_pointer(&self->renderer, cog_drm_renderer_destroy);
 
-    clear_glib ();
+    clear_glib();
     clear_input(self);
-    clear_egl ();
-    clear_gbm ();
-    clear_cursor ();
-    clear_drm ();
+    clear_egl();
+    clear_gbm();
+    clear_cursor();
+    clear_drm();
 
     G_OBJECT_CLASS(cog_drm_platform_parent_class)->finalize(object);
 }
@@ -1432,11 +1455,17 @@ cog_drm_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_
     return wk_view_backend;
 }
 
+static gboolean
+set_target_refresh_rate(gpointer user_data)
+{
+    wpe_view_backend_set_target_refresh_rate(wpe_view_data.backend, drm_data.refresh * 1000);
+}
+
 static void
 cog_drm_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
 {
-    wpe_view_backend_dispatch_set_device_scale_factor (wpe_view_data.backend,
-                                                       drm_data.device_scale);
+    wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_data.backend, drm_data.device_scale);
+    g_idle_add(G_SOURCE_FUNC(set_target_refresh_rate), &wpe_view_data);
 }
 
 static void
