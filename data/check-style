@@ -70,9 +70,6 @@ find_program ()
             return
         fi
     done
-
-    # Not found.
-    return 1
 }
 
 clang_format_diff=$(find_program "${clang_format_diff_candidates[@]}")
