@@ -358,6 +358,8 @@ cog_launcher_startup(GApplication *application)
                                                         s_options.web_extensions_dir);
     webkit_web_context_set_sandbox_enabled(cog_shell_get_web_context(self->shell), s_options.enable_sandbox);
 
+    g_object_set(self->shell, "device-scale-factor", s_options.device_scale_factor, NULL);
+
     cog_shell_startup(self->shell);
 
     if (s_options.handler_map) {
@@ -375,8 +377,6 @@ cog_launcher_startup(GApplication *application)
         g_autoptr(GKeyFile) key_file = g_steal_pointer(&s_options.key_file);
         g_object_set(self->shell, "config-file", key_file, NULL);
     }
-
-    g_object_set(self->shell, "device-scale-factor", s_options.device_scale_factor, NULL);
 
 #if WEBKIT_CHECK_VERSION(2, 32, 0)
     webkit_website_data_manager_set_tls_errors_policy(cog_launcher_get_web_data_manager(self),
