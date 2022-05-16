@@ -9,24 +9,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char error_message_template[] =
-    "<!DOCTYPE html><html><head><title>%s</title><style type='text/css'>\n"
-    "html { background: #fffafa; color: #0f0f0f; }\n"
-    "h3 { font-weight: 600; color: #fffafa; background: #555;\n"
-    "     border-radius: 3px; padding: 0.15em 0.5em; margin-bottom: 0.25em }\n"
-    "p { margin-left: 0.5em; margin-right: 0.5em }\n"
-    "p.uri { size: 70%%; font-family: monospace; color: #888;\n"
-    "        margin-left: 0.75em; margin-top: 0 }\n"
-    ".try-again { text-align: center; font-size: 1em; \n"
-    "             height: 100%; margin: 1em; }\n"
-    "</style>\n"
-    "<script>\nfunction retry() { window.location.href = '%s' }\n"
-    "setTimeout(retry, 5000);\n</script></head><body>\n"
-    "  <h3>%s</h3>\n"
-    "  <p class='uri'>%s</p>\n"
-    "  <p>%s</p>\n"
-    "<button onclick=\"retry()\" class=\"try-again\">Try again</button>"
-    "</body></html>";
+static const char error_message_template[] = "<!DOCTYPE html><html><head><title>%s</title><style type='text/css'>\n"
+                                             "html { background: #fffafa; color: #0f0f0f; }\n"
+                                             "h3 { font-weight: 600; color: #fffafa; background: #555;\n"
+                                             "     border-radius: 3px; padding: 0.15em 0.5em; margin-bottom: 0.25em }\n"
+                                             "p { margin-left: 0.5em; margin-right: 0.5em }\n"
+                                             "p.uri { size: 70%%; font-family: monospace; color: #888;\n"
+                                             "        margin-left: 0.75em; margin-top: 0 }\n"
+                                             ".try-again { text-align: center; font-size: 1em; \n"
+                                             "             height: 100%; margin: 1em; }\n"
+                                             "</style>\n"
+                                             "<script>\nfunction retry() { window.location.href = '%s' }\n"
+                                             "setTimeout(retry, 5000);\n</script></head><body>\n"
+                                             "  <h3>%s</h3>\n"
+                                             "  <p class='uri'>%s</p>\n"
+                                             "  <p>%s</p>\n"
+                                             "<button onclick=\"retry()\" class=\"try-again\">Try again</button>"
+                                             "</body></html>";
 
 gboolean
 load_error_page (WebKitWebView *web_view,
