@@ -19,11 +19,13 @@ static const char error_message_template[] =
     "        margin-left: 0.75em; margin-top: 0 }\n"
     ".try-again { text-align: center; font-size: 1em; \n"
     "             height: 100%; margin: 1em; }\n"
-    "</style></head><body>\n"
+    "</style>\n"
+    "<script>\nfunction retry() { window.location.href = '%s' }\n"
+    "setTimeout(retry, 5000);\n</script></head><body>\n"
     "  <h3>%s</h3>\n"
     "  <p class='uri'>%s</p>\n"
     "  <p>%s</p>\n"
-    "<button onclick=\"window.location.href = '%s'\" class=\"try-again\">Try again</button>"
+    "<button onclick=\"retry()\" class=\"try-again\">Try again</button>"
     "</body></html>";
 
 gboolean
@@ -34,7 +36,7 @@ load_error_page (WebKitWebView *web_view,
 {
     g_warning ("<%s> %s: %s", failing_uri, title, message);
 
-    g_autofree char *html = g_strdup_printf(error_message_template, title, title, failing_uri, message, failing_uri);
+    g_autofree char *html = g_strdup_printf(error_message_template, title, failing_uri, title, failing_uri, message);
     webkit_web_view_load_alternate_html (web_view,
                                          html,
                                          failing_uri,
