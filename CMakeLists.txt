@@ -17,6 +17,7 @@ calculate_library_versions_from_libtool_triple(COGCORE 7 5 0)
 project(cog VERSION "${PROJECT_VERSION}" LANGUAGES C)
 include(DistTargets)
 include(GNUInstallDirs)
+include(JoinPaths)
 
 set(COG_VERSION_EXTRA "")
 if (IS_DIRECTORY "${CMAKE_SOURCE_DIR}/.git")
@@ -222,6 +223,9 @@ install(FILES ${COGCORE_API_HEADERS}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cog
     COMPONENT "development"
 )
+
+join_paths(COG_PKGCONFIG_LIBDIR "\${prefix}" "${CMAKE_INSTALL_LIBDIR}")
+join_paths(COG_PKGCONFIG_INCLUDEDIR "\${prefix}" "${CMAKE_INSTALL_INCLUDEDIR}")
 
 configure_file(core/cog-config.h.in cog-config.h @ONLY)
 configure_file(core/cogcore.pc.in cogcore.pc @ONLY)
