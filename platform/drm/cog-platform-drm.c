@@ -18,12 +18,14 @@
 #include <gbm.h>
 #include <libinput.h>
 #include <libudev.h>
+#include <stdio.h>
 #include <string.h>
 #include <wayland-server.h>
 #include <wpe/fdo-egl.h>
 #include <wpe/fdo.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <xkbcommon/xkbcommon.h>
 
 #include <epoxy/egl.h>
 
