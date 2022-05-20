@@ -86,6 +86,7 @@ jobs:
             -DCOG_PLATFORM_DRM=ON \
             -DCOG_PLATFORM_X11=ON \
             -DBUILD_DOCS=ON \
+            -DUSE_SOUP2=ON \
             -GNinja
       - name: Build
         env:

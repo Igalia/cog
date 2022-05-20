@@ -69,7 +69,7 @@ option(COG_WESTON_DIRECT_DISPLAY "Build direct display support for the Wayland p
 cmake_dependent_option(COG_WESTON_CONTENT_PROTECTION "Build direct content protection for the Wayland platform module" OFF "COG_WESTON_DIRECT_DISPLAY" OFF)
 option(BUILD_DOCS "Build the documentation" OFF)
 
-option(USE_SOUP2 "Build with libsoup2 instead of libsoup3" ON)
+option(USE_SOUP2 "Build with libsoup2 instead of libsoup3" OFF)
 
 set(COG_APPID "" CACHE STRING "Default GApplication unique identifier")
 set(COG_HOME_URI "" CACHE STRING "Default home URI")
