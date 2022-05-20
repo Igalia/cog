@@ -34,7 +34,8 @@ jobs:
             -DWAYLAND_SCANNER=/usr/bin/wayland-scanner \
             -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
             -DCOG_PLATFORM_FDO=ON \
-            -DCOG_PLATFORM_DRM=ON
+            -DCOG_PLATFORM_DRM=ON \
+            -DUSE_SOUP2=ON
       - name: Build
         env:
           TERM: dumb
