@@ -1,6 +1,6 @@
 prefix=@CMAKE_INSTALL_PREFIX@
-libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
-includedir=${prefix}/include
+libdir=@COG_PKGCONFIG_LIBDIR@
+includedir=@COG_PKGCONFIG_INCLUDEDIR@
 
 Name: cogcore
 Description: Cog Core - WPE WebKit base launcher
