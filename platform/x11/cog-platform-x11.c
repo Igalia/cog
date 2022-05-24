@@ -75,12 +75,15 @@ struct CogX11Display {
     } xcb;
 
     struct {
-        int32_t device_id;
+        int32_t             device_id;
         struct xkb_context *context;
-        struct xkb_keymap *keymap;
-        struct xkb_state *state;
-
-        uint8_t modifiers;
+        struct xkb_keymap  *keymap;
+        struct xkb_state   *state;
+        xkb_mod_mask_t      shift;
+        xkb_mod_mask_t      control;
+        xkb_mod_mask_t      alt;
+        xkb_mod_mask_t      num_lock;
+        xkb_mod_mask_t      caps_lock;
     } xkb;
 
     struct {
@@ -174,48 +177,76 @@ xcb_paint_image (struct wpe_fdo_egl_exported_image *image)
     eglSwapBuffers(s_display->egl.display, s_window->egl.surface);
 }
 
-static void
-xcb_handle_key_press (xcb_key_press_event_t *event)
+static uint32_t
+xcb_update_xkb_modifiers(uint32_t event_state)
 {
-    uint32_t keysym = xkb_state_key_get_one_sym (s_display->xkb.state, event->detail);
-    uint32_t unicode = xkb_state_key_get_utf32 (s_display->xkb.state, event->detail);
+    xkb_mod_mask_t depressed_mods = 0;
+    xkb_mod_mask_t locked_mods = 0;
+    uint32_t       wpe_modifiers = 0;
+    if (event_state & XCB_MOD_MASK_SHIFT) {
+        depressed_mods |= s_display->xkb.shift;
+        wpe_modifiers |= wpe_input_keyboard_modifier_shift;
+    }
+    if (event_state & XCB_MOD_MASK_CONTROL) {
+        depressed_mods |= s_display->xkb.control;
+        wpe_modifiers |= wpe_input_keyboard_modifier_control;
+    }
+    if (event_state & XCB_MOD_MASK_1) {
+        depressed_mods |= s_display->xkb.alt;
+        wpe_modifiers |= wpe_input_keyboard_modifier_alt;
+    }
+
+    if (event_state & XCB_MOD_MASK_LOCK)
+        locked_mods |= s_display->xkb.caps_lock;
+    if (event_state & XCB_MOD_MASK_2)
+        locked_mods |= s_display->xkb.num_lock;
+    xkb_state_update_mask(s_display->xkb.state, depressed_mods, 0, locked_mods, 0, 0, 0);
+    return wpe_modifiers;
+}
+
+static void
+xcb_handle_key_press(xcb_key_press_event_t *event)
+{
+    uint32_t modifiers = xcb_update_xkb_modifiers(event->state);
+    uint32_t keysym = xkb_state_key_get_one_sym(s_display->xkb.state, event->detail);
 
     struct wpe_input_keyboard_event input_event = {
         .time = event->time,
         .key_code = keysym,
-        .hardware_key_code = unicode,
+        .hardware_key_code = event->detail,
         .pressed = true,
-        .modifiers = s_display->xkb.modifiers,
+        .modifiers = modifiers,
     };
-    wpe_view_backend_dispatch_keyboard_event (s_window->wpe.backend, &input_event);
+    wpe_view_backend_dispatch_keyboard_event(s_window->wpe.backend, &input_event);
 }
 
 static void
-xcb_handle_key_release (xcb_key_press_event_t *event)
+xcb_handle_key_release(xcb_key_press_event_t *event)
 {
-    uint32_t keysym = xkb_state_key_get_one_sym (s_display->xkb.state, event->detail);
-    uint32_t unicode = xkb_state_key_get_utf32 (s_display->xkb.state, event->detail);
+    uint32_t modifiers = xcb_update_xkb_modifiers(event->state);
+    uint32_t keysym = xkb_state_key_get_one_sym(s_display->xkb.state, event->detail);
 
     struct wpe_input_keyboard_event input_event = {
         .time = event->time,
         .key_code = keysym,
-        .hardware_key_code = unicode,
+        .hardware_key_code = event->detail,
         .pressed = false,
-        .modifiers = s_display->xkb.modifiers,
+        .modifiers = modifiers,
     };
-    wpe_view_backend_dispatch_keyboard_event (s_window->wpe.backend, &input_event);
+    wpe_view_backend_dispatch_keyboard_event(s_window->wpe.backend, &input_event);
 }
 
 static void
-xcb_handle_axis (xcb_button_press_event_t *event, const int16_t axis_delta[2])
+xcb_handle_axis(xcb_button_press_event_t *event, const int16_t axis_delta[2])
 {
     struct wpe_input_axis_2d_event input_event = {
-        .base = {
-            .type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion_smooth,
-            .time = event->time,
-            .x = s_display->xcb.pointer.x,
-            .y = s_display->xcb.pointer.y,
-        },
+        .base =
+            {
+                .type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion_smooth,
+                .time = event->time,
+                .x = s_display->xcb.pointer.x,
+                .y = s_display->xcb.pointer.y,
+            },
         .x_axis = axis_delta[0],
         .y_axis = axis_delta[1],
     };
@@ -567,7 +598,14 @@ init_xkb (void)
     if (!s_display->xkb.keymap)
         return FALSE;
 
-    s_display->xkb.state = xkb_x11_state_new_from_device (s_display->xkb.keymap, s_display->xcb.connection, s_display->xkb.device_id);
+    s_display->xkb.shift = 1 << xkb_keymap_mod_get_index(s_display->xkb.keymap, "Shift");
+    s_display->xkb.control = 1 << xkb_keymap_mod_get_index(s_display->xkb.keymap, "Control");
+    s_display->xkb.alt = 1 << xkb_keymap_mod_get_index(s_display->xkb.keymap, "Mod1");
+    s_display->xkb.caps_lock = 1 << xkb_keymap_mod_get_index(s_display->xkb.keymap, "Lock");
+    s_display->xkb.num_lock = 1 << xkb_keymap_mod_get_index(s_display->xkb.keymap, "NumLock");
+
+    s_display->xkb.state =
+        xkb_x11_state_new_from_device(s_display->xkb.keymap, s_display->xcb.connection, s_display->xkb.device_id);
     if (!s_display->xkb.state)
         return FALSE;
 
