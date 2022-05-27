@@ -18,6 +18,12 @@
 #define DEFAULT_WIDTH 1280
 #define DEFAULT_HEIGHT 720
 
+#if defined(WPE_CHECK_VERSION)
+#    define HAVE_REFRESH_RATE_HANDLING WPE_CHECK_VERSION(1, 13, 2)
+#else
+#    define HAVE_REFRESH_RATE_HANDLING 0
+#endif
+
 #if defined(WPE_FDO_CHECK_VERSION)
 #    define HAVE_FULLSCREEN_HANDLING WPE_FDO_CHECK_VERSION(1, 11, 1)
 #else
@@ -153,6 +159,7 @@ setup_shader(struct platform_window* window, GError** error)
     return true;
 }
 
+#if HAVE_REFRESH_RATE_HANDLING
 static void
 enter_monitor(GdkSurface *surface, GdkMonitor *monitor, gpointer user_data)
 {
@@ -160,6 +167,7 @@ enter_monitor(GdkSurface *surface, GdkMonitor *monitor, gpointer user_data)
     wpe_view_backend_set_target_refresh_rate(wpe_view_backend_exportable_fdo_get_view_backend(win->exportable),
                                              gdk_monitor_get_refresh_rate(monitor));
 }
+#endif /* HAVE_REFRESH_RATE_HANDLING */
 
 static void
 realize(GtkWidget *widget, gpointer user_data)
@@ -172,8 +180,10 @@ realize(GtkWidget *widget, gpointer user_data)
         g_application_quit(g_application_get_default());
     }
 
+#if HAVE_REFRESH_RATE_HANDLING
     g_signal_connect(gtk_native_get_surface(gtk_widget_get_native(win->gtk_window)), "enter-monitor",
                      G_CALLBACK(enter_monitor), user_data);
+#endif /* HAVE_REFRESH_RATE_HANDLING */
 }
 
 static gboolean
