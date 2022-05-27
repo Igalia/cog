@@ -66,6 +66,12 @@
 
 #define DEFAULT_ZOOM_STEP 0.1f
 
+#if defined(WPE_CHECK_VERSION)
+#    define HAVE_REFRESH_RATE_HANDLING WPE_CHECK_VERSION(1, 13, 2)
+#else
+#    define HAVE_REFRESH_RATE_HANDLING 0
+#endif
+
 #if defined(WPE_FDO_CHECK_VERSION)
 #    define HAVE_SHM_EXPORTED_BUFFER WPE_FDO_CHECK_VERSION(1, 9, 0)
 #    define HAVE_FULLSCREEN_HANDLING WPE_FDO_CHECK_VERSION(1, 11, 1)
@@ -748,10 +754,13 @@ surface_handle_enter(void *data, struct wl_surface *surface, struct wl_output *o
     if (wl_surface_get_version(surface) >= WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION) {
         wl_surface_set_buffer_scale(surface, scale_factor);
         wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_data.backend, scale_factor);
-        wpe_view_backend_set_target_refresh_rate(wpe_view_data.backend, refresh);
         wl_data.current_output.scale = scale_factor;
     }
 #endif /* WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION */
+
+#if HAVE_REFRESH_RATE_HANDLING
+    wpe_view_backend_set_target_refresh_rate(wpe_view_data.backend, refresh);
+#endif /* HAVE_REFRESH_RATE_HANDLING */
 }
 
 static const struct wl_surface_listener surface_listener = {
