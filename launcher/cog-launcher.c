@@ -53,6 +53,7 @@ static struct {
     gboolean ignore_tls_errors;
     gboolean enable_sandbox;
     gboolean automation;
+    gboolean auto_retry_on_failure;
 } s_options = {
     .scale_factor = 1.0,
     .device_scale_factor = 1.0,
@@ -324,6 +325,7 @@ cog_launcher_create_view(CogLauncher *self, CogShell *shell)
 
     cog_web_view_connect_default_progress_handlers(web_view);
     cog_web_view_connect_default_error_handlers(web_view);
+    cog_set_auto_retry_on_failure(s_options.auto_retry_on_failure);
 
     webkit_web_view_load_uri(web_view, s_options.home_uri);
     g_clear_pointer(&s_options.home_uri, g_free);
@@ -1014,7 +1016,9 @@ static GOptionEntry s_cli_options[] = {
     {"automation", '\0', 0, G_OPTION_ARG_NONE, &s_options.automation, "Enable automation mode (default: disabled).",
      NULL},
     {G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments, "", "[URL]"},
-    {NULL}};
+    {NULL},
+    {"auto-retry-on-failure", '\0', 0, G_OPTION_ARG_NONE, &s_options.auto_retry_on_failure,
+     "Automatically retry page load on failure with 5 second interval.", NULL}};
 
 static void
 cog_launcher_constructed(GObject *object)

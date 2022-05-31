@@ -19,6 +19,8 @@
 
 G_BEGIN_DECLS
 
+void cog_set_auto_retry_on_failure(bool value);
+
 gboolean cog_handle_web_view_load_failed (WebKitWebView  *web_view,
                                           WebKitLoadEvent load_event,
                                           char           *failing_uri,

@@ -9,32 +9,37 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char error_message_template[] =
-    "<!DOCTYPE html><html><head><title>%s</title><style type='text/css'>\n"
-    "html { background: #fffafa; color: #0f0f0f; }\n"
-    "h3 { font-weight: 600; color: #fffafa; background: #555;\n"
-    "     border-radius: 3px; padding: 0.15em 0.5em; margin-bottom: 0.25em }\n"
-    "p { margin-left: 0.5em; margin-right: 0.5em }\n"
-    "p.uri { size: 70%%; font-family: monospace; color: #888;\n"
-    "        margin-left: 0.75em; margin-top: 0 }\n"
-    ".try-again { text-align: center; font-size: 1em; \n"
-    "             height: 100%; margin: 1em; }\n"
-    "</style></head><body>\n"
-    "  <h3>%s</h3>\n"
-    "  <p class='uri'>%s</p>\n"
-    "  <p>%s</p>\n"
-    "<button onclick=\"window.location.href = '%s'\" class=\"try-again\">Try again</button>"
-    "</body></html>";
+static bool autoRetry = false;
+
+static const char error_message_template[] = "<!DOCTYPE html><html><head><title>%s</title><style type='text/css'>\n"
+                                             "html { background: #fffafa; color: #0f0f0f; }\n"
+                                             "h3 { font-weight: 600; color: #fffafa; background: #555;\n"
+                                             "     border-radius: 3px; padding: 0.15em 0.5em; margin-bottom: 0.25em }\n"
+                                             "p { margin-left: 0.5em; margin-right: 0.5em }\n"
+                                             "p.uri { size: 70%%; font-family: monospace; color: #888;\n"
+                                             "        margin-left: 0.75em; margin-top: 0 }\n"
+                                             ".try-again { text-align: center; font-size: 1em; \n"
+                                             "             height: 100%; margin: 1em; }\n"
+                                             "</style>\n"
+                                             "<script>\nfunction retry() { window.location.href = '%s' }\n"
+                                             "if (%s) setTimeout(retry, 5000);\n</script></head><body>\n"
+                                             "  <h3>%s</h3>\n"
+                                             "  <p class='uri'>%s</p>\n"
+                                             "  <p>%s</p>\n"
+                                             "<button onclick=\"retry()\" class=\"try-again\">Try again</button>"
+                                             "</body></html>";
+
+void
+cog_set_auto_retry_on_failure(bool value) {
+    autoRetry = value;
+}
 
 gboolean
-load_error_page (WebKitWebView *web_view,
-                 const char    *failing_uri,
-                 const char    *title,
-                 const char    *message)
+load_error_page(WebKitWebView *web_view, const char *failing_uri, const char *title, const char *message)
 {
     g_warning ("<%s> %s: %s", failing_uri, title, message);
-
-    g_autofree char *html = g_strdup_printf(error_message_template, title, title, failing_uri, message, failing_uri);
+    
+    g_autofree char *html = g_strdup_printf(error_message_template, title, autoRetry ? "true" : "false", failing_uri, title, failing_uri, message);
     webkit_web_view_load_alternate_html (web_view,
                                          html,
                                          failing_uri,
