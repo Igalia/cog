@@ -16,6 +16,7 @@
 #include "kms.h"
 #include "cursor-drm.h"
 
+#include <xkbcommon/xkbcommon.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
