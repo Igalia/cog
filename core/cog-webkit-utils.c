@@ -18,7 +18,7 @@ static const char error_message_template[] =
     "p.uri { size: 70%%; font-family: monospace; color: #888;\n"
     "        margin-left: 0.75em; margin-top: 0 }\n"
     ".try-again { text-align: center; font-size: 1em; \n"
-    "             height: 100%; margin: 1em; }\n"
+    "             height: 100%%; margin: 1em; }\n"
     "</style></head><body>\n"
     "  <h3>%s</h3>\n"
     "  <p class='uri'>%s</p>\n"
