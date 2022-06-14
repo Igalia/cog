@@ -24,6 +24,7 @@
 #include <wpe/fdo.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <xkbcommon/xkbcommon.h>
 
 #include <epoxy/egl.h>
 
