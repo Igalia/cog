@@ -7,6 +7,8 @@
 
 #include "cog-im-context-wl-v1.h"
 
+#include <xkbcommon/xkbcommon.h>
+
 static struct {
     struct zwp_text_input_v1 *text_input;
     struct wl_seat *seat;
