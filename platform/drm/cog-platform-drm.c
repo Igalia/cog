@@ -12,6 +12,7 @@
 #include <wpe/fdo-egl.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <xkbcommon/xkbcommon.h>
 #include <drm_fourcc.h>
 #include "kms.h"
 #include "cursor-drm.h"
