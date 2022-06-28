@@ -2,7 +2,7 @@ Title: Contributing
 
 # Contributing to Cog
 
-Thank you for considering contributing to Cog! There are different ways if
+Thank you for considering contributing to Cog! There are different ways of
 contributing, and we appreciate all of them.
 
 ## Source Repository
@@ -55,7 +55,7 @@ Clone the Cog [repository][repo] and do the following:
 1. Change directory to the cloned repository.
 2. Create a build directory, and change into it. This is where the built
    files will be stored.
-3. Run CMake to generate configure the build.
+3. Run CMake to generate configuration for the build.
 4. Then run Make to compile the binaries.
 
 The following sequence of shell commands does the steps above:
@@ -89,8 +89,8 @@ use the `--platform=` command line option:
 COG_MODULEDIR=$PWD/modules ./cog --platform=x11 https://www.igalia.com
 ```
 
-Typical values are `fdo` or `gtk4` if you are running a Wayland compositor,
-`x11` if you are running the X Window system, and so on.
+Typical values are `wl` (or the legacy `fdo`) or `gtk4` if you are running a
+Wayland compositor, `x11` if you are running the X Window system, and so on.
 
 
 ### Creating and sending a patch
