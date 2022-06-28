@@ -1147,6 +1147,13 @@ capture_app_key_bindings(CogWlPlatform *self, uint32_t keysym, uint32_t unicode,
         return true;
     }
 
+    /* Ctrl+R or F5, reload */
+    if ((modifiers == wpe_input_keyboard_modifier_control && unicode == 0x12 && keysym == 0x72) ||
+        (modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F5)) {
+        webkit_web_view_reload(self->web_view);
+        return true;
+    }
+
     return false;
 }
 
