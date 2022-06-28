@@ -89,7 +89,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <section>
     <div class="docblock">
     <h1 id="contributing-to-cog">Contributing to Cog<a class="md-anchor" href="#contributing-to-cog" title="Permanent link"></a></h1>
-<p>Thank you for considering contributing to Cog! There are different ways if
+<p>Thank you for considering contributing to Cog! There are different ways of
 contributing, and we appreciate all of&nbsp;them.</p>
 <h2 id="source-repository">Source Repository<a class="md-anchor" href="#source-repository" title="Permanent link"></a></h2>
 <p>Cog&#8217;s source repository is hosted at <a href="https://github.com/Igalia/cog">github.com/Igalia/cog</a>.</p>
@@ -118,7 +118,7 @@ be&nbsp;enough:</p>
 <li>Change directory to the cloned&nbsp;repository.</li>
 <li>Create a build directory, and change into it. This is where the built
    files will be&nbsp;stored.</li>
-<li>Run CMake to generate configure the&nbsp;build.</li>
+<li>Run CMake to generate configuration for the&nbsp;build.</li>
 <li>Then run Make to compile the&nbsp;binaries.</li>
 </ol>
 <p>The following sequence of shell commands does the steps&nbsp;above:</p>
@@ -141,8 +141,8 @@ use the <code>--platform=</code> command line&nbsp;option:</p>
 <div class="codehilite"><pre><span></span><code><span class="nv">COG_MODULEDIR</span><span class="o">=</span><span class="nv">$PWD</span>/modules ./cog --platform<span class="o">=</span>x11 https://www.igalia.com
 </code></pre></div>
 
-<p>Typical values are <code>fdo</code> or <code>gtk4</code> if you are running a Wayland compositor,
-<code>x11</code> if you are running the X Window system, and so&nbsp;on.</p>
+<p>Typical values are <code>wl</code> (or the legacy <code>fdo</code>) or <code>gtk4</code> if you are running a
+Wayland compositor, <code>x11</code> if you are running the X Window system, and so&nbsp;on.</p>
 <h3 id="creating-and-sending-a-patch">Creating and sending a patch<a class="md-anchor" href="#creating-and-sending-a-patch" title="Permanent link"></a></h3>
 <p>Pull requests should be also prepared to be merged onto the <code>master</code> branch,
 except when the changes specifically apply to a release branch (like
