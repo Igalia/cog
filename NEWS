@@ -1,3 +1,27 @@
+=======================
+0.13.90 - June 29, 2022
+=======================
+
+- cmake: Enable libsoup3 usage by default, USE_SOUP2=ON can still be specified
+  to build against libsoup2.
+- cmake: Require version 3.12, which is the same minimum as needed by WebKit.
+- cmake: Link the same wpebackend-fdo library in all components to avoid
+  crashes due to multiple copies loaded with different behaviours.
+- cmake: Fix generated .pc file when using an absolute directory for the
+  CMAKE_INSTALL_LIBDIR option instead of a relative one.
+- core: Add "Try again" button to default error pages.
+- gtk4: Fix rendering with drivers that support OpenGL 4.
+- wl: Avoid crashing due to missing callbacks by explicitly binding to
+  supported versions of Wayland protocols.
+- wl: Fix the build with COG_WESTON_DIRECT_DISPLAY enabled.
+- wl: Fix fullscreen surface dimensions when using SHM buffers.
+- wl: Add keybindings to refresh the current page (Ctrl-R, F5).
+- x11: Fix underlinking when the --as-needed linker flag is in use.
+- x11: Fix rendering in non-composited (traditional) window managers.
+- drm, gtk4, x11: Factor out and reuse the GLES textured quad painting code.
+- drm, wl, x11: Add refresh rate reporting to let WebKit pace rendering to
+  match the output device.
+
 =========================
 0.13.3 - January 12, 2022
 =========================
