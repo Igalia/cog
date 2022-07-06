@@ -1,0 +1,21 @@
+drm_platform_plugin = shared_module('cogplatform-drm',
+    'cog-platform-drm.c',
+    'cog-drm-renderer.c',
+    'cog-drm-gles-renderer.c',
+    'cog-drm-modeset-renderer.c',
+    'kms.c',
+    'cursor-drm.c',
+    c_args: ['-DG_LOG_DOMAIN="Cog-DRM"'],
+    dependencies: [
+        cogcore_dep,
+        wpebackend_fdo_dep,
+        dependency('epoxy'),
+        dependency('libdrm', version: '>=2.4.71'),
+        dependency('libinput'),
+        dependency('libudev'),
+    ],
+    gnu_symbol_visibility: 'hidden',
+    install_dir: plugin_path,
+    install: true,
+)
+platform_plugin_targets += [drm_platform_plugin]
