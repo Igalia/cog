@@ -162,6 +162,12 @@ else()
     set(HAVE_WEBKIT_MEM_PRESSURE_API 0)
 endif()
 
+if (WebKit_VERSION VERSION_GREATER_EQUAL 2.32.0)
+    set(HAVE_WEBKIT_NETWORK_PROXY_API 1)
+else()
+    set(HAVE_WEBKIT_NETWORK_PROXY_API 0)
+endif()
+
 include(CheckCCompilerFlag)
 check_c_compiler_flag(-Wall HAS_WALL)
 
