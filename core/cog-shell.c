@@ -475,10 +475,10 @@ cog_shell_class_init (CogShellClass *klass)
      * CogShell:web-data-manager:
      *
      * Optional `WebKitWebsiteDataManager` to be used by the shell. If
-     * specified at construction, then the [property@Cog.Shell.automated]
+     * specified at construction, then the [property@Cog.Shell:automated]
      * property will be ignored and the provided object should have
-     * [property@WebKit.WebsiteDataManager.is-ephemeral] enabled for running
-     * in automation mode..
+     * [property@WebKit.WebsiteDataManager:is-ephemeral] enabled for running
+     * in automation mode.
      */
     s_properties[PROP_WEB_DATA_MANAGER] =
         g_param_spec_object("web-data-manager",
