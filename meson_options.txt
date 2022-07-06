@@ -1,0 +1,78 @@
+option(
+    'plugin_path',
+    type: 'string',
+    description: 'Default installation path for loadable plug-ins'
+)
+option(
+    'platforms',
+    type: 'array',
+    value: ['drm', 'headless', 'wayland'],
+    choices: ['drm', 'headless', 'wayland', 'gtk4', 'x11'],
+    description: 'platform plug-ins to build'
+)
+option(
+    'programs',
+    type: 'boolean',
+    value: true,
+    description: 'build and install programs (cog, cogctl)'
+)
+option(
+    'soup2',
+    type: 'feature',
+    value: 'auto',
+    description: 'Build with libsoup2 instead of libsoup3'
+)
+
+# Wayland platform-specific features
+option(
+    'wayland_weston_direct_display',
+    type: 'boolean',
+    value: false,
+    description: 'Build direct-display support in the Wayland platform plug-in'
+)
+option(
+    'wayland_weston_content_protection',
+    type: 'boolean',
+    value: false,
+    description: 'Build content-protection support in the Wayland platform plug-in'
+)
+
+# Additional cog/cogctl options
+option(
+    'cog_appid',
+    type: 'string',
+    value: 'com.igalia.Cog',
+    description: 'Default GApplication unique identifier for Cog'
+)
+option(
+    'cog_home_uri',
+    type: 'string',
+    description: 'Default home URI loaded by Cog at startup'
+)
+option(
+    'cog_dbus_control',
+    type: 'combo',
+    value: 'user',
+    choices: ['user', 'system'],
+    description: 'Bus on which to expose the Cog remote control interface'
+)
+option(
+    'cog_dbus_system_owner',
+    type: 'string',
+    value: '',
+    description: 'Additional user allowed to own the well-known name on the system bus'
+)
+
+# Documentation
+option(
+    'documentation',
+    type: 'boolean',
+    value: false,
+    description: 'Build the documentation'
+)
+option(
+    'manpages',
+    type: 'boolean',
+    value: true,
+    description: 'Install man(1) pages for built programs'
+)
