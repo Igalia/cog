@@ -12,7 +12,6 @@
 
 #include "../../core/cog.h"
 #include "../common/cog-gl-utils.h"
-#include "../common/egl-proc-address.h"
 #include "cog-gtk-settings-dialog.h"
 
 #define DEFAULT_WIDTH 1280
