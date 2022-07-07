@@ -621,7 +621,7 @@ cog_drm_modeset_renderer_destroy(CogDrmRenderer *renderer)
 
     g_clear_pointer(&self->gbm_dev, gbm_device_destroy);
 
-    g_slice_free(CogDrmModesetRenderer, renderer);
+    g_slice_free(CogDrmModesetRenderer, self);
 }
 
 static struct wpe_view_backend_exportable_fdo *
