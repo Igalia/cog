@@ -12,8 +12,8 @@
 
 #include <EGL/egl.h>
 
-static void*
-load_egl_proc_address (const char *name)
+static inline void *
+load_egl_proc_address(const char *name)
 {
     void *proc_address = eglGetProcAddress (name);
     if (!proc_address)
