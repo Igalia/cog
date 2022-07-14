@@ -24,7 +24,7 @@ This project provides the following components:
   using the D-Bus session bus.
 
 It is possible to disable building the `cog` and `cogctl` programs by passing
-`-DCOG_BUILD_PROGRAMS=OFF` to CMake.
+`-Dprograms=false` to Meson.
 
 
 Dependencies
@@ -32,8 +32,7 @@ Dependencies
 
 Stable releases have the following dependencies:
 
-- WPE WebKit 2.24.x
-- libwpe 1.8.x
+- WPE WebKit 2.28.x
 - WPEBackend-fdo 1.8.x *(optional, recommended)*
 
 Note that building from the `master` branch will often require development
@@ -46,8 +45,9 @@ Using Cog
 ---------
 
 **Compiling** Cog follows the usual procedure for projects which use
-[CMake](http://cmake.org): `cmake . && make` should get you started, if your
-system has the needed [dependencies](#dependencies) installed.
+[Meson](https://mesonbuild.com): `meson setup build && ninja -C build` should
+get you started, if your system has the needed [dependencies](#dependencies)
+installed.
 
 **Documentation** is available at
 [igalia.github.io/cog](https://igalia.github.io/cog/) but it is currently
