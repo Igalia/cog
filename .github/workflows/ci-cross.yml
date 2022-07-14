@@ -6,15 +6,11 @@ jobs:
   build:
     strategy:
       matrix:
-        buildtype: [Release, Debug]
-    runs-on: ubuntu-18.04
+        buildtype: [release, debug]
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Install Debian Packages
-        run: |
-          sudo apt update
-          sudo apt install -y cmake ninja-build libwayland-bin
       - name: Cache
         uses: actions/cache@v2
         id: cache
@@ -30,14 +26,14 @@ jobs:
           BUILD_TYPE: ${{ matrix.buildtype }}
         run: |-
           . ~/toolchain/environment-setup-*-poky-linux-gnueabi
-          cmake -GNinja -S. -Bbuild \
-            -DWAYLAND_SCANNER=/usr/bin/wayland-scanner \
-            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-            -DCOG_PLATFORM_FDO=ON \
-            -DCOG_PLATFORM_DRM=ON \
-            -DUSE_SOUP2=ON
+          meson build --buildtype "${BUILD_TYPE}" \
+            -Dplatforms=drm,headless,wayland \
+            -Dprograms=true \
+            -Ddocumentation=false \
+            -Dmanpages=false
       - name: Build
         env:
           TERM: dumb
         run:
+          . ~/toolchain/environment-setup-*-poky-linux-gnueabi
           ninja -C build
