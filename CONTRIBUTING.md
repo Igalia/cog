@@ -53,19 +53,16 @@ sudo apt-get install libwpewebkit-1.0-dev libwpe-1.0-dev
 Clone the Cog [repository][repo] and do the following:
 
 1. Change directory to the cloned repository.
-2. Create a build directory, and change into it. This is where the built
-   files will be stored.
-3. Run CMake to generate configuration for the build.
-4. Then run Make to compile the binaries.
+2. Run Meson to create and configure a build directory.
+3. Then run Ninja to compile the binaries.
 
 The following sequence of shell commands does the steps above:
 
 ```sh
 git clone https://github.com/Igalia/cog
 cd cog
-mkdir _build && cd _build
-cmake ..
-make
+meson setup build
+ninja -C build
 ```
 
 Congratulations, you just finished building Cog!
@@ -77,7 +74,7 @@ To run Cog it, change into your build directory, and run the following
 command:
 
 ```sh
-COG_MODULEDIR=$PWD/modules ./cog https://www.igalia.com
+COG_MODULEDIR=$PWD/platform ./launcher/cog https://www.igalia.com
 ```
 
 Cog will try to guess which platform plug-in to use depending on what it finds
@@ -86,7 +83,7 @@ use the `--platform=` command line option:
 
 
 ```sh
-COG_MODULEDIR=$PWD/modules ./cog --platform=x11 https://www.igalia.com
+COG_MODULEDIR=$PWD/platform ./launcher/cog --platform=x11 https://www.igalia.com
 ```
 
 Typical values are `wl` (or the legacy `fdo`) or `gtk4` if you are running a
