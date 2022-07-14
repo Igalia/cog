@@ -20,7 +20,7 @@ jobs:
       - name: Install Debian Packages
         run: |
           sudo apt update
-          sudo apt install -y cmake ninja-build gobject-introspection \
+          sudo apt install -y ninja-build gobject-introspection \
             libwpewebkit-1.0-dev libgles2-mesa-dev \
             libgirepository1.0-dev gir1.2-glib-2.0 gir1.2-soup-2.4 \
             libwayland-bin libwayland-dev wayland-protocols libepoxy-dev \
@@ -79,15 +79,12 @@ jobs:
       - name: Configure
         run: |
           export PKG_CONFIG_PATH=${HOME}/prefix/lib/pkgconfig/
-          mkdir ~/build/ && cd "$_"
-          cmake "${GITHUB_WORKSPACE}" \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCOG_PLATFORM_FDO=ON \
-            -DCOG_PLATFORM_DRM=ON \
-            -DCOG_PLATFORM_X11=ON \
-            -DBUILD_DOCS=ON \
-            -DUSE_SOUP2=ON \
-            -GNinja
+          meson --prefix ~/prefix --libdir ~/prefix/lib \
+            ~/build "${GITHUB_WORKSPACE}" \
+            -Dplatforms=drm,headless,wayland,x11 \
+            -Dprograms=true \
+            -Ddocumentation=true \
+            -Dmanpages=true
       - name: Build
         env:
           TERM: dumb
