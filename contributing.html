@@ -116,29 +116,26 @@ be&nbsp;enough:</p>
 <p>Clone the Cog <a href="https://github.com/Igalia/cog">repository</a> and do the&nbsp;following:</p>
 <ol>
 <li>Change directory to the cloned&nbsp;repository.</li>
-<li>Create a build directory, and change into it. This is where the built
-   files will be&nbsp;stored.</li>
-<li>Run CMake to generate configuration for the&nbsp;build.</li>
-<li>Then run Make to compile the&nbsp;binaries.</li>
+<li>Run Meson to create and configure a build&nbsp;directory.</li>
+<li>Then run Ninja to compile the&nbsp;binaries.</li>
 </ol>
 <p>The following sequence of shell commands does the steps&nbsp;above:</p>
 <div class="codehilite"><pre><span></span><code>git clone https://github.com/Igalia/cog
 <span class="nb">cd</span> cog
-mkdir _build <span class="o">&amp;&amp;</span> <span class="nb">cd</span> _build
-cmake ..
-make
+meson setup build
+ninja -C build
 </code></pre></div>
 
 <p>Congratulations, you just finished building&nbsp;Cog!</p>
 <h3 id="running">Running<a class="md-anchor" href="#running" title="Permanent link"></a></h3>
 <p>To run Cog it, change into your build directory, and run the following&nbsp;command:</p>
-<div class="codehilite"><pre><span></span><code><span class="nv">COG_MODULEDIR</span><span class="o">=</span><span class="nv">$PWD</span>/modules ./cog https://www.igalia.com
+<div class="codehilite"><pre><span></span><code><span class="nv">COG_MODULEDIR</span><span class="o">=</span><span class="nv">$PWD</span>/platform ./launcher/cog https://www.igalia.com
 </code></pre></div>
 
 <p>Cog will try to guess which platform plug-in to use depending on what it finds
 running in your system. If you want to manually indicate which one to load,
 use the <code>--platform=</code> command line&nbsp;option:</p>
-<div class="codehilite"><pre><span></span><code><span class="nv">COG_MODULEDIR</span><span class="o">=</span><span class="nv">$PWD</span>/modules ./cog --platform<span class="o">=</span>x11 https://www.igalia.com
+<div class="codehilite"><pre><span></span><code><span class="nv">COG_MODULEDIR</span><span class="o">=</span><span class="nv">$PWD</span>/platform ./launcher/cog --platform<span class="o">=</span>x11 https://www.igalia.com
 </code></pre></div>
 
 <p>Typical values are <code>wl</code> (or the legacy <code>fdo</code>) or <code>gtk4</code> if you are running a
