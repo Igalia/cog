@@ -281,8 +281,6 @@ cog_shell_constructed(GObject *object)
     g_autofree char *cache_dir =
         g_build_filename (g_get_user_cache_dir (), priv->name, NULL);
 
-    g_autoptr(WebKitWebsiteDataManager) manager = NULL;
-
     if (!priv->web_data_manager) {
         if (priv->automated)
             priv->web_data_manager = webkit_website_data_manager_new_ephemeral();
