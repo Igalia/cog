@@ -11,7 +11,6 @@
 #include <cairo.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#include <wpe/webkit.h>
 
 #include <stdio.h>
 

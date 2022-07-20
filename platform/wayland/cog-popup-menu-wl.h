@@ -7,11 +7,10 @@
 
 #pragma once
 
-#include <glib.h>
 #include <wayland-client.h>
+#include <wpe/webkit.h>
 
 typedef struct _CogPopupMenu CogPopupMenu;
-typedef struct _WebKitOptionMenu WebKitOptionMenu;
 struct wpe_input_pointer_event;
 
 enum {

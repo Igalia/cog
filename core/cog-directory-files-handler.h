@@ -16,9 +16,6 @@
 
 G_BEGIN_DECLS
 
-typedef struct _GFile  GFile;
-typedef struct _GError GError;
-
 #define COG_TYPE_DIRECTORY_FILES_HANDLER  (cog_directory_files_handler_get_type ())
 
 G_DECLARE_FINAL_TYPE (CogDirectoryFilesHandler,
