@@ -30,9 +30,6 @@ GQuark cog_platform_egl_error_quark (void);
 #define COG_PLATFORM_WPE_ERROR  (cog_platform_wpe_error_quark ())
 GQuark cog_platform_wpe_error_quark (void);
 
-typedef struct _WebKitInputMethodContext WebKitInputMethodContext;
-typedef struct _WebKitWebViewBackend WebKitWebViewBackend;
-
 typedef enum {
     COG_PLATFORM_WPE_ERROR_INIT,
 } CogPlatformWpeError;

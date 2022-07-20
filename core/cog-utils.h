@@ -15,8 +15,6 @@
 
 G_BEGIN_DECLS
 
-typedef struct _GObjectClass GObjectClass;
-
 #if !GLIB_CHECK_VERSION(2, 58, 0)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (GEnumClass, g_type_class_unref)
 #endif // !GLIB_CHECK_VERSION
