@@ -664,7 +664,7 @@ cog_gtk4_platform_setup(CogPlatform *platform, CogShell *shell, const char *para
 
     setup_window(&win);
     setup_fdo_exportable(&win);
-    cog_register_gamepad_backend(gamepad_provider_get_view_backend_for_gamepad);
+    cog_gamepad_setup(gamepad_provider_get_view_backend_for_gamepad);
 
 #if HAVE_FULLSCREEN_HANDLING
     wpe_view_backend_set_fullscreen_handler(webkit_web_view_backend_get_wpe_backend(win.view_backend),

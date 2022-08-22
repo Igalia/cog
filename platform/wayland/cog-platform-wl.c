@@ -2494,7 +2494,7 @@ cog_wl_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, cons
     wpe_video_plane_display_dmabuf_register_receiver (&video_plane_display_dmabuf_receiver, NULL);
 #endif
 
-    cog_register_gamepad_backend(gamepad_provider_get_view_backend_for_gamepad);
+    cog_gamepad_setup(gamepad_provider_get_view_backend_for_gamepad);
 
     return TRUE;
 }

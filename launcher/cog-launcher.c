@@ -987,6 +987,16 @@ cog_launcher_add_web_settings_option_entries(CogLauncher *launcher)
     g_application_add_option_group(G_APPLICATION(launcher), g_steal_pointer(&option_group));
 }
 
+static gboolean
+option_entry_parse_gamepad(const char *option_name, const char *value, void *data, GError **error)
+{
+    if (!cog_gamepad_parse_backend(value, error))
+        return FALSE;
+
+    cog_gamepad_set_backend(value);
+    return TRUE;
+}
+
 static GOptionEntry s_cli_options[] = {
     {"version", '\0', 0, G_OPTION_ARG_NONE, &s_options.version, "Print version and exit", NULL},
     {"print-appid", '\0', 0, G_OPTION_ARG_NONE, &s_options.print_appid, "Print application ID and exit", NULL},
@@ -1023,6 +1033,7 @@ static GOptionEntry s_cli_options[] = {
     {"proxy", 0, 0, G_OPTION_ARG_STRING, &s_options.proxy, "Set proxy", "PROXY"},
     {"ignore-host", 0, 0, G_OPTION_ARG_STRING_ARRAY, &s_options.ignore_hosts, "Set proxy ignore hosts", "HOSTS"},
 #endif /* HAVE_WEBKIT_NETWORK_PROXY_API */
+    {"gamepad", '\0', 0, G_OPTION_ARG_CALLBACK, option_entry_parse_gamepad, "Set gamepad implementation", NULL},
     {G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments, "", "[URL]"},
     {NULL}};
 

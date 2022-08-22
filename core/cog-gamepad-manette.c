@@ -292,30 +292,15 @@ gamepad_get_id(void *data)
     return manette_device_get_name(gamepad->device);
 }
 
-static struct wpe_gamepad_provider_interface provider_interface = {
+const struct wpe_gamepad_provider_interface s_manette_provider_interface = {
     .create = provider_create,
     .destroy = provider_destroy,
     .start = provider_start,
     .stop = provider_stop,
 };
 
-static const struct wpe_gamepad_interface device_interface = {
+const struct wpe_gamepad_interface s_manette_device_interface = {
     .create = gamepad_create,
     .destroy = gamepad_destroy,
     .get_id = gamepad_get_id,
 };
-
-/**
- * cog_register_gamepad_backend:
- * @provider_get_view_for_gamepad: A function that * returns the view backend
- *    associated with the gamepad.
- *
- * Installs a gamepad backend, which is in charge of the physical device
- * events.
- */
-void
-cog_register_gamepad_backend(GamepadProviderGetViewBackend *provider_get_view_for_gamepad)
-{
-    provider_interface.get_view_backend = provider_get_view_for_gamepad;
-    wpe_gamepad_set_handler(&provider_interface, &device_interface);
-}
