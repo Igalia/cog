@@ -15,11 +15,11 @@
 #define COG_VERSION_PATCH @PROJECT_VERSION_PATCH@
 #define COG_VERSION_STRING "@PROJECT_VERSION@"
 #define COG_VERSION_EXTRA "@COG_VERSION_EXTRA@"
-#cmakedefine COG_DEFAULT_APPID "@COG_DEFAULT_APPID@"
-#cmakedefine COG_DEFAULT_HOME_URI "@COG_DEFAULT_HOME_URI@"
+#define COG_DEFAULT_APPID "@COG_DEFAULT_APPID@"
+#define COG_DEFAULT_HOME_URI "@COG_DEFAULT_HOME_URI@"
 #define COG_HAVE_MEM_PRESSURE @HAVE_WEBKIT_MEM_PRESSURE_API@
 
-/* FIXME: Perhaps make this a cmake define instead. */
+/* FIXME: Perhaps make this a meson define instead. */
 #define COG_DEFAULT_APPNAME "Cog"
 
 #endif /* !COG_CONFIG_H_IN */
