@@ -1256,7 +1256,7 @@ cog_launcher_handle_local_options(GApplication *application, GVariantDict *optio
     if (s_options.proxy) {
         WebKitWebsiteDataManager             *data_manager = cog_launcher_get_web_data_manager(launcher);
         g_autoptr(WebKitNetworkProxySettings) webkit_proxy_settings =
-            webkit_network_proxy_settings_new(s_options.proxy, s_options.ignore_hosts);
+            webkit_network_proxy_settings_new(s_options.proxy, (const gchar *const *) s_options.ignore_hosts);
         webkit_website_data_manager_set_network_proxy_settings(data_manager, WEBKIT_NETWORK_PROXY_MODE_CUSTOM,
                                                                webkit_proxy_settings);
     }

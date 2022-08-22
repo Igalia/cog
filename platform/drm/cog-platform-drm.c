@@ -669,7 +669,7 @@ init_egl (void)
     if (s_eglGetPlatformDisplay)
         egl_data.display = s_eglGetPlatformDisplay (EGL_PLATFORM_GBM_KHR, gbm_data.device, NULL);
     else
-        egl_data.display = eglGetDisplay (gbm_data.device);
+        egl_data.display = eglGetDisplay((Display *) gbm_data.device);
 
     if (!egl_data.display) {
         clear_egl ();
@@ -1147,6 +1147,8 @@ input_process_events (void)
             input_handle_pointer_axis_event(libinput_event_get_pointer_event(event));
             break;
 #endif /* LIBINPUT_CHECK_VERSION(1, 19, 0) */
+        default:
+            break;
         }
 
         libinput_event_destroy (event);
@@ -1467,6 +1469,7 @@ static gboolean
 set_target_refresh_rate(gpointer user_data)
 {
     wpe_view_backend_set_target_refresh_rate(wpe_view_data.backend, drm_data.refresh * 1000);
+    return G_SOURCE_REMOVE;
 }
 #endif /* HAVE_REFRESH_RATE_HANDLING */
 
