@@ -13,4 +13,6 @@
 
 typedef struct wpe_view_backend *(GamepadProviderGetViewBackend) (void *, void *);
 
-void cog_register_gamepad_backend(GamepadProviderGetViewBackend *gamepad_get_view);
+gboolean cog_gamepad_parse_backend(const char *name, GError **error);
+void     cog_gamepad_set_backend(const char *name);
+void     cog_gamepad_setup(GamepadProviderGetViewBackend *gamepad_get_view);

@@ -1429,7 +1429,7 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
 
     wpe_fdo_initialize_for_egl_display (egl_data.display);
 
-    cog_register_gamepad_backend(gamepad_provider_get_view_backend_for_gamepad);
+    cog_gamepad_setup(gamepad_provider_get_view_backend_for_gamepad);
 
     return TRUE;
 }

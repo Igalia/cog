@@ -1,3 +1,5 @@
+gamepad_manette = wpe_dep.version().version_compare('>= 1.13.90') and manette_dep.found()
+
 cog_config = configuration_data()
 cog_config.set('COG_MODULEDIR', plugin_path)
 cog_config.set('PROJECT_VERSION_MAJOR', project_version_components[0])
@@ -9,6 +11,7 @@ cog_config.set('COG_DEFAULT_APPID', cog_launcher_appid)
 cog_config.set('COG_DEFAULT_HOME_URI', cog_launcher_home_uri)
 cog_config.set10('HAVE_WEBKIT_MEM_PRESSURE_API',
     wpewebkit_dep.version().version_compare('>=2.34.0'))
+cog_config.set10('ENABLE_GAMEPAD_MANETTE', gamepad_manette)
 
 cogcore_config_h = configure_file(
     input: 'cog-config.h.in',
@@ -40,6 +43,7 @@ cogcore_sources = files(
     'cog-shell.c',
     'cog-utils.c',
     'cog-webkit-utils.c',
+    'cog-gamepad.c',
 )
 
 cogcore_dependencies = [
@@ -48,11 +52,9 @@ cogcore_dependencies = [
 
 install_headers(cogcore_headers, cogcore_config_h, subdir: 'cog')
 
-if (wpe_dep.version().version_compare('>= 1.13.90') and manette_dep.found())
+if (gamepad_manette)
     cogcore_sources += files('cog-gamepad-manette.c')
     cogcore_dependencies += manette_dep
-else
-    cogcore_sources += files('cog-gamepad-noop.c')
 endif
 
 cogcore_lib = shared_library('cogcore',
