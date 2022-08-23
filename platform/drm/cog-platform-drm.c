@@ -669,7 +669,7 @@ init_egl (void)
     if (s_eglGetPlatformDisplay)
         egl_data.display = s_eglGetPlatformDisplay (EGL_PLATFORM_GBM_KHR, gbm_data.device, NULL);
     else
-        egl_data.display = eglGetDisplay((Display *) gbm_data.device);
+        egl_data.display = eglGetDisplay((NativeDisplayType *) gbm_data.device);
 
     if (!egl_data.display) {
         clear_egl ();
