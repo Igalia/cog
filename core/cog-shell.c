@@ -451,7 +451,7 @@ cog_shell_class_init (CogShellClass *klass)
     s_properties[PROP_WEB_MEMORY_SETTINGS] =
         g_param_spec_boxed("web-memory-settings",
                            "Web process memory pressure settings",
-                           "Memory pressure handling setttings for web processes",
+                           "Memory pressure handling settings for web processes",
                            WEBKIT_TYPE_MEMORY_PRESSURE_SETTINGS,
                            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
