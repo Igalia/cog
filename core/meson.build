@@ -75,4 +75,5 @@ import('pkgconfig').generate(
     cogcore_lib,
     description: 'Cog Core - WPE WebKit base launcher',
     subdirs: 'cog',
+    requires: cogcore_dependencies,
 )
