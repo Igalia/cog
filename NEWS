@@ -1,3 +1,12 @@
+=========================
+0.15.1 - Sptember 2, 2022
+=========================
+
+- launcher: Add new "--proxy" and "--ignore-host" command line options, which
+  allow setting up a network proxy and a list of hosts that would bypass it.
+- drm, gtk4, wl, x11: Add support for gamepads using libmanette.
+- build: Switch the build system from CMake to Meson.
+
 =======================
 0.13.90 - June 29, 2022
 =======================
