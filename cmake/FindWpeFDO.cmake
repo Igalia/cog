@@ -1,5 +1,5 @@
 find_package (PkgConfig REQUIRED QUIET)
-pkg_check_modules(WpeFDO QUIET wpebackend-fdo-1.0>=1.8.0 IMPORTED_TARGET)
+pkg_check_modules(WpeFDO QUIET wpebackend-fdo-1.0>=1.8.0 GLOBAL IMPORTED_TARGET)
 
 if (TARGET PkgConfig::WpeFDO)
   add_library(Wpe::FDO ALIAS PkgConfig::WpeFDO)
