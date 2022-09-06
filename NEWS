@@ -1,3 +1,10 @@
+==========================
+0.14.1 - September 6, 2022
+==========================
+
+- cmake: Fix the build with CMake <3.22.
+- cmake: Fix generated cogcore.pc file.
+
 ========================
 0.14.0 - August 24, 2022
 ========================
