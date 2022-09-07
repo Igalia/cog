@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.register_gamepad_backend</title>
+  <title>Cog.gamepad_set_backend</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.register_gamepad_backend"/>
-  <meta property="og:description" content="Reference for Cog.register_gamepad_backend"/>
-  <meta name="twitter:title" content="Cog.register_gamepad_backend"/>
-  <meta name="twitter:description" content="Reference for Cog.register_gamepad_backend"/>
+  <meta property="og:title" content="Cog.gamepad_set_backend"/>
+  <meta property="og:description" content="Reference for Cog.gamepad_set_backend"/>
+  <meta name="twitter:title" content="Cog.gamepad_set_backend"/>
+  <meta name="twitter:description" content="Reference for Cog.gamepad_set_backend"/>
 
 
   
@@ -96,7 +96,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <section id="main" class="content">
   <header>
     <h3>Function </h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span>register_gamepad_backend</h1>
+    <h1><a href="index.html">Cog</a><span class="sep"></span>gamepad_set_backend</h1>
   </header>
 
   <section>
@@ -105,14 +105,14 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Declaration
         <a href="#declaration" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-gamepad.h#L16">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-gamepad.h#L17">[src]</a>
         
       </h4>
 
       <div class="docblock">
         <pre><code><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"></span>
-<span class="n">cog_register_gamepad_backend</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="n">GamepadProviderGetViewBackend</span><span class="o">*</span><span class="w"> </span><span class="n">gamepad_get_view</span><span class="w"></span>
+<span class="n">cog_gamepad_set_backend</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">name</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
 </code></pre>
@@ -152,8 +152,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="arguments">
           
           <tr class="arg-name">
-            <td><code>gamepad_get_view</code></td>
-            <td><code>GamepadProviderGetViewBackend*</code></td>
+            <td><code>name</code></td>
+            <td><code>const char*</code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
@@ -167,7 +167,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           
           
           <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
-          
+          <tr><td>&nbsp;</td><td>The string is a NUL terminated UTF-8 string.</td></tr>
           
           
         </table>
