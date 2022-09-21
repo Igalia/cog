@@ -81,7 +81,7 @@ with_programs = get_option('programs')
 
 with_soup2 = get_option('soup2').enabled()
 if get_option('soup2').auto()
-    # Prefer using API 1.1 level if available.
+    # Prefer using API 2.0 level if available.
     with_soup2 = not dependency('wpe-webkit-2.0', required: false).found()
 endif
 
