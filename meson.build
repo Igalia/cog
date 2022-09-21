@@ -82,7 +82,7 @@ with_programs = get_option('programs')
 with_soup2 = get_option('soup2').enabled()
 if get_option('soup2').auto()
     # Prefer using API 1.1 level if available.
-    with_soup2 = not dependency('wpe-webkit-1.1', required: false).found()
+    with_soup2 = not dependency('wpe-webkit-2.0', required: false).found()
 endif
 
 cog_launcher_appid = get_option('cog_appid')
@@ -100,7 +100,7 @@ else
     add_project_arguments('-DCOG_USE_SOUP2=0', language: 'c')
     libsoup_dep = dependency('libsoup-3.0', version: '>=2.99.7')
     gio_dep = dependency('gio-2.0', version: '>=2.67.4')
-    wpewebkit_dep = dependency('wpe-webkit-1.1', version: '>=2.33.1')
+    wpewebkit_dep = dependency('wpe-webkit-2.0', version: '>=2.33.1')
 endif
 
 if cog_launcher_system_bus
