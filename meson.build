@@ -79,10 +79,22 @@ with_x11_platform = platform_plugins.contains('x11')
 
 with_programs = get_option('programs')
 
+# Prefer using API 2.0 level if available.
+wpewebkit_soup3_dep_info = [
+    ['wpe-webkit-2.0', '>=2.39.0'],
+    ['wpe-webkit-1.1', '>=2.33.1'],
+]
+
 with_soup2 = get_option('soup2').enabled()
 if get_option('soup2').auto()
-    # Prefer using API 2.0 level if available.
-    with_soup2 = not dependency('wpe-webkit-2.0', required: false).found()
+    with_soup2 = true
+    foreach dep_info : wpewebkit_soup3_dep_info
+        dep_found = dependency(dep_info[0], version: dep_info[1], required: false).found()
+        if dep_found
+            with_soup2 = false
+            break
+        endif
+    endforeach
 endif
 
 cog_launcher_appid = get_option('cog_appid')
@@ -100,7 +112,13 @@ else
     add_project_arguments('-DCOG_USE_SOUP2=0', language: 'c')
     libsoup_dep = dependency('libsoup-3.0', version: '>=2.99.7')
     gio_dep = dependency('gio-2.0', version: '>=2.67.4')
-    wpewebkit_dep = dependency('wpe-webkit-2.0', version: '>=2.33.1')
+    foreach dep_info : wpewebkit_soup3_dep_info
+        wpewebkit_dep = dependency(dep_info[0], version: dep_info[1], required: false)
+        if wpewebkit_dep.found()
+            break
+        endif
+    endforeach
+    assert(wpewebkit_dep.found())
 endif
 
 if cog_launcher_system_bus
