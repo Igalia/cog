@@ -1,6 +1,15 @@
-=========================
-0.15.1 - Sptember 2, 2022
-=========================
+===========================
+0.16.0 - September 27, 2022
+===========================
+
+- core: Fix generated cogcore.pc file to include required libraries.
+- core: Fix the build when libmanette is not being used.
+- launcher: New --gamepad command line option to choose the gamepad
+  implementation to use.
+
+==========================
+0.15.1 - September 2, 2022
+==========================
 
 - launcher: Add new "--proxy" and "--ignore-host" command line options, which
   allow setting up a network proxy and a list of hosts that would bypass it.
