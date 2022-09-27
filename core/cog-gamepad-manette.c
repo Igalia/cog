@@ -110,7 +110,7 @@ provider_stop(void *data)
     if (!provider)
         return;
 
-    g_debug("gamepad: stoping monitor");
+    g_debug("gamepad: stopping monitor");
 
     g_signal_handlers_disconnect_by_data(provider->monitor, provider);
 }
