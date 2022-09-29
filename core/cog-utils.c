@@ -385,6 +385,39 @@ cog_option_entries_from_class (GObjectClass *klass)
 }
 
 /**
+ * cog_key_file_parse_params_string:
+ * @key_file: A key file
+ * @group_name: Name of a key file group
+ * @params_string: Input string
+ * @error: Where to store an error, if any
+ *
+ * Parse parameters string storing values in a key file.
+ *
+ * Since: 0.18
+ */
+void
+cog_key_file_parse_params_string(GKeyFile *key_file, const char *group_name, const char *params_string)
+{
+    g_return_if_fail(key_file);
+    g_return_if_fail(group_name);
+    g_return_if_fail(params_string);
+
+    g_auto(GStrv) params = g_strsplit(params_string, ",", 0);
+    for (unsigned i = 0; params[i]; i++) {
+        g_auto(GStrv) kv = g_strsplit(params[i], "=", 2);
+        if (g_strv_length(kv) != 2) {
+            g_warning("%s: Invalid parameter syntax '%s'.", __func__, params[i]);
+            continue;
+        }
+
+        const char *k = g_strstrip(kv[0]);
+        const char *v = g_strstrip(kv[1]);
+
+        g_key_file_set_value(key_file, group_name, k, v);
+    }
+}
+
+/**
  * cog_apply_properties_from_key_file:
  * @object: An object to set properties on
  * @key_file: A key file

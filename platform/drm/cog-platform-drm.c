@@ -227,43 +227,14 @@ static void
 init_config(CogDrmPlatform *self, CogShell *shell, const char *params_string)
 {
     GKeyFile *key_file = cog_shell_get_config_file(shell);
+
+    if (params_string)
+        cog_key_file_parse_params_string(key_file, "drm", params_string);
+
     if (key_file) {
         g_autoptr(GError) error = NULL;
         if (!cog_apply_properties_from_key_file(G_OBJECT(self), key_file, "drm", &error))
             g_warning("Reading config file: %s", error->message);
-    }
-
-    if (params_string) {
-        g_auto(GStrv) params = g_strsplit(params_string, ",", 0);
-        for (unsigned i = 0; params[i]; i++) {
-            g_auto(GStrv) kv = g_strsplit(params[i], "=", 2);
-            if (g_strv_length(kv) != 2) {
-                g_warning("Invalid parameter syntax '%s'.", params[i]);
-                continue;
-            }
-
-            const char *k = g_strstrip(kv[0]);
-            const char *v = g_strstrip(kv[1]);
-
-            if (g_strcmp0(k, "renderer") == 0) {
-                if (g_strcmp0(v, "modeset") == 0)
-                    self->use_gles = false;
-                else if (g_strcmp0(v, "gles") == 0)
-                    self->use_gles = true;
-                else
-                    g_warning("Invalid value '%s' for parameter '%s'.", v, k);
-            } else if (g_strcmp0(k, "rotation") == 0) {
-                char       *endp = NULL;
-                const char *str = v ? v : "";
-                uint64_t    val = g_ascii_strtoull(str, &endp, 10);
-                if (val > 3 || *endp != '\0')
-                    g_warning("Invalid value '%s' for parameter '%s'.", v, k);
-                else
-                    self->rotation = val;
-            } else {
-                g_warning("Invalid parameter '%s'.", k);
-            }
-        }
     }
 
     float device_scale_factor = cog_shell_get_device_scale_factor(shell);
