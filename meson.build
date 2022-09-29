@@ -3,7 +3,7 @@ project('cog', 'c',
     default_options: [
         'buildtype=debugoptimized',
         'b_ndebug=if-release',
-        'c_std=c99',
+        'c_std=c11',
     ],
     license: 'MIT',
     version: '0.17.0',
