@@ -7,7 +7,7 @@ drm_platform_plugin = shared_module('cogplatform-drm',
     'cursor-drm.c',
     c_args: ['-DG_LOG_DOMAIN="Cog-DRM"'],
     dependencies: [
-        cogcore_dep,
+        cogplatformcommon_dep,
         wpebackend_fdo_dep,
         dependency('epoxy'),
         dependency('libdrm', version: '>=2.4.71'),
