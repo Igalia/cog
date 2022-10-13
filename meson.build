@@ -147,7 +147,10 @@ wpe_dep = dependency('wpe-1.0')
 manette_dep = dependency('manette-0.2', version: '>=0.2.4', required: false)
 
 subdir('core')
-subdir('platform')
+
+if platform_plugins.length() > 0
+    subdir('platform')
+endif
 
 if get_option('documentation')
     subdir('docs')
