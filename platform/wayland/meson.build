@@ -48,6 +48,7 @@ wayland_protocols_path = wayland_protocols_dep.get_variable(pkgconfig: 'pkgdatad
 
 if wayland_platform_weston_protocols.length() > 0
     foreach weston_dep_name : [
+            'libweston-12-protocols',
             'libweston-11-protocols',
             'libweston-10-protocols',
             'libweston-9-protocols',
