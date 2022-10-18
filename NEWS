@@ -1,3 +1,15 @@
+=========================
+0.16.1 - October 18, 2022
+=========================
+
+- core: Fix build failure in some systems.
+- drm: Fix missing symbol which made the platform unusable.
+- wl: Fix build in systems where the drm_fourcc.h header is not installed
+  in the default search paths.
+- wl: Allow building against libweston-12-protocols.
+- meson: Do not check for platform plug-in dependencies if no platform
+  plug-ins are enabled.
+
 ===========================
 0.16.0 - September 27, 2022
 ===========================

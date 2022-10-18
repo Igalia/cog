@@ -6,7 +6,7 @@ project('cog', 'c',
         'c_std=c99',
     ],
     license: 'MIT',
-    version: '0.16.0',
+    version: '0.16.1',
 )
 
 # Before making a release, the LT_VERSION string should be modified.
@@ -16,7 +16,7 @@ project('cog', 'c',
 # - If binary compatibility has been broken (eg removed or changed interfaces)
 #   change to [C+1, 0, 0]
 # - If the interface is the same as the previous version, use [C, R+1, A].
-cogcore_soversion = [10, 2, 1]
+cogcore_soversion = [10, 3, 1]
 
 # Mangle [C, R, A] into an actual usable *soversion*.
 cogcore_soversion_major = cogcore_soversion[0] - cogcore_soversion[2]  # Current-Age
