@@ -490,7 +490,7 @@ init_drm(void)
         return FALSE;
 
     g_debug("init_drm: using mode [%ld] '%s' @ %dHz",
-            (drm_data.mode - drm_data.connector.obj->modes) / sizeof(drmModeModeInfo *), drm_data.mode->name,
+            (long)((drm_data.mode - drm_data.connector.obj->modes) / sizeof(drmModeModeInfo *)), drm_data.mode->name,
             drm_data.mode->vrefresh);
 
     for (int i = 0; i < drm_data.base_resources->count_encoders; ++i) {
