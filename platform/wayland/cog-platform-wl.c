@@ -173,7 +173,6 @@ static struct {
 #endif
 
 #ifdef COG_USE_WAYLAND_CURSOR
-    struct wl_shm          *wl_shm;
     struct wl_cursor_theme *cursor_theme;
     struct wl_cursor       *cursor_left_ptr;
     struct wl_surface      *cursor_left_ptr_surface;
@@ -1979,10 +1978,10 @@ init_wayland (GError **error)
     wl_display_roundtrip (wl_data.display);
 
 #if COG_USE_WAYLAND_CURSOR
-    if (wl_data.wl_shm) {
+    if (wl_data.shm) {
         if (!(wl_data.cursor_theme = wl_cursor_theme_load (NULL,
                                                            32,
-                                                           wl_data.wl_shm))) {
+                                                           wl_data.shm))) {
             g_warning ("%s: Could not load cursor theme.", G_STRFUNC);
         } else if (!(wl_data.cursor_left_ptr =
                      wl_cursor_theme_get_cursor (wl_data.cursor_theme, "left_ptr"))) {
@@ -2027,7 +2026,6 @@ clear_wayland (void)
 #ifdef COG_USE_WAYLAND_CURSOR
     g_clear_pointer (&wl_data.cursor_left_ptr_surface, wl_surface_destroy);
     g_clear_pointer (&wl_data.cursor_theme, wl_cursor_theme_destroy);
-    g_clear_pointer (&wl_data.wl_shm, wl_shm_destroy);
 #endif /* COG_USE_WAYLAND_CURSOR */
 
     wl_registry_destroy (wl_data.registry);
