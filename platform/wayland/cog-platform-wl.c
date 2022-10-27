@@ -1979,13 +1979,10 @@ init_wayland (GError **error)
 
 #if COG_USE_WAYLAND_CURSOR
     if (wl_data.shm) {
-        if (!(wl_data.cursor_theme = wl_cursor_theme_load (NULL,
-                                                           32,
-                                                           wl_data.shm))) {
-            g_warning ("%s: Could not load cursor theme.", G_STRFUNC);
-        } else if (!(wl_data.cursor_left_ptr =
-                     wl_cursor_theme_get_cursor (wl_data.cursor_theme, "left_ptr"))) {
-            g_warning ("%s: Could not load left_ptr cursor.", G_STRFUNC);
+        if (!(wl_data.cursor_theme = wl_cursor_theme_load(NULL, 32, wl_data.shm))) {
+            g_warning("%s: Could not load cursor theme.", G_STRFUNC);
+        } else if (!(wl_data.cursor_left_ptr = wl_cursor_theme_get_cursor(wl_data.cursor_theme, "left_ptr"))) {
+            g_warning("%s: Could not load left_ptr cursor.", G_STRFUNC);
         }
     }
 #endif /* COG_USE_WAYLAND_CURSOR */
