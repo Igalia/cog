@@ -99,11 +99,11 @@ cog_uri_guess_internal(const char *utf8_uri_like)
 
 /**
  * cog_uri_guess_from_user_input:
- * @uri_like: String containing an URI-like value.
+ * @uri_like: String containing a URI-like value.
  * @is_cli_arg: Whether the URI-like string is from a command line option.
  * @error: (out) (nullable): Location where to store an error, if any.
  *
- * Tries to assemble a valid URI from input that resembles an URI.
+ * Tries to assemble a valid URI from input that resembles a URI.
  *
  * First, if `is_cli_arg` is set, the input string is converted to UTF-8.
  * Then, the following heuristics may applied:
@@ -111,11 +111,11 @@ cog_uri_guess_internal(const char *utf8_uri_like)
  * - If the input is already a valid URI with a known scheme, return it as-is.
  * - If the input is a relative path, or resembles a local file path, try to
  *   resolve it to a full path and return a `file://` URI.
- * - If an URI does not have any path, set `/` as the path.
+ * - If a URI does not have any path, set `/` as the path.
  * - As a last resort, try to prepend the `http://` scheme.
  *
  * The main use case for this function is turning some “simpler” version
- * of an URI, as typically entered by an user in a browser URL entry
+ * of a URI, as typically entered by a user in a browser URL entry
  * (e.g. `wpewebkit.org/release`) and turn it into an actual
  * URI (`http://wpewebkit.org/release/`) which can be then passed to
  * [method@WebKit.WebView.load_uri].
@@ -147,7 +147,7 @@ cog_uri_guess_from_user_input (const char *uri_like,
     }
 
     // At this point we know that we have been given a shorthand without an
-    // URI scheme, or something that cannot be parsed as an URI: try to find
+    // URI scheme, or something that cannot be parsed as a URI: try to find
     // a local file, otherwise add http:// as the scheme.
     g_autoptr(GFile) file = is_cli_arg
         ? g_file_new_for_commandline_arg (uri_like)
