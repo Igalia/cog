@@ -37,7 +37,7 @@
 
 - core: Fix platform plug-ins not being found due to COG_MODULEDIR being
   incorrectly defined as a relative path at build configuration time.
-- gtk4: Fix handling of mouse events when teh device scale factor changes.
+- gtk4: Fix handling of mouse events when the device scale factor changes.
 - gtk4: Improve compatibility with more graphics drivers by marking shaders
   as compatible with all GLSL versions.
 
