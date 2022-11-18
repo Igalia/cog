@@ -2,7 +2,7 @@ Title: Overview
 
 # Overview
 
-Cog is both an utility library (`cogcore`) for developing applications which
+Cog is both a utility library (`cogcore`) for developing applications which
 embed the [WPE WebKit][wpewebkit] web rendering engine and a reference
 launcher (`cog`, a minimal browser) which is suitable to be used as a web
 application container. Cog is released under the terms of the [MIT/X11
