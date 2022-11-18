@@ -903,7 +903,7 @@ cog_launcher_add_mem_pressure_option_entries(CogLauncher *self)
                            "  and thresholds relative to the limit which determine at which points memory\n"
                            "  will be reclaimed. The conservative threshold is typically lower when reached\n"
                            "  memory will be reclaimed; the strict threshold works in the same way but the\n"
-                           "  process is more aggresive. The kill threshold configures when worker processes\n"
+                           "  process is more aggressive. The kill threshold configures when worker processes\n"
                            "  will be forcibly killed. Note that if there is no memory limit set, the other\n"
                            "  settings are ignored.\n",
                            "Options to configure memory usage limits",

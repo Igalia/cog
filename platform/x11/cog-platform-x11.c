@@ -639,7 +639,7 @@ init_egl (void)
 
     if (!epoxy_has_egl_extension(s_display->egl.display, "EGL_EXT_platform_x11"))
         g_warning("eglGetPlatformDisplayEXT() returned a display, but "
-                  "EGL_EXT_platform_x11 is mising. Continuing anyway, but things may break unexpectedly.");
+                  "EGL_EXT_platform_x11 is missing. Continuing anyway, but things may break unexpectedly.");
 
     if (!eglInitialize (s_display->egl.display, NULL, NULL))
         return FALSE;
