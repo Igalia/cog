@@ -116,7 +116,7 @@ on_file_query_info_async_completed (GObject      *source_object,
                            g_steal_pointer (&request));
     } else if (type == G_FILE_TYPE_DIRECTORY) {
         /*
-         * If the requst has been marked, it means this function is being
+         * If the request has been marked, it means this function is being
          * called after having previously found a directory. In that case,
          * do not try to resolve "index.html" a second time and produce
          * an error instead.
@@ -403,7 +403,7 @@ cog_directory_files_handler_class_init (CogDirectoryFilesHandlerClass *klass)
      * Number of leading path components to strip (ignore) at the beginning
      * of request URIs.
      *
-     * For example, when set to `2`, a  request for an URI with path
+     * For example, when set to `2`, a  request for a URI with path
      * `/a/b/c/d.html` will ignore the `/a/b` prefix and search for `c/d.html`.
      */
     s_properties[PROP_STRIP_COMPONENTS] =
