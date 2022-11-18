@@ -271,7 +271,7 @@ cmd_find_by_name (const char *name)
         },
         {
             .name = "open",
-            .desc = "Open an URL",
+            .desc = "Open a URL",
             .handler = cmd_open,
         },
         {

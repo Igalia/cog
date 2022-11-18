@@ -78,7 +78,7 @@ cog_platform_new(const char *name, GError **error)
 
     if (platform_type == G_TYPE_INVALID) {
         g_set_error_literal(error, COG_PLATFORM_ERROR, COG_PLATFORM_ERROR_NO_MODULE,
-                            "Could not find an usable platform module");
+                            "Could not find a usable platform module");
         return NULL;
     }
 
