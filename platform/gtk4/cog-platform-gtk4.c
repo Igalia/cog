@@ -191,7 +191,7 @@ render(GtkGLArea *area, GdkGLContext *context, gpointer user_data)
     struct platform_window *win = user_data;
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
-    glViewport(0, 0, win->width, win->height);
+    glViewport(0, 0, win->width * win->device_scale_factor, win->height * win->device_scale_factor);
 
     if (win->commited_image)
         wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image(
@@ -210,15 +210,27 @@ render(GtkGLArea *area, GdkGLContext *context, gpointer user_data)
     wpe_view_backend_exportable_fdo_dispatch_frame_complete(win->exportable);
     return TRUE;
 }
+
 static void
 resize(GtkGLArea* area, int width, int height, gpointer user_data)
 {
     struct platform_window* win = user_data;
-    win->width = width;
-    win->height = height;
+
+    win->width = width / win->device_scale_factor;
+    win->height = height / win->device_scale_factor;
     wpe_view_backend_dispatch_set_size(
         wpe_view_backend_exportable_fdo_get_view_backend(win->exportable),
         win->width, win->height);
+}
+
+static void
+scale_factor_change(GtkWidget *area, GParamSpec *pspec, gpointer user_data)
+{
+    struct platform_window *win = user_data;
+
+    win->device_scale_factor = gtk_widget_get_scale_factor(area);
+    wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_backend_exportable_fdo_get_view_backend(win->exportable),
+                                                      win->device_scale_factor);
 }
 
 #if HAVE_FULLSCREEN_HANDLING
@@ -549,6 +561,7 @@ setup_window(struct platform_window* window)
     g_signal_connect(window->gl_drawing_area, "realize", G_CALLBACK(realize), window);
     g_signal_connect(window->gl_drawing_area, "render", G_CALLBACK(render), window);
     g_signal_connect(window->gl_drawing_area, "resize", G_CALLBACK(resize), window);
+    g_signal_connect(window->gl_drawing_area, "notify::scale-factor", G_CALLBACK(scale_factor_change), window);
 
 #if HAVE_FULLSCREEN_HANDLING
     g_signal_connect(window->gtk_window, "notify::fullscreened", G_CALLBACK(on_fullscreen_change), window);
@@ -737,6 +750,7 @@ cog_gtk4_platform_init_web_view(CogPlatform* platform, WebKitWebView* view)
         G_CALLBACK(on_back_forward_changed), &win);
     win.web_view = view;
 
+    win.device_scale_factor = gtk_widget_get_scale_factor(win.gl_drawing_area);
     wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_backend_exportable_fdo_get_view_backend(win.exportable),
                                                       win.device_scale_factor);
 }
