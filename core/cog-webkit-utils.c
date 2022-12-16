@@ -72,13 +72,6 @@ cog_handle_web_view_load_failed (WebKitWebView  *web_view,
                                  GError         *error,
                                  void           *userdata)
 {
-    // If the resource is going to be shown by a plug-in (or a
-    // media engine) just return FALSE and let WebKit handle it.
-    if (g_error_matches (error,
-                         WEBKIT_PLUGIN_ERROR,
-                         WEBKIT_PLUGIN_ERROR_WILL_HANDLE_LOAD))
-        return FALSE;
-
     // Ignore cancellation errors as the active URI may be changing
     if (g_error_matches (error,
                          WEBKIT_NETWORK_ERROR,
