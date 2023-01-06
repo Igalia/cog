@@ -19,7 +19,7 @@ option(
 option(
     'soup2',
     type: 'feature',
-    value: 'auto',
+    value: 'disabled',
     description: 'Build with libsoup2 instead of libsoup3'
 )
 
