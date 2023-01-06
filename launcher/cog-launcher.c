@@ -53,7 +53,9 @@ static struct {
     } on_failure;
     char    *web_extensions_dir;
     gboolean ignore_tls_errors;
+#if !COG_USE_WPE2
     gboolean enable_sandbox;
+#endif
     gboolean automation;
 #if HAVE_WEBKIT_NETWORK_PROXY_API
     char    *proxy;
@@ -362,7 +364,9 @@ cog_launcher_startup(GApplication *application)
     if (s_options.web_extensions_dir)
         webkit_web_context_set_web_extensions_directory(cog_shell_get_web_context(self->shell),
                                                         s_options.web_extensions_dir);
+#if !COG_USE_WPE2
     webkit_web_context_set_sandbox_enabled(cog_shell_get_web_context(self->shell), s_options.enable_sandbox);
+#endif
 
     g_object_set(self->shell, "device-scale-factor", s_options.device_scale_factor, NULL);
 
@@ -1025,8 +1029,10 @@ static GOptionEntry s_cli_options[] = {
      "Ignore TLS errors (default: disabled).", NULL},
     {"content-filter", 'F', 0, G_OPTION_ARG_FILENAME, &s_options.filter_path,
      "Path to content filter JSON rule set (default: none).", "PATH"},
+#if !COG_USE_WPE2
     {"enable-sandbox", 's', 0, G_OPTION_ARG_NONE, &s_options.enable_sandbox,
      "Enable WebProcess sandbox (default: disabled).", NULL},
+#endif
     {"automation", '\0', 0, G_OPTION_ARG_NONE, &s_options.automation, "Enable automation mode (default: disabled).",
      NULL},
 #if HAVE_WEBKIT_NETWORK_PROXY_API
