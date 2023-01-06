@@ -87,11 +87,13 @@ add_project_arguments('-DCOG_INSIDE_COG__=1', language: 'c')
 
 if get_option('soup2').enabled()
     add_project_arguments('-DCOG_USE_SOUP2=1', language: 'c')
+    add_project_arguments('-DCOG_USE_WPE2=0', language: 'c')
     libsoup_dep = dependency('libsoup-2.4')
     gio_dep = dependency('gio-2.0', version: '>=2.44')
     wpewebkit_dep = dependency('wpe-webkit-1.0', version: '>=2.28.0')
 else
     add_project_arguments('-DCOG_USE_SOUP2=0', language: 'c')
+    add_project_arguments('-DCOG_USE_WPE2=1', language: 'c')
     libsoup_dep = dependency('libsoup-3.0', version: '>=2.99.7')
     gio_dep = dependency('gio-2.0', version: '>=2.67.4')
     wpewebkit_dep = dependency('wpe-webkit-2.0', version: '>=2.39.0')
