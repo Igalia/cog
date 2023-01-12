@@ -185,19 +185,19 @@ This can be set in two&nbsp;ways:</p>
 amount 90 degree counter-clockwise turns to apply. For example a value of
 <code>3</code> would result in <code>3 × 90 = 270</code> degrees.</p>
 <p>The following example shows how to change the rotation at run&nbsp;time:</p>
-<div class="codehilite"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"></span>
-<span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">cog_modules_add_directory</span><span class="p">(</span><span class="n">COG_MODULEDIR</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="n">g_autoptr</span><span class="p">(</span><span class="n">CogPlatform</span><span class="p">)</span><span class="w"> </span><span class="n">plat</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_platform_new</span><span class="p">(</span><span class="s">&quot;drm&quot;</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">);</span><span class="w"></span>
+<div class="codehilite"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">cog_modules_add_directory</span><span class="p">(</span><span class="n">COG_MODULEDIR</span><span class="p">);</span>
+<span class="w">    </span><span class="n">g_autoptr</span><span class="p">(</span><span class="n">CogPlatform</span><span class="p">)</span><span class="w"> </span><span class="n">plat</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_platform_new</span><span class="p">(</span><span class="s">&quot;drm&quot;</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">);</span>
 
-<span class="w">    </span><span class="n">g_autoptr</span><span class="p">(</span><span class="n">CogShell</span><span class="p">)</span><span class="w"> </span><span class="n">shell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_shell_new</span><span class="p">(</span><span class="s">&quot;example&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">FALSE</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="n">cog_platform_setup</span><span class="p">(</span><span class="n">plat</span><span class="p">,</span><span class="w"> </span><span class="n">shell</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;renderer=gles&quot;</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">g_autoptr</span><span class="p">(</span><span class="n">CogShell</span><span class="p">)</span><span class="w"> </span><span class="n">shell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_shell_new</span><span class="p">(</span><span class="s">&quot;example&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">FALSE</span><span class="p">);</span>
+<span class="w">    </span><span class="n">cog_platform_setup</span><span class="p">(</span><span class="n">plat</span><span class="p">,</span><span class="w"> </span><span class="n">shell</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;renderer=gles&quot;</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">);</span>
 
-<span class="w">    </span><span class="cm">/* Set the rotation. */</span><span class="w"></span>
-<span class="w">    </span><span class="n">g_object_set</span><span class="p">(</span><span class="n">plat</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;rotation&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="cm">/* Set the rotation. */</span>
+<span class="w">    </span><span class="n">g_object_set</span><span class="p">(</span><span class="n">plat</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;rotation&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span>
 
-<span class="w">    </span><span class="cm">/* Now proceed to run a GMainLoop normally… */</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="cm">/* Now proceed to run a GMainLoop normally… */</span>
+<span class="p">}</span>
 </code></pre></div>
     </div>
   </section>

@@ -109,7 +109,7 @@ development packages&nbsp;installed.</p>
 distribution&#8217;s package manager to install their development packages.
 For example, on a Debian (or Ubuntu) system, the following command should
 be&nbsp;enough:</p>
-<div class="codehilite"><pre><span></span><code>sudo apt-get install libwpewebkit-1.0-dev libwpe-1.0-dev
+<div class="codehilite"><pre><span></span><code>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>libwpewebkit-1.0-dev<span class="w"> </span>libwpe-1.0-dev
 </code></pre></div>
 
 <h3 id="building">Building<a class="md-anchor" href="#building" title="Permanent link"></a></h3>
@@ -120,22 +120,22 @@ be&nbsp;enough:</p>
 <li>Then run Ninja to compile the&nbsp;binaries.</li>
 </ol>
 <p>The following sequence of shell commands does the steps&nbsp;above:</p>
-<div class="codehilite"><pre><span></span><code>git clone https://github.com/Igalia/cog
-<span class="nb">cd</span> cog
-meson setup build
-ninja -C build
+<div class="codehilite"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/Igalia/cog
+<span class="nb">cd</span><span class="w"> </span>cog
+meson<span class="w"> </span>setup<span class="w"> </span>build
+ninja<span class="w"> </span>-C<span class="w"> </span>build
 </code></pre></div>
 
 <p>Congratulations, you just finished building&nbsp;Cog!</p>
 <h3 id="running">Running<a class="md-anchor" href="#running" title="Permanent link"></a></h3>
 <p>To run Cog it, change into your build directory, and run the following&nbsp;command:</p>
-<div class="codehilite"><pre><span></span><code><span class="nv">COG_MODULEDIR</span><span class="o">=</span><span class="nv">$PWD</span>/platform ./launcher/cog https://www.igalia.com
+<div class="codehilite"><pre><span></span><code><span class="nv">COG_MODULEDIR</span><span class="o">=</span><span class="nv">$PWD</span>/platform<span class="w"> </span>./launcher/cog<span class="w"> </span>https://www.igalia.com
 </code></pre></div>
 
 <p>Cog will try to guess which platform plug-in to use depending on what it finds
 running in your system. If you want to manually indicate which one to load,
 use the <code>--platform=</code> command line&nbsp;option:</p>
-<div class="codehilite"><pre><span></span><code><span class="nv">COG_MODULEDIR</span><span class="o">=</span><span class="nv">$PWD</span>/platform ./launcher/cog --platform<span class="o">=</span>x11 https://www.igalia.com
+<div class="codehilite"><pre><span></span><code><span class="nv">COG_MODULEDIR</span><span class="o">=</span><span class="nv">$PWD</span>/platform<span class="w"> </span>./launcher/cog<span class="w"> </span>--platform<span class="o">=</span>x11<span class="w"> </span>https://www.igalia.com
 </code></pre></div>
 
 <p>Typical values are <code>wl</code> (or the legacy <code>fdo</code>) or <code>gtk4</code> if you are running a
