@@ -93,7 +93,8 @@ jobs:
             -Dplatforms=drm,headless,wayland,x11 \
             -Dprograms=true \
             -Ddocumentation=true \
-            -Dmanpages=true
+            -Dmanpages=true \
+            -Dsoup2=enabled
       - name: Build
         env:
           TERM: dumb
