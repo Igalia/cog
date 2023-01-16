@@ -62,6 +62,30 @@ The `rotation` parameter indicates the initial [output
 rotation](#output-rotation) applied.
 
 
+## Environment Variables
+
+The following environment variables can be set to further tweak how the
+DRM plug-in operates:
+
+| Variable | Type | Default |
+|:---------|:-----|--------:|
+| `COG_PLATFORM_DRM_VIDEO_MODE` | string | *(unset*) |
+| `COG_PLATFORM_DRM_MODE_MAX` | string | *(unset)* |
+| `COG_PLATFORM_DRM_CURSOR` | string | *(unset)* |
+
+By default the preferred mode for the first found connected output is used
+(if available), otherwise the mode with most resolution.
+Setting `COG_PLATFORM_DRM_VIDEO_MODE` instructs the plug-in to pick a
+particular video mode, while `COG_PLATFORM_DRM_MODE_MAX` can be used to
+limit which modes are considered. Mode strings are formatted as `WxH@R`
+(`W`idth and `H`eight in pixels, `R`efresh rate in Hertz), for example
+`1920x1080@60` for a typical Full-HD mode. The `@R` part can be omitted
+in `COG_PLATFORM_DRM_MODE_MAX`.
+
+Setting `COG_PLATFORM_DRM_CURSOR` to a non-empty string enables showing
+the mouse cursor pointer.
+
+
 ## Output Rotation
 
 When using the OpenGL ES renderer using `gles` as value for the `renderer`
