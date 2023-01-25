@@ -111,7 +111,11 @@ struct _CogLauncher {
     gboolean     automated;
 
     WebKitSettings           *web_settings;
+#if COG_USE_WPE2
+    WebKitNetworkSession *network_session;
+#else
     WebKitWebsiteDataManager *web_data_manager;
+#endif
 
 #if COG_HAVE_MEM_PRESSURE
     WebKitMemoryPressureSettings *web_mem_settings;
@@ -282,6 +286,9 @@ cog_launcher_create_view(CogLauncher *self, CogShell *shell)
 
     g_autoptr(WebKitWebView) web_view =
         g_object_new(WEBKIT_TYPE_WEB_VIEW, "settings", cog_shell_get_web_settings(shell), "web-context", web_context,
+#if COG_USE_WPE2
+                     "network-session", self->network_session,
+#endif
                      "zoom-level", s_options.scale_factor, "backend", view_backend, "is-controlled-by-automation",
                      cog_shell_is_automated(shell), NULL);
 
@@ -351,13 +358,15 @@ cog_launcher_startup(GApplication *application)
     g_application_hold(application);
 
     CogLauncher *self = COG_LAUNCHER(application);
-    self->shell =
-        g_object_new(COG_TYPE_SHELL, "name", g_get_prgname(), "automated", self->automated, "web-settings",
-                     self->web_settings, "web-data-manager", self->web_data_manager,
+    self->shell = g_object_new(
+        COG_TYPE_SHELL, "name", g_get_prgname(), "automated", self->automated, "web-settings", self->web_settings,
+#if !COG_USE_WPE2
+        "web-data-manager", self->web_data_manager,
+#endif
 #if COG_HAVE_MEM_PRESSURE
-                     "web-memory-settings", self->web_mem_settings, "network-memory-settings", self->net_mem_settings,
+        "web-memory-settings", self->web_mem_settings, "network-memory-settings", self->net_mem_settings,
 #endif /* COG_HAVE_MEM_PRESSURE */
-                     NULL);
+        NULL);
     g_signal_connect_swapped(self->shell, "create-view", G_CALLBACK(cog_launcher_create_view), self);
     g_signal_connect(self->shell, "notify::web-view", G_CALLBACK(on_notify_web_view), self);
 
@@ -388,7 +397,13 @@ cog_launcher_startup(GApplication *application)
         g_object_set(self->shell, "config-file", key_file, NULL);
     }
 
-#if WEBKIT_CHECK_VERSION(2, 32, 0)
+#if COG_USE_WPE2
+    if (!self->automated) {
+        webkit_network_session_set_tls_errors_policy(self->network_session,
+                                                     s_options.ignore_tls_errors ? WEBKIT_TLS_ERRORS_POLICY_IGNORE
+                                                                                 : WEBKIT_TLS_ERRORS_POLICY_FAIL);
+    }
+#elif WEBKIT_CHECK_VERSION(2, 32, 0)
     webkit_website_data_manager_set_tls_errors_policy(cog_launcher_get_web_data_manager(self),
                                                       s_options.ignore_tls_errors ? WEBKIT_TLS_ERRORS_POLICY_IGNORE
                                                                                   : WEBKIT_TLS_ERRORS_POLICY_FAIL);
@@ -424,6 +439,12 @@ cog_launcher_dispose(GObject *object)
     g_clear_handle_id(&launcher->sigterm_source, g_source_remove);
 
     g_clear_object(&launcher->web_settings);
+
+#if COG_USE_WPE2
+    g_clear_object(&launcher->network_session);
+#else
+    g_clear_object(&launcher->web_data_manager);
+#endif
 
 #if COG_HAVE_MEM_PRESSURE
     g_clear_pointer(&launcher->web_mem_settings, webkit_memory_pressure_settings_free);
@@ -479,6 +500,16 @@ option_entry_parse_cookie_jar(const char *option G_GNUC_UNUSED,
         g_assert_not_reached();
     }
 
+#if COG_USE_WPE2
+    if (launcher->automated) {
+        g_set_error_literal(error,
+                            G_OPTION_ERROR,
+                            G_OPTION_ERROR_BAD_VALUE,
+                            "Cannot set persistent cookies in automation mode");
+        return FALSE;
+    }
+#endif
+
     g_autofree char *cookie_jar_path = NULL;
     g_autofree char *format_name = g_strdup(value);
     char            *path = strchr(format_name, ':');
@@ -517,12 +548,16 @@ option_entry_parse_cookie_jar(const char *option G_GNUC_UNUSED,
 
     if (!cookie_jar_path) {
         g_autofree char *file_name = g_strconcat("cookies.", format_name, NULL);
-        cookie_jar_path = g_build_filename(
-            webkit_website_data_manager_get_base_data_directory(launcher->web_data_manager), file_name, NULL);
+        cookie_jar_path = g_build_filename(g_get_user_data_dir(), g_get_prgname(), file_name, NULL);
     }
 
     webkit_cookie_manager_set_persistent_storage(
-        webkit_website_data_manager_get_cookie_manager(launcher->web_data_manager), cookie_jar_path, enum_value->value);
+#if COG_USE_WPE2
+        webkit_network_session_get_cookie_manager(launcher->network_session),
+#else
+        webkit_website_data_manager_get_cookie_manager(launcher->web_data_manager),
+#endif
+        cookie_jar_path, enum_value->value);
     return TRUE;
 }
 
@@ -557,10 +592,16 @@ option_entry_parse_cookie_store(const char *option G_GNUC_UNUSED,
                                 CogLauncher       *launcher,
                                 GError           **error)
 {
+#if COG_USE_WPE2
+    WebKitCookieManager *cookie_manager =
+        launcher->network_session ? webkit_network_session_get_cookie_manager(launcher->network_session) : NULL;
+#else
     WebKitCookieManager *cookie_manager = webkit_website_data_manager_get_cookie_manager(launcher->web_data_manager);
+#endif
 
     if (strcmp(value, "help") == 0) {
-        const WebKitCookieAcceptPolicy default_mode = cookie_manager_get_accept_policy(cookie_manager);
+        const WebKitCookieAcceptPolicy default_mode = cookie_manager ? cookie_manager_get_accept_policy(cookie_manager)
+                                                                     : WEBKIT_COOKIE_POLICY_ACCEPT_NO_THIRD_PARTY;
         g_autoptr(GEnumClass)          enum_class = g_type_class_ref(WEBKIT_TYPE_COOKIE_ACCEPT_POLICY);
         for (unsigned i = 0; i < enum_class->n_values; i++) {
             const char *format = (enum_class->values[i].value == default_mode) ? "%s (default)\n" : "%s\n";
@@ -569,6 +610,14 @@ option_entry_parse_cookie_store(const char *option G_GNUC_UNUSED,
         exit(EXIT_SUCCESS);
         g_assert_not_reached();
     }
+
+#if COG_USE_WPE2
+    if (!cookie_manager) {
+        g_set_error_literal(error, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
+                            "Cannot set cookie storing mode in automation mode");
+        return FALSE;
+    }
+#endif
 
     const GEnumValue *enum_value = cog_g_enum_get_value(WEBKIT_TYPE_COOKIE_ACCEPT_POLICY, value);
     if (!enum_value) {
@@ -624,6 +673,12 @@ option_entry_parse_cookie_add(const char *option G_GNUC_UNUSED,
                               CogLauncher       *launcher,
                               GError **error     G_GNUC_UNUSED)
 {
+#if COG_USE_WPE2
+    if (launcher->automated) {
+        g_set_error_literal(error, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE, "Cannot add cookies in automation mode");
+        return FALSE;
+    }
+#endif
     g_autoptr(GMainLoop)  loop = NULL;
     g_autoptr(SoupCookie) cookie = NULL;
     g_autofree char      *domain = g_strdup(value);
@@ -685,7 +740,12 @@ option_entry_parse_cookie_add(const char *option G_GNUC_UNUSED,
     // Adding a cookie is an asynchronous operation, so spin up an
     // event loop until to block until the operation completes.
     loop = g_main_loop_new(NULL, FALSE);
-    webkit_cookie_manager_add_cookie(webkit_website_data_manager_get_cookie_manager(launcher->web_data_manager),
+#if COG_USE_WPE2
+    WebKitCookieManager *cookie_manager = webkit_network_session_get_cookie_manager(launcher->network_session);
+#else
+    WebKitCookieManager *cookie_manager = webkit_website_data_manager_get_cookie_manager(launcher->web_data_manager);
+#endif
+    webkit_cookie_manager_add_cookie(cookie_manager,
                                      cookie,
                                      NULL, // GCancellable
                                      (GAsyncReadyCallback) on_cookie_added,
@@ -1050,11 +1110,17 @@ cog_launcher_constructed(GObject *object)
 
     CogLauncher *launcher = COG_LAUNCHER(object);
 
+#if COG_USE_WPE2
+    if (!launcher->automated)
+        launcher->network_session = webkit_network_session_new(NULL, NULL);
+#else
+
     g_autofree char *data_dir = g_build_filename(g_get_user_data_dir(), g_get_prgname(), NULL);
     g_autofree char *cache_dir = g_build_filename(g_get_user_cache_dir(), g_get_prgname(), NULL);
 
     launcher->web_data_manager = g_object_new(WEBKIT_TYPE_WEBSITE_DATA_MANAGER, "is-ephemeral", launcher->automated,
                                               "base-data-directory", data_dir, "base-cache-directory", cache_dir, NULL);
+#endif
 
     cog_launcher_add_action(launcher, "quit", on_action_quit, NULL);
     cog_launcher_add_action(launcher, "previous", on_action_prev, NULL);
@@ -1251,9 +1317,7 @@ cog_launcher_handle_local_options(GApplication *application, GVariantDict *optio
     }
 
     if (s_options.filter_path) {
-        WebKitWebsiteDataManager *data_manager = cog_launcher_get_web_data_manager(launcher);
-        g_autofree char          *filters_path =
-            g_build_filename(webkit_website_data_manager_get_base_cache_directory(data_manager), "filters", NULL);
+        g_autofree char *filters_path = g_build_filename(g_get_user_cache_dir(), g_get_prgname(), "filters", NULL);
         g_autoptr(WebKitUserContentFilterStore) store = webkit_user_content_filter_store_new(filters_path);
 
         g_autoptr(GFile) file = g_file_new_for_commandline_arg(s_options.filter_path);
@@ -1271,11 +1335,22 @@ cog_launcher_handle_local_options(GApplication *application, GVariantDict *optio
 
 #if HAVE_WEBKIT_NETWORK_PROXY_API
     if (s_options.proxy) {
-        WebKitWebsiteDataManager             *data_manager = cog_launcher_get_web_data_manager(launcher);
+        if (launcher->automated) {
+            g_printerr("%s: Cannot set proxy settings in automation mode\n", g_get_prgname());
+            return EXIT_FAILURE;
+        }
+
         g_autoptr(WebKitNetworkProxySettings) webkit_proxy_settings =
             webkit_network_proxy_settings_new(s_options.proxy, (const gchar *const *) s_options.ignore_hosts);
-        webkit_website_data_manager_set_network_proxy_settings(data_manager, WEBKIT_NETWORK_PROXY_MODE_CUSTOM,
+#    if COG_USE_WPE2
+        webkit_network_session_set_proxy_settings(launcher->network_session,
+                                                  WEBKIT_NETWORK_PROXY_MODE_CUSTOM,
+                                                  webkit_proxy_settings);
+#    else
+        webkit_website_data_manager_set_network_proxy_settings(launcher->web_data_manager,
+                                                               WEBKIT_NETWORK_PROXY_MODE_CUSTOM,
                                                                webkit_proxy_settings);
+#    endif
     }
 #endif /* HAVE_WEBKIT_NETWORK_PROXY_API */
 
@@ -1382,5 +1457,10 @@ WebKitWebsiteDataManager *
 cog_launcher_get_web_data_manager(CogLauncher *launcher)
 {
     g_return_val_if_fail(COG_IS_LAUNCHER(launcher), NULL);
+#if COG_USE_WPE2
+    return launcher->network_session ? webkit_network_session_get_website_data_manager(launcher->network_session)
+                                     : NULL;
+#else
     return launcher->web_data_manager;
+#endif
 }
