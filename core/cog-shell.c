@@ -30,7 +30,9 @@ typedef struct {
     WebKitSettings           *web_settings;
     WebKitWebContext         *web_context;
     WebKitWebView            *web_view;
+#if !COG_USE_WPE2
     WebKitWebsiteDataManager *web_data_manager;
+#endif
 
 #if COG_HAVE_MEM_PRESSURE
     WebKitMemoryPressureSettings *web_mem_settings;
@@ -215,7 +217,11 @@ cog_shell_get_property (GObject    *object,
             break;
 #endif /* COG_HAVE_MEM_PRESSURE */
         case PROP_WEB_DATA_MANAGER:
+#if COG_USE_WPE2
+            g_value_set_object(value, NULL);
+#else
             g_value_set_object(value, PRIV(shell)->web_data_manager);
+#endif
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -258,8 +264,10 @@ cog_shell_set_property (GObject      *object,
             break;
 #endif /* COG_HAVE_MEM_PRESSURE */
         case PROP_WEB_DATA_MANAGER:
+#if !COG_USE_WPE2
             g_clear_object(&priv->web_data_manager);
             priv->web_data_manager = g_value_dup_object(value);
+#endif
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -276,6 +284,7 @@ cog_shell_constructed(GObject *object)
     if (!priv->web_settings)
         priv->web_settings = g_object_ref_sink(webkit_settings_new());
 
+#if !COG_USE_WPE2
     g_autofree char *data_dir =
         g_build_filename (g_get_user_data_dir (), priv->name, NULL);
     g_autofree char *cache_dir =
@@ -288,16 +297,16 @@ cog_shell_constructed(GObject *object)
             priv->web_data_manager = webkit_website_data_manager_new("base-data-directory", data_dir,
                                                                      "base-cache-directory", cache_dir, NULL);
     }
+#endif
 
+    priv->web_context = g_object_new(WEBKIT_TYPE_WEB_CONTEXT,
+#if !COG_USE_WPE2
+                                     "website-data-manager", priv->web_data_manager,
+#endif
 #if COG_HAVE_MEM_PRESSURE
-    priv->web_context = g_object_new(WEBKIT_TYPE_WEB_CONTEXT, "website-data-manager", priv->web_data_manager,
-                                     "memory-pressure-settings", priv->web_mem_settings, NULL);
-
-    if (priv->net_mem_settings)
-        webkit_website_data_manager_set_memory_pressure_settings(priv->net_mem_settings);
-#else
-    priv->web_context = webkit_web_context_new_with_website_data_manager(priv->web_data_manager);
-#endif /* COG_HAVE_MEM_PRESSURE */
+                                     "memory-pressure-settings", priv->web_mem_settings,
+#endif
+                                     NULL);
 }
 
 static void
@@ -308,7 +317,9 @@ cog_shell_dispose(GObject *object)
     g_clear_object(&priv->web_view);
     g_clear_object(&priv->web_context);
     g_clear_object(&priv->web_settings);
+#if !COG_USE_WPE2
     g_clear_object(&priv->web_data_manager);
+#endif
 
     g_clear_pointer (&priv->request_handlers, g_hash_table_unref);
     g_clear_pointer (&priv->name, g_free);
