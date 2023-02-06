@@ -1176,10 +1176,9 @@ handle_key_event(CogWlPlatform *self, uint32_t key, uint32_t state, uint32_t tim
             && xkb_compose_state_get_status (xkb_data.compose_state)
             == XKB_COMPOSE_COMPOSED) {
         keysym = xkb_compose_state_get_one_sym (xkb_data.compose_state);
-        unicode = xkb_keysym_to_utf32 (keysym);
     }
 
-    struct wpe_input_keyboard_event event = {time, keysym, unicode, state == true, xkb_data.modifiers};
+    struct wpe_input_keyboard_event event = {time, keysym, key, state == true, xkb_data.modifiers};
 
     wpe_view_backend_dispatch_keyboard_event (wpe_view_data.backend, &event);
 }
