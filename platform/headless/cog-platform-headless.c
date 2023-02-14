@@ -5,10 +5,11 @@
  * Distributed under terms of the MIT license.
  */
 
+#include "../../core/cog.h"
+#include <errno.h>
 #include <glib.h>
 #include <wpe/fdo.h>
 #include <wpe/unstable/fdo-shm.h>
-#include "../../core/cog.h"
 
 struct _CogHeadlessPlatformClass {
     CogPlatformClass parent_class;
@@ -74,8 +75,17 @@ cog_headless_platform_setup(CogPlatform* platform, CogShell* shell G_GNUC_UNUSED
 {
     setup_fdo_exportable(&win);
 
-    // Maintain rendering at 30 FPS.
-    win.tick_source = g_timeout_add(1000/30, G_SOURCE_FUNC(tick_callback), &win);
+    unsigned max_fps = 30;
+    if (params && params[0] != '\0') {
+        uint64_t value = g_ascii_strtoull(params, NULL, 0);
+        if ((value == UINT64_MAX && errno == ERANGE) || value == 0 || value > UINT_MAX)
+            g_warning("Invalid refresh rate value '%s', ignored", params);
+        else
+            max_fps = (unsigned) value;
+    }
+    g_debug("Maximum refresh rate: %u FPS", max_fps);
+
+    win.tick_source = g_timeout_add(1000.0 / max_fps, G_SOURCE_FUNC(tick_callback), &win);
 
     return TRUE;
 }
