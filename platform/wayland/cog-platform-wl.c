@@ -1652,6 +1652,20 @@ static const struct wl_buffer_listener dmabuf_buffer_listener = {
 static void
 on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 {
+    const uint32_t surface_pixel_width = wl_data.current_output.scale * win_data.width;
+    const uint32_t surface_pixel_height = wl_data.current_output.scale * win_data.height;
+
+    if (surface_pixel_width != wpe_fdo_egl_exported_image_get_width(image) ||
+        surface_pixel_height != wpe_fdo_egl_exported_image_get_height(image)) {
+        g_debug("Exported FDO EGL image size %" PRIu32 "x%" PRIu32 ", does not match surface size %" PRIu32 "x%" PRIu32
+                ", skipping.",
+                wpe_fdo_egl_exported_image_get_width(image), wpe_fdo_egl_exported_image_get_height(image),
+                surface_pixel_width, surface_pixel_width);
+        wpe_view_backend_exportable_fdo_dispatch_frame_complete(wpe_host_data.exportable);
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image(wpe_host_data.exportable, image);
+        return;
+    }
+
     wpe_view_data.image = image;
 
     if (wpe_view_data.should_update_opaque_region) {
@@ -1680,10 +1694,7 @@ on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
     wl_buffer_add_listener(wpe_view_data.buffer, &buffer_listener, image);
 
     wl_surface_attach (win_data.wl_surface, wpe_view_data.buffer, 0, 0);
-    wl_surface_damage (win_data.wl_surface,
-                       0, 0,
-                       win_data.width * wl_data.current_output.scale,
-                       win_data.height * wl_data.current_output.scale);
+    wl_surface_damage(win_data.wl_surface, 0, 0, surface_pixel_width, surface_pixel_height);
 
     request_frame ();
 
@@ -1795,6 +1806,21 @@ on_export_shm_buffer (void* data, struct wpe_fdo_shm_exported_buffer* exported_b
 {
     struct wl_resource *exported_resource = wpe_fdo_shm_exported_buffer_get_resource (exported_buffer);
     struct wl_shm_buffer *exported_shm_buffer = wpe_fdo_shm_exported_buffer_get_shm_buffer (exported_buffer);
+
+    const uint32_t surface_pixel_width = wl_data.current_output.scale * win_data.width;
+    const uint32_t surface_pixel_height = wl_data.current_output.scale * win_data.height;
+
+    if (surface_pixel_width != wl_shm_buffer_get_width(exported_shm_buffer) ||
+        surface_pixel_height != wl_shm_buffer_get_height(exported_shm_buffer)) {
+        g_debug("Exported SHM buffer size %" PRIu32 "x%" PRIu32 ", does not match surface size %" PRIu32 "x%" PRIu32
+                ", skipping.",
+                wl_shm_buffer_get_width(exported_shm_buffer), wl_shm_buffer_get_width(exported_shm_buffer),
+                surface_pixel_width, surface_pixel_width);
+        wpe_view_backend_exportable_fdo_dispatch_frame_complete(wpe_host_data.exportable);
+        wpe_view_backend_exportable_fdo_egl_dispatch_release_shm_exported_buffer(wpe_host_data.exportable,
+                                                                                 exported_buffer);
+        return;
+    }
 
     struct shm_buffer *buffer = shm_buffer_for_resource (exported_resource);
     if (!buffer) {
