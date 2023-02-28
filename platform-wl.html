@@ -89,6 +89,35 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <section>
     <div class="docblock">
     <h1 id="wayland-platform">Wayland Platform<a class="md-anchor" href="#wayland-platform" title="Permanent link"></a></h1>
+<p>The Wayland (<code>wl</code>) platform plug-in allows Cog to run under a compositor which
+supports the <a href="https://wayland.freedesktop.org/">Wayland protocol</a>. The
+following is a non-comprehensive list of compositors known to&nbsp;work:</p>
+<ul>
+<li><a href="https://gnome.org"><span class="caps">GNOME</span></a> Shell, in a Wayland&nbsp;session.</li>
+<li><a href="https://wayland.pages.freedesktop.org/weston/">Weston</a>, the reference
+  compositor developed as part of the Wayland&nbsp;project.</li>
+<li><a href="https://swaywm.org/">Sway</a>, a tiling compositor based on <a href="https://gitlab.freedesktop.org/wlroots/wlroots">wlroots</a>.</li>
+<li><a href="https://www.hjdskes.nl/projects/cage/">Cage</a>, a kiosk-oriented compositor
+  based on <a href="https://gitlab.freedesktop.org/wlroots/wlroots">wlroots</a>.</li>
+<li><a href="https://labwc.github.io/">labwc</a>, a lean stacking compositor based on
+  <a href="https://gitlab.freedesktop.org/wlroots/wlroots">wlroots</a>.</li>
+</ul>
+<p>The compositor needs to be running <em>before</em> attempting to launch Cog. The
+environment variables <code>WAYLAND_DISPLAY</code> and <code>XDG_RUNTIME_DIR</code> need to be
+defined with suitable values. The <a href="#troubleshooting">troubleshooting</a>
+section provides some tips on how to obtain the needed&nbsp;values.</p>
+<p>If you start Cog <em>from within</em> the compositor, e.g. running <code>cog &lt;url&gt;</code>
+from a terminal in a <span class="caps">GNOME</span> session, should work without any manual&nbsp;intervention.</p>
+<p>A notable exception is Cage, because it is designed to run a single
+application under the compositor control. The command used to execute
+Cog needs to be provided when starting&nbsp;it:</p>
+<div class="codehilite"><pre><span></span><code>cage<span class="w"> </span>--<span class="w"> </span>cog<span class="w"> </span>wpewebkit.org
+</code></pre></div>
+
+<p>Weston and all the <a href="https://gitlab.freedesktop.org/wlroots/wlroots">wlroots</a>-based compositors listed above will run
+nested in their own window, inside another Wayland or X11 session, if the
+needed environment variables are set accordingly (<code>XDG_RUNTIME_DIR</code>, plus
+<code>WAYLAND_DISPLAY</code>, or <code>DISPLAY</code> for X11). This setup can be useful for&nbsp;development.</p>
 <h2 id="requirements">Requirements<a class="md-anchor" href="#requirements" title="Permanent link"></a></h2>
 <p>The <code>wl</code> (Wayland) platform plug-in additionally requires the following
 libraries and&nbsp;packages:</p>
@@ -189,6 +218,50 @@ there is only a single fullscreen surface being&nbsp;displayed.</p>
 </tbody>
 </table>
 <p>Currently there is no mechanism to modify or disable these key&nbsp;bindings.</p>
+<h2 id="troubleshooting">Troubleshooting<a class="md-anchor" href="#troubleshooting" title="Permanent link"></a></h2>
+<p>Before looking further, check&nbsp;that:</p>
+<ul>
+<li>There is a Wayland compositor&nbsp;running.</li>
+<li>The <code>XDG_RUNTIME_DIR</code> environment variable points to a local path writable
+  by the user account which will run&nbsp;Cog.</li>
+<li>The <code>WAYLAND_DISPLAY</code> environment variable is defined and contains the name
+  of an Unix socket which must be present at
+  <code>$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY</code>.</li>
+<li>The user account which will run Cog can access the device nodes needed for
+  <span class="caps">GPU</span> rendering, typically present under <code>/dev/dri</code>.</li>
+</ul>
+<p>If a compositor is running, the values needed for the <code>WAYLAND_DISPLAY</code> and
+<code>XDG_RUNTIME_DIR</code> environment variables can be found by pulling
+<code>XDG_RUNTIME_DIR</code> from the running process&mdash;make sure to replace <code>cage</code>
+when using a different&nbsp;compositor:</p>
+<div class="codehilite"><pre><span></span><code>tr<span class="w"> </span><span class="s1">&#39;\0&#39;</span><span class="w"> </span><span class="s1">&#39;\n&#39;</span><span class="w"> </span>&lt;<span class="w"> </span>/proc/<span class="k">$(</span>pidof<span class="w"> </span>cage<span class="k">)</span>/environ<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;^XDG_RUNTIME_DIR=&#39;</span>
+</code></pre></div>
+
+<p>Then look into the resulting location for a socket named <code>wayland-N</code>, where
+<em>N</em> is a number. The name of the socket is the value for <code>WAYLAND_DISPLAY</code>.</p>
+<p>The following shell snippet will define both variables if&nbsp;needed:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Needs Bash or Zsh</span>
+
+<span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-z<span class="w"> </span><span class="nv">$XDG_RUNTIME_DIR</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">eval</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>tr<span class="w"> </span><span class="s1">&#39;\0&#39;</span><span class="w"> </span><span class="s1">&#39;\n&#39;</span><span class="w"> </span>&lt;<span class="w"> </span>/proc/<span class="k">$(</span>pidof<span class="w"> </span>cage<span class="k">)</span>/environ<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;^XDG_RUNTIME_DIR=&#39;</span><span class="k">)</span><span class="s2">&quot;</span>
+<span class="k">fi</span>
+
+<span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-z<span class="w"> </span><span class="nv">$WAYLAND_DISPLAY</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span>path<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$XDG_RUNTIME_DIR</span><span class="s2">&quot;</span>/*<span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="nv">name</span><span class="o">=</span><span class="si">${</span><span class="nv">path</span><span class="p">#</span><span class="si">${</span><span class="nv">XDG_RUNTIME_DIR</span><span class="si">}</span><span class="p">/</span><span class="si">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="nv">$name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>wayland-*<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>-S<span class="w"> </span><span class="nv">$path</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">      </span><span class="nv">WAYLAND_DISPLAY</span><span class="o">=</span><span class="nv">$name</span>
+<span class="w">      </span><span class="nb">break</span>
+<span class="w">    </span><span class="k">fi</span>
+<span class="w">  </span><span class="k">done</span>
+<span class="k">fi</span>
+
+<span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-z<span class="w"> </span><span class="nv">$WAYLAND_DISPLAY</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;No Wayland compositor running&#39;</span>
+<span class="k">else</span>
+<span class="w">  </span><span class="nb">export</span><span class="w"> </span>WAYLAND_DISPLAY<span class="w"> </span>XDG_RUNTIME_DIR
+<span class="k">fi</span>
+</code></pre></div>
     </div>
   </section>
 </section>
