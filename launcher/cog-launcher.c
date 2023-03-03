@@ -370,10 +370,14 @@ cog_launcher_startup(GApplication *application)
     g_signal_connect_swapped(self->shell, "create-view", G_CALLBACK(cog_launcher_create_view), self);
     g_signal_connect(self->shell, "notify::web-view", G_CALLBACK(on_notify_web_view), self);
 
+#if COG_USE_WPE2
+    if (s_options.web_extensions_dir)
+        webkit_web_context_set_web_process_extensions_directory(cog_shell_get_web_context(self->shell),
+                                                                s_options.web_extensions_dir);
+#else
     if (s_options.web_extensions_dir)
         webkit_web_context_set_web_extensions_directory(cog_shell_get_web_context(self->shell),
                                                         s_options.web_extensions_dir);
-#if !COG_USE_WPE2
     webkit_web_context_set_sandbox_enabled(cog_shell_get_web_context(self->shell), s_options.enable_sandbox);
 #endif
 
