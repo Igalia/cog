@@ -1619,6 +1619,8 @@ static const struct wl_buffer_listener dmabuf_buffer_listener = {
 static void
 on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 {
+    CogWlPlatform *self = data;
+
     const uint32_t surface_pixel_width = wl_data.current_output->scale * win_data.width;
     const uint32_t surface_pixel_height = wl_data.current_output->scale * win_data.height;
 
@@ -1637,14 +1639,17 @@ on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 
     if (wpe_view_data.should_update_opaque_region) {
         wpe_view_data.should_update_opaque_region = false;
-        if (win_data.is_fullscreen) {
-          struct wl_region *region =
-              wl_compositor_create_region (wl_data.compositor);
-          wl_region_add (region, 0, 0, win_data.width, win_data.height);
-          wl_surface_set_opaque_region (win_data.wl_surface, region);
-          wl_region_destroy (region);
+
+        WebKitColor bg_color;
+        webkit_web_view_get_background_color(self->web_view, &bg_color);
+
+        if (win_data.is_fullscreen || bg_color.alpha >= 1.0) {
+            struct wl_region *region = wl_compositor_create_region(wl_data.compositor);
+            wl_region_add(region, 0, 0, win_data.width, win_data.height);
+            wl_surface_set_opaque_region(win_data.wl_surface, region);
+            wl_region_destroy(region);
         } else {
-          wl_surface_set_opaque_region (win_data.wl_surface, NULL);
+            wl_surface_set_opaque_region(win_data.wl_surface, NULL);
         }
     }
 
@@ -2534,7 +2539,7 @@ cog_wl_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_v
     };
 
     wpe_host_data.exportable =
-        wpe_view_backend_exportable_fdo_egl_create(&exportable_egl_client, NULL, win_data.width, win_data.height);
+        wpe_view_backend_exportable_fdo_egl_create(&exportable_egl_client, platform, win_data.width, win_data.height);
     g_assert(wpe_host_data.exportable);
 
     /* init WPE view backend */
