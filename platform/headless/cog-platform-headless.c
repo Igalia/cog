@@ -11,12 +11,23 @@
 #include <wpe/fdo.h>
 #include <wpe/unstable/fdo-shm.h>
 
+typedef struct {
+    unsigned                                tick_source;
+    bool                                    frame_ack_pending;
+    struct wpe_view_backend_exportable_fdo *exportable;
+} CogHeadlessView;
+
 struct _CogHeadlessPlatformClass {
     CogPlatformClass parent_class;
 };
 
 struct _CogHeadlessPlatform {
     CogPlatform parent;
+
+    unsigned max_fps;
+
+    /* TODO: Move elsewhere once multiple views are supported */
+    CogHeadlessView view;
 };
 
 G_DECLARE_FINAL_TYPE(CogHeadlessPlatform, cog_headless_platform, COG, HEADLESS_PLATFORM, CogPlatform)
@@ -28,82 +39,89 @@ G_DEFINE_DYNAMIC_TYPE_EXTENDED(
     0,
     g_io_extension_point_implement(COG_MODULES_PLATFORM_EXTENSION_POINT, g_define_type_id, "headless", 100);)
 
-struct platform_window {
-    guint tick_source;
-    gboolean frame_complete;
-    struct wpe_view_backend_exportable_fdo* exportable;
-    WebKitWebViewBackend* view_backend;
-};
-
-static struct platform_window win = {
-    .exportable = NULL, .frame_complete = FALSE
-};
-
 static void on_export_shm_buffer(void* data, struct wpe_fdo_shm_exported_buffer* buffer)
 {
-    struct platform_window* window = (struct platform_window*) data;
-    wpe_view_backend_exportable_fdo_dispatch_release_shm_exported_buffer(window->exportable, buffer);
-    window->frame_complete = TRUE;
+    CogHeadlessView *view = data;
+    wpe_view_backend_exportable_fdo_dispatch_release_shm_exported_buffer(view->exportable, buffer);
+    view->frame_ack_pending = true;
 }
 
-static void setup_fdo_exportable(struct platform_window* window)
+static gboolean
+on_cog_headless_view_tick(CogHeadlessView *self)
 {
-    wpe_loader_init("libWPEBackend-fdo-1.0.so");
-    wpe_fdo_initialize_shm();
+    if (self->frame_ack_pending) {
+        self->frame_ack_pending = false;
+        wpe_view_backend_exportable_fdo_dispatch_frame_complete(self->exportable);
+    }
+    return G_SOURCE_CONTINUE;
+}
 
+static void
+cog_headless_view_initialize(CogHeadlessView *self, CogHeadlessPlatform *platform)
+{
     static const struct wpe_view_backend_exportable_fdo_client client = {
         .export_shm_buffer = on_export_shm_buffer,
     };
 
-    window->exportable = wpe_view_backend_exportable_fdo_create(&client, window, 800, 600);
-    struct wpe_view_backend* wpeViewBackend = wpe_view_backend_exportable_fdo_get_view_backend(window->exportable);
-    window->view_backend = webkit_web_view_backend_new(wpeViewBackend, NULL, NULL);
-
-    g_assert_nonnull(window->view_backend);
+    self->exportable = wpe_view_backend_exportable_fdo_create(&client, self, 800, 600);
+    self->tick_source = g_timeout_add(1000.0 / platform->max_fps, G_SOURCE_FUNC(on_cog_headless_view_tick), self);
 }
 
-static gboolean tick_callback(gpointer data)
+static void
+cog_headless_view_finalize(CogHeadlessView *self)
 {
-    struct platform_window* window = (struct platform_window*) data;
-    if (window->frame_complete)
-        wpe_view_backend_exportable_fdo_dispatch_frame_complete(window->exportable);
-    return G_SOURCE_CONTINUE;
+    g_clear_handle_id(&self->tick_source, g_source_remove);
 }
 
 static gboolean
 cog_headless_platform_setup(CogPlatform* platform, CogShell* shell G_GNUC_UNUSED, const char* params, GError** error)
 {
-    setup_fdo_exportable(&win);
+    CogHeadlessPlatform *self = COG_HEADLESS_PLATFORM(platform);
 
-    unsigned max_fps = 30;
+    wpe_loader_init("libWPEBackend-fdo-1.0.so");
+    wpe_fdo_initialize_shm();
+
     if (params && params[0] != '\0') {
         uint64_t value = g_ascii_strtoull(params, NULL, 0);
         if ((value == UINT64_MAX && errno == ERANGE) || value == 0 || value > UINT_MAX)
             g_warning("Invalid refresh rate value '%s', ignored", params);
         else
-            max_fps = (unsigned) value;
+            self->max_fps = (unsigned) value;
     }
-    g_debug("Maximum refresh rate: %u FPS", max_fps);
+    g_debug("Maximum refresh rate: %u FPS", self->max_fps);
 
-    win.tick_source = g_timeout_add(1000.0 / max_fps, G_SOURCE_FUNC(tick_callback), &win);
-
+    cog_headless_view_initialize(&self->view, self);
     return TRUE;
 }
 
 static void
 cog_headless_platform_finalize(GObject* object)
 {
-    g_source_remove(win.tick_source);
-    wpe_view_backend_exportable_fdo_destroy(win.exportable);
+    CogHeadlessPlatform *self = COG_HEADLESS_PLATFORM(object);
+
+    cog_headless_view_finalize(&self->view);
 
     G_OBJECT_CLASS(cog_headless_platform_parent_class)->finalize(object);
+}
+
+static void
+on_cog_headless_view_backend_destroy(CogHeadlessView *self)
+{
+    g_assert(self->exportable);
+    g_clear_pointer(&self->exportable, wpe_view_backend_exportable_fdo_destroy);
 }
 
 static WebKitWebViewBackend*
 cog_headless_platform_get_view_backend(CogPlatform* platform, WebKitWebView* related_view, GError** error)
 {
-    g_assert_nonnull(win.view_backend);
-    return win.view_backend;
+    CogHeadlessPlatform *self = COG_HEADLESS_PLATFORM(platform);
+
+    struct wpe_view_backend *view_backend = wpe_view_backend_exportable_fdo_get_view_backend(self->view.exportable);
+    WebKitWebViewBackend    *wk_view_backend =
+        webkit_web_view_backend_new(view_backend, (GDestroyNotify) on_cog_headless_view_backend_destroy, &self->view);
+
+    g_assert(wk_view_backend);
+    return wk_view_backend;
 }
 
 static void
@@ -125,6 +143,7 @@ cog_headless_platform_class_finalize(CogHeadlessPlatformClass* klass G_GNUC_UNUS
 static void
 cog_headless_platform_init(CogHeadlessPlatform* self)
 {
+    self->max_fps = 30; /* Default value */
 }
 
 G_MODULE_EXPORT void
