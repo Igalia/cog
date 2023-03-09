@@ -5,8 +5,9 @@ set -eu -o pipefail
 INSTALL_DIR=${1:-${HOME}/toolchain}
 BASEURL=https://people.igalia.com/psaavedra/toolchains
 FILE=browsers-glibc-x86_64-core-image-weston-browsers-cortexa9t2hf-neon-wandboard-mesa-toolchain-1.0.sh
+SUMS="$(pwd)/.github/toolchain.sha256"
 
-declare -r INSTALL_DIR BASEURL FILE
+declare -r INSTALL_DIR BASEURL FILE SUMS
 rm -f ~/toolchain.sh
 
 declare -a curl_opts=( --http1.1 --retry 3 -L -C - )
@@ -46,6 +47,9 @@ function fetch_installer {
 }
 
 fetch_installer
+pushd ~ > /dev/null
+sha256sum -c "${SUMS}"
+popd > /dev/null
 
 if [[ -r ~/toolchain.sh ]] ; then
     echo 'Installing toolchain...'
