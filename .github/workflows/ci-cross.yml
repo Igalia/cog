@@ -1,6 +1,15 @@
 ---
 name: "Build - ARM"
-on: [pull_request, push]
+
+on:
+  push:
+    branches:
+    - master
+    - 'cog-*'
+  pull_request:
+    branches:
+    - master
+    - 'cog-*'
 
 jobs:
   build:
