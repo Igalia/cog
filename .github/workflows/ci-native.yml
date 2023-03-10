@@ -16,9 +16,9 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cache/pip
@@ -36,7 +36,7 @@ jobs:
             libdrm-dev libinput-dev libudev-dev libgbm-dev \
             libxkbcommon-x11-dev libx11-xcb-dev
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 3.8
       - name: Install Python Packages
@@ -100,17 +100,18 @@ jobs:
         run:
           ninja -C ~/build/
       - name: Archive Documentation
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: docs
           path: ~/build/docs/html
+          if-no-files-found: error
   publish:
     if: ${{ github.ref == 'refs/heads/master' }}
     needs: build
     runs-on: ubuntu-20.04
     steps:
       - name: Fetch Documentation
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: docs
           path: html
