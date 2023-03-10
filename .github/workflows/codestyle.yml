@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout Head
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Fetch Git History
         run: |
           git fetch --no-tags --prune --depth=1 \
@@ -28,7 +28,7 @@ jobs:
         run: |
           data/check-style -ocode-style.diff origin/master
       - name: Archive Diff
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: diff
