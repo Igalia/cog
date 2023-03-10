@@ -17,6 +17,16 @@ fi
 
 declare -i tries=0
 
+function check_installer {
+    local -i rc=1
+    pushd ~ > /dev/null
+    if sha256sum -c "${SUMS}" ; then
+        rc=0
+    fi
+    popd > /dev/null
+    return $rc
+}
+
 function fetch_installer {
     if [[ $(( tries++ )) -ge 10 ]] ; then
         echo 'Maximum amount of retries reached, bailing out.' 1>&2
@@ -25,7 +35,12 @@ function fetch_installer {
 
     local exit_code=0
     if curl "${curl_opts[@]}" -o ~/toolchain.sh "${BASEURL}/${FILE}" ; then
-        return 0
+        if check_installer ; then
+            return 0
+        fi
+
+        echo "Checksum mismatch, restarting download from scratch..." 1>&2
+        rm -f ~/toolchain.sh
     else
         exit_code=$?
 
@@ -35,21 +50,19 @@ function fetch_installer {
         else
             echo "Download error (${exit_code}), retrying download..." 1>&2
         fi
-        local seconds=$(( RANDOM % 10 + 5 ))
-        printf 'Waiting... %i' "${seconds}"
-        while [[ $(( seconds-- )) -gt 0 ]] ; do
-            sleep 1
-            printf ' %i' "${seconds}"
-        done
-        echo '.'
-        fetch_installer
     fi
+
+    local seconds=$(( RANDOM % 10 + 5 ))
+    printf 'Waiting... %i' "${seconds}"
+    while [[ $(( seconds-- )) -gt 0 ]] ; do
+        sleep 1
+        printf ' %i' "${seconds}"
+    done
+    echo '.'
+    fetch_installer
 }
 
 fetch_installer
-pushd ~ > /dev/null
-sha256sum -c "${SUMS}"
-popd > /dev/null
 
 if [[ -r ~/toolchain.sh ]] ; then
     echo 'Installing toolchain...'
