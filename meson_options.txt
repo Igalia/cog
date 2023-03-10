@@ -17,10 +17,11 @@ option(
     description: 'build and install programs (cog, cogctl)'
 )
 option(
-    'soup2',
-    type: 'feature',
-    value: 'disabled',
-    description: 'Build with libsoup2 instead of libsoup3'
+    'wpe_api',
+    type: 'combo',
+    value: 'auto',
+    choices: ['auto', '1.0', '1.1', '2.0'],
+    description: 'WPE WebKit API to target (1.0 = soup2, 1.1/2.0 = soup3)'
 )
 
 # Wayland platform-specific features
