@@ -114,10 +114,12 @@ if wpe_target_api == '1.0'
     add_project_arguments('-DCOG_USE_SOUP2=1', language: 'c')
     gio_dep = dependency('gio-2.0', version: '>=2.44')
     libsoup_dep = dependency('libsoup-2.4')
+    soup_target_api = '2.4'
 else
     add_project_arguments('-DCOG_USE_SOUP2=0', language: 'c')
     gio_dep = dependency('gio-2.0', version: '>=2.67.4')
     libsoup_dep = dependency('libsoup-3.0', version: '>=2.99.7')
+    soup_target_api = '3.0'
 endif
 
 if wpe_target_api == '2.0'

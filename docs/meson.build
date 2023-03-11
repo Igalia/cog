@@ -21,6 +21,11 @@ gi_outputs = import('gnome').generate_gir(
     cogcore_lib,
     sources: [cogcore_sources, cogcore_headers],
     dependencies: cogcore_dep,
+    includes: [
+        'GLib-2.0', 'GObject-2.0', 'Gio-2.0',
+        'Soup-' + soup_target_api,
+        'WPEWebKit-' + wpe_target_api
+    ],
     nsversion: '@0@.0'.format(project_version_components[0]),
     header: 'cog/cog.h',
     namespace: 'Cog',
