@@ -94,7 +94,7 @@ jobs:
             -Dprograms=true \
             -Ddocumentation=true \
             -Dmanpages=true \
-            -Dsoup2=enabled
+            -Dwpe_api=1.0
       - name: Build
         env:
           TERM: dumb
