@@ -8,14 +8,9 @@ FILE=browsers-glibc-x86_64-core-image-weston-browsers-cortexa9t2hf-neon-wandboar
 SUMS="$(pwd)/.github/toolchain.sha256"
 
 declare -r INSTALL_DIR BASEURL FILE SUMS
-rm -f ~/toolchain.sh
-
 declare -a curl_opts=( --http1.1 --retry 3 -L -C - )
-if [[ -r ${INSTALL_DIR}/.installed ]] ; then
-    curl_opts+=( --time-cond "${INSTALL_DIR}/.installed" )
-fi
-
 declare -i tries=0
+rm -f ~/toolchain.sh
 
 function check_installer {
     local -i rc=1
@@ -62,19 +57,19 @@ function fetch_installer {
     fetch_installer
 }
 
-fetch_installer
-
-if [[ -r ~/toolchain.sh ]] ; then
-    echo 'Installing toolchain...'
-
-    rm -rf "${INSTALL_DIR}"
-    chmod +x ~/toolchain.sh
-    ~/toolchain.sh -d "${INSTALL_DIR}" -y
-    sudo chown -R "${USER}" "${INSTALL_DIR}"
-    chmod -R u+r "${INSTALL_DIR}"
-
-    date -r ~/toolchain.sh -u -Iseconds > "${INSTALL_DIR}/.installed"
-    touch -r ~/toolchain.sh "${INSTALL_DIR}/.installed"
-else
+if [[ -r ${INSTALL_DIR}/.installed ]] && \
+    cmp -s "${INSTALL_DIR}/.installed" "${SUMS}"
+then
     echo 'Cached toolchain already up to date'
+    exit 0
 fi
+
+fetch_installer
+echo 'Installing toolchain...'
+
+rm -rf "${INSTALL_DIR}"
+chmod +x ~/toolchain.sh
+~/toolchain.sh -d "${INSTALL_DIR}" -y
+sudo chown -R "${USER}" "${INSTALL_DIR}"
+chmod -R u+r "${INSTALL_DIR}"
+cp -v "${SUMS}" "${INSTALL_DIR}/.installed"
