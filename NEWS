@@ -1,6 +1,20 @@
-=========================
-0.15.1 - Sptember 2, 2022
-=========================
+=======================
+0.17.1 - March 11, 2023
+=======================
+
+- Support building against the new WPE WebKit 2.0 API.
+- Allow chossing the gamepad backend at runtime.
+- meson: Build in C11 mode by default.
+- drm, wl: Improved plug-in documentation.
+- headless: Allow configuring the maximum refresh rate.
+- gtk4: Follow device scale factor changes.
+- wl: Add support for libweston-12-protocols.
+- wl: Fix usage of raw codes for keyboard input.
+- wl: Fix issues due to attachment of buffers with mismatched sizes.
+
+==========================
+0.15.1 - September 2, 2022
+==========================
 
 - launcher: Add new "--proxy" and "--ignore-host" command line options, which
   allow setting up a network proxy and a list of hosts that would bypass it.
