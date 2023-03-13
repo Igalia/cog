@@ -974,23 +974,28 @@ pointer_uses_frame_event(struct wl_pointer *pointer)
 #endif
 }
 
+/*
+ * Wayland reports axis events as being 15 units per scroll wheel step. Scale
+ * values in order to match the 120 value used in the X11 plug-in and by the
+ * libinput_event_pointer_get_scroll_value_v120() function.
+ */
+enum {
+    SCROLL_WHEEL_STEP_SCALING_FACTOR = 8,
+};
+
 static void
-pointer_on_axis (void* data,
-                 struct wl_pointer *pointer,
-                 uint32_t time,
-                 uint32_t axis,
-                 wl_fixed_t value)
+pointer_on_axis(void *data, struct wl_pointer *pointer, uint32_t time, uint32_t axis, wl_fixed_t value)
 {
     if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
         wl_data.axis.has_delta = true;
         wl_data.axis.time = time;
-        wl_data.axis.y_delta += value;
+        wl_data.axis.y_delta += value * SCROLL_WHEEL_STEP_SCALING_FACTOR;
     }
 
     if (axis == WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
         wl_data.axis.has_delta = true;
         wl_data.axis.time = time;
-        wl_data.axis.x_delta += value;
+        wl_data.axis.x_delta += value * SCROLL_WHEEL_STEP_SCALING_FACTOR;
     }
 
     if (!pointer_uses_frame_event(pointer))

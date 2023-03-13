@@ -255,14 +255,26 @@ xcb_handle_axis(xcb_button_press_event_t *event, const int16_t axis_delta[2])
 }
 
 static void
-xcb_handle_button_press (xcb_button_press_event_t *event)
+xcb_handle_button_press(xcb_button_press_event_t *event)
 {
-    static const int16_t axis_delta[4][2] = {
-        {   0, -20 },
-        {   0,  20 },
-        { -20,   0 },
-        {  20,   0 },
+    /*
+     * Match the multiplier value used e.g. by libinput when using
+     * libinput_event_pointer_get_scroll_value_v120(), which in turn is
+     * based on a design document by Microsoft about enhanced mouse wheel
+     * support.
+     */
+    enum {
+        SCROLL_WHEEL_STEP_SIZE = 120,
     };
+
+    /* clang-format off */
+    static const int16_t axis_delta[4][2] = {
+        {  0,  SCROLL_WHEEL_STEP_SIZE },
+        {  0, -SCROLL_WHEEL_STEP_SIZE },
+        {  SCROLL_WHEEL_STEP_SIZE,  0 },
+        { -SCROLL_WHEEL_STEP_SIZE,  0 },
+    };
+    /* clang-format on */
 
     switch (event->detail) {
     case 1:
