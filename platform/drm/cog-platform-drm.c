@@ -1201,6 +1201,11 @@ init_input(CogDrmPlatform *platform)
     input_data.input_width = drm_data.mode->hdisplay;
     input_data.input_height = drm_data.mode->vdisplay;
 
+    if (platform->rotation == COG_GL_RENDERER_ROTATION_90 || platform->rotation == COG_GL_RENDERER_ROTATION_270){
+        input_data.input_width = drm_data.mode->vdisplay;
+        input_data.input_height = drm_data.mode->hdisplay;
+    }
+
     for (int i = 0; i < G_N_ELEMENTS (input_data.touch_points); ++i) {
         struct wpe_input_touch_event_raw *touch_point = &input_data.touch_points[i];
 
