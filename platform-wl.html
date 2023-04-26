@@ -251,7 +251,7 @@ when using a different&nbsp;compositor:</p>
 <span class="w">    </span><span class="nv">name</span><span class="o">=</span><span class="si">${</span><span class="nv">path</span><span class="p">#</span><span class="si">${</span><span class="nv">XDG_RUNTIME_DIR</span><span class="si">}</span><span class="p">/</span><span class="si">}</span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="nv">$name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>wayland-*<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>-S<span class="w"> </span><span class="nv">$path</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
 <span class="w">      </span><span class="nv">WAYLAND_DISPLAY</span><span class="o">=</span><span class="nv">$name</span>
-<span class="w">      </span><span class="nb">break</span>
+<span class="w">      </span><span class="k">break</span>
 <span class="w">    </span><span class="k">fi</span>
 <span class="w">  </span><span class="k">done</span>
 <span class="k">fi</span>
