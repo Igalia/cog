@@ -1212,8 +1212,15 @@ keyboard_on_key (void *data,
 {
     CogWlPlatform *self = data;
 
-    /* @FIXME: investigate why is this necessary */
-    // IDK.
+    // wl_keyboard protocol sends key events as a physical key signals on
+    // the keyboard (limited to 256 - 8 bits).  The XKB protocol doesn't share
+    // this limitation and uses extended keycodes and it restricts these
+    // names to at most 4 (ASCII) characters:
+    //
+    //   xkb_keycode_t keycode_A = KEY_A + 8;
+    //
+    // Ref: xkb_keycode_t section in
+    // https://xkbcommon.org/doc/current/xkbcommon_8h.html
     key += 8;
 
     wl_data.event_serial = serial;
