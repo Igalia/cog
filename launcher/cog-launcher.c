@@ -320,6 +320,7 @@ cog_launcher_create_view(CogLauncher *self, CogShell *shell)
         else
             g_error("'%s' doesn't represent a valid #RRGGBBAA or CSS color format.", s_options.background_color);
     }
+    g_clear_pointer(&s_options.background_color, g_free);
 
     switch (s_options.on_failure.action_id) {
     case WEBPROCESS_FAIL_ERROR_PAGE:
@@ -387,6 +388,7 @@ cog_launcher_startup(GApplication *application)
                                                         s_options.web_extensions_dir);
     webkit_web_context_set_sandbox_enabled(cog_shell_get_web_context(self->shell), s_options.enable_sandbox);
 #endif
+    g_clear_pointer(&s_options.web_extensions_dir, g_free);
 
     g_object_set(self->shell, "device-scale-factor", s_options.device_scale_factor, NULL);
 
@@ -1263,8 +1265,7 @@ cog_launcher_handle_local_options(GApplication *application, GVariantDict *optio
         g_printerr("%s: URI '%s' is invalid UTF-8: %s\n", g_get_prgname(), uri, error->message);
         return EXIT_FAILURE;
     }
-    g_strfreev(s_options.arguments);
-    s_options.arguments = NULL;
+    g_clear_pointer(&s_options.arguments, g_strfreev);
 
     /*
      * Validate the supplied local URI handler specification and check
@@ -1300,8 +1301,7 @@ cog_launcher_handle_local_options(GApplication *application, GVariantDict *optio
         *colon = '\0'; /* NULL-terminate the URI scheme name. */
         g_hash_table_insert(handler_map, g_strdup(s_options.dir_handlers[i]), cog_directory_files_handler_new(file));
     }
-    if (s_options.dir_handlers)
-        g_strfreev(s_options.dir_handlers);
+    g_clear_pointer(&s_options.dir_handlers, g_strfreev);
     s_options.handler_map = g_hash_table_size(handler_map) ? g_steal_pointer(&handler_map) : NULL;
 
     s_options.home_uri = g_steal_pointer(&utf8_uri);
@@ -1323,7 +1323,7 @@ cog_launcher_handle_local_options(GApplication *application, GVariantDict *optio
             return EXIT_FAILURE;
         }
 
-        g_free(s_options.config_file);
+        g_clear_pointer(&s_options.config_file, g_free);
         s_options.key_file = g_steal_pointer(&key_file);
     }
 
@@ -1353,6 +1353,8 @@ cog_launcher_handle_local_options(GApplication *application, GVariantDict *optio
 
         g_autoptr(WebKitNetworkProxySettings) webkit_proxy_settings =
             webkit_network_proxy_settings_new(s_options.proxy, (const gchar *const *) s_options.ignore_hosts);
+        g_clear_pointer(&s_options.proxy, g_free);
+        g_clear_pointer(&s_options.ignore_hosts, g_strfreev);
 #    if COG_USE_WPE2
         webkit_network_session_set_proxy_settings(launcher->network_session,
                                                   WEBKIT_NETWORK_PROXY_MODE_CUSTOM,
