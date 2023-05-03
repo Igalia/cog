@@ -473,7 +473,7 @@ cog_web_view_connect_default_progress_handlers (WebKitWebView *web_view)
  * @group: Name of a group from the key file.
  * @error: (out) (nullable): Location where to store an error, if any.
  *
- * Reads values from a given `group` of a [class@GLib.KeyFile] object,
+ * Reads values from a given `group` of a [struct@GLib.KeyFile] object,
  * and uses them to set the writable properties of a [class@WebKit.Settings]
  * object.
  *
