@@ -105,7 +105,6 @@ enum {
 
 struct _CogLauncher {
     GApplication parent;
-    CogPlatform *platform;
     CogShell    *shell;
     gboolean     allow_all_requests;
     gboolean     automated;
@@ -212,8 +211,8 @@ cog_launcher_open(GApplication *application, GFile **files, int n_files, const c
     webkit_web_view_load_uri(cog_shell_get_web_view(COG_LAUNCHER(application)->shell), uri);
 }
 
-static gboolean
-platform_setup(CogLauncher *self)
+static CogPlatform *
+platform_setup_once(CogLauncher *self)
 {
     /*
      * Here we resolve the CogPlatform we are going to use. A Cog platform
@@ -229,11 +228,11 @@ platform_setup(CogLauncher *self)
     g_clear_pointer(&s_options.platform_name, g_free);
     g_debug("%s: Platform name: %s", __func__, platform_name);
 
-    g_autoptr(GError)      error = NULL;
-    g_autoptr(CogPlatform) platform = cog_platform_new(platform_name, &error);
+    g_autoptr(GError) error = NULL;
+    CogPlatform      *platform = cog_platform_new(platform_name, &error);
     if (!platform) {
         g_warning("Cannot create platform: %s", error->message);
-        return FALSE;
+        return NULL;
     }
 
     g_autofree const char *platform_params = g_strdup(s_options.platform_params ?: g_getenv("COG_PLATFORM_PARAMS"));
@@ -242,12 +241,19 @@ platform_setup(CogLauncher *self)
 
     if (!cog_platform_setup(platform, self->shell, platform_params ?: "", &error)) {
         g_warning("Platform setup failed: %s", error->message);
-        return FALSE;
+        return NULL;
     }
-    self->platform = g_steal_pointer(&platform);
 
-    g_debug("%s: Selected %s @ %p", __func__, G_OBJECT_TYPE_NAME(self->platform), self->platform);
-    return TRUE;
+    g_debug("%s: Selected %s @ %p", __func__, G_OBJECT_TYPE_NAME(platform), platform);
+    return platform;
+}
+
+static CogPlatform *
+platform_setup(CogLauncher *self)
+{
+    static GOnce s_once = G_ONCE_INIT;
+    g_once(&s_once, (GThreadFunc) platform_setup_once, self);
+    return s_once.retval;
 }
 
 static void *
@@ -271,9 +277,10 @@ cog_launcher_create_view(CogLauncher *self, CogShell *shell)
     WebKitWebViewBackend *view_backend = NULL;
 
     // Try to load the platform plug-in specified in the command line.
-    if (platform_setup(self)) {
+    CogPlatform *platform = platform_setup(self);
+    if (platform) {
         g_autoptr(GError) error = NULL;
-        view_backend = cog_platform_get_view_backend(self->platform, NULL, &error);
+        view_backend = cog_platform_get_view_backend(platform, NULL, &error);
         if (!view_backend) {
             g_assert(error);
             g_warning("Failed to get platform's view backend: %s", error->message);
@@ -307,9 +314,11 @@ cog_launcher_create_view(CogLauncher *self, CogShell *shell)
 
     g_signal_connect(web_view, "create", G_CALLBACK(on_web_view_create), NULL);
 
-    cog_platform_init_web_view(self->platform, web_view);
-    g_autoptr(WebKitInputMethodContext) im_context = cog_platform_create_im_context(self->platform);
-    webkit_web_view_set_input_method_context(web_view, im_context);
+    if (platform) {
+        cog_platform_init_web_view(platform, web_view);
+        g_autoptr(WebKitInputMethodContext) im_context = cog_platform_create_im_context(platform);
+        webkit_web_view_set_input_method_context(web_view, im_context);
+    }
 
     if (s_options.background_color != NULL) {
         WebKitColor color;
@@ -446,8 +455,6 @@ cog_launcher_dispose(GObject *object)
         g_clear_object(&launcher->shell);
     }
 
-    g_clear_object(&launcher->platform);
-
     g_clear_handle_id(&launcher->sigint_source, g_source_remove);
     g_clear_handle_id(&launcher->sigterm_source, g_source_remove);
 
@@ -463,6 +470,8 @@ cog_launcher_dispose(GObject *object)
     g_clear_pointer(&launcher->web_mem_settings, webkit_memory_pressure_settings_free);
     g_clear_pointer(&launcher->net_mem_settings, webkit_memory_pressure_settings_free);
 #endif /* COG_HAVE_MEM_PRESSURE */
+
+    g_object_unref(cog_platform_get_default());
 
     G_OBJECT_CLASS(cog_launcher_parent_class)->dispose(object);
 }
