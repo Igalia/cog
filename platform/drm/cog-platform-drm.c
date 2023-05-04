@@ -689,7 +689,24 @@ static void
 input_dispatch_key_event (uint32_t time, uint32_t key, enum libinput_key_state state)
 {
     struct wpe_input_xkb_context *default_context = wpe_input_xkb_context_get_default ();
+
+    // if wpe is unable to prepare an xkb context (e.g. environment without
+    // any prepared keymap data), ignore the key event
+    if (!default_context)
+        return;
+
+    // libwpe (<=v1.14.1) may provide a broken context; ensure an underlying
+    // xkb_context has been configured
+    struct xkb_context *ctx = wpe_input_xkb_context_get_context(default_context);
+    if (!ctx)
+        return;
+
     struct xkb_state *context_state = wpe_input_xkb_context_get_state (default_context);
+
+    // if wpe cannot determine the xkb state (e.g. required keymap does are not
+    // available in this environment), ignore the key event
+    if (!context_state)
+        return;
 
     uint32_t keysym = wpe_input_xkb_context_get_key_code (default_context, key, !!state);
 
