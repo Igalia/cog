@@ -12,9 +12,11 @@
 #endif
 
 #include "cog-request-handler.h"
-#include "cog-webkit-utils.h"
 
 G_BEGIN_DECLS
+
+typedef struct _CogViewStack  CogViewStack;
+typedef struct _WebKitWebView WebKitWebView;
 
 #define COG_TYPE_SHELL  (cog_shell_get_type ())
 
@@ -35,6 +37,7 @@ const char *      cog_shell_get_name(CogShell *shell);
 WebKitWebContext *cog_shell_get_web_context(CogShell *shell);
 WebKitSettings   *cog_shell_get_web_settings        (CogShell          *shell);
 WebKitWebView    *cog_shell_get_web_view            (CogShell          *shell);
+CogViewStack     *cog_shell_get_view_stack(CogShell *shell);
 GKeyFile         *cog_shell_get_config_file         (CogShell          *shell);
 gdouble           cog_shell_get_device_scale_factor (CogShell          *shell);
 gboolean          cog_shell_is_automated(CogShell *shell);
