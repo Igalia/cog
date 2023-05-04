@@ -22,6 +22,7 @@
 #include "cog-request-handler.h"
 #include "cog-shell.h"
 #include "cog-utils.h"
+#include "cog-view-group.h"
 #include "cog-view.h"
 #include "cog-webkit-utils.h"
 
