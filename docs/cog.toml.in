@@ -47,6 +47,7 @@ content_files = [
     "platform-drm.md",
     "platform-x11.md",
     "platform-headless.md",
+    "platform-fallback.md",
     "webdriver.md",
 ]
 content_images = [
