@@ -6,6 +6,7 @@
  */
 
 #include "cog-modules.h"
+#include "cog-fallback-platform.h"
 
 struct ExtensionPoints {
     GIOExtensionPoint *platform;
@@ -26,6 +27,24 @@ ensure_extension_points(void)
     static GOnce once = G_ONCE_INIT;
     g_once(&once, ensure_extension_points_internal, (void *) G_STRFUNC);
     return once.retval;
+}
+
+static void *
+ensure_builtin_types_internal(void *func)
+{
+    ensure_extension_points();
+
+    g_type_ensure(cog_fallback_platform_get_type());
+
+    g_debug("%s: Built-in platform types initialized.", (const char *) func);
+    return NULL;
+}
+
+void
+ensure_builtin_types(void)
+{
+    static GOnce once = G_ONCE_INIT;
+    g_once(&once, ensure_builtin_types_internal, (void *) G_STRFUNC);
 }
 
 /**
@@ -84,7 +103,7 @@ cog_modules_get_preferred(GIOExtensionPoint *extension_point, const char *prefer
 {
     g_return_val_if_fail(extension_point != NULL, G_TYPE_INVALID);
 
-    ensure_extension_points();
+    ensure_builtin_types();
 
     if (extension_point == COG_MODULES_PLATFORM && g_strcmp0(preferred_module, "fdo") == 0) {
         g_warning("Platform module name 'fdo' is deprecated, please use 'wl' instead.");
@@ -128,7 +147,7 @@ cog_modules_foreach(GIOExtensionPoint *extension_point, void (*callback)(GIOExte
     g_return_if_fail(extension_point != NULL);
     g_return_if_fail(callback != NULL);
 
-    ensure_extension_points();
+    ensure_builtin_types();
 
     GList *item = g_list_first(g_io_extension_point_get_extensions(extension_point));
     while (item) {

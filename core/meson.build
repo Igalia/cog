@@ -39,6 +39,7 @@ cogcore_sources = files(
     'cog-host-routes-handler.c',
     'cog-modules.c',
     'cog-platform.c',
+    'cog-fallback-platform.c',
     'cog-prefix-routes-handler.c',
     'cog-request-handler.c',
     'cog-shell.c',
