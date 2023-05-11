@@ -32,6 +32,7 @@ cogcore_headers = files(
     'cog-platform.h',
     'cog-modules.h',
     'cog-gamepad.h',
+    'cog-view.h',
 )
 cogcore_sources = files(
     'cog-directory-files-handler.c',
@@ -44,6 +45,7 @@ cogcore_sources = files(
     'cog-utils.c',
     'cog-webkit-utils.c',
     'cog-gamepad.c',
+    'cog-view.c',
 )
 
 cogcore_dependencies = [

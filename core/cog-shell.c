@@ -7,7 +7,7 @@
 
 #include "cog-shell.h"
 
-#include <wpe/webkit.h>
+#include "cog-view.h"
 
 /**
  * CogShell:
@@ -79,7 +79,7 @@ static WebKitWebView*
 cog_shell_create_view_base (CogShell *shell)
 {
     CogShellPrivate *priv = PRIV(shell);
-    return g_object_new(WEBKIT_TYPE_WEB_VIEW, "settings", cog_shell_get_web_settings(shell), "web-context",
+    return g_object_new(cog_view_get_impl_type(), "settings", cog_shell_get_web_settings(shell), "web-context",
                         cog_shell_get_web_context(shell), "is-controlled-by-automation", priv->automated, NULL);
 }
 
@@ -357,16 +357,15 @@ cog_shell_class_init (CogShellClass *klass)
      * Returns: (transfer full) (nullable): A new web view that will be used
      *   by the shell.
      */
-    s_signals[CREATE_VIEW] =
-        g_signal_new ("create-view",
-                      COG_TYPE_SHELL,
-                      G_SIGNAL_RUN_LAST,
-                      G_STRUCT_OFFSET (CogShellClass, create_view),
-                      g_signal_accumulator_first_wins,
-                      NULL,
-                      NULL,
-                      WEBKIT_TYPE_WEB_VIEW,
-                      0);
+    s_signals[CREATE_VIEW] = g_signal_new("create-view",
+                                          COG_TYPE_SHELL,
+                                          G_SIGNAL_RUN_LAST,
+                                          G_STRUCT_OFFSET(CogShellClass, create_view),
+                                          g_signal_accumulator_first_wins,
+                                          NULL,
+                                          NULL,
+                                          COG_TYPE_VIEW,
+                                          0);
 
     /**
      * CogShell:name: (attributes org.gtk.Property.get=cog_shell_get_name):

@@ -232,36 +232,16 @@ cog_launcher_create_view(CogLauncher *self, CogShell *shell)
     g_autoptr(GError) error = NULL;
     CogPlatform      *platform =
         cog_platform_configure(s_options.platform_name, s_options.platform_params, "COG", shell, &error);
+    if (!platform)
+        g_error("Cannot instantiate a platform: %s", error->message);
 
-    WebKitWebViewBackend *view_backend = NULL;
-    if (platform) {
-        view_backend = cog_platform_get_view_backend(platform, NULL, &error);
-        if (!view_backend) {
-            g_assert(error);
-            g_warning("Failed to get platform's view backend: %s", error->message);
-        }
-    } else {
-        g_warning("Could not configure platform: %s", error->message);
-    }
-
-    // If the platform plug-in failed, try the default WPE backend.
-    if (!view_backend) {
-        g_debug("Instantiating default WPE backend as fall-back.");
-        view_backend = webkit_web_view_backend_new(wpe_view_backend_create(), NULL, NULL);
-    }
-
-    // At this point, either the platform plug-in or the default WPE backend
-    // must have succeeded in providing a WebKitWebViewBackend* instance.
-    if (!view_backend)
-        g_error("Could not instantiate any WPE backend.");
-
-    g_autoptr(WebKitWebView) web_view =
-        g_object_new(WEBKIT_TYPE_WEB_VIEW, "settings", cog_shell_get_web_settings(shell), "web-context", web_context,
+    g_autoptr(WebKitWebView) web_view = WEBKIT_WEB_VIEW(
+        cog_view_new("settings", cog_shell_get_web_settings(shell), "web-context", web_context, "zoom-level",
+                     s_options.scale_factor, "is-controlled-by-automation", cog_shell_is_automated(shell),
 #if COG_USE_WPE2
                      "network-session", self->network_session,
 #endif
-                     "zoom-level", s_options.scale_factor, "backend", view_backend, "is-controlled-by-automation",
-                     cog_shell_is_automated(shell), NULL);
+                     NULL));
 
     if (s_options.filter) {
         WebKitUserContentManager *manager = webkit_web_view_get_user_content_manager(web_view);
