@@ -1,0 +1,38 @@
+/*
+ * cog-view.h
+ * Copyright (C) 2023 Igalia S.L.
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+#pragma once
+
+#if !(defined(COG_INSIDE_COG__) && COG_INSIDE_COG__)
+#    error "Do not include this header directly, use <cog.h> instead"
+#endif
+
+#include "cog-webkit-utils.h"
+
+G_BEGIN_DECLS
+
+typedef struct _WebKitWebViewBackend WebKitWebViewBackend;
+struct wpe_view_backend;
+
+#define COG_TYPE_VIEW (cog_view_get_type())
+
+G_DECLARE_DERIVABLE_TYPE(CogView, cog_view, COG, VIEW, WebKitWebView)
+
+struct _CogViewClass {
+    /*< private >*/
+    WebKitWebViewClass parent_class;
+
+    WebKitWebViewBackend *(*create_backend)(CogView *);
+};
+
+#define COG_TYPE_VIEW_IMPL (cog_view_get_impl_type())
+
+GType                    cog_view_get_impl_type(void);
+CogView                 *cog_view_new(const char *first_property_name, ...);
+struct wpe_view_backend *cog_view_get_backend(CogView *view);
+
+G_END_DECLS
