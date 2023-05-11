@@ -12,7 +12,6 @@
 #include <wpe/unstable/fdo-shm.h>
 
 typedef struct {
-    unsigned                                tick_source;
     bool                                    frame_ack_pending;
     struct wpe_view_backend_exportable_fdo *exportable;
 } CogHeadlessView;
@@ -25,6 +24,7 @@ struct _CogHeadlessPlatform {
     CogPlatform parent;
 
     unsigned max_fps;
+    unsigned tick_source;
 
     /* TODO: Move elsewhere once multiple views are supported */
     CogHeadlessView view;
@@ -47,11 +47,12 @@ static void on_export_shm_buffer(void* data, struct wpe_fdo_shm_exported_buffer*
 }
 
 static gboolean
-on_cog_headless_view_tick(CogHeadlessView *self)
+on_cog_headless_platform_tick(CogHeadlessPlatform *self)
 {
-    if (self->frame_ack_pending) {
-        self->frame_ack_pending = false;
-        wpe_view_backend_exportable_fdo_dispatch_frame_complete(self->exportable);
+    CogHeadlessView *view = &self->view;
+    if (view->frame_ack_pending) {
+        view->frame_ack_pending = false;
+        wpe_view_backend_exportable_fdo_dispatch_frame_complete(view->exportable);
     }
     return G_SOURCE_CONTINUE;
 }
@@ -64,13 +65,6 @@ cog_headless_view_initialize(CogHeadlessView *self, CogHeadlessPlatform *platfor
     };
 
     self->exportable = wpe_view_backend_exportable_fdo_create(&client, self, 800, 600);
-    self->tick_source = g_timeout_add(1000.0 / platform->max_fps, G_SOURCE_FUNC(on_cog_headless_view_tick), self);
-}
-
-static void
-cog_headless_view_finalize(CogHeadlessView *self)
-{
-    g_clear_handle_id(&self->tick_source, g_source_remove);
 }
 
 static gboolean
@@ -91,6 +85,7 @@ cog_headless_platform_setup(CogPlatform* platform, CogShell* shell G_GNUC_UNUSED
     g_debug("Maximum refresh rate: %u FPS", self->max_fps);
 
     cog_headless_view_initialize(&self->view, self);
+    self->tick_source = g_timeout_add(1000.0 / self->max_fps, G_SOURCE_FUNC(on_cog_headless_platform_tick), self);
     return TRUE;
 }
 
@@ -99,7 +94,7 @@ cog_headless_platform_finalize(GObject* object)
 {
     CogHeadlessPlatform *self = COG_HEADLESS_PLATFORM(object);
 
-    cog_headless_view_finalize(&self->view);
+    g_clear_handle_id(&self->tick_source, g_source_remove);
 
     G_OBJECT_CLASS(cog_headless_platform_parent_class)->finalize(object);
 }
