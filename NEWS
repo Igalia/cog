@@ -1,3 +1,13 @@
+======================
+0.17.90 - May 12, 2023
+======================
+
+- drm: Properly support input-less setups and situations in which the
+  initialization of the XKB context may have failed.
+- x11, wl: Make mouse scroll wheel behaviour snappier.
+- launcher: Support passing the platform plug-in name and its parameters
+  using environment variables.
+
 =======================
 0.17.1 - March 11, 2023
 =======================
