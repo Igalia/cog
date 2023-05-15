@@ -48,7 +48,7 @@ struct _CogPlatformClass {
     void (*init_web_view)(CogPlatform *, WebKitWebView *);
     WebKitInputMethodContext *(*create_im_context)(CogPlatform *);
 
-    GType (*get_view_type)(CogPlatform *self);
+    GType (*get_view_type)(void);
 };
 
 void cog_platform_set_default(CogPlatform *);
