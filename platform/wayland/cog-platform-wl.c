@@ -179,15 +179,12 @@ static struct {
 #endif /* COG_USE_WAYLAND_CURSOR */
 
     struct output_metrics metrics[16];
+    struct output_metrics *current_output;
 
     struct zwp_text_input_manager_v3 *text_input_manager;
     struct zwp_text_input_manager_v1 *text_input_manager_v1;
 
     struct wp_presentation *presentation;
-
-    struct {
-        int32_t scale;
-    } current_output;
 
     struct {
         struct wl_pointer *obj;
@@ -230,9 +227,7 @@ static struct {
     GSource *event_src;
 
     struct wl_list shm_buffer_list;
-} wl_data = {
-    .current_output.scale = 1,
-};
+} wl_data = {};
 
 static struct {
     struct egl_display *display;
@@ -441,12 +436,16 @@ configure_surface_geometry(int32_t width, int32_t height)
 static void
 resize_window(void)
 {
-    int32_t pixel_width = win_data.width * wl_data.current_output.scale;
-    int32_t pixel_height = win_data.height * wl_data.current_output.scale;
+    int32_t pixel_width = win_data.width * wl_data.current_output->scale;
+    int32_t pixel_height = win_data.height * wl_data.current_output->scale;
 
     wpe_view_backend_dispatch_set_size(wpe_view_data.backend, win_data.width, win_data.height);
-    g_debug("Resized EGL buffer to: (%u, %u) @%ix\n", pixel_width, pixel_height, wl_data.current_output.scale);
+    wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_data.backend, wl_data.current_output->scale);
+
+    g_debug("Resized EGL buffer to: (%" PRIi32 ", %" PRIi32 ") @%" PRIi32 "x", pixel_width, pixel_height,
+            wl_data.current_output->scale);
 }
+
 static void
 shell_surface_ping(void *data, struct wl_shell_surface *shell_surface, uint32_t serial)
 {
@@ -618,6 +617,23 @@ output_handle_mode(void *data, struct wl_output *output, uint32_t flags, int32_t
 static void
 output_handle_done(void *data, struct wl_output *output)
 {
+    struct output_metrics *metrics = find_output(output);
+
+    if (!metrics->refresh) {
+        g_warning("No refresh rate reported for output %p, using 60Hz", output);
+        metrics->refresh = 60 * 1000;
+    }
+
+    if (!metrics->scale) {
+        g_warning("No scale factor reported for output %p, using 1x", output);
+        metrics->scale = 1;
+    }
+
+    if (!wl_data.current_output) {
+        g_debug("%s: Using %p as initial output", G_STRFUNC, output);
+        wl_data.current_output = metrics;
+    }
+
     if (win_data.should_resize_to_largest_output) {
         resize_to_largest_output();
     }
@@ -633,7 +649,7 @@ output_handle_scale(void *data, struct wl_output *output, int32_t factor)
     }
 
     metrics->scale = factor;
-    g_info("Got scale factor %i for output %p\n", factor, output);
+    g_info("Got scale factor %i for output %p", factor, output);
 }
 #endif /* WL_OUTPUT_SCALE_SINCE_VERSION */
 
@@ -732,33 +748,23 @@ static const struct wl_output_listener output_listener = {
 static void
 surface_handle_enter(void *data, struct wl_surface *surface, struct wl_output *output)
 {
-#ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
-    int32_t scale_factor = -1;
-    int32_t refresh = 0;
+    if (wl_data.current_output->output != output) {
+        g_debug("%s: Surface %p output changed %p -> %p", G_STRFUNC, surface, wl_data.current_output->output, output);
+        wl_data.current_output = find_output(output);
+        g_assert(wl_data.current_output);
+    }
 
-    for (int i = 0; i < G_N_ELEMENTS(wl_data.metrics); i++) {
-        if (wl_data.metrics[i].output == output) {
-            scale_factor = wl_data.metrics[i].scale;
-            refresh = wl_data.metrics[i].refresh;
-        }
-    }
-    if (scale_factor == -1) {
-        g_warning("No scale factor available for output %p", output);
-        return;
-    }
-    if (refresh < 0) {
-        g_warning("Refresh rate less than zero for output %p", output);
-        return;
-    }
+#ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
     if (wl_surface_get_version(surface) >= WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION) {
-        wl_surface_set_buffer_scale(surface, scale_factor);
-        wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_data.backend, scale_factor);
-        wl_data.current_output.scale = scale_factor;
+        wl_surface_set_buffer_scale(surface, wl_data.current_output->scale);
+        wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_data.backend, wl_data.current_output->scale);
+    } else {
+        g_debug("%s: Surface %p uses old protocol version, cannot set scale factor", G_STRFUNC, surface);
     }
 #endif /* WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION */
 
 #if HAVE_REFRESH_RATE_HANDLING
-    wpe_view_backend_set_target_refresh_rate(wpe_view_data.backend, refresh);
+    wpe_view_backend_set_target_refresh_rate(wpe_view_data.backend, wl_data.current_output->refresh);
 #endif /* HAVE_REFRESH_RATE_HANDLING */
 }
 
@@ -885,14 +891,12 @@ pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixe
     wl_data.pointer.x = wl_fixed_to_int(fixed_x);
     wl_data.pointer.y = wl_fixed_to_int(fixed_y);
 
-    struct wpe_input_pointer_event event = {
-        wpe_input_pointer_event_type_motion,
-        time,
-        wl_data.pointer.x * wl_data.current_output.scale,
-        wl_data.pointer.y * wl_data.current_output.scale,
-        wl_data.pointer.button,
-        wl_data.pointer.state
-    };
+    struct wpe_input_pointer_event event = {wpe_input_pointer_event_type_motion,
+                                            time,
+                                            wl_data.pointer.x * wl_data.current_output->scale,
+                                            wl_data.pointer.y * wl_data.current_output->scale,
+                                            wl_data.pointer.button,
+                                            wl_data.pointer.state};
 
     wpe_view_backend_dispatch_pointer_event(wpe_view_data.backend, &event);
 }
@@ -920,8 +924,8 @@ pointer_on_button(void *data,
     struct wpe_input_pointer_event event = {
         wpe_input_pointer_event_type_button,
         time,
-        wl_data.pointer.x * wl_data.current_output.scale,
-        wl_data.pointer.y * wl_data.current_output.scale,
+        wl_data.pointer.x * wl_data.current_output->scale,
+        wl_data.pointer.y * wl_data.current_output->scale,
         wl_data.pointer.button,
         wl_data.pointer.state,
     };
@@ -951,11 +955,11 @@ dispatch_axis_event()
     struct wpe_input_axis_2d_event event = { 0, };
     event.base.type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion_smooth;
     event.base.time = wl_data.axis.time;
-    event.base.x = wl_data.pointer.x * wl_data.current_output.scale;
-    event.base.y = wl_data.pointer.y * wl_data.current_output.scale;
+    event.base.x = wl_data.pointer.x * wl_data.current_output->scale;
+    event.base.y = wl_data.pointer.y * wl_data.current_output->scale;
 
-    event.x_axis = wl_fixed_to_double(wl_data.axis.x_delta) * wl_data.current_output.scale;
-    event.y_axis = -wl_fixed_to_double(wl_data.axis.y_delta) * wl_data.current_output.scale;
+    event.x_axis = wl_fixed_to_double(wl_data.axis.x_delta) * wl_data.current_output->scale;
+    event.y_axis = -wl_fixed_to_double(wl_data.axis.y_delta) * wl_data.current_output->scale;
 
     wpe_view_backend_dispatch_axis_event(wpe_view_data.backend, &event.base);
 
@@ -1340,8 +1344,8 @@ touch_on_down (void *data,
         wpe_input_touch_event_type_down,
         time,
         id,
-        wl_fixed_to_int (x) * wl_data.current_output.scale,
-        wl_fixed_to_int (y) * wl_data.current_output.scale,
+        wl_fixed_to_int(x) * wl_data.current_output->scale,
+        wl_fixed_to_int(y) * wl_data.current_output->scale,
     };
 
     memcpy (&wl_data.touch.points[id],
@@ -1440,8 +1444,8 @@ touch_on_motion (void *data,
         wpe_input_touch_event_type_motion,
         time,
         id,
-        wl_fixed_to_int (x) * wl_data.current_output.scale,
-        wl_fixed_to_int (y) * wl_data.current_output.scale,
+        wl_fixed_to_int(x) * wl_data.current_output->scale,
+        wl_fixed_to_int(y) * wl_data.current_output->scale,
     };
 
     memcpy (&wl_data.touch.points[id],
@@ -1664,8 +1668,8 @@ static const struct wl_buffer_listener dmabuf_buffer_listener = {
 static void
 on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 {
-    const uint32_t surface_pixel_width = wl_data.current_output.scale * win_data.width;
-    const uint32_t surface_pixel_height = wl_data.current_output.scale * win_data.height;
+    const uint32_t surface_pixel_width = wl_data.current_output->scale * win_data.width;
+    const uint32_t surface_pixel_height = wl_data.current_output->scale * win_data.height;
 
     if (surface_pixel_width != wpe_fdo_egl_exported_image_get_width(image) ||
         surface_pixel_height != wpe_fdo_egl_exported_image_get_height(image)) {
@@ -1819,8 +1823,8 @@ on_export_shm_buffer (void* data, struct wpe_fdo_shm_exported_buffer* exported_b
     struct wl_resource *exported_resource = wpe_fdo_shm_exported_buffer_get_resource (exported_buffer);
     struct wl_shm_buffer *exported_shm_buffer = wpe_fdo_shm_exported_buffer_get_shm_buffer (exported_buffer);
 
-    const uint32_t surface_pixel_width = wl_data.current_output.scale * win_data.width;
-    const uint32_t surface_pixel_height = wl_data.current_output.scale * win_data.height;
+    const uint32_t surface_pixel_width = wl_data.current_output->scale * win_data.width;
+    const uint32_t surface_pixel_height = wl_data.current_output->scale * win_data.height;
 
     if (surface_pixel_width != wl_shm_buffer_get_width(exported_shm_buffer) ||
         surface_pixel_height != wl_shm_buffer_get_height(exported_shm_buffer)) {
@@ -2306,17 +2310,15 @@ create_popup (WebKitOptionMenu *option_menu)
     popup_data.width = win_data.width;
     popup_data.height = cog_popup_menu_get_height_for_option_menu (option_menu);
 
-    popup_data.popup_menu = cog_popup_menu_create (option_menu, wl_data.shm,
-                                                   popup_data.width,
-                                                   popup_data.height,
-                                                   wl_data.current_output.scale);
+    popup_data.popup_menu = cog_popup_menu_create(option_menu, wl_data.shm, popup_data.width, popup_data.height,
+                                                  wl_data.current_output->scale);
 
     popup_data.wl_surface = wl_compositor_create_surface (wl_data.compositor);
     g_assert (popup_data.wl_surface);
 
 #ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
     if (wl_surface_get_version(popup_data.wl_surface) >= WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION)
-        wl_surface_set_buffer_scale(popup_data.wl_surface, wl_data.current_output.scale);
+        wl_surface_set_buffer_scale(popup_data.wl_surface, wl_data.current_output->scale);
 #endif /* WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION */
 
     if (wl_data.xdg_shell != NULL) {
