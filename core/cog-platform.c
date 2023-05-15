@@ -123,8 +123,16 @@ cog_platform_init_web_view (CogPlatform   *platform,
     g_return_if_fail(COG_IS_PLATFORM(platform));
 
     CogPlatformClass *klass = COG_PLATFORM_GET_CLASS(platform);
-    if (klass->init_web_view)
+    if (klass->init_web_view) {
+        if (klass->get_view_type) {
+            g_warning_once("%s: class %s defines both .get_view_type and .init_web_view, "
+                           "the latter should be removed.",
+                           G_STRFUNC, G_OBJECT_CLASS_NAME(platform));
+            return;
+        }
+
         klass->init_web_view(platform, view);
+    }
 }
 
 WebKitInputMethodContext *
