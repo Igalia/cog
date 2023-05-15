@@ -19,7 +19,7 @@
  * [struct@WPEWebKit.WebViewBackend] to the current [class@CogPlatform]
  * implementation. Optionally, platform plug-in implementations can
  * provide their own view class implementation by overriding
- * [vfunc@CogPlatform.get_view_type].
+ * the [func@CogPlatform.get_view_type] method.
  *
  * A number of utility functions are also provided.
  */
@@ -150,7 +150,7 @@ _cog_view_get_impl_type_init(GType *type)
     if (platform) {
         CogPlatformClass *platform_class = COG_PLATFORM_GET_CLASS(platform);
         if (platform_class->get_view_type) {
-            GType view_type = (*platform_class->get_view_type)(platform);
+            GType view_type = (*platform_class->get_view_type)();
             *type = view_type;
         }
     }
