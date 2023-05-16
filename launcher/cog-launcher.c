@@ -211,51 +211,6 @@ cog_launcher_open(GApplication *application, GFile **files, int n_files, const c
     webkit_web_view_load_uri(cog_shell_get_web_view(COG_LAUNCHER(application)->shell), uri);
 }
 
-static CogPlatform *
-platform_setup_once(CogLauncher *self)
-{
-    /*
-     * Here we resolve the CogPlatform we are going to use. A Cog platform
-     * is dynamically loaded object that abstracts the specifics about how
-     * a WebView's WPE backend is going to be constructed and rendered on
-     * a given platform.
-     */
-
-    /* The documentation of g_getenv() says that the returned string may be overwritten by the next
-     * call to g_getenv(), g_setenv() or g_unsetenv(), so avoid passing it directly as parameter to
-     * other functions that may call any of the *env() functions and then try to use the parameter. */
-    g_autofree const char *platform_name = g_strdup(s_options.platform_name ?: g_getenv("COG_PLATFORM_NAME"));
-    g_clear_pointer(&s_options.platform_name, g_free);
-    g_debug("%s: Platform name: %s", __func__, platform_name);
-
-    g_autoptr(GError) error = NULL;
-    CogPlatform      *platform = cog_platform_new(platform_name, &error);
-    if (!platform) {
-        g_warning("Cannot create platform: %s", error->message);
-        return NULL;
-    }
-
-    g_autofree const char *platform_params = g_strdup(s_options.platform_params ?: g_getenv("COG_PLATFORM_PARAMS"));
-    g_clear_pointer(&s_options.platform_params, g_free);
-    g_debug("%s: Platform params: %s", __func__, platform_params);
-
-    if (!cog_platform_setup(platform, self->shell, platform_params ?: "", &error)) {
-        g_warning("Platform setup failed: %s", error->message);
-        return NULL;
-    }
-
-    g_debug("%s: Selected %s @ %p", __func__, G_OBJECT_TYPE_NAME(platform), platform);
-    return platform;
-}
-
-static CogPlatform *
-platform_setup(CogLauncher *self)
-{
-    static GOnce s_once = G_ONCE_INIT;
-    g_once(&s_once, (GThreadFunc) platform_setup_once, self);
-    return s_once.retval;
-}
-
 static void *
 on_web_view_create(WebKitWebView *web_view, WebKitNavigationAction *action)
 {
@@ -274,17 +229,19 @@ cog_launcher_create_view(CogLauncher *self, CogShell *shell)
         webkit_web_context_set_cache_model(web_context, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
     }
 
-    WebKitWebViewBackend *view_backend = NULL;
+    g_autoptr(GError) error = NULL;
+    CogPlatform      *platform =
+        cog_platform_configure(s_options.platform_name, s_options.platform_params, "COG", shell, &error);
 
-    // Try to load the platform plug-in specified in the command line.
-    CogPlatform *platform = platform_setup(self);
+    WebKitWebViewBackend *view_backend = NULL;
     if (platform) {
-        g_autoptr(GError) error = NULL;
         view_backend = cog_platform_get_view_backend(platform, NULL, &error);
         if (!view_backend) {
             g_assert(error);
             g_warning("Failed to get platform's view backend: %s", error->message);
         }
+    } else {
+        g_warning("Could not configure platform: %s", error->message);
     }
 
     // If the platform plug-in failed, try the default WPE backend.
