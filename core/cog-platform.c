@@ -180,11 +180,11 @@ cog_platform_configure(const char *name, const char *params, const char *env_pre
 
     if (env_prefix) {
         if (!platform_name) {
-            g_autofree char *name_var = g_strconcat(env_prefix, "PLATFORM_NAME", NULL);
+            g_autofree char *name_var = g_strconcat(env_prefix, "_PLATFORM_NAME", NULL);
             platform_name = g_strdup(g_getenv(name_var));
         }
         if (!params) {
-            g_autofree char *params_var = g_strconcat(env_prefix, "PLATFORM_PARAMS", NULL);
+            g_autofree char *params_var = g_strconcat(env_prefix, "_PLATFORM_PARAMS", NULL);
             platform_params = g_strdup(g_getenv(params_var));
         }
     }
