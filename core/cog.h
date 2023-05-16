@@ -23,6 +23,7 @@
 #include "cog-shell.h"
 #include "cog-utils.h"
 #include "cog-view-group.h"
+#include "cog-view-stack.h"
 #include "cog-view.h"
 #include "cog-webkit-utils.h"
 

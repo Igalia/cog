@@ -34,6 +34,7 @@ cogcore_headers = files(
     'cog-gamepad.h',
     'cog-view.h',
     'cog-view-group.h',
+    'cog-view-stack.h',
 )
 cogcore_sources = files(
     'cog-directory-files-handler.c',
@@ -49,6 +50,7 @@ cogcore_sources = files(
     'cog-gamepad.c',
     'cog-view.c',
     'cog-view-group.c',
+    'cog-view-stack.c',
 )
 
 cogcore_dependencies = [
