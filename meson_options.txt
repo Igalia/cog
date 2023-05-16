@@ -17,6 +17,12 @@ option(
     description: 'build and install programs (cog, cogctl)'
 )
 option(
+    'examples',
+    type: 'boolean',
+    value: true,
+    description: 'build example programs'
+)
+option(
     'wpe_api',
     type: 'combo',
     value: 'auto',

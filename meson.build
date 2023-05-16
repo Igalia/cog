@@ -164,6 +164,10 @@ if get_option('documentation')
     subdir('docs')
 endif
 
+if get_option('examples')
+    subdir('examples')
+endif
+
 if with_programs
     subdir('launcher')
     if get_option('manpages')
