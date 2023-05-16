@@ -64,6 +64,9 @@ void                      cog_platform_init_web_view     (CogPlatform   *platfor
 
 WebKitInputMethodContext *cog_platform_create_im_context (CogPlatform   *platform);
 
+CogPlatform *
+cog_platform_configure(const char *name, const char *params, const char *env_prefix, CogShell *shell, GError **error);
+
 G_END_DECLS
 
 #endif /* !COG_PLATFORM_H */
