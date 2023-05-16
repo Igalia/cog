@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Platform.new</title>
+  <title>Cog.Platform.configure</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.Platform.new"/>
-  <meta property="og:description" content="Reference for Cog.Platform.new"/>
-  <meta name="twitter:title" content="Cog.Platform.new"/>
-  <meta name="twitter:description" content="Reference for Cog.Platform.new"/>
+  <meta property="og:title" content="Cog.Platform.configure"/>
+  <meta property="og:description" content="Reference for Cog.Platform.configure"/>
+  <meta name="twitter:title" content="Cog.Platform.configure"/>
+  <meta name="twitter:description" content="Reference for Cog.Platform.configure"/>
 
 
   
@@ -87,9 +87,9 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <h5>Constructors</h5>
   <div class="links">
   
-    <a class="method" href="ctor.Platform.configure.html">configure</a>
+    <a class="method current" href="ctor.Platform.configure.html">configure</a>
   
-    <a class="method current" href="ctor.Platform.new.html">new</a>
+    <a class="method" href="ctor.Platform.new.html">new</a>
   
   </div>
 </div>
@@ -104,7 +104,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <section id="main" class="content">
   <header>
     <h3>Constructor</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a><span class="sep"></span>new</h1>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a><span class="sep"></span>configure</h1>
   </header>
 
   <section>
@@ -113,14 +113,17 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Declaration
         <a href="#declaration" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-platform.h#L54">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-platform.h#L68">[src]</a>
         
       </h4>
 
       <div class="docblock">
         <pre><code><div class="highlight"><pre><span></span><span class="n">CogPlatform</span><span class="o">*</span>
-<span class="n">cog_platform_new</span><span class="w"> </span><span class="p">(</span>
+<span class="n">cog_platform_configure</span><span class="w"> </span><span class="p">(</span>
 <span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">name</span><span class="p">,</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">params</span><span class="p">,</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">env_prefix</span><span class="p">,</span>
+<span class="w">  </span><span class="n">CogShell</span><span class="o">*</span><span class="w"> </span><span class="n">shell</span><span class="p">,</span>
 <span class="w">  </span><span class="n">GError</span><span class="o">**</span><span class="w"> </span><span class="n">error</span>
 <span class="p">)</span>
 </pre></div>
@@ -133,15 +136,31 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-platform.c#L142">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Creates and configures a platform&nbsp;implementation.</p>
+<p>Search and create a platform implementation with the given <code>name</code>,
+configuring it with the passed <code>params</code> for use with a <code>shell</code>.</p>
+<p>If the <code>env_prefix</code> is non-<code>NULL</code>, then the environment variable
+<code>&lt;env_prefix&gt;_PLATFORM_NAME</code> can be used to set the platform name
+when <code>name</code> is <code>NULL</code>, and the variable <code>&lt;env_prefix&gt;_PLATFORM_PARAMS</code>
+can be used to set the configuration parameters when <code>params</code> is <code>NULL</code>.
+Environment variables will <em>not</em> be used if <code>NULL</code> is passed as the&nbsp;prefix.</p>
+<p>If both <code>name</code> is <code>NULL</code> and the <code>&lt;env_prefix&gt;_PLATFORM_NAME</code> variable
+not defined, then the platform implementation will be chosen automatically
+among the available&nbsp;ones.</p>
+<p>Note that <a href="func.modules_add_directory.html">cog_modules_add_directory()</a> may be used beforehand to
+configure where to search for available platform&nbsp;plug-ins.</p>
       </div>
 
       <div class="docblock">
         <table>
           
+          
+          <tr><td>Available since:</td><td>0.18</td></tr>
           
           
         </table>
@@ -166,7 +185,61 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>Name of the platform implementation to&nbsp;use.</p></td>
+          </tr>
+          
+          <tr><td>&nbsp;</td><td>The argument can be <code>NULL</code>.</td></tr>
+          
+          
+          
+          
+          
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
+          <tr><td>&nbsp;</td><td>The string is a NUL terminated UTF-8 string.</td></tr>
+          
+          <tr class="arg-name">
+            <td><code>params</code></td>
+            <td><code>const char*</code></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td><p>Parameters passed to the platform&nbsp;implementation.</p></td>
+          </tr>
+          
+          <tr><td>&nbsp;</td><td>The argument can be <code>NULL</code>.</td></tr>
+          
+          
+          
+          
+          
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
+          <tr><td>&nbsp;</td><td>The string is a NUL terminated UTF-8 string.</td></tr>
+          
+          <tr class="arg-name">
+            <td><code>env_prefix</code></td>
+            <td><code>const char*</code></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td><p>Prefix for environment variables to&nbsp;check.</p></td>
+          </tr>
+          
+          <tr><td>&nbsp;</td><td>The argument can be <code>NULL</code>.</td></tr>
+          
+          
+          
+          
+          
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
+          <tr><td>&nbsp;</td><td>The string is a NUL terminated UTF-8 string.</td></tr>
+          
+          <tr class="arg-name">
+            <td><code>shell</code></td>
+            <td><a href="class.Shell.html"><code>CogShell</code></a></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td><p>The shell that the platform will be configured&nbsp;for.</p></td>
           </tr>
           
           
@@ -176,7 +249,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           
           
           <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
-          <tr><td>&nbsp;</td><td>The string is a NUL terminated UTF-8 string.</td></tr>
+          
           
           
           <tr class="arg-name">
@@ -208,7 +281,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>The configured&nbsp;platform.</p></td>
           </tr>
           
           
