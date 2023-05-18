@@ -1,0 +1,119 @@
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Cog &ndash; 0.0: Platform: Fallback</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta charset="utf-8" />
+
+  
+  <meta property="og:type" content="website"/>
+
+  
+  <meta property="og:image:width" content="256"/>
+  <meta property="og:image:height" content="256"/>
+  <meta property="og:image:secure_url" content="cog.png"/>
+  <meta property="og:image:alt" content="Cog-0.0"/>
+  
+
+  
+  <meta property="og:title" content="Cog: Platform: Fallback"/>
+  <meta property="og:description" content="Reference for Cog-0.0: Platform: Fallback"/>
+  <meta name="twitter:title" content="Cog: Platform: Fallback"/>
+  <meta name="twitter:description" content="Reference for Cog-0.0: Platform: Fallback"/>
+
+
+  
+  <meta name="twitter:card" content="summary"/>
+
+  
+
+  <link rel="stylesheet" href="style.css" type="text/css" />
+
+  
+
+  
+  
+  <script src="fzy.js"></script>
+  <script src="search.js"></script>
+  
+  <script src="main.js"></script>
+  <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+</head>
+
+<body>
+  <div id="body-wrapper" tabindex="-1">
+
+    <nav class="sidebar devhelp-hidden">
+      
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
+      
+      <div class="search section">
+        <form id="search-form" autocomplete="off">
+          <input id="search-input" type="text" name="do-not-autocomplete" placeholder="Click, or press 's' to search" autocomplete="off"/>
+        </form>
+      </div>
+      
+      <div class="section namespace">
+        <h3><a href="index.html">Cog</a></h3>
+        <p>API Version: 0.0</p>
+        
+        <p>Library Version: 0.17.1</p>
+        
+      </div>
+      
+      
+    </nav>
+
+    
+    <button id="btn-to-top" class="hidden"><span class="up-arrow"></span></button>
+    
+
+    
+<section id="main" class="content">
+  <section>
+    <div class="docblock">
+    <h1 id="fallback-platform">Fallback Platform<a class="md-anchor" href="#fallback-platform" title="Permanent link"></a></h1>
+<h2 id="requirements">Requirements<a class="md-anchor" href="#requirements" title="Permanent link"></a></h2>
+<p>The fallback platform plug-in does not have any additional requirement
+at build time. An usable <span class="caps">WPE</span> backend must be installed at run time. The
+following are known to&nbsp;work:</p>
+<ul>
+<li><a href="https://github.com/WebPlatformForEmbedded/WPEBackend-rdk">WPEBackend-rdk</a></li>
+</ul>
+<h2 id="parameters">Parameters<a class="md-anchor" href="#parameters" title="Permanent link"></a></h2>
+<p>The only parameter accepted by the plug-in is the name of the <span class="caps">WPE</span> backend
+library to search for. This is <code>default</code> if not specified, which results
+in searching for a shared library named <code>libWPEBackend-default.so</code> (and
+a few related&nbsp;variants).</p>
+<p>The following example set the <span class="caps">WPE</span> backend library to use&nbsp;WPEBackend-rdk:</p>
+<div class="codehilite"><pre><span></span><code>cog<span class="w"> </span>--platform<span class="o">=</span>fallback<span class="w"> </span>--platform-params<span class="o">=</span>rdk<span class="w"> </span>...
+</code></pre></div>
+    </div>
+  </section>
+</section>
+
+
+    <section id="search" class="content hidden"></section>
+
+    <footer>
+    
+    </footer>
+  </div>
+</body>
+</html>
