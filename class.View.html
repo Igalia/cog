@@ -1,0 +1,365 @@
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Cog.View</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta charset="utf-8" />
+
+  
+  <meta property="og:type" content="website"/>
+
+  
+  <meta property="og:image:width" content="256"/>
+  <meta property="og:image:height" content="256"/>
+  <meta property="og:image:secure_url" content="cog.png"/>
+  <meta property="og:image:alt" content="Cog-0.0"/>
+  
+
+  
+  <meta property="og:title" content="Cog.View"/>
+  <meta property="og:description" content="Reference for Cog.View"/>
+  <meta name="twitter:title" content="Cog.View"/>
+  <meta name="twitter:description" content="Reference for Cog.View"/>
+
+
+  
+  <meta name="twitter:card" content="summary"/>
+
+  
+
+  <link rel="stylesheet" href="style.css" type="text/css" />
+
+  
+
+  
+  
+  <script src="fzy.js"></script>
+  <script src="search.js"></script>
+  
+  <script src="main.js"></script>
+  <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+</head>
+
+<body>
+  <div id="body-wrapper" tabindex="-1">
+
+    <nav class="sidebar devhelp-hidden">
+      
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
+      
+      <div class="search section">
+        <form id="search-form" autocomplete="off">
+          <input id="search-input" type="text" name="do-not-autocomplete" placeholder="Click, or press 's' to search" autocomplete="off"/>
+        </form>
+      </div>
+      
+      <div class="section namespace">
+        <h3><a href="index.html">Cog</a></h3>
+        <p>API Version: 0.0</p>
+        
+        <p>Library Version: 0.17.1</p>
+        
+      </div>
+      
+<div class="section">
+  <h5>Type</h5>
+  <div class="links">
+    <a class="current" href="class.View.html#description">View</a>
+  </div>
+</div>
+
+
+<div class="section">
+  <h5>Constructors</h5>
+  <div class="links">
+  
+    <a class="ctor" href="ctor.View.new.html">new</a>
+  
+  </div>
+</div>
+
+
+
+<div class="section">
+  <h5>Instance methods</h5>
+  <div class="links">
+  
+    <a class="method" href="method.View.get_backend.html">get_backend</a>
+  
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+  <h5>Functions</h5>
+  <div class="links">
+  
+    <a class="func" href="type_func.View.get_impl_type.html">get_impl_type</a>
+  
+  </div>
+</div>
+
+
+
+<div class="section">
+  <h5>Virtual methods</h5>
+  <div class="links">
+  
+    <a class="method" href="vfunc.View.create_backend.html">create_backend</a>
+  
+  </div>
+</div>
+
+
+
+    </nav>
+
+    
+    <button id="btn-to-top" class="hidden"><span class="up-arrow"></span></button>
+    
+
+    
+<section id="main" class="content">
+  <header>
+    <h3>Class</h3>
+    <h1 aria-label="Name"><a href="index.html">Cog</a><span class="sep" role="presentation"></span>View</h1>
+  </header>
+
+  <section>
+    <summary>
+      <div class="toggle-wrapper">
+        <h4 id="description" style="display:flex;">
+          Description
+          <a href="#description" class="anchor"></a>
+          
+          <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.c#L11">[src]</a>
+          
+        </h4>
+
+        <pre><code>abstract class Cog.View : GObject.Object {
+  parent_instance: WebKitWebView
+}</pre></code>
+
+        <div class="docblock">
+          <p>Convenience base class for web&nbsp;views.</p>
+<p>Most of the functionality dealing with web views when using the
+Cog core library uses <code>CogView</code> instead of WPEWebKit.WebView.
+The base class is extended to delegate the creation of its
+WPEWebKit.WebViewBackend to the current <a href="class.Platform.html"><code>CogPlatform</code></a>
+implementation. Optionally, platform plug-in implementations can
+provide their own view class implementation by overriding
+<a href="vfunc.Platform.get_view_type.html"><code>Cog.PlatformClass.get_view_type</code></a>.</p>
+<p>A number of utility functions are also&nbsp;provided.</p>
+        </div>
+
+        <div class="docblock">
+          <table class="attributes">
+            
+            
+            
+          </table>
+        </div>
+
+        
+      </div>
+    </summary>
+
+    
+
+    
+    <div class="toggle-wrapper ancestors">
+      <h4 id="ancestors">
+        Ancestors
+        <a href="#ancestors" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+        <ul>
+        
+          
+          <li class="class">GObject</a></li>
+          
+        
+        </ul>
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="toggle-wrapper constructors">
+      <h4 id="constructors">
+        Constructors
+        <a href="#constructors" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+      
+        <div class="">
+          <h6><a href="ctor.View.new.html">cog_view_new</a></h6>
+
+          <div class="docblock">
+            <p>Creates a new instance of a view implementation and sets its&nbsp;properties.</p>
+          </div>
+
+          
+        </div>
+      
+      </div>
+    </div>
+    
+
+    
+    <div class="toggle-wrapper methods">
+      <h4 id="methods">
+        Instance methods
+        <a href="#methods" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+      
+        <div class="">
+          <h6><a href="method.View.get_backend.html">cog_view_get_backend</a></h6>
+          <div class="docblock">
+            <p>Get the backend for the&nbsp;view.</p>
+          </div>
+          
+        </div>
+      
+      </div>
+
+      
+        
+      
+
+      
+    </div>
+    
+
+    
+
+    
+
+    
+    <div class="class toggle-wrapper default-hide">
+      <h4 id="class-struct">
+        Class structure
+        <a href="#class-struct" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+        <pre><code>struct CogViewClass {
+  WebKitWebViewBackend* (* create_backend) (
+    CogView* arg0
+  );
+  
+}</code></pre>
+      </div>
+
+      
+      <div class="docblock">
+        <h6>Class members</h6>
+
+        <table class="members">
+        
+        <tr>
+          <td style="vertical-align:top"><code>create_backend</code></td>
+          <td style="vertical-align:top"><pre><code>WebKitWebViewBackend* (* create_backend) (
+    CogView* arg0
+  )</code></pre></td>
+        </tr>
+        <tr>
+          <td>&nbsp;</td>
+          <td style="vertical-align:top">No description available.</td>
+        </td>
+        
+        </table>
+      </div>
+      
+    </div>
+    
+
+    
+    <div class="toggle-wrapper methods">
+      <h4 id="virtual-methods">
+        Virtual methods
+        <a href="#virtual-methods" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+      
+      <div class="">
+        <h6 id="vfunc-create_backend"><a href="vfunc.View.create_backend.html">Cog.ViewClass.create_backend</a></h6>
+
+        <div class="docblock">
+          No description available.
+        </div>
+
+          
+      </div>
+      
+      </div>
+    </div>
+    
+
+     
+
+    
+    <div class="toggle-wrapper methods">
+      <h4 id="type-functions">
+        Functions
+        <a href="#type-functions" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+      
+      <div class="">
+        <h6><a href="type_func.View.get_impl_type.html">cog_view_get_impl_type</a></h6>
+
+        <div class="docblock">
+          <p>Get the type of the web view implementation in&nbsp;use.</p>
+        </div>
+
+        
+      </div>
+      
+      </div>
+    </div>
+    
+
+  </section>
+</section>
+
+
+    <section id="search" class="content hidden"></section>
+
+    <footer>
+    
+    </footer>
+  </div>
+</body>
+</html>

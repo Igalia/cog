@@ -146,6 +146,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
     <a class="method" href="vfunc.Platform.get_view_backend.html">get_view_backend</a>
   
+    <a class="method" href="vfunc.Platform.get_view_type.html">get_view_type</a>
+  
     <a class="method" href="vfunc.Platform.init_web_view.html">init_web_view</a>
   
     <a class="method" href="vfunc.Platform.setup.html">setup</a>
@@ -347,6 +349,9 @@ void
   WebKitInputMethodContext* (* create_im_context) (
     CogPlatform* arg0
   );
+  GType (* get_view_type) (
+    CogPlatform* self
+  );
   
 }</code></pre>
       </div>
@@ -427,6 +432,17 @@ void
           <td style="vertical-align:top">No description available.</td>
         </td>
         
+        <tr>
+          <td style="vertical-align:top"><code>get_view_type</code></td>
+          <td style="vertical-align:top"><pre><code>GType (* get_view_type) (
+    CogPlatform* self
+  )</code></pre></td>
+        </tr>
+        <tr>
+          <td>&nbsp;</td>
+          <td style="vertical-align:top">No description available.</td>
+        </td>
+        
         </table>
       </div>
       
@@ -454,6 +470,16 @@ void
       
       <div class="">
         <h6 id="vfunc-get_view_backend"><a href="vfunc.Platform.get_view_backend.html">Cog.PlatformClass.get_view_backend</a></h6>
+
+        <div class="docblock">
+          No description available.
+        </div>
+
+          
+      </div>
+      
+      <div class="">
+        <h6 id="vfunc-get_view_type"><a href="vfunc.Platform.get_view_type.html">Cog.PlatformClass.get_view_type</a></h6>
 
         <div class="docblock">
           No description available.

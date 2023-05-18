@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Platform.setup</title>
+  <title>Cog.View.new</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.Platform.setup"/>
-  <meta property="og:description" content="Reference for Cog.Platform.setup"/>
-  <meta name="twitter:title" content="Cog.Platform.setup"/>
-  <meta name="twitter:description" content="Reference for Cog.Platform.setup"/>
+  <meta property="og:title" content="Cog.View.new"/>
+  <meta property="og:description" content="Reference for Cog.View.new"/>
+  <meta name="twitter:title" content="Cog.View.new"/>
+  <meta name="twitter:description" content="Reference for Cog.View.new"/>
 
 
   
@@ -80,22 +80,14 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <div class="section">
   <h5>Type</h5>
   <div class="links">
-    <a href="class.Platform.html">Platform</a>
+    <a href="class.View.html">View</a>
   </div>
 </div>
 <div class="section">
-  <h5>Virtual methods</h5>
+  <h5>Constructors</h5>
   <div class="links">
   
-    <a class="method" href="vfunc.Platform.create_im_context.html">create_im_context</a>
-  
-    <a class="method" href="vfunc.Platform.get_view_backend.html">get_view_backend</a>
-  
-    <a class="method" href="vfunc.Platform.get_view_type.html">get_view_type</a>
-  
-    <a class="method" href="vfunc.Platform.init_web_view.html">init_web_view</a>
-  
-    <a class="method current" href="vfunc.Platform.setup.html">setup</a>
+    <a class="method current" href="ctor.View.new.html">new</a>
   
   </div>
 </div>
@@ -109,27 +101,25 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Virtual Method</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a><span class="sep"></span>setup</h1>
+    <h3>Constructor</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.View.html">View</a><span class="sep"></span>new</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 id="declaration">
+      <h4 id="declaration" style="display:flex;">
         Declaration
         <a href="#declaration" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-platform.h#L46">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.h#L35">[src]</a>
         
       </h4>
 
-      <div class="docblock c-decl">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">gboolean</span>
-<span class="n">setup</span><span class="w"> </span><span class="p">(</span>
-<span class="w">  </span><span class="n">CogPlatform</span><span class="o">*</span><span class="w"> </span><span class="n">arg0</span><span class="p">,</span>
-<span class="w">  </span><span class="n">CogShell</span><span class="o">*</span><span class="w"> </span><span class="n">shell</span><span class="p">,</span>
-<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">params</span><span class="p">,</span>
-<span class="w">  </span><span class="n">GError</span><span class="o">**</span><span class="w"> </span><span class="n">error</span>
+      <div class="docblock">
+        <pre><code><div class="highlight"><pre><span></span><span class="n">CogView</span><span class="o">*</span>
+<span class="n">cog_view_new</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">first_property_name</span><span class="p">,</span>
+<span class="w">  </span><span class="p">...</span>
 <span class="p">)</span>
 </pre></div>
 </code></pre>
@@ -137,14 +127,16 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     <div class="description toggle-wrapper">
-      <h4 id="description">
+      <h4 id="description" style="display:flex;">
         Description
         <a href="#description" class="anchor"></a>
+        
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.c#L134">[src]</a>
         
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Creates a new instance of a view implementation and sets its&nbsp;properties.</p>
       </div>
 
       <div class="docblock">
@@ -169,30 +161,12 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="arguments">
           
           <tr class="arg-name">
-            <td><code>shell</code></td>
-            <td><a href="class.Shell.html"><code>CogShell</code></a></td>
-          </tr>
-          <tr class="arg-description">
-            <td>&nbsp;</td>
-            <td>No description available.</td>
-          </tr>
-          
-          
-          
-          
-          
-          
-          
-          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
-          
-          
-          <tr class="arg-name">
-            <td><code>params</code></td>
+            <td><code>first_property_name</code></td>
             <td><code>const char*</code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>Name of the first&nbsp;property.</p></td>
           </tr>
           
           
@@ -204,15 +178,25 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
           <tr><td>&nbsp;</td><td>The string is a NUL terminated UTF-8 string.</td></tr>
           
-          
           <tr class="arg-name">
-            <td><code>error</code></td>
-            <td><code>GError **</code></td>
+            <td><code>...</code></td>
+            <td><code></code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>The return location for a <code>GError*</code>, or <code>NULL</code>.</td>
+            <td><p>Value of the first property, followed optionally by more name/value
+   pairs, followed by <code>NULL</code>.</p></td>
           </tr>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
         </table>
       </div>
@@ -230,23 +214,22 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="returns">
           <tr class="arg-name">
             <td>Returns:</td>
-            <td><code>gboolean</code></td>
+            <td><a href="class.View.html"><code>CogView</code></a></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>A new web&nbsp;view.</p></td>
           </tr>
           
           
           
-          
+          <tr><td>&nbsp;</td><td title="transfer: full">The caller of the function takes ownership of the data, and is responsible for freeing it.</td></tr>
           
           
         </table>
       </div>
     </div>
     
-
   </section>
 </section>
 

@@ -113,7 +113,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       </h4>
 
       <div class="docblock">
-        <pre><code><div class="highlight"><pre><span></span><span class="kt">void</span>
+        <pre><code><div class="highlight"><pre><span></span><span class="n">CogView</span><span class="o">*</span>
 <span class="n">create_view</span><span class="w"> </span><span class="p">(</span>
 <span class="w">  </span><span class="n">CogShell</span><span class="w"> </span><span class="n">self</span><span class="p">,</span>
 <span class="w">  </span><span class="n">gpointer</span><span class="w"> </span><span class="n">user_data</span>
@@ -159,6 +159,33 @@ configured. Note that the web view returned by a signal handler
 
     
 
+    
+    <div class="return-value toggle-wrapper">
+      <h4 id="return-value">
+        Return value
+        <a href="#return-value" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+        <table class="returns">
+          <tr class="arg-name">
+            <td>Returns:</td>
+            <td><a href="class.View.html"><code>CogView</code></a></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td><p>A new web view that will be used
+  by the&nbsp;shell.</p></td>
+          </tr>
+          
+          
+          
+          <tr><td>&nbsp;</td><td title="transfer: full">The caller of the function takes ownership of the data, and is responsible for freeing it.</td></tr>
+          <tr><td>&nbsp;</td><td>The return value can be <code>NULL</code>.</td></tr>
+          
+        </table>
+      </div>
+    </div>
     
 
   </section>

@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Shell.get_name</title>
+  <title>Cog.View.get_impl_type</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta priority="og:title" content="Cog.Shell.get_name"/>
-  <meta priority="og:description" content="Reference for Cog.Shell.get_name"/>
-  <meta name="twitter:title" content="Cog.Shell.get_name"/>
-  <meta name="twitter:description" content="Reference for Cog.Shell.get_name"/>
+  <meta property="og:title" content="Cog.View.get_impl_type"/>
+  <meta property="og:description" content="Reference for Cog.View.get_impl_type"/>
+  <meta name="twitter:title" content="Cog.View.get_impl_type"/>
+  <meta name="twitter:description" content="Reference for Cog.View.get_impl_type"/>
 
 
   
@@ -80,32 +80,14 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <div class="section">
   <h5>Type</h5>
   <div class="links">
-    <a href="class.Shell.html">Shell</a>
+    <a href="class.View.html">View</a>
   </div>
 </div>
 <div class="section">
-  <h5>Methods</h5>
+  <h5>Functions</h5>
   <div class="links">
   
-    <a class="method" href="method.Shell.get_config_file.html">get_config_file</a>
-  
-    <a class="method" href="method.Shell.get_device_scale_factor.html">get_device_scale_factor</a>
-  
-    <a class="method current" href="method.Shell.get_name.html">get_name</a>
-  
-    <a class="method" href="method.Shell.get_web_context.html">get_web_context</a>
-  
-    <a class="method" href="method.Shell.get_web_settings.html">get_web_settings</a>
-  
-    <a class="method" href="method.Shell.get_web_view.html">get_web_view</a>
-  
-    <a class="method" href="method.Shell.is_automated.html">is_automated</a>
-  
-    <a class="method" href="method.Shell.set_request_handler.html">set_request_handler</a>
-  
-    <a class="method" href="method.Shell.shutdown.html">shutdown</a>
-  
-    <a class="method" href="method.Shell.startup.html">startup</a>
+    <a class="method current" href="type_func.View.get_impl_type.html">get_impl_type</a>
   
   </div>
 </div>
@@ -119,24 +101,24 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Method</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Shell.html">Shell</a><span class="sep"></span>get_name</h1>
+    <h3>Function</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.View.html">View</a><span class="sep"></span>get_impl_type</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 style="display:flex;" id="declaration">
+      <h4 id="declaration" style="display:flex;">
         Declaration
-        <a class="anchor" href="#declaration"></a>
+        <a href="#declaration" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.h#L34">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.h#L34">[src]</a>
         
       </h4>
 
-      <div class="docblock c-decl">
-        <pre><code><div class="highlight"><pre><span></span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span>
-<span class="n">cog_shell_get_name</span><span class="w"> </span><span class="p">(</span>
-<span class="w">  </span><span class="n">CogShell</span><span class="o">*</span><span class="w"> </span><span class="n">shell</span>
+      <div class="docblock">
+        <pre><code><div class="highlight"><pre><span></span><span class="n">GType</span>
+<span class="n">cog_view_get_impl_type</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="kt">void</span>
 <span class="p">)</span>
 </pre></div>
 </code></pre>
@@ -144,16 +126,26 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     <div class="description toggle-wrapper">
-      <h4 style="display:flex;" id="description">
+      <h4 id="description" style="display:flex;">
         Description
-        <a class="anchor" href="#description"></a>
+        <a href="#description" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.c#L566">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.c#L102">[src]</a>
         
       </h4>
 
       <div class="docblock">
-        <p>Obtains the name of this&nbsp;shell.</p>
+        <p>Get the type of the web view implementation in&nbsp;use.</p>
+<p>This function always returns a valid type. If the If the active
+<a href="class.Platform.html"><code>CogPlatform</code></a> does not provide a custom view type, the default
+built-in type included as part of the Cog core library is&nbsp;returned.</p>
+<p>When creating web views, this function must be used to retrieve the
+type to use,&nbsp;e.g.:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">WebKitWebView</span><span class="w"> </span><span class="o">*</span><span class="n">view</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">g_object_new</span><span class="p">(</span><span class="n">cog_view_get_impl_type</span><span class="p">(),</span><span class="w"> </span><span class="nb">NULL</span><span class="p">);</span>
+</code></pre></div>
+
+<p>In most cases it should be possible to use the convenience function
+<a href="ctor.View.new.html">cog_view_new()</a>, which uses this function&nbsp;internally.</p>
       </div>
 
       <div class="docblock">
@@ -180,23 +172,22 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="returns">
           <tr class="arg-name">
             <td>Returns:</td>
-            <td><code>const char*</code></td>
+            <td><code>GType</code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td><p>Shell&nbsp;name.</p></td>
+            <td><p>Type of the view implementation in&nbsp;use.</p></td>
           </tr>
           
           
           
-          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the instance.</td></tr>
           
-          <tr><td>&nbsp;</td><td>The string is a NUL terminated UTF-8 string.</td></tr>
+          
+          
         </table>
       </div>
     </div>
     
-
   </section>
 </section>
 
