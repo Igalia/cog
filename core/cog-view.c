@@ -24,10 +24,24 @@
  * A number of utility functions are also provided.
  */
 
-G_DEFINE_ABSTRACT_TYPE(CogView, cog_view, WEBKIT_TYPE_WEB_VIEW)
+typedef struct {
+    gboolean use_key_bindings;
+} CogViewPrivate;
+
+G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE(CogView, cog_view, WEBKIT_TYPE_WEB_VIEW)
 
 struct _CogCoreViewClass {
     CogViewClass parent_class;
+};
+
+enum {
+    PROP_0,
+    PROP_USE_KEY_BINDINGS,
+    N_PROPERTIES,
+};
+
+static GParamSpec *s_properties[N_PROPERTIES] = {
+    NULL,
 };
 
 G_DECLARE_DERIVABLE_TYPE(CogCoreView, cog_core_view, COG, CORE_VIEW, CogView)
@@ -53,15 +67,63 @@ cog_view_constructor(GType type, unsigned n_properties, GObjectConstructParam *p
 }
 
 static void
+cog_view_set_property(GObject *object, unsigned prop_id, const GValue *value, GParamSpec *pspec)
+{
+    CogView *self = COG_VIEW(object);
+    switch (prop_id) {
+    case PROP_USE_KEY_BINDINGS:
+        cog_view_set_use_key_bindings(self, g_value_get_boolean(value));
+        break;
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+    }
+}
+
+static void
+cog_view_get_property(GObject *object, unsigned prop_id, GValue *value, GParamSpec *pspec)
+{
+    CogView *self = COG_VIEW(object);
+    switch (prop_id) {
+    case PROP_USE_KEY_BINDINGS:
+        g_value_set_boolean(value, cog_view_get_use_key_bindings(self));
+        break;
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+    }
+}
+
+static void
 cog_view_class_init(CogViewClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS(klass);
+    object_class->set_property = cog_view_set_property;
+    object_class->get_property = cog_view_get_property;
     object_class->constructor = cog_view_constructor;
+
+    /**
+     * CogView:use-key-bindings: (default-value enabled)
+     *
+     * Whether to use the built-in key binding handling.
+     *
+     * Since: 0.20
+     */
+    s_properties[PROP_USE_KEY_BINDINGS] =
+        g_param_spec_boolean("use-key-bindings", NULL, NULL, TRUE,
+                             G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+
+    g_object_class_install_properties(object_class, N_PROPERTIES, s_properties);
 }
 
 static void
 cog_view_init(CogView *self)
 {
+}
+
+static inline struct wpe_view_backend *
+cog_view_get_backend_internal(CogView *self)
+{
+    WebKitWebViewBackend *backend = webkit_web_view_get_backend((WebKitWebView *) self);
+    return webkit_web_view_backend_get_wpe_backend(backend);
 }
 
 /**
@@ -76,9 +138,7 @@ struct wpe_view_backend *
 cog_view_get_backend(CogView *self)
 {
     g_return_val_if_fail(COG_IS_VIEW(self), NULL);
-
-    WebKitWebViewBackend *backend = webkit_web_view_get_backend(WEBKIT_WEB_VIEW(self));
-    return webkit_web_view_backend_get_wpe_backend(backend);
+    return cog_view_get_backend_internal(self);
 }
 
 static void *
@@ -174,4 +234,165 @@ cog_core_view_class_init(CogCoreViewClass *klass)
 static void
 cog_core_view_init(CogCoreView *self)
 {
+}
+
+static gboolean
+cog_view_try_handle_key_binding(CogView *self, const struct wpe_input_keyboard_event *event)
+{
+    static const float DEFAULT_ZOOM_STEP = 0.1f;
+
+    if (!event->pressed)
+        return FALSE;
+
+    /*
+     * TODO: F11, fullscreen. It depends on platform-specific behaviour, which
+     *       means it may end up being a vfunc in CogView, or in CogPlatform.
+     */
+
+    /* Ctrl+W, exit the application */
+    if (event->modifiers == wpe_input_keyboard_modifier_control && event->key_code == WPE_KEY_w) {
+        GApplication *app = g_application_get_default();
+        if (app)
+            g_application_quit(app);
+        else
+            exit(EXIT_SUCCESS);
+        return TRUE;
+    }
+
+    /* Ctrl+Plus, zoom in */
+    if (event->modifiers == wpe_input_keyboard_modifier_control && event->key_code == WPE_KEY_plus) {
+        const double level = webkit_web_view_get_zoom_level(WEBKIT_WEB_VIEW(self));
+        webkit_web_view_set_zoom_level(WEBKIT_WEB_VIEW(self), level + DEFAULT_ZOOM_STEP);
+        return TRUE;
+    }
+
+    /* Ctrl+Minus, zoom out */
+    if (event->modifiers == wpe_input_keyboard_modifier_control && event->key_code == WPE_KEY_minus) {
+        const double level = webkit_web_view_get_zoom_level(WEBKIT_WEB_VIEW(self));
+        webkit_web_view_set_zoom_level(WEBKIT_WEB_VIEW(self), level - DEFAULT_ZOOM_STEP);
+        return TRUE;
+    }
+
+    /* Ctrl+0, restore zoom level to 1.0 */
+    if (event->modifiers == wpe_input_keyboard_modifier_control && event->key_code == WPE_KEY_0) {
+        webkit_web_view_set_zoom_level(WEBKIT_WEB_VIEW(self), 1.0f);
+        return TRUE;
+    }
+
+    /* Alt+Left, navigate back */
+    if (event->modifiers == wpe_input_keyboard_modifier_alt && event->key_code == WPE_KEY_Left) {
+        webkit_web_view_go_back(WEBKIT_WEB_VIEW(self));
+        return TRUE;
+    }
+
+    /* Alt+Right, navigate forward */
+    if (event->modifiers == wpe_input_keyboard_modifier_alt && event->key_code == WPE_KEY_Right) {
+        webkit_web_view_go_forward(WEBKIT_WEB_VIEW(self));
+        return TRUE;
+    }
+
+    /* Ctrl+R or F5, reload */
+    if ((event->modifiers == wpe_input_keyboard_modifier_control && event->key_code == WPE_KEY_r) ||
+        (!event->modifiers && event->key_code == WPE_KEY_F5)) {
+        webkit_web_view_reload(WEBKIT_WEB_VIEW(self));
+        return true;
+    }
+
+    /* Ctrl+Shift+R or Shift+F5, reload ignoring cache */
+    if ((event->modifiers == (wpe_input_keyboard_modifier_control | wpe_input_keyboard_modifier_shift) &&
+         event->key_code == WPE_KEY_R) ||
+        (event->modifiers == wpe_input_keyboard_modifier_shift && event->key_code == WPE_KEY_F5)) {
+        webkit_web_view_reload_bypass_cache(WEBKIT_WEB_VIEW(self));
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+/**
+ * cog_view_handle_key_event:
+ * @self: A view.
+ * @event: (not nullable) (transfer none): A key input event.
+ *
+ * Sends a keyboard event to the web view.
+ *
+ * Platform implementations must call this method instead of directly using
+ * [wpe_view_backend_dispatch_keyboard_event()](https://webplatformforembedded.github.io/libwpe/view-backend.html#wpe_view_backend_dispatch_keyboard_event)
+ * in order to give the embedding application the chance to handle keyboard
+ * bindings. See [id@cog_view_set_use_key_bindings] for more details.
+ *
+ * Since: 0.20
+ */
+void
+cog_view_handle_key_event(CogView *self, const struct wpe_input_keyboard_event *event)
+{
+    g_return_if_fail(COG_IS_VIEW(self));
+    g_return_if_fail(event);
+
+    CogViewPrivate *priv = cog_view_get_instance_private(self);
+
+    if (priv->use_key_bindings && cog_view_try_handle_key_binding(self, event))
+        return;
+
+    struct wpe_input_keyboard_event event_copy = *event;
+    wpe_view_backend_dispatch_keyboard_event(cog_view_get_backend_internal(self), &event_copy);
+}
+
+/**
+ * cog_view_set_use_key_bindings: (set-property use-key-bindings)
+ * @self: A view.
+ * @enable: Whether to enable the key bindings.
+ *
+ * Sets whether to enable usage of the built-in key bindings.
+ *
+ * In order for the view to process key bindings, platform implementations
+ * need to use [id@cog_view_handle_key_event] to send events to the view.
+ *
+ * The following key bindings are supported:
+ *
+ * | Binding                     | Action                               |
+ * |:----------------------------|:-------------------------------------|
+ * | `Ctrl-W`                    | Exit the application.                |
+ * | `Ctrl-+`                    | Zoom in.                             |
+ * | `Ctrl--`                    | Zoom out.                            |
+ * | `Ctrl-0`                    | Restore default zoom level.          |
+ * | `Alt-Left`                  | Go to previous page in history.      |
+ * | `Alt-Right`                 | Go to next page in history.          |
+ * | `Ctrl-R` / `F5`             | Reload current page.                 |
+ * | `Ctrl-Shift-R` / `Shift-F5` | Reload current page ignoring caches. |
+ *
+ * Since: 0.20
+ */
+void
+cog_view_set_use_key_bindings(CogView *self, gboolean enable)
+{
+    g_return_if_fail(COG_IS_VIEW(self));
+
+    CogViewPrivate *priv = cog_view_get_instance_private(COG_VIEW(self));
+
+    enable = !!enable;
+    if (priv->use_key_bindings == enable)
+        return;
+
+    priv->use_key_bindings = enable;
+    g_object_notify_by_pspec(G_OBJECT(self), s_properties[PROP_USE_KEY_BINDINGS]);
+}
+
+/**
+ * cog_view_get_use_key_bindings: (get-property use-key-bindings)
+ * @self: A view.
+ *
+ * Gets whether the built-in key bindings are enabled.
+ *
+ * Returns: Whether the built-in key bindings are in use.
+ *
+ * Since: 0.20
+ */
+gboolean
+cog_view_get_use_key_bindings(CogView *self)
+{
+    g_return_val_if_fail(COG_IS_VIEW(self), FALSE);
+
+    CogViewPrivate *priv = cog_view_get_instance_private(COG_VIEW(self));
+    return priv->use_key_bindings;
 }

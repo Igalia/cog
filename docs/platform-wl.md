@@ -80,20 +80,12 @@ there is only a single fullscreen surface being displayed.
 
 ## Key Bindings
 
-The following key bindings are available:
+On top of the [built-in keybindings][id@cog_view_set_use_key_bindings], the
+additional following key bindings are supported:
 
-| Binding           | Action                          |
-|:------------------|:--------------------------------|
-| `F11`             | Toggle fullscreen.              |
-| `Ctrl-W`          | Exit the application.           |
-| `Ctrl-+`          | Zoom in.                        |
-| `Ctrl--`          | Zoom out.                       |
-| `Ctrl-0`          | Restore default zoom level.     |
-| `Alt-Left`        | Go to previous page in history. |
-| `Alt-Right`       | Go to next page in history.     |
-| `Ctrl-R` / `F5`   | Reload current page.            |
-
-Currently there is no mechanism to modify or disable these key bindings.
+| Binding | Action             |
+|:--------|:-------------------|
+| `F11`   | Toggle fullscreen. |
 
 
 ## Troubleshooting

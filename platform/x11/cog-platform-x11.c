@@ -41,6 +41,7 @@ struct _CogX11PlatformClass {
 
 struct _CogX11Platform {
     CogPlatform parent;
+    CogView    *web_view;
 };
 
 G_DECLARE_FINAL_TYPE(CogX11Platform, cog_x11_platform, COG, X11_PLATFORM, CogPlatform)
@@ -205,7 +206,7 @@ xcb_update_xkb_modifiers(uint32_t event_state)
 }
 
 static void
-xcb_handle_key_press(xcb_key_press_event_t *event)
+xcb_handle_key_press(CogView *view, xcb_key_press_event_t *event)
 {
     uint32_t modifiers = xcb_update_xkb_modifiers(event->state);
     uint32_t keysym = xkb_state_key_get_one_sym(s_display->xkb.state, event->detail);
@@ -217,11 +218,11 @@ xcb_handle_key_press(xcb_key_press_event_t *event)
         .pressed = true,
         .modifiers = modifiers,
     };
-    wpe_view_backend_dispatch_keyboard_event(s_window->wpe.backend, &input_event);
+    cog_view_handle_key_event(view, &input_event);
 }
 
 static void
-xcb_handle_key_release(xcb_key_press_event_t *event)
+xcb_handle_key_release(CogView *view, xcb_key_press_event_t *event)
 {
     uint32_t modifiers = xcb_update_xkb_modifiers(event->state);
     uint32_t keysym = xkb_state_key_get_one_sym(s_display->xkb.state, event->detail);
@@ -233,7 +234,7 @@ xcb_handle_key_release(xcb_key_press_event_t *event)
         .pressed = false,
         .modifiers = modifiers,
     };
-    wpe_view_backend_dispatch_keyboard_event(s_window->wpe.backend, &input_event);
+    cog_view_handle_key_event(view, &input_event);
 }
 
 static void
@@ -384,7 +385,7 @@ on_export_fdo_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 }
 
 static void
-xcb_process_events (void)
+xcb_process_events(CogView *view)
 {
     bool repaint_needed = false;
 
@@ -432,10 +433,10 @@ xcb_process_events (void)
             break;
         }
         case XCB_KEY_PRESS:
-            xcb_handle_key_press ((xcb_key_press_event_t *) event);
+            xcb_handle_key_press(view, (xcb_key_press_event_t *) event);
             break;
         case XCB_KEY_RELEASE:
-            xcb_handle_key_release ((xcb_key_release_event_t *) event);
+            xcb_handle_key_release(view, (xcb_key_release_event_t *) event);
             break;
         case XCB_BUTTON_PRESS:
             xcb_handle_button_press ((xcb_button_press_event_t *) event);
@@ -489,6 +490,7 @@ struct xcb_source {
     GSource source;
     GPollFD pfd;
     xcb_connection_t *connection;
+    CogX11Platform   *platform;
 };
 
 static gboolean
@@ -508,7 +510,7 @@ xcb_source_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
     if (source->pfd.revents & (G_IO_ERR | G_IO_HUP))
         return G_SOURCE_REMOVE;
 
-    xcb_process_events ();
+    xcb_process_events(source->platform->web_view);
     source->pfd.revents = 0;
     return G_SOURCE_CONTINUE;
 }
@@ -722,7 +724,7 @@ clear_egl (void)
 }
 
 static gboolean
-init_glib (void)
+init_glib(CogX11Platform *platform)
 {
     static GSourceFuncs xcb_source_funcs = {
         .check = xcb_source_check,
@@ -734,6 +736,7 @@ init_glib (void)
     {
         struct xcb_source *source = (struct xcb_source *) s_display->xcb.source;
         source->connection = s_display->xcb.connection;
+        source->platform = platform;
 
         source->pfd.fd = xcb_get_file_descriptor (s_display->xcb.connection);
         source->pfd.events = G_IO_IN | G_IO_ERR | G_IO_HUP;
@@ -811,7 +814,7 @@ cog_x11_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, con
     if (!cog_gl_renderer_initialize(&s_display->gl_render, error))
         return FALSE;
 
-    if (!init_glib ()) {
+    if (!init_glib(COG_X11_PLATFORM(platform))) {
         g_set_error_literal (error,
                              COG_PLATFORM_WPE_ERROR,
                              COG_PLATFORM_WPE_ERROR_INIT,
@@ -870,6 +873,12 @@ cog_x11_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_
     return wk_view_backend;
 }
 
+static void
+cog_x11_platform_init_web_view(CogPlatform *platform, WebKitWebView *web_view)
+{
+    COG_X11_PLATFORM(platform)->web_view = COG_VIEW(web_view);
+}
+
 static void *
 check_supported(void *data G_GNUC_UNUSED)
 {
@@ -903,6 +912,7 @@ cog_x11_platform_class_init(CogX11PlatformClass *klass)
     platform_class->is_supported = cog_x11_platform_is_supported;
     platform_class->setup = cog_x11_platform_setup;
     platform_class->get_view_backend = cog_x11_platform_get_view_backend;
+    platform_class->init_web_view = cog_x11_platform_init_web_view;
 }
 
 static void

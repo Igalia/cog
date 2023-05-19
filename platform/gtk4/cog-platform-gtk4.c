@@ -359,9 +359,7 @@ dispatch_key_event(struct platform_window* win, guint keycode, guint hardware_ke
         .modifiers = modifiers,
     };
 
-    wpe_view_backend_dispatch_keyboard_event(
-        wpe_view_backend_exportable_fdo_get_view_backend(win->exportable),
-        &wpe_event);
+    cog_view_handle_key_event(COG_VIEW(win->web_view), &wpe_event);
     return TRUE;
 }
 
