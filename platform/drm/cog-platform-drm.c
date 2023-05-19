@@ -76,6 +76,7 @@ struct _CogDrmPlatformClass {
 
 struct _CogDrmPlatform {
     CogPlatform            parent;
+    CogView               *web_view;
     CogDrmRenderer        *renderer;
     CogGLRendererRotation  rotation;
     GList                 *rotatable_input_devices;
@@ -684,9 +685,8 @@ init_egl (void)
     return TRUE;
 }
 
-
 static void
-input_dispatch_key_event (uint32_t time, uint32_t key, enum libinput_key_state state)
+input_dispatch_key_event(CogView *view, uint32_t time, uint32_t key, enum libinput_key_state state)
 {
     struct wpe_input_xkb_context *default_context = wpe_input_xkb_context_get_default ();
 
@@ -725,7 +725,7 @@ input_dispatch_key_event (uint32_t time, uint32_t key, enum libinput_key_state s
             .modifiers = modifiers,
     };
 
-    wpe_view_backend_dispatch_keyboard_event (wpe_view_data.backend, &event);
+    cog_view_handle_key_event(view, &event);
 }
 
 static void
@@ -751,7 +751,7 @@ stop_repeating_key (void)
 }
 
 static void
-input_handle_key_event (struct libinput_event_keyboard *key_event)
+input_handle_key_event(CogView *view, struct libinput_event_keyboard *key_event)
 {
     // Explanation for the offset-by-8, copied from Weston:
     //   evdev XKB rules reflect X's  broken keycode system, which starts at 8
@@ -759,7 +759,7 @@ input_handle_key_event (struct libinput_event_keyboard *key_event)
     uint32_t time = libinput_event_keyboard_get_time (key_event);
     enum libinput_key_state key_state = libinput_event_keyboard_get_key_state (key_event);
 
-    input_dispatch_key_event (time, key, key_state);
+    input_dispatch_key_event(view, time, key, key_state);
 
     if (!!key_state) {
         start_repeating_key (time, key);
@@ -1048,9 +1048,11 @@ input_handle_device_removed(struct libinput_device *device)
 static void
 input_process_events (void)
 {
-    g_assert (input_data.libinput);
-    libinput_dispatch (input_data.libinput);
+    g_assert(input_data.libinput);
 
+    CogDrmPlatform *platform = libinput_get_user_data(input_data.libinput);
+
+    libinput_dispatch(input_data.libinput);
     while (true) {
         struct libinput_event *event = libinput_get_event (input_data.libinput);
         if (!event)
@@ -1069,7 +1071,7 @@ input_process_events (void)
             break;
 
         case LIBINPUT_EVENT_KEYBOARD_KEY:
-            input_handle_key_event(libinput_event_get_keyboard_event(event));
+            input_handle_key_event(platform->web_view, libinput_event_get_keyboard_event(event));
             break;
 
         case LIBINPUT_EVENT_TOUCH_CANCEL:
@@ -1260,20 +1262,19 @@ input_source_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
 }
 
 static gboolean
-key_repeat_source_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
+key_repeat_source_dispatch(CogDrmPlatform *platform)
 {
     if (!input_data.repeating_key.time) {
-        g_source_set_ready_time (base, -1);
-        return TRUE;
+        g_source_set_ready_time(glib_data.key_repeat_source, -1);
+        return G_SOURCE_CONTINUE;
     }
 
-    input_dispatch_key_event (input_data.repeating_key.time,
-                              input_data.repeating_key.key,
-                              LIBINPUT_KEY_STATE_PRESSED);
-    g_source_set_ready_time (base, g_get_monotonic_time() + KEY_REPEAT_DELAY);
-    return TRUE;
+    input_dispatch_key_event(platform->web_view,
+                             input_data.repeating_key.time,
+                             input_data.repeating_key.key,
+                             LIBINPUT_KEY_STATE_PRESSED);
+    return G_SOURCE_CONTINUE;
 }
-
 
 static void
 clear_glib (void)
@@ -1292,15 +1293,11 @@ clear_glib (void)
 }
 
 static gboolean
-init_glib (void)
+init_glib(CogDrmPlatform *self)
 {
     static GSourceFuncs input_source_funcs = {
         .check = input_source_check,
         .dispatch = input_source_dispatch,
-    };
-
-    static GSourceFuncs key_repeat_source_funcs = {
-        .dispatch = key_repeat_source_dispatch,
     };
 
     glib_data.input_source = g_source_new (&input_source_funcs,
@@ -1317,9 +1314,10 @@ init_glib (void)
         g_source_attach (glib_data.input_source, g_main_context_get_thread_default ());
     }
 
-    glib_data.key_repeat_source = g_source_new (&key_repeat_source_funcs, sizeof (GSource));
-    g_source_set_name (glib_data.key_repeat_source, "cog: key repeat");
-    g_source_set_can_recurse (glib_data.key_repeat_source, TRUE);
+    glib_data.key_repeat_source = g_timeout_source_new(KEY_REPEAT_DELAY);
+    g_source_set_callback(glib_data.key_repeat_source, G_SOURCE_FUNC(key_repeat_source_dispatch), self, NULL);
+    g_source_set_ready_time(glib_data.key_repeat_source, -1);
+    g_source_set_name(glib_data.key_repeat_source, "cog: key repeat");
     g_source_set_priority (glib_data.key_repeat_source, G_PRIORITY_DEFAULT_IDLE);
     g_source_attach (glib_data.key_repeat_source, g_main_context_get_thread_default ());
 
@@ -1430,7 +1428,7 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
         return FALSE;
     }
 
-    if (!init_glib ()) {
+    if (!init_glib(self)) {
         g_set_error_literal (error,
                              COG_PLATFORM_WPE_ERROR,
                              COG_PLATFORM_WPE_ERROR_INIT,
@@ -1503,6 +1501,8 @@ set_target_refresh_rate(gpointer user_data)
 static void
 cog_drm_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
 {
+    COG_DRM_PLATFORM(platform)->web_view = COG_VIEW(view);
+
     wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_data.backend, drm_data.device_scale);
 
 #if HAVE_REFRESH_RATE_HANDLING

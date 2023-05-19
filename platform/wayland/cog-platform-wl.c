@@ -64,8 +64,6 @@
 #define DEFAULT_WIDTH  1024
 #define DEFAULT_HEIGHT  768
 
-#define DEFAULT_ZOOM_STEP 0.1f
-
 #if defined(WPE_CHECK_VERSION)
 #    define HAVE_REFRESH_RATE_HANDLING WPE_CHECK_VERSION(1, 13, 2)
 #else
@@ -1095,76 +1093,6 @@ keyboard_on_leave (void *data,
     wl_data.event_serial = serial;
 }
 
-static bool
-capture_app_key_bindings(CogWlPlatform *self, uint32_t keysym, uint32_t unicode, uint32_t state, uint8_t modifiers)
-{
-    GApplication *app = g_application_get_default();
-    if (!app || !self->web_view)
-        return false;
-
-    if (state != WL_KEYBOARD_KEY_STATE_PRESSED)
-        return false;
-
-    /* fullscreen */
-    if (modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F11) {
-#if HAVE_FULLSCREEN_HANDLING
-        if (win_data.is_fullscreen && win_data.was_fullscreen_requested_from_dom) {
-            wpe_view_backend_dispatch_request_exit_fullscreen(wpe_view_data.backend);
-            return true;
-        }
-#endif
-        cog_wl_set_fullscreen(0, !win_data.is_fullscreen);
-        return true;
-    }
-
-    /* Ctrl+W, exit the application */
-    if (modifiers == wpe_input_keyboard_modifier_control && unicode == 0x17 && keysym == 0x77) {
-        g_application_quit(app);
-        return true;
-    }
-
-    /* Ctrl+Plus, zoom in */
-    if (modifiers == wpe_input_keyboard_modifier_control && unicode == XKB_KEY_equal && keysym == XKB_KEY_equal) {
-        const double level = webkit_web_view_get_zoom_level(self->web_view);
-        webkit_web_view_set_zoom_level(self->web_view, level + DEFAULT_ZOOM_STEP);
-        return true;
-    }
-
-    /* Ctrl+Minus, zoom out */
-    if (modifiers == wpe_input_keyboard_modifier_control && unicode == 0x2D && keysym == 0x2D) {
-        const double level = webkit_web_view_get_zoom_level(self->web_view);
-        webkit_web_view_set_zoom_level(self->web_view, level - DEFAULT_ZOOM_STEP);
-        return true;
-    }
-
-    /* Ctrl+0, restore zoom level to 1.0 */
-    if (modifiers == wpe_input_keyboard_modifier_control && unicode == XKB_KEY_0 && keysym == XKB_KEY_0) {
-        webkit_web_view_set_zoom_level(self->web_view, 1.0f);
-        return true;
-    }
-
-    /* Alt+Left, navigate back */
-    if (modifiers == wpe_input_keyboard_modifier_alt && unicode == 0 && keysym == XKB_KEY_Left) {
-        webkit_web_view_go_back(self->web_view);
-        return true;
-    }
-
-    /* Alt+Right, navigate forward */
-    if (modifiers == wpe_input_keyboard_modifier_alt && unicode == 0 && keysym == XKB_KEY_Right) {
-        webkit_web_view_go_forward(self->web_view);
-        return true;
-    }
-
-    /* Ctrl+R or F5, reload */
-    if ((modifiers == wpe_input_keyboard_modifier_control && unicode == 0x12 && keysym == 0x72) ||
-        (modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F5)) {
-        webkit_web_view_reload(self->web_view);
-        return true;
-    }
-
-    return false;
-}
-
 static void
 handle_key_event(CogWlPlatform *self, uint32_t key, uint32_t state, uint32_t time)
 {
@@ -1174,9 +1102,18 @@ handle_key_event(CogWlPlatform *self, uint32_t key, uint32_t state, uint32_t tim
     uint32_t keysym = xkb_state_key_get_one_sym (xkb_data.state, key);
     uint32_t unicode = xkb_state_key_get_utf32 (xkb_data.state, key);
 
-    /* Capture app-level key-bindings here */
-    if (capture_app_key_bindings(self, keysym, unicode, state, xkb_data.modifiers))
+    /* TODO: Move as much as possible from fullscreen handling to common code. */
+    if (cog_view_get_use_key_bindings(COG_VIEW(self->web_view)) && state == WL_KEYBOARD_KEY_STATE_PRESSED &&
+        xkb_data.modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F11) {
+#if HAVE_FULLSCREEN_HANDLING
+        if (win_data.is_fullscreen && win_data.was_fullscreen_requested_from_dom) {
+            wpe_view_backend_dispatch_request_exit_fullscreen(wpe_view_data.backend);
+            return;
+        }
+#endif
+        cog_wl_set_fullscreen(0, !win_data.is_fullscreen);
         return;
+    }
 
     if (xkb_data.compose_state != NULL
             && state == WL_KEYBOARD_KEY_STATE_PRESSED
@@ -1189,7 +1126,7 @@ handle_key_event(CogWlPlatform *self, uint32_t key, uint32_t state, uint32_t tim
 
     struct wpe_input_keyboard_event event = {time, keysym, key, state == true, xkb_data.modifiers};
 
-    wpe_view_backend_dispatch_keyboard_event (wpe_view_data.backend, &event);
+    cog_view_handle_key_event(COG_VIEW(self->web_view), &event);
 }
 
 static gboolean

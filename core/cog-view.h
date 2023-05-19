@@ -16,6 +16,7 @@
 G_BEGIN_DECLS
 
 typedef struct _WebKitWebViewBackend WebKitWebViewBackend;
+struct wpe_input_keyboard_event;
 struct wpe_view_backend;
 
 #define COG_TYPE_VIEW (cog_view_get_type())
@@ -34,5 +35,8 @@ struct _CogViewClass {
 GType                    cog_view_get_impl_type(void);
 CogView                 *cog_view_new(const char *first_property_name, ...);
 struct wpe_view_backend *cog_view_get_backend(CogView *view);
+void                     cog_view_handle_key_event(CogView *self, const struct wpe_input_keyboard_event *event);
+void                     cog_view_set_use_key_bindings(CogView *self, gboolean enable);
+gboolean                 cog_view_get_use_key_bindings(CogView *self);
 
 G_END_DECLS
