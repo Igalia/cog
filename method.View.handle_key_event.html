@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.View.get_backend</title>
+  <title>Cog.View.handle_key_event</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta priority="og:title" content="Cog.View.get_backend"/>
-  <meta priority="og:description" content="Reference for Cog.View.get_backend"/>
-  <meta name="twitter:title" content="Cog.View.get_backend"/>
-  <meta name="twitter:description" content="Reference for Cog.View.get_backend"/>
+  <meta priority="og:title" content="Cog.View.handle_key_event"/>
+  <meta priority="og:description" content="Reference for Cog.View.handle_key_event"/>
+  <meta name="twitter:title" content="Cog.View.handle_key_event"/>
+  <meta name="twitter:description" content="Reference for Cog.View.handle_key_event"/>
 
 
   
@@ -87,11 +87,11 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <h5>Methods</h5>
   <div class="links">
   
-    <a class="method current" href="method.View.get_backend.html">get_backend</a>
+    <a class="method" href="method.View.get_backend.html">get_backend</a>
   
     <a class="method" href="method.View.get_use_key_bindings.html">get_use_key_bindings</a>
   
-    <a class="method" href="method.View.handle_key_event.html">handle_key_event</a>
+    <a class="method current" href="method.View.handle_key_event.html">handle_key_event</a>
   
     <a class="method" href="method.View.set_use_key_bindings.html">set_use_key_bindings</a>
   
@@ -108,7 +108,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <section id="main" class="content">
   <header>
     <h3>Method</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.View.html">View</a><span class="sep"></span>get_backend</h1>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.View.html">View</a><span class="sep"></span>handle_key_event</h1>
   </header>
 
   <section>
@@ -117,14 +117,15 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Declaration
         <a class="anchor" href="#declaration"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.h#L37">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.h#L38">[src]</a>
         
       </h4>
 
       <div class="docblock c-decl">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">wpe_view_backend</span><span class="o">*</span>
-<span class="n">cog_view_get_backend</span><span class="w"> </span><span class="p">(</span>
-<span class="w">  </span><span class="n">CogView</span><span class="o">*</span><span class="w"> </span><span class="n">view</span>
+        <pre><code><div class="highlight"><pre><span></span><span class="kt">void</span>
+<span class="n">cog_view_handle_key_event</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="n">CogView</span><span class="o">*</span><span class="w"> </span><span class="n">self</span><span class="p">,</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">wpe_input_keyboard_event</span><span class="o">*</span><span class="w"> </span><span class="n">event</span>
 <span class="p">)</span>
 </pre></div>
 </code></pre>
@@ -136,17 +137,23 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a class="anchor" href="#description"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.c#L129">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.c#L312">[src]</a>
         
       </h4>
 
       <div class="docblock">
-        <p>Get the backend for the&nbsp;view.</p>
+        <p>Sends a keyboard event to the web&nbsp;view.</p>
+<p>Platform implementations must call this method instead of directly using
+<a href="https://webplatformforembedded.github.io/libwpe/view-backend.html#wpe_view_backend_dispatch_keyboard_event">wpe_view_backend_dispatch_keyboard_event()</a>
+in order to give the embedding application the chance to handle keyboard
+bindings. See <a href="method.View.set_use_key_bindings.html">cog_view_set_use_key_bindings()</a> for more&nbsp;details.</p>
       </div>
 
       <div class="docblock">
         <table>
           
+          
+          <tr><td>Available since:</td><td>0.20</td></tr>
           
           
         </table>
@@ -156,33 +163,39 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     
-
-    
-    <div class="return-value toggle-wrapper">
-      <h4 id="return-value">
-        Return value
-        <a href="#return-value" class="anchor"></a>
+    <div class="parameters toggle-wrapper">
+      <h4 id="parameters">
+        Parameters
+        <a href="#parameters" class="anchor"></a>
       </h4>
 
       <div class="docblock">
-        <table class="returns">
+        <table class="arguments">
+          
           <tr class="arg-name">
-            <td>Returns:</td>
-            <td><code>wpe_view_backend*</code></td>
+            <td><code>event</code></td>
+            <td><code>const wpe_input_keyboard_event*</code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td><p>The <span class="caps">WPE</span> view backend for the&nbsp;view.</p></td>
+            <td><p>A key input&nbsp;event.</p></td>
           </tr>
           
           
           
-          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the instance.</td></tr>
+          
+          
+          
+          
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
+          
           
           
         </table>
       </div>
     </div>
+    
+
     
 
   </section>

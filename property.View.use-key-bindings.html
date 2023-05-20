@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.View.get_backend</title>
+  <title>Cog.View:use-key-bindings</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta priority="og:title" content="Cog.View.get_backend"/>
-  <meta priority="og:description" content="Reference for Cog.View.get_backend"/>
-  <meta name="twitter:title" content="Cog.View.get_backend"/>
-  <meta name="twitter:description" content="Reference for Cog.View.get_backend"/>
+  <meta property="og:title" content="Cog.View:use-key-bindings"/>
+  <meta property="og:description" content="Reference for property Cog.View:use-key-bindings"/>
+  <meta name="twitter:title" content="Cog.View:use-key-bindings"/>
+  <meta name="twitter:description" content="Reference for property Cog.View:use-key-bindings"/>
 
 
   
@@ -84,16 +84,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   </div>
 </div>
 <div class="section">
-  <h5>Methods</h5>
+  <h5>Properties</h5>
   <div class="links">
   
-    <a class="method current" href="method.View.get_backend.html">get_backend</a>
-  
-    <a class="method" href="method.View.get_use_key_bindings.html">get_use_key_bindings</a>
-  
-    <a class="method" href="method.View.handle_key_event.html">handle_key_event</a>
-  
-    <a class="method" href="method.View.set_use_key_bindings.html">set_use_key_bindings</a>
+    <a class="property current"href="property.View.use-key-bindings.html">use-key-bindings</a>
   
   </div>
 </div>
@@ -107,46 +101,43 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Method</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.View.html">View</a><span class="sep"></span>get_backend</h1>
+    <h3>Property</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.View.html">View</a>:use-key-bindings</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 style="display:flex;" id="declaration">
+      <h4 id="declaration">
         Declaration
-        <a class="anchor" href="#declaration"></a>
-        
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.h#L37">[src]</a>
-        
+        <a href="#declaration" class="anchor"></a>
       </h4>
 
-      <div class="docblock c-decl">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">wpe_view_backend</span><span class="o">*</span>
-<span class="n">cog_view_get_backend</span><span class="w"> </span><span class="p">(</span>
-<span class="w">  </span><span class="n">CogView</span><span class="o">*</span><span class="w"> </span><span class="n">view</span>
-<span class="p">)</span>
-</pre></div>
-</code></pre>
+      <div class="docblock">
+        <pre><code>property use-key-bindings: gboolean [ read, write, construct ]</code></pre>
       </div>
     </div>
 
     <div class="description toggle-wrapper">
-      <h4 style="display:flex;" id="description">
+      <h4 id="description">
         Description
-        <a class="anchor" href="#description"></a>
+        <a href="#description" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.c#L129">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.c#L103">[src]</a>
         
       </h4>
 
       <div class="docblock">
-        <p>Get the backend for the&nbsp;view.</p>
+        <p>Whether to use the built-in key binding&nbsp;handling.</p>
       </div>
 
       <div class="docblock">
         <table>
+          <tr><td>Type:</td>
+            <td><code>gboolean</code></td>
+          </tr>
           
+          
+          <tr><td>Available since:</td><td>0.20</td></tr>
           
           
         </table>
@@ -155,35 +146,21 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       
     </div>
 
-    
-
-    
-    <div class="return-value toggle-wrapper">
-      <h4 id="return-value">
-        Return value
-        <a href="#return-value" class="anchor"></a>
+    <div class="flags toggle-wrapper">
+      <h4 id="flags">
+        Flags
+        <a href="#flags" class="anchor"></a>
       </h4>
 
       <div class="docblock">
-        <table class="returns">
-          <tr class="arg-name">
-            <td>Returns:</td>
-            <td><code>wpe_view_backend*</code></td>
-          </tr>
-          <tr class="arg-description">
-            <td>&nbsp;</td>
-            <td><p>The <span class="caps">WPE</span> view backend for the&nbsp;view.</p></td>
-          </tr>
-          
-          
-          
-          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the instance.</td></tr>
-          
-          
-        </table>
+      <table>
+        <tr><td>Readable</td><td><b>yes</b></td></tr>
+        <tr><td>Writable</td><td><b>yes</b></td></tr>
+        <tr><td>Construct</td><td><b>yes</b></td></tr>
+        <tr><td>Construct only</td><td><b>no</b></td></tr>
+      </table>
       </div>
     </div>
-    
 
   </section>
 </section>
