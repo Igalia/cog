@@ -61,6 +61,7 @@ static struct {
     char    *proxy;
     gchar  **ignore_hosts;
 #endif /* HAVE_WEBKIT_NETWORK_PROXY_API */
+    gboolean disable_key_bindings;
 } s_options = {
     .scale_factor = 1.0,
     .device_scale_factor = 1.0,
@@ -235,13 +236,14 @@ cog_launcher_create_view(CogLauncher *self, CogShell *shell)
     if (!platform)
         g_error("Cannot instantiate a platform: %s", error->message);
 
-    g_autoptr(WebKitWebView) web_view = WEBKIT_WEB_VIEW(
-        cog_view_new("settings", cog_shell_get_web_settings(shell), "web-context", web_context, "zoom-level",
-                     s_options.scale_factor, "is-controlled-by-automation", cog_shell_is_automated(shell),
+    g_autoptr(WebKitWebView) web_view =
+        WEBKIT_WEB_VIEW(cog_view_new("settings", cog_shell_get_web_settings(shell), "web-context", web_context,
+                                     "zoom-level", s_options.scale_factor, "is-controlled-by-automation",
+                                     cog_shell_is_automated(shell), "use-key-bindings", !s_options.disable_key_bindings,
 #if COG_USE_WPE2
-                     "network-session", self->network_session,
+                                     "network-session", self->network_session,
 #endif
-                     NULL));
+                                     NULL));
 
     if (s_options.filter) {
         WebKitUserContentManager *manager = webkit_web_view_get_user_content_manager(web_view);
@@ -1057,6 +1059,8 @@ static GOptionEntry s_cli_options[] = {
     {"ignore-host", 0, 0, G_OPTION_ARG_STRING_ARRAY, &s_options.ignore_hosts, "Set proxy ignore hosts", "HOSTS"},
 #endif /* HAVE_WEBKIT_NETWORK_PROXY_API */
     {"gamepad", '\0', 0, G_OPTION_ARG_CALLBACK, option_entry_parse_gamepad, "Set gamepad implementation", NULL},
+    {"no-key-bindings", '\0', 0, G_OPTION_ARG_NONE, &s_options.disable_key_bindings,
+     "Disable handing of key bindings (default: enabled).", NULL},
     {G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments, "", "[URL]"},
     {NULL}};
 
