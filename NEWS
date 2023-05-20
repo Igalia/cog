@@ -1,3 +1,10 @@
+=====================
+0.18.0 - May 20, 2023
+=====================
+
+- wl: Make output device scaling configuration more robust, which among
+  other things fixes blurry rendering in some compositors.
+
 ======================
 0.17.90 - May 12, 2023
 ======================
