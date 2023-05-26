@@ -86,20 +86,22 @@ struct _CogWlView {
 
     struct wl_callback *frame_callback;
 
-    bool should_update_opaque_region;
+    bool    should_update_opaque_region;
+    int32_t scale_factor;
 };
 
 G_DECLARE_FINAL_TYPE(CogWlView, cog_wl_view, COG, WL_VIEW, CogView)
 G_DEFINE_DYNAMIC_TYPE(CogWlView, cog_wl_view, COG_TYPE_VIEW)
 
-typedef struct output_metrics {
+typedef struct {
     struct wl_output *output;
     int32_t           name;
     int32_t           scale;
     int32_t           width;
     int32_t           height;
     int32_t           refresh;
-} output_metrics;
+    struct wl_list    link;
+} CogWlOutput;
 
 static struct {
     struct wl_display       *display;
@@ -129,9 +131,6 @@ static struct {
     struct wl_cursor       *cursor_left_ptr;
     struct wl_surface      *cursor_left_ptr_surface;
 #endif /* COG_USE_WAYLAND_CURSOR */
-
-    struct output_metrics  metrics[16];
-    struct output_metrics *current_output;
 
     struct zwp_text_input_manager_v3 *text_input_manager;
     struct zwp_text_input_manager_v1 *text_input_manager_v1;
@@ -297,6 +296,8 @@ cog_wl_view_init(CogWlView *self)
     /* Always configure the opaque region on first display after creation. */
     self->should_update_opaque_region = true;
 
+    self->scale_factor = 1;
+
     g_signal_connect(self, "show-option-menu", G_CALLBACK(on_show_option_menu), NULL);
 }
 
@@ -305,8 +306,10 @@ struct _CogWlPlatformClass {
 };
 
 struct _CogWlPlatform {
-    CogPlatform   parent;
-    CogViewStack *views;
+    CogPlatform    parent;
+    CogViewStack  *views;
+    CogWlOutput   *current_output;
+    struct wl_list outputs; /* wl_list<CogWlOutput> */
 };
 
 G_DECLARE_FINAL_TYPE(CogWlPlatform, cog_wl_platform, COG, WL_PLATFORM, CogPlatform)
@@ -487,7 +490,7 @@ setup_wayland_event_source(GMainContext *main_context, struct wl_display *displa
     return &wl_source->source;
 }
 
-static void create_popup(WebKitOptionMenu *option_menu);
+static void create_popup(CogWlView *view, WebKitOptionMenu *option_menu);
 static void display_popup(void);
 static void update_popup(void);
 static void destroy_popup(void);
@@ -524,18 +527,20 @@ configure_surface_geometry(CogWlPlatform *platform, int32_t width, int32_t heigh
 }
 
 static void
-view_resize(CogView *view)
+view_resize(CogView *view, CogWlPlatform *platform)
 {
     struct wpe_view_backend *backend = cog_view_get_backend(view);
 
-    int32_t pixel_width = win_data.width * wl_data.current_output->scale;
-    int32_t pixel_height = win_data.height * wl_data.current_output->scale;
+    COG_WL_VIEW(view)->scale_factor = platform->current_output->scale;
+
+    int32_t pixel_width = win_data.width * platform->current_output->scale;
+    int32_t pixel_height = win_data.height * platform->current_output->scale;
 
     wpe_view_backend_dispatch_set_size(backend, win_data.width, win_data.height);
-    wpe_view_backend_dispatch_set_device_scale_factor(backend, wl_data.current_output->scale);
+    wpe_view_backend_dispatch_set_device_scale_factor(backend, platform->current_output->scale);
 
     g_debug("%s<%p>: Resized EGL buffer to: (%" PRIi32 ", %" PRIi32 ") @%" PRIi32 "x", G_STRFUNC, view, pixel_width,
-            pixel_height, wl_data.current_output->scale);
+            pixel_height, platform->current_output->scale);
 }
 
 static void
@@ -556,7 +561,7 @@ shell_surface_configure(void *data,
     g_debug("New wl_shell configuration: (%" PRIu32 ", %" PRIu32 ")", width, height);
 
     configure_surface_geometry(platform, width, height);
-    cog_view_group_foreach(COG_VIEW_GROUP(platform->views), (GFunc) view_resize, NULL);
+    cog_view_group_foreach(COG_VIEW_GROUP(platform->views), (GFunc) view_resize, platform);
 }
 
 static const struct wl_shell_surface_listener shell_surface_listener = {
@@ -626,7 +631,7 @@ xdg_toplevel_on_configure(void *data,
     g_debug("New XDG toplevel configuration: (%" PRIu32 ", %" PRIu32 ")", width, height);
 
     configure_surface_geometry(platform, width, height);
-    cog_view_group_foreach(COG_VIEW_GROUP(platform->views), (GFunc) view_resize, NULL);
+    cog_view_group_foreach(COG_VIEW_GROUP(platform->views), (GFunc) view_resize, platform);
 }
 
 static void
@@ -664,14 +669,16 @@ resize_to_largest_output(CogWlPlatform *platform)
     /* Find the largest output and resize the surface to match */
     int32_t width = 0;
     int32_t height = 0;
-    for (int i = 0; i < G_N_ELEMENTS(wl_data.metrics); i++) {
-        if (wl_data.metrics[i].output && wl_data.metrics[i].width * wl_data.metrics[i].height >= width * height) {
-            width = wl_data.metrics[i].width;
-            height = wl_data.metrics[i].height;
+
+    CogWlOutput *output;
+    wl_list_for_each(output, &platform->outputs, link) {
+        if (output->width * output->height >= width * height) {
+            width = output->width;
+            height = output->height;
         }
     }
     configure_surface_geometry(platform, width, height);
-    cog_view_group_foreach(COG_VIEW_GROUP(platform->views), (GFunc) view_resize, NULL);
+    cog_view_group_foreach(COG_VIEW_GROUP(platform->views), (GFunc) view_resize, platform);
 }
 
 static void
@@ -679,31 +686,29 @@ noop()
 {
 }
 
-static struct output_metrics *
-find_output(struct wl_output *output)
+static inline CogWlOutput *
+cog_wl_platform_get_output(CogWlPlatform *self, struct wl_output *output)
 {
-    for (int i = 0; i < G_N_ELEMENTS(wl_data.metrics); i++) {
-        if (wl_data.metrics[i].output == output) {
-            return &wl_data.metrics[i];
-        }
+    CogWlOutput *item;
+    wl_list_for_each(item, &self->outputs, link) {
+        if (item->output == output)
+            return item;
     }
-    g_warning("Unknown output %p\n", output);
-    return NULL;
+
+    g_assert_not_reached();
 }
 
 static void
 output_handle_mode(void *data, struct wl_output *output, uint32_t flags, int32_t width, int32_t height, int32_t refresh)
 {
-    struct output_metrics *metrics = find_output(output);
-    if (!metrics) {
-        return;
-    }
+    CogWlPlatform *platform = data;
+
+    CogWlOutput *metrics = cog_wl_platform_get_output(platform, output);
 
     if (flags & WL_OUTPUT_MODE_CURRENT) {
         metrics->width = width;
         metrics->height = height;
         metrics->refresh = refresh;
-        g_info("Output %p is %" PRId32 "x%" PRId32 " @ %.2fHz", output, width, height, refresh / 1000.f);
     }
 }
 
@@ -712,7 +717,7 @@ output_handle_done(void *data, struct wl_output *output)
 {
     CogWlPlatform *platform = data;
 
-    struct output_metrics *metrics = find_output(output);
+    CogWlOutput *metrics = cog_wl_platform_get_output(platform, output);
 
     if (!metrics->refresh) {
         g_warning("No refresh rate reported for output %p, using 60Hz", output);
@@ -724,9 +729,12 @@ output_handle_done(void *data, struct wl_output *output)
         metrics->scale = 1;
     }
 
-    if (!wl_data.current_output) {
+    g_info("Output %p is %" PRId32 "x%" PRId32 "-%" PRIi32 "x @ %.2fHz", output, metrics->width, metrics->height,
+           metrics->scale, metrics->refresh / 1000.f);
+
+    if (!platform->current_output) {
         g_debug("%s: Using %p as initial output", G_STRFUNC, output);
-        wl_data.current_output = metrics;
+        platform->current_output = metrics;
     }
 
     if (win_data.should_resize_to_largest_output) {
@@ -736,15 +744,10 @@ output_handle_done(void *data, struct wl_output *output)
 
 #ifdef WL_OUTPUT_SCALE_SINCE_VERSION
 static void
-output_handle_scale(void *data, struct wl_output *output, int32_t factor)
+output_handle_scale(void *data, struct wl_output *output, int32_t scale)
 {
-    struct output_metrics *metrics = find_output(output);
-    if (!metrics) {
-        return;
-    }
-
-    metrics->scale = factor;
-    g_info("Got scale factor %i for output %p", factor, output);
+    CogWlPlatform *platform = data;
+    cog_wl_platform_get_output(platform, output)->scale = scale;
 }
 #endif /* WL_OUTPUT_SCALE_SINCE_VERSION */
 
@@ -796,11 +799,11 @@ cog_wl_set_fullscreen(CogWlPlatform *self, bool fullscreen)
             xdg_toplevel_unset_fullscreen(win_data.xdg_toplevel);
         } else if (wl_data.fshell != NULL) {
             configure_surface_geometry(self, win_data.width_before_fullscreen, win_data.height_before_fullscreen);
-            cog_view_group_foreach(COG_VIEW_GROUP(self->views), (GFunc) view_resize, NULL);
+            cog_view_group_foreach(COG_VIEW_GROUP(self->views), (GFunc) view_resize, self);
         } else if (wl_data.shell != NULL) {
             wl_shell_surface_set_toplevel(win_data.shell_surface);
             configure_surface_geometry(self, win_data.width_before_fullscreen, win_data.height_before_fullscreen);
-            cog_view_group_foreach(COG_VIEW_GROUP(self->views), (GFunc) view_resize, NULL);
+            cog_view_group_foreach(COG_VIEW_GROUP(self->views), (GFunc) view_resize, self);
         } else {
             g_assert_not_reached();
         }
@@ -853,16 +856,15 @@ surface_handle_enter(void *data, struct wl_surface *surface, struct wl_output *o
 {
     CogWlPlatform *platform = data;
 
-    if (wl_data.current_output->output != output) {
-        g_debug("%s: Surface %p output changed %p -> %p", G_STRFUNC, surface, wl_data.current_output->output, output);
-        wl_data.current_output = find_output(output);
-        g_assert(wl_data.current_output);
+    if (platform->current_output->output != output) {
+        g_debug("%s: Surface %p output changed %p -> %p", G_STRFUNC, surface, platform->current_output->output, output);
+        platform->current_output = cog_wl_platform_get_output(platform, output);
     }
 
 #ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
     const bool can_set_surface_scale = wl_surface_get_version(surface) >= WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION;
     if (can_set_surface_scale)
-        wl_surface_set_buffer_scale(surface, wl_data.current_output->scale);
+        wl_surface_set_buffer_scale(surface, platform->current_output->scale);
     else
         g_debug("%s: Surface %p uses old protocol version, cannot set scale factor", G_STRFUNC, surface);
 #endif /* WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION */
@@ -873,11 +875,11 @@ surface_handle_enter(void *data, struct wl_surface *surface, struct wl_output *o
 
 #ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
         if (can_set_surface_scale)
-            wpe_view_backend_dispatch_set_device_scale_factor(backend, wl_data.current_output->scale);
+            wpe_view_backend_dispatch_set_device_scale_factor(backend, platform->current_output->scale);
 #endif /* WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION */
 
 #if HAVE_REFRESH_RATE_HANDLING
-        wpe_view_backend_set_target_refresh_rate(backend, wl_data.current_output->refresh);
+        wpe_view_backend_set_target_refresh_rate(backend, platform->current_output->refresh);
 #endif /* HAVE_REFRESH_RATE_HANDLING */
     }
 }
@@ -930,20 +932,13 @@ registry_global (void               *data,
 #endif /* COG_ENABLE_WESTON_CONTENT_PROTECTION */
     } else if (strcmp(interface, wl_output_interface.name) == 0) {
         /* Version 2 introduced the wl_output_listener::scale. */
-        struct wl_output *output = wl_registry_bind(registry, name, &wl_output_interface, MIN(2, version));
-        wl_output_add_listener(output, &output_listener, platform);
-        bool inserted = false;
-        for (int i = 0; i < G_N_ELEMENTS(wl_data.metrics); i++) {
-            if (wl_data.metrics[i].output == NULL) {
-                wl_data.metrics[i].output = output;
-                wl_data.metrics[i].name = name;
-                inserted = true;
-                break;
-            }
-        }
-        if (!inserted) {
-            g_warning("Exceeded %" G_GSIZE_FORMAT " connected outputs(!)", G_N_ELEMENTS(wl_data.metrics));
-        }
+        CogWlOutput *item = g_new0(CogWlOutput, 1);
+        item->output = wl_registry_bind(registry, name, &wl_output_interface, MIN(2, version));
+        item->name = name;
+        item->scale = 1;
+        wl_list_init(&item->link);
+        wl_list_insert(&platform->outputs, &item->link);
+        wl_output_add_listener(item->output, &output_listener, platform);
     } else if (strcmp(interface, zwp_text_input_manager_v3_interface.name) == 0) {
         wl_data.text_input_manager = wl_registry_bind(registry, name, &zwp_text_input_manager_v3_interface, 1);
     } else if (strcmp(interface, zwp_text_input_manager_v1_interface.name) == 0) {
@@ -1014,8 +1009,8 @@ pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixe
 
     struct wpe_input_pointer_event event = {wpe_input_pointer_event_type_motion,
                                             time,
-                                            wl_data.pointer.x * wl_data.current_output->scale,
-                                            wl_data.pointer.y * wl_data.current_output->scale,
+                                            wl_data.pointer.x * platform->current_output->scale,
+                                            wl_data.pointer.y * platform->current_output->scale,
                                             wl_data.pointer.button,
                                             wl_data.pointer.state};
     wpe_view_backend_dispatch_pointer_event(cog_view_get_backend(view), &event);
@@ -1046,8 +1041,8 @@ pointer_on_button(void *data,
     struct wpe_input_pointer_event event = {
         wpe_input_pointer_event_type_button,
         time,
-        wl_data.pointer.x * wl_data.current_output->scale,
-        wl_data.pointer.y * wl_data.current_output->scale,
+        wl_data.pointer.x * platform->current_output->scale,
+        wl_data.pointer.y * platform->current_output->scale,
         wl_data.pointer.button,
         wl_data.pointer.state,
     };
@@ -1081,11 +1076,11 @@ dispatch_axis_event(CogWlPlatform *platform)
     struct wpe_input_axis_2d_event event = { 0, };
     event.base.type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion_smooth;
     event.base.time = wl_data.axis.time;
-    event.base.x = wl_data.pointer.x * wl_data.current_output->scale;
-    event.base.y = wl_data.pointer.y * wl_data.current_output->scale;
+    event.base.x = wl_data.pointer.x * platform->current_output->scale;
+    event.base.y = wl_data.pointer.y * platform->current_output->scale;
 
-    event.x_axis = wl_fixed_to_double(wl_data.axis.x_delta) * wl_data.current_output->scale;
-    event.y_axis = -wl_fixed_to_double(wl_data.axis.y_delta) * wl_data.current_output->scale;
+    event.x_axis = wl_fixed_to_double(wl_data.axis.x_delta) * platform->current_output->scale;
+    event.y_axis = -wl_fixed_to_double(wl_data.axis.y_delta) * platform->current_output->scale;
 
     CogView *view = cog_view_stack_get_visible_view(platform->views);
     if (view)
@@ -1417,8 +1412,8 @@ touch_on_down (void *data,
         wpe_input_touch_event_type_down,
         time,
         id,
-        wl_fixed_to_int(x) * wl_data.current_output->scale,
-        wl_fixed_to_int(y) * wl_data.current_output->scale,
+        wl_fixed_to_int(x) * platform->current_output->scale,
+        wl_fixed_to_int(y) * platform->current_output->scale,
     };
 
     memcpy (&wl_data.touch.points[id],
@@ -1521,8 +1516,8 @@ touch_on_motion (void *data,
         wpe_input_touch_event_type_motion,
         time,
         id,
-        wl_fixed_to_int(x) * wl_data.current_output->scale,
-        wl_fixed_to_int(y) * wl_data.current_output->scale,
+        wl_fixed_to_int(x) * platform->current_output->scale,
+        wl_fixed_to_int(y) * platform->current_output->scale,
     };
 
     memcpy (&wl_data.touch.points[id],
@@ -1627,13 +1622,20 @@ static const struct wl_seat_listener seat_listener = {
 static void
 registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
 {
-    for (int i = 0; i < G_N_ELEMENTS (wl_data.metrics); i++)
-    {
-        if (wl_data.metrics[i].name == name) {
-            wl_data.metrics[i].output = NULL;
-            wl_data.metrics[i].name = 0;
-            g_debug ("Removed output %i\n", name);
-            break;
+    CogWlPlatform *platform = data;
+
+    CogWlOutput *output, *tmp_output;
+    wl_list_for_each_safe(output, tmp_output, &platform->outputs, link) {
+        if (output->name == name) {
+            g_debug("%s: output #%" PRIi32 " @ %p removed.", G_STRFUNC, output->name, output->output);
+            g_clear_pointer(&output->output, wl_output_release);
+            wl_list_remove(&output->link);
+            if (platform->current_output == output) {
+                platform->current_output =
+                    wl_list_empty(&platform->outputs) ? NULL : wl_container_of(platform->outputs.next, output, link);
+            }
+            g_clear_pointer(&output, g_free);
+            return;
         }
     }
 }
@@ -1789,8 +1791,8 @@ on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 {
     CogWlView *self = data;
 
-    const uint32_t surface_pixel_width = wl_data.current_output->scale * win_data.width;
-    const uint32_t surface_pixel_height = wl_data.current_output->scale * win_data.height;
+    const uint32_t surface_pixel_width = self->scale_factor * win_data.width;
+    const uint32_t surface_pixel_height = self->scale_factor * win_data.height;
 
     if (surface_pixel_width != wpe_fdo_egl_exported_image_get_width(image) ||
         surface_pixel_height != wpe_fdo_egl_exported_image_get_height(image)) {
@@ -2395,22 +2397,22 @@ destroy_window (void)
 }
 
 static void
-create_popup (WebKitOptionMenu *option_menu)
+create_popup(CogWlView *view, WebKitOptionMenu *option_menu)
 {
     popup_data.option_menu = option_menu;
 
     popup_data.width = win_data.width;
     popup_data.height = cog_popup_menu_get_height_for_option_menu (option_menu);
 
-    popup_data.popup_menu = cog_popup_menu_create(option_menu, wl_data.shm, popup_data.width, popup_data.height,
-                                                  wl_data.current_output->scale);
+    popup_data.popup_menu =
+        cog_popup_menu_create(option_menu, wl_data.shm, popup_data.width, popup_data.height, view->scale_factor);
 
     popup_data.wl_surface = wl_compositor_create_surface (wl_data.compositor);
     g_assert (popup_data.wl_surface);
 
 #ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
     if (wl_surface_get_version(popup_data.wl_surface) >= WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION)
-        wl_surface_set_buffer_scale(popup_data.wl_surface, wl_data.current_output->scale);
+        wl_surface_set_buffer_scale(popup_data.wl_surface, view->scale_factor);
 #endif /* WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION */
 
     if (wl_data.xdg_shell != NULL) {
@@ -2675,7 +2677,7 @@ cog_wl_platform_finalize(GObject *object)
 static void
 on_show_option_menu(WebKitWebView *view, WebKitOptionMenu *menu, WebKitRectangle *rectangle, gpointer *data)
 {
-    create_popup (g_object_ref (menu));
+    create_popup(COG_WL_VIEW(view), g_object_ref(menu));
 }
 
 static WebKitInputMethodContext *
@@ -2709,6 +2711,7 @@ cog_wl_platform_class_finalize(CogWlPlatformClass *klass)
 static void
 cog_wl_platform_init(CogWlPlatform *self)
 {
+    wl_list_init(&self->outputs);
 }
 
 G_MODULE_EXPORT void
