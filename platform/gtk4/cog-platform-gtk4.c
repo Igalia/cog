@@ -99,7 +99,7 @@ get_extensions(void)
     } else {
         GLint                   i, num_extensions = 0;
         g_autoptr(GStrvBuilder) extensions = g_strv_builder_new();
-        g_auto(GStrv)           strv;
+        g_auto(GStrv)           strv = NULL;
 
         glGetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
         if (num_extensions == 0)
