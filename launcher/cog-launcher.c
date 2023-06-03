@@ -374,6 +374,14 @@ cog_launcher_startup(GApplication *application)
 }
 
 static void
+cog_launcher_activate(GApplication *application)
+{
+    /* GApplication warns if activate is not handled. Usually this signal will focus a
+       window but this doesn't apply to many of our platforms so this is a noop. */
+    G_APPLICATION_CLASS(cog_launcher_parent_class)->activate(application);
+}
+
+static void
 cog_launcher_shutdown(GApplication *application)
 {
     cog_shell_shutdown(cog_launcher_get_shell(COG_LAUNCHER(application)));
@@ -1345,6 +1353,7 @@ cog_launcher_class_init(CogLauncherClass *klass)
     application_class->startup = cog_launcher_startup;
     application_class->shutdown = cog_launcher_shutdown;
     application_class->handle_local_options = cog_launcher_handle_local_options;
+    application_class->activate = cog_launcher_activate;
 
     g_object_class_install_property(object_class,
                                     PROP_AUTOMATED,
