@@ -419,9 +419,17 @@ on_refresh_clicked(GtkWidget* widget, gpointer user_data)
 static void
 on_entry_activated(GtkWidget* widget, gpointer user_data)
 {
-    struct platform_window* win = user_data;
-    GtkEntryBuffer* buffer = gtk_entry_get_buffer(GTK_ENTRY(win->url_entry));
-    const gchar* uri = gtk_entry_buffer_get_text(buffer);
+    struct platform_window *win = user_data;
+    GtkEntryBuffer         *buffer = gtk_entry_get_buffer(GTK_ENTRY(win->url_entry));
+    const gchar            *user_input = gtk_entry_buffer_get_text(buffer);
+    g_autoptr(GError)       error = NULL;
+    g_autofree gchar       *uri = cog_uri_guess_from_user_input(user_input, FALSE, &error);
+
+    if (error) {
+        g_warning("Failed to parse user input \"%s\": %s", user_input, error->message);
+        return;
+    }
+
     webkit_web_view_load_uri(win->web_view, uri);
 }
 
