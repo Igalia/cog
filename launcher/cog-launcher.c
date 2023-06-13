@@ -268,6 +268,29 @@ on_automation_started(WebKitWebContext *context, WebKitAutomationSession *sessio
 }
 
 static void
+cog_launcher_set_preferred_languages(CogLauncher *self)
+{
+    const gchar *const *locales;
+    const gchar       **languages;
+    guint               i, n, length;
+
+    /* build Accept-Language from locale, filtering out encodings */
+    locales = g_get_language_names();
+    length = g_strv_length((gchar **) g_get_language_names());
+    languages = g_new0(const gchar *, length + 1);
+
+    for (n = 0, i = 0; locales[i]; i++) {
+        const gchar *lang = locales[i];
+        if (!strcmp(lang, "C") || !strcmp(lang, "POSIX") || strchr(lang, '.'))
+            continue;
+        languages[n++] = lang;
+    }
+
+    webkit_web_context_set_preferred_languages(cog_shell_get_web_context(self->shell), languages);
+    g_free(languages);
+}
+
+static void
 cog_launcher_startup(GApplication *application)
 {
     G_APPLICATION_CLASS(cog_launcher_parent_class)->startup(application);
@@ -317,6 +340,8 @@ cog_launcher_startup(GApplication *application)
     g_clear_pointer(&s_options.web_extensions_dir, g_free);
 
     g_object_set(self->shell, "device-scale-factor", s_options.device_scale_factor, NULL);
+
+    cog_launcher_set_preferred_languages(self);
 
     if (s_options.handler_map) {
         GHashTableIter i;
