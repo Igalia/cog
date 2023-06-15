@@ -307,7 +307,6 @@ static struct {
     struct wpe_view_backend           *backend;
     struct wpe_fdo_egl_exported_image *image;
     struct wl_buffer                  *buffer;
-    struct wl_callback                *frame_callback;
     bool                               should_update_opaque_region;
 } wpe_view_data = {
     .should_update_opaque_region = true, /* Force initial update. */
@@ -1414,11 +1413,7 @@ static const struct wl_registry_listener registry_listener = {.global = registry
 static void
 on_surface_frame(void *data, struct wl_callback *callback, uint32_t time)
 {
-    if (wpe_view_data.frame_callback != NULL) {
-        g_assert(wpe_view_data.frame_callback == callback);
-        wl_callback_destroy(wpe_view_data.frame_callback);
-        wpe_view_data.frame_callback = NULL;
-    }
+    wl_callback_destroy(callback);
 
     wpe_view_backend_exportable_fdo_dispatch_frame_complete(wpe_host_data.exportable);
 }
@@ -1460,10 +1455,8 @@ static const struct wp_presentation_feedback_listener presentation_feedback_list
 static void
 request_frame(void)
 {
-    if (wpe_view_data.frame_callback == NULL) {
-        wpe_view_data.frame_callback = wl_surface_frame(win_data.wl_surface);
-        wl_callback_add_listener(wpe_view_data.frame_callback, &frame_listener, NULL);
-    }
+    struct wl_callback *frame_callback = wl_surface_frame(win_data.wl_surface);
+    wl_callback_add_listener(frame_callback, &frame_listener, NULL);
 
     if (wl_data.presentation != NULL) {
         struct wp_presentation_feedback *presentation_feedback =
@@ -2357,8 +2350,6 @@ static void
 cog_wl_platform_finalize(GObject *object)
 {
     /* free WPE view data */
-    if (wpe_view_data.frame_callback != NULL)
-        wl_callback_destroy(wpe_view_data.frame_callback);
     if (wpe_view_data.image != NULL) {
         wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image(wpe_host_data.exportable,
                                                                             wpe_view_data.image);
