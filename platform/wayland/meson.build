@@ -117,6 +117,11 @@ if wayland_cursor_dep.found()
     wayland_platform_c_args += ['-DCOG_USE_WAYLAND_CURSOR=1']
 endif
 
+cc = meson.get_compiler('c')
+if cc.has_header_symbol('sys/mman.h', 'memfd_create', args : '-D_GNU_SOURCE')
+    wayland_platform_c_args += ['-DHAVE_MEMFD_CREATE']
+endif
+
 wayland_platform_plugin = shared_module('cogplatform-wl',
     'cog-im-context-wl-v1.c',
     'cog-im-context-wl.c',
