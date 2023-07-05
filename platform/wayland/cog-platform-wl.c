@@ -322,7 +322,6 @@ static struct {
     .period = 1000000 / 60,
 };
 
-
 struct wl_event_source {
     GSource source;
     GPollFD pfd;
@@ -1511,7 +1510,7 @@ static const struct wl_registry_listener registry_listener = {
 static void
 on_surface_frame (void *data, struct wl_callback *callback, uint32_t time)
 {
-    wl_callback_destroy (callback);
+    wl_callback_destroy(callback);
 
     wpe_view_data.current_pending_frame_done--;
 }
@@ -1620,8 +1619,8 @@ wait_until_ready(struct wpe_fdo_egl_exported_image *image)
     }
 
     if (wpe_view_data.current_pending_frame_done >= wpe_view_data.max_pending_frame_done) {
-        g_debug("Skip frame request until previous frames are done [%d=>%d]",
-                wpe_view_data.current_pending_frame_done, wpe_view_data.max_pending_frame_done);
+        g_debug("Skip frame request until previous frames are done [%d=>%d]", wpe_view_data.current_pending_frame_done,
+                wpe_view_data.max_pending_frame_done);
         return true;
     }
 
