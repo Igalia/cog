@@ -308,8 +308,18 @@ static struct {
     struct wl_buffer *buffer;
     struct wl_callback *frame_callback;
     bool should_update_opaque_region;
+    int                                current_pending_frame_done;
+    int                                max_pending_frame_done;
+    int64_t                            time;
+    int64_t                            old;
+    int64_t                            period;
 } wpe_view_data = {
     .should_update_opaque_region = true, /* Force initial update. */
+    .current_pending_frame_done = 0,
+    .max_pending_frame_done = 2,
+    .time = LLONG_MAX,
+    .old = 0,
+    .period = 1000000 / 60,
 };
 
 
@@ -762,6 +772,7 @@ surface_handle_enter(void *data, struct wl_surface *surface, struct wl_output *o
 #endif /* WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION */
 
 #if HAVE_REFRESH_RATE_HANDLING
+    wpe_view_data.period = 1000000000 / wl_data.current_output->refresh;
     wpe_view_backend_set_target_refresh_rate(wpe_view_data.backend, wl_data.current_output->refresh);
 #endif /* HAVE_REFRESH_RATE_HANDLING */
 }
@@ -1500,14 +1511,9 @@ static const struct wl_registry_listener registry_listener = {
 static void
 on_surface_frame (void *data, struct wl_callback *callback, uint32_t time)
 {
-    if (wpe_view_data.frame_callback != NULL) {
-        g_assert (wpe_view_data.frame_callback == callback);
-        wl_callback_destroy (wpe_view_data.frame_callback);
-        wpe_view_data.frame_callback = NULL;
-    }
+    wl_callback_destroy (callback);
 
-    wpe_view_backend_exportable_fdo_dispatch_frame_complete
-        (wpe_host_data.exportable);
+    wpe_view_data.current_pending_frame_done--;
 }
 
 static const struct wl_callback_listener frame_listener = {
@@ -1542,12 +1548,10 @@ static const struct wp_presentation_feedback_listener presentation_feedback_list
 static void
 request_frame (void)
 {
-    if (wpe_view_data.frame_callback == NULL) {
-        wpe_view_data.frame_callback = wl_surface_frame (win_data.wl_surface);
-        wl_callback_add_listener (wpe_view_data.frame_callback,
-                                  &frame_listener,
-                                  NULL);
-    }
+    struct wl_callback *frame_callback = wl_surface_frame(win_data.wl_surface);
+    wl_callback_add_listener(frame_callback, &frame_listener, NULL);
+
+    wpe_view_data.current_pending_frame_done++;
 
     if (wl_data.presentation != NULL) {
         struct wp_presentation_feedback *presentation_feedback = wp_presentation_feedback (wl_data.presentation,
@@ -1602,9 +1606,27 @@ static const struct wl_buffer_listener dmabuf_buffer_listener = {
 };
 #endif /* COG_ENABLE_WESTON_DIRECT_DISPLAY */
 
-static void
-on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
+bool
+wait_until_ready(struct wpe_fdo_egl_exported_image *image)
 {
+    int64_t now = g_get_monotonic_time();
+    int64_t j = now - wpe_view_data.old;
+    int64_t w = wpe_view_data.period - j;
+    // fprintf(stderr, "XXX wait_until_ready - time since last dispatch: %ld (millisecs) - wait (%ld > 0) - period (%ld) ?\n", j/1000, w, wpe_view_data.period);
+
+    // skip request frame if it is too early
+    if (w > 0) {
+        return true;
+    }
+
+    if (wpe_view_data.current_pending_frame_done >= wpe_view_data.max_pending_frame_done) {
+        g_debug("Skip frame request until previous frames are done [%d=>%d]",
+                wpe_view_data.current_pending_frame_done, wpe_view_data.max_pending_frame_done);
+        return true;
+    }
+
+    wpe_view_data.old = now;
+
     const uint32_t surface_pixel_width = wl_data.current_output->scale * win_data.width;
     const uint32_t surface_pixel_height = wl_data.current_output->scale * win_data.height;
 
@@ -1616,7 +1638,7 @@ on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
                 surface_pixel_width, surface_pixel_width);
         wpe_view_backend_exportable_fdo_dispatch_frame_complete(wpe_host_data.exportable);
         wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image(wpe_host_data.exportable, image);
-        return;
+        return false;
     }
 
     wpe_view_data.image = image;
@@ -1653,8 +1675,21 @@ on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 
     wl_surface_commit (win_data.wl_surface);
 
+    wpe_view_data.time = g_get_monotonic_time();
+    wpe_view_backend_exportable_fdo_dispatch_frame_complete(wpe_host_data.exportable);
+
     if (win_data.is_resizing_fullscreen && cog_wl_does_image_match_win_size(image))
         cog_wl_fullscreen_image_ready();
+
+    return false;
+}
+
+static void
+on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
+{
+    if (wait_until_ready(image)) {
+        g_timeout_add(1000 / (wl_data.current_output->refresh * 2), (GSourceFunc) wait_until_ready, image);
+    }
 }
 
 #if HAVE_SHM_EXPORTED_BUFFER
@@ -2474,8 +2509,6 @@ static void
 cog_wl_platform_finalize(GObject *object)
 {
     /* free WPE view data */
-    if (wpe_view_data.frame_callback != NULL)
-        wl_callback_destroy(wpe_view_data.frame_callback);
     if (wpe_view_data.image != NULL) {
         wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image(wpe_host_data.exportable,
                                                                             wpe_view_data.image);
