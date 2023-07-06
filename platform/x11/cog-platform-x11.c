@@ -197,10 +197,14 @@ xcb_update_xkb_modifiers(uint32_t event_state)
         wpe_modifiers |= wpe_input_keyboard_modifier_alt;
     }
 
-    if (event_state & XCB_MOD_MASK_LOCK)
+    if (event_state & XCB_MOD_MASK_LOCK) {
         locked_mods |= s_display->xkb.caps_lock;
-    if (event_state & XCB_MOD_MASK_2)
+        wpe_modifiers |= wpe_input_keyboard_modifier_capslock;
+    }
+    if (event_state & XCB_MOD_MASK_2) {
         locked_mods |= s_display->xkb.num_lock;
+        wpe_modifiers |= wpe_input_keyboard_modifier_numlock;
+    }
     xkb_state_update_mask(s_display->xkb.state, depressed_mods, 0, locked_mods, 0, 0, 0);
     return wpe_modifiers;
 }

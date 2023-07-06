@@ -294,6 +294,8 @@ static struct {
         xkb_mod_index_t control;
         xkb_mod_index_t alt;
         xkb_mod_index_t shift;
+        xkb_mod_index_t capslock;
+        xkb_mod_index_t numlock;
     } indexes;
     uint8_t modifiers;
 } xkb_data = {NULL, };
@@ -1072,6 +1074,10 @@ keyboard_on_keymap (void *data,
                                                      XKB_MOD_NAME_ALT);
     xkb_data.indexes.shift = xkb_keymap_mod_get_index (xkb_data.keymap,
                                                        XKB_MOD_NAME_SHIFT);
+    xkb_data.indexes.capslock = xkb_state_led_name_is_active (xkb_data.state,
+                                                              XKB_LED_NAME_CAPS);
+    xkb_data.indexes.numlock = xkb_state_led_name_is_active (xkb_data.state,
+                                                             XKB_LED_NAME_NUM);
 }
 
 static void
@@ -1231,6 +1237,16 @@ keyboard_on_modifiers (void *data,
                                        xkb_data.indexes.shift,
                                        component)) {
         xkb_data.modifiers |= wpe_input_keyboard_modifier_shift;
+    }
+    if (xkb_state_mod_index_is_active (xkb_data.state,
+                                       xkb_data.indexes.capslock,
+                                       component)) {
+        xkb_data.modifiers |= wpe_input_keyboard_modifier_capslock;
+    }
+    if (xkb_state_mod_index_is_active (xkb_data.state,
+                                       xkb_data.indexes.numlock,
+                                       component)) {
+        xkb_data.modifiers |= wpe_input_keyboard_modifier_numlock;
     }
 }
 

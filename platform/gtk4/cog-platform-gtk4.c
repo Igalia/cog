@@ -341,6 +341,18 @@ on_scroll(GtkEventControllerScroll* controller, double dx,
 }
 
 static gboolean
+is_pressed_key(guint keyval)
+{
+    static bool initialized = false;
+
+    if (!initialized) {
+        GUniqueOutPtr<GdkKeymapKey> keys;
+        int entriesCount;
+    }
+    return gdk_display_map_keyval(gdk_display_get_default(), keyval, &keys.outPtr(), &entriesCount) && entriesCount;
+}
+
+static gboolean
 dispatch_key_event(struct platform_window* win, guint keycode, guint hardware_keycode, gboolean pressed, GdkModifierType state)
 {
     uint32_t modifiers = 0;
@@ -351,6 +363,10 @@ dispatch_key_event(struct platform_window* win, guint keycode, guint hardware_ke
         modifiers |= wpe_input_keyboard_modifier_alt;
     if (state & GDK_SHIFT_MASK)
         modifiers |= wpe_input_keyboard_modifier_shift;
+    if (is_pressed_key(GDK_KEY_Caps_Lock))
+        modifiers |= wpe_input_keyboard_modifier_capslock;
+    if (is_pressed_key(GDK_KEY_Num_Lock))
+        modifiers |= wpe_input_keyboard_modifier_numlock;
 
     struct wpe_input_keyboard_event wpe_event = {
         .key_code = keycode,
