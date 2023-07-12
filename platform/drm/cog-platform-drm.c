@@ -352,6 +352,22 @@ check_drm(void)
     return supported;
 }
 
+static int32_t
+find_crtc_for_encoder(const drmModeRes *resources, const drmModeEncoder *encoder) {
+    int i;
+
+    for (i = 0; i < resources->count_crtcs; i++) {
+        const uint32_t crtc_mask = 1 << i;
+        const uint32_t crtc_id = resources->crtcs[i];
+        if (encoder->possible_crtcs & crtc_mask) {
+            return crtc_id;
+        }
+    }
+
+    /* no match found */
+    return -1;
+}
+
 static gboolean
 init_drm(void)
 {
@@ -494,19 +510,30 @@ init_drm(void)
             (long)((drm_data.mode - drm_data.connector.obj->modes) / sizeof(drmModeModeInfo *)), drm_data.mode->name,
             drm_data.mode->vrefresh);
 
+    /* Try the currently connected encoder+crtc */
     for (int i = 0; i < drm_data.base_resources->count_encoders; ++i) {
         drm_data.encoder = drmModeGetEncoder(drm_data.fd, drm_data.base_resources->encoders[i]);
-        if (drm_data.encoder->encoder_id == drm_data.connector.obj->encoder_id)
+        if (!drm_data.encoder) {
+            /* cannot retrieve encoder, ignoring... */
+            continue;
+        }
+
+        const int32_t crtc_id = find_crtc_for_encoder(drm_data.base_resources, drm_data.encoder);
+        if (crtc_id != 0) {
+            drm_data.crtc.obj_id = crtc_id;
             break;
+        }
 
         g_clear_pointer (&drm_data.encoder, drmModeFreeEncoder);
     }
-    if (!drm_data.encoder)
+
+    if (!drm_data.encoder) {
+        fprintf(stderr, "no crtc for encoder found!\n");
         return FALSE;
+    }
 
     drm_data.connector.obj_id = drm_data.connector.obj->connector_id;
 
-    drm_data.crtc.obj_id = drm_data.encoder->crtc_id;
     drm_data.crtc.obj = drmModeGetCrtc (drm_data.fd, drm_data.crtc.obj_id);
     for (int i = 0; i < drm_data.base_resources->count_crtcs; ++i) {
         if (drm_data.base_resources->crtcs[i] == drm_data.crtc.obj_id) {
