@@ -353,7 +353,8 @@ check_drm(void)
 }
 
 static int32_t
-find_crtc_for_encoder(const drmModeRes *resources, const drmModeEncoder *encoder) {
+find_crtc_for_encoder(const drmModeRes *resources, const drmModeEncoder *encoder)
+{
     for (int i = 0; i < resources->count_crtcs; i++) {
         const uint32_t crtc_mask = 1 << i;
         const uint32_t crtc_id = resources->crtcs[i];
