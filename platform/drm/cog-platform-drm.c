@@ -517,7 +517,7 @@ init_drm(void)
         }
 
         const int32_t crtc_id = find_crtc_for_encoder(drm_data.base_resources, drm_data.encoder);
-        if (crtc_id != 0) {
+        if (crtc_id != -1) {
             drm_data.crtc.obj_id = crtc_id;
             break;
         }
