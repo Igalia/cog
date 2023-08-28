@@ -13,6 +13,7 @@
 #include <string.h>
 
 #define HAVE_WEBKIT_NETWORK_PROXY_API WEBKIT_CHECK_VERSION(2, 32, 0)
+#define HAVE_WEBKIT_AUTOPLAY          WEBKIT_CHECK_VERSION(2, 30, 0)
 
 enum webprocess_fail_action {
     WEBPROCESS_FAIL_UNKNOWN = 0,
@@ -62,9 +63,15 @@ static struct {
     gchar  **ignore_hosts;
 #endif /* HAVE_WEBKIT_NETWORK_PROXY_API */
     gboolean disable_key_bindings;
+#if HAVE_WEBKIT_AUTOPLAY
+    WebKitAutoplayPolicy autoplay_policy;
+#endif
 } s_options = {
     .scale_factor = 1.0,
     .device_scale_factor = 1.0,
+#if HAVE_WEBKIT_AUTOPLAY
+    .autoplay_policy = WEBKIT_AUTOPLAY_ALLOW_WITHOUT_SOUND,
+#endif
 };
 
 #if !GLIB_CHECK_VERSION(2, 56, 0)
@@ -236,6 +243,11 @@ cog_launcher_create_view(CogLauncher *self, CogShell *shell)
     if (!platform)
         g_error("Cannot instantiate a platform: %s", error->message);
 
+#if HAVE_WEBKIT_AUTOPLAY
+    WebKitWebsitePolicies *website_policies =
+        webkit_website_policies_new_with_policies("autoplay", s_options.autoplay_policy, NULL);
+#endif
+
     g_autoptr(WebKitWebView) web_view =
         WEBKIT_WEB_VIEW(cog_view_new("settings", cog_shell_get_web_settings(shell), "web-context", web_context,
                                      "zoom-level", s_options.scale_factor, "is-controlled-by-automation",
@@ -243,7 +255,14 @@ cog_launcher_create_view(CogLauncher *self, CogShell *shell)
 #if COG_USE_WPE2
                                      "network-session", self->network_session,
 #endif
+#if HAVE_WEBKIT_AUTOPLAY
+                                     "website-policies", website_policies,
+#endif
                                      NULL));
+
+#if HAVE_WEBKIT_AUTOPLAY
+    g_clear_object(&website_policies);
+#endif
 
     if (s_options.filter) {
         WebKitUserContentManager *manager = webkit_web_view_get_user_content_manager(web_view);
@@ -1028,6 +1047,32 @@ option_entry_parse_gamepad(const char *option_name, const char *value, void *dat
     return TRUE;
 }
 
+#if HAVE_WEBKIT_AUTOPLAY
+static gboolean
+option_entry_parse_autoplay(const char *option_name, const char *value, void *data, GError **error)
+{
+    if (!g_strcmp0(value, "allow")) {
+        s_options.autoplay_policy = WEBKIT_AUTOPLAY_ALLOW;
+        return TRUE;
+    }
+
+    if (!g_strcmp0(value, "allow-without-sound")) {
+        s_options.autoplay_policy = WEBKIT_AUTOPLAY_ALLOW_WITHOUT_SOUND;
+        return TRUE;
+    }
+
+    if (!g_strcmp0(value, "deny")) {
+        s_options.autoplay_policy = WEBKIT_AUTOPLAY_DENY;
+        return TRUE;
+    }
+
+    g_set_error(error, G_OPTION_ERROR, G_OPTION_ERROR_FAILED,
+                "Failed to parse '%s' as an autoplay policy, valid options are allow, allow-without-sound, and deny",
+                value);
+    return FALSE;
+}
+#endif
+
 static GOptionEntry s_cli_options[] = {
     {"version", '\0', 0, G_OPTION_ARG_NONE, &s_options.version, "Print version and exit", NULL},
     {"print-appid", '\0', 0, G_OPTION_ARG_NONE, &s_options.print_appid, "Print application ID and exit", NULL},
@@ -1069,6 +1114,10 @@ static GOptionEntry s_cli_options[] = {
     {"gamepad", '\0', 0, G_OPTION_ARG_CALLBACK, option_entry_parse_gamepad, "Set gamepad implementation", NULL},
     {"no-key-bindings", '\0', 0, G_OPTION_ARG_NONE, &s_options.disable_key_bindings,
      "Disable handing of key bindings (default: enabled).", NULL},
+#if HAVE_WEBKIT_AUTOPLAY
+    {"autoplay-policy", 0, 0, G_OPTION_ARG_CALLBACK, option_entry_parse_autoplay,
+     "Autoplay policy. Valid options are: allow, allow-without-sound, and deny", NULL},
+#endif
     {G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_FILENAME_ARRAY, &s_options.arguments, "", "[URL]"},
     {NULL}};
 
