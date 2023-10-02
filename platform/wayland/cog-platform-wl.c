@@ -169,6 +169,8 @@ G_DECLARE_FINAL_TYPE(CogWlView, cog_wl_view, COG, WL_VIEW, CogView)
 G_DEFINE_DYNAMIC_TYPE(CogWlView, cog_wl_view, COG_TYPE_VIEW)
 
 struct _CogWlDisplay {
+    struct egl_display *egl_display;
+
     struct wl_display    *display;
     struct wl_registry   *registry;
     struct wl_compositor *compositor;
@@ -286,7 +288,7 @@ struct _CogWlWindow {
 
 static void *check_supported(void *);
 
-static void cog_egl_terminate(void);
+static void cog_egl_terminate(CogWlPlatform *);
 
 CogWlDisplay *cog_wl_display_connect(const char *, GError **);
 void          cog_wl_display_destroy(CogWlDisplay *);
@@ -426,10 +428,6 @@ static void xdg_surface_on_configure(void *, struct xdg_surface *, uint32_t);
 
 static void xdg_toplevel_on_configure(void *, struct xdg_toplevel *, int32_t, int32_t, struct wl_array *);
 static void xdg_toplevel_on_close(void *, struct xdg_toplevel *);
-
-static struct {
-    struct egl_display *display;
-} s_egl_data;
 
 static const struct wl_keyboard_listener s_keyboard_listener = {
     .keymap = keyboard_on_keymap,
@@ -620,16 +618,16 @@ cog_egl_init(CogWlPlatform *platform, GError **error)
 {
     g_debug("Initializing EGL...");
 
-    s_egl_data.display = eglGetDisplay((EGLNativeDisplayType) platform->display->display);
-    if (s_egl_data.display == EGL_NO_DISPLAY) {
+    platform->display->egl_display = eglGetDisplay((EGLNativeDisplayType) platform->display->display);
+    if (platform->display->egl_display == EGL_NO_DISPLAY) {
         ERR_EGL(error, "Could not open EGL display");
         return FALSE;
     }
 
     EGLint major, minor;
-    if (!eglInitialize(s_egl_data.display, &major, &minor)) {
+    if (!eglInitialize(platform->display->egl_display, &major, &minor)) {
         ERR_EGL(error, "Could not initialize  EGL");
-        cog_egl_terminate();
+        cog_egl_terminate(platform);
         return FALSE;
     }
     g_info("EGL version %d.%d initialized.", major, minor);
@@ -638,11 +636,11 @@ cog_egl_init(CogWlPlatform *platform, GError **error)
 }
 
 static void
-cog_egl_terminate(void)
+cog_egl_terminate(CogWlPlatform *platform)
 {
-    if (s_egl_data.display != EGL_NO_DISPLAY) {
-        eglTerminate(s_egl_data.display);
-        s_egl_data.display = EGL_NO_DISPLAY;
+    if (platform->display->egl_display != EGL_NO_DISPLAY) {
+        eglTerminate(platform->display->egl_display);
+        platform->display->egl_display = EGL_NO_DISPLAY;
     }
     eglReleaseThread();
 }
@@ -1019,7 +1017,7 @@ cog_wl_platform_finalize(GObject *object)
     cog_wl_platform_clear_input(self);
     cog_wl_popup_destroy();
     cog_wl_platform_destroy_window();
-    cog_egl_terminate();
+    cog_egl_terminate(self);
     cog_wl_terminate(self);
 
     G_OBJECT_CLASS(cog_wl_platform_parent_class)->finalize(object);
@@ -1139,20 +1137,20 @@ cog_wl_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, cons
     }
 
     if (!cog_wl_platform_create_window(self, error)) {
-        cog_egl_terminate();
+        cog_egl_terminate(self);
         cog_wl_terminate(self);
         return FALSE;
     }
 
     if (!cog_wl_platform_init_input(self, error)) {
         cog_wl_platform_destroy_window();
-        cog_egl_terminate();
+        cog_egl_terminate(self);
         cog_wl_terminate(self);
         return FALSE;
     }
 
     /* init WPE host data */
-    wpe_fdo_initialize_for_egl_display(s_egl_data.display);
+    wpe_fdo_initialize_for_egl_display(self->display->egl_display);
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     wpe_video_plane_display_dmabuf_register_receiver(&video_plane_display_dmabuf_receiver, self);
@@ -1579,8 +1577,8 @@ cog_wl_view_update_surface_contents(CogWlView *view, struct wl_surface *surface)
         g_assert(s_eglCreateWaylandBufferFromImageWL);
     }
 
-    struct wl_buffer *buffer =
-        s_eglCreateWaylandBufferFromImageWL(s_egl_data.display, wpe_fdo_egl_exported_image_get_egl_image(view->image));
+    struct wl_buffer *buffer = s_eglCreateWaylandBufferFromImageWL(
+        display->egl_display, wpe_fdo_egl_exported_image_get_egl_image(view->image));
     g_assert(buffer);
 
     static const struct wl_buffer_listener buffer_listener = {.release = cog_wl_on_buffer_release};
