@@ -85,6 +85,7 @@ typedef struct wl_buffer *(EGLAPIENTRYP PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)(EG
 typedef struct _CogWlDisplay CogWlDisplay;
 typedef struct _CogWlWindow  CogWlWindow;
 typedef struct _CogWlOutput  CogWlOutput;
+typedef struct _CogWlPointer CogWlPointer;
 
 #if HAVE_SHM_EXPORTED_BUFFER
 struct shm_buffer {
@@ -151,6 +152,15 @@ G_DEFINE_DYNAMIC_TYPE_EXTENDED(
     0,
     g_io_extension_point_implement(COG_MODULES_PLATFORM_EXTENSION_POINT, g_define_type_id, "wl", 500);)
 
+struct _CogWlPointer {
+    struct wl_pointer *obj;
+    struct wl_surface *surface;
+    int32_t            x;
+    int32_t            y;
+    uint32_t           button;
+    uint32_t           state;
+};
+
 struct _CogWlView {
     CogView parent;
 
@@ -203,16 +213,9 @@ struct _CogWlDisplay {
     struct zwp_text_input_manager_v3 *text_input_manager;
     struct zwp_text_input_manager_v1 *text_input_manager_v1;
 
-    struct wp_presentation *presentation;
+    CogWlPointer pointer;
 
-    struct {
-        struct wl_pointer *obj;
-        struct wl_surface *surface;
-        int32_t            x;
-        int32_t            y;
-        uint32_t           button;
-        uint32_t           state;
-    } pointer;
+    struct wp_presentation *presentation;
 
     struct {
         bool       has_delta;
