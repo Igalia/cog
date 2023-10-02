@@ -86,6 +86,7 @@ typedef struct _CogWlDisplay CogWlDisplay;
 typedef struct _CogWlWindow  CogWlWindow;
 typedef struct _CogWlOutput  CogWlOutput;
 typedef struct _CogWlPointer CogWlPointer;
+typedef struct _CogWlTouch   CogWlTouch;
 
 #if HAVE_SHM_EXPORTED_BUFFER
 struct shm_buffer {
@@ -159,6 +160,12 @@ struct _CogWlPointer {
     int32_t            y;
     uint32_t           button;
     uint32_t           state;
+};
+
+struct _CogWlTouch {
+    struct wl_touch                 *obj;
+    struct wl_surface               *surface;
+    struct wpe_input_touch_event_raw points[10];
 };
 
 struct _CogWlView {
@@ -240,11 +247,7 @@ struct _CogWlDisplay {
         } repeat_data;
     } keyboard;
 
-    struct {
-        struct wl_touch                 *obj;
-        struct wl_surface               *surface;
-        struct wpe_input_touch_event_raw points[10];
-    } touch;
+    CogWlTouch touch;
 
     GSource *event_src;
 
