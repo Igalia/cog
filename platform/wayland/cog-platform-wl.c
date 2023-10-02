@@ -429,15 +429,6 @@ static void xdg_surface_on_configure(void *, struct xdg_surface *, uint32_t);
 static void xdg_toplevel_on_configure(void *, struct xdg_toplevel *, int32_t, int32_t, struct wl_array *);
 static void xdg_toplevel_on_close(void *, struct xdg_toplevel *);
 
-static const struct wl_keyboard_listener s_keyboard_listener = {
-    .keymap = keyboard_on_keymap,
-    .enter = keyboard_on_enter,
-    .leave = keyboard_on_leave,
-    .key = keyboard_on_key,
-    .modifiers = keyboard_on_modifiers,
-    .repeat_info = keyboard_on_repeat_info,
-};
-
 static struct {
     struct wl_surface *wl_surface;
 
@@ -2342,6 +2333,14 @@ seat_on_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities)
     if (has_keyboard && display->keyboard.obj == NULL) {
         display->keyboard.obj = wl_seat_get_keyboard(display->seat);
         g_assert(display->keyboard.obj);
+        static const struct wl_keyboard_listener s_keyboard_listener = {
+            .keymap = keyboard_on_keymap,
+            .enter = keyboard_on_enter,
+            .leave = keyboard_on_leave,
+            .key = keyboard_on_key,
+            .modifiers = keyboard_on_modifiers,
+            .repeat_info = keyboard_on_repeat_info,
+        };
         wl_keyboard_add_listener(display->keyboard.obj, &s_keyboard_listener, platform);
         g_debug("  - Keyboard");
     } else if (!has_keyboard && display->keyboard.obj != NULL) {
