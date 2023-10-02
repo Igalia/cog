@@ -82,11 +82,12 @@
 typedef struct wl_buffer *(EGLAPIENTRYP PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)(EGLDisplay dpy, EGLImageKHR image);
 #endif
 
-typedef struct _CogWlDisplay CogWlDisplay;
-typedef struct _CogWlWindow  CogWlWindow;
-typedef struct _CogWlOutput  CogWlOutput;
-typedef struct _CogWlPointer CogWlPointer;
-typedef struct _CogWlTouch   CogWlTouch;
+typedef struct _CogWlDisplay  CogWlDisplay;
+typedef struct _CogWlKeyboard CogWlKeyboard;
+typedef struct _CogWlOutput   CogWlOutput;
+typedef struct _CogWlPointer  CogWlPointer;
+typedef struct _CogWlTouch    CogWlTouch;
+typedef struct _CogWlWindow   CogWlWindow;
 
 #if HAVE_SHM_EXPORTED_BUFFER
 struct shm_buffer {
@@ -130,6 +131,24 @@ struct wl_event_source {
     GSource            source;
     GPollFD            pfd;
     struct wl_display *display;
+};
+
+struct _CogWlKeyboard {
+    struct wl_keyboard *obj;
+
+    struct {
+        int32_t rate;
+        int32_t delay;
+    } repeat_info;
+
+    struct {
+        uint32_t key;
+        uint32_t time;
+        uint32_t state;
+        uint32_t event_source;
+    } repeat_data;
+
+    uint32_t serial;
 };
 
 struct _CogWlPlatformClass {
@@ -200,7 +219,6 @@ struct _CogWlDisplay {
     struct wl_shell                *shell;
 
     struct wl_seat *seat;
-    uint32_t        event_serial;
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     struct zwp_linux_dmabuf_v1      *dmabuf;
@@ -231,21 +249,7 @@ struct _CogWlDisplay {
         wl_fixed_t y_delta;
     } axis;
 
-    struct {
-        struct wl_keyboard *obj;
-
-        struct {
-            int32_t rate;
-            int32_t delay;
-        } repeat_info;
-
-        struct {
-            uint32_t key;
-            uint32_t time;
-            uint32_t state;
-            uint32_t event_source;
-        } repeat_data;
-    } keyboard;
+    CogWlKeyboard keyboard;
 
     CogWlTouch touch;
 
@@ -1201,14 +1205,14 @@ cog_wl_popup_create(CogWlView *view, WebKitOptionMenu *option_menu)
         g_assert(s_popup_data.xdg_popup);
 
         xdg_popup_add_listener(s_popup_data.xdg_popup, &s_xdg_popup_listener, NULL);
-        xdg_popup_grab(s_popup_data.xdg_popup, display->seat, display->event_serial);
+        xdg_popup_grab(s_popup_data.xdg_popup, display->seat, display->keyboard.serial);
         wl_surface_commit(s_popup_data.wl_surface);
     } else if (display->shell != NULL) {
         s_popup_data.shell_surface = wl_shell_get_shell_surface(display->shell, s_popup_data.wl_surface);
         g_assert(s_popup_data.shell_surface);
 
         wl_shell_surface_add_listener(s_popup_data.shell_surface, &s_shell_popup_surface_listener, NULL);
-        wl_shell_surface_set_popup(s_popup_data.shell_surface, display->seat, display->event_serial,
+        wl_shell_surface_set_popup(s_popup_data.shell_surface, display->seat, display->keyboard.serial,
                                    s_window->wl_surface, 0, (s_window->height - s_popup_data.height), 0);
 
         cog_wl_popup_display();
@@ -1689,7 +1693,7 @@ keyboard_on_enter(void               *data,
 {
     CogWlPlatform *platform = data;
     CogWlDisplay  *display = platform->display;
-    display->event_serial = serial;
+    display->keyboard.serial = serial;
 }
 
 static void
@@ -1697,7 +1701,7 @@ keyboard_on_leave(void *data, struct wl_keyboard *wl_keyboard, uint32_t serial, 
 {
     CogWlPlatform *platform = data;
     CogWlDisplay  *display = platform->display;
-    display->event_serial = serial;
+    display->keyboard.serial = serial;
 }
 
 static void
@@ -1772,7 +1776,7 @@ keyboard_on_key(void               *data,
     // https://xkbcommon.org/doc/current/xkbcommon_8h.html
     key += 8;
 
-    display->event_serial = serial;
+    display->keyboard.serial = serial;
     handle_key_event(platform, key, state, time);
 
     if (display->keyboard.repeat_info.rate == 0)
@@ -1810,7 +1814,7 @@ keyboard_on_modifiers(void               *data,
 
     if (s_xkb_data.state == NULL)
         return;
-    display->event_serial = serial;
+    display->keyboard.serial = serial;
 
     xkb_state_update_mask(s_xkb_data.state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
 
@@ -2071,7 +2075,7 @@ pointer_on_button(void              *data,
     CogWlPlatform *platform = data;
     CogWlDisplay  *display = platform->display;
 
-    display->event_serial = serial;
+    display->keyboard.serial = serial;
 
     /* @FIXME: what is this for?
     if (button >= BTN_MOUSE)
@@ -2123,7 +2127,7 @@ pointer_on_enter(void              *data,
     CogWlPlatform *platform = data;
     CogWlDisplay  *display = platform->display;
 
-    display->event_serial = serial;
+    display->keyboard.serial = serial;
     display->pointer.surface = surface;
 
 #ifdef COG_USE_WAYLAND_CURSOR
@@ -2171,7 +2175,7 @@ pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct
     CogWlPlatform *platform = data;
     CogWlDisplay  *display = platform->display;
 
-    display->event_serial = serial;
+    display->keyboard.serial = serial;
     display->pointer.surface = NULL;
 }
 
@@ -2565,7 +2569,7 @@ touch_on_down(void              *data,
     CogWlDisplay  *display = platform->display;
 
     display->touch.surface = surface;
-    display->event_serial = serial;
+    display->keyboard.serial = serial;
 
     if (id < 0 || id >= 10)
         return;
@@ -2641,7 +2645,7 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
 
     struct wl_surface *target_surface = display->touch.surface;
     display->touch.surface = NULL;
-    display->event_serial = serial;
+    display->keyboard.serial = serial;
 
     if (id < 0 || id >= 10)
         return;
