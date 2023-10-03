@@ -945,6 +945,12 @@ cog_wl_platform_destroy_window(CogWlWindow *window)
 {
     g_return_if_fail(window);
 
+    if (window->display->keyboard_target == window)
+        window->display->keyboard_target = NULL;
+
+    if (window->display->pointer_target == window)
+        window->display->pointer_target = NULL;
+
     g_clear_pointer(&window->xdg_toplevel, xdg_toplevel_destroy);
     g_clear_pointer(&window->xdg_surface, xdg_surface_destroy);
     g_clear_pointer(&window->shell_surface, wl_shell_surface_destroy);
