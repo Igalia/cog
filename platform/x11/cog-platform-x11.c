@@ -14,15 +14,17 @@
 #include <wpe/fdo.h>
 #include <wpe/fdo-egl.h>
 
-#include <xcb/xcb.h>
-#include <xkbcommon/xkbcommon-x11.h>
-#include <X11/Xlib.h>
 #include <X11/Xlib-xcb.h>
+#include <X11/Xlib.h>
+#include <xcb/xcb.h>
+#include <xcb/xcb_cursor.h>
+#include <xkbcommon/xkbcommon-x11.h>
 
 #if COG_HAVE_LIBPORTAL
 #    include "../common/cog-file-chooser.h"
 #endif /* COG_HAVE_LIBPORTAL */
 #include "../common/cog-gl-utils.h"
+#include "../common/cursors.h"
 #include "../common/egl-proc-address.h"
 #if COG_HAVE_LIBPORTAL
 #    include "cog-xdp-parent-x11.h"
@@ -889,11 +891,49 @@ on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
 #endif /* COG_HAVE_LIBPORTAL */
 
 static void
+set_cursor(enum cursor_type type)
+{
+    xcb_cursor_context_t *ctx;
+    if (xcb_cursor_context_new(s_display->xcb.connection, s_display->xcb.screen, &ctx) < 0) {
+        g_warning("Could not initialize xcb-cursor");
+        return;
+    }
+
+    xcb_cursor_t cursor = XCB_CURSOR_NONE;
+    for (int i = 0; cursor == XCB_CURSOR_NONE && i < G_N_ELEMENTS(cursor_names[type]) && cursor_names[type][i]; i++) {
+        cursor = xcb_cursor_load_cursor(ctx, cursor_names[type][i]);
+    }
+
+    if (cursor == XCB_CURSOR_NONE) {
+        g_warning("Could not load %s cursor", cursor_names[type][0]);
+    }
+
+    xcb_change_window_attributes(s_display->xcb.connection, s_window->xcb.window, XCB_CW_CURSOR, &cursor);
+    xcb_free_cursor(s_display->xcb.connection, cursor);
+    xcb_cursor_context_free(ctx);
+}
+
+static void
+on_mouse_target_changed(WebKitWebView *view, WebKitHitTestResult *hitTestResult, guint mouseModifiers)
+{
+    if (webkit_hit_test_result_context_is_link(hitTestResult)) {
+        set_cursor(CURSOR_HAND);
+    } else if (webkit_hit_test_result_context_is_editable(hitTestResult)) {
+        set_cursor(CURSOR_TEXT);
+    } else if (webkit_hit_test_result_context_is_selection(hitTestResult)) {
+        set_cursor(CURSOR_TEXT);
+    } else {
+        set_cursor(CURSOR_LEFT_PTR);
+    }
+}
+
+static void
 cog_x11_platform_init_web_view(CogPlatform *platform, WebKitWebView *web_view)
 {
 #if COG_HAVE_LIBPORTAL
     g_signal_connect(web_view, "run-file-chooser", G_CALLBACK(on_run_file_chooser), NULL);
 #endif /* COG_HAVE_LIBPORTAL */
+    g_signal_connect(web_view, "mouse-target-changed", G_CALLBACK(on_mouse_target_changed), NULL);
     COG_X11_PLATFORM(platform)->web_view = COG_VIEW(web_view);
 }
 
