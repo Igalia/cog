@@ -389,10 +389,6 @@ static void on_show_option_menu(WebKitWebView *, WebKitOptionMenu *, WebKitRecta
 
 static void on_wl_surface_frame(void *, struct wl_callback *, uint32_t);
 
-static void output_handle_done(void *, struct wl_output *);
-static void output_handle_mode(void *, struct wl_output *, uint32_t, int32_t, int32_t, int32_t);
-static void output_handle_scale(void *, struct wl_output *, int32_t);
-
 static void presentation_feedback_on_discarded(void *, struct wp_presentation_feedback *);
 static void presentation_feedback_on_presented(void *,
                                                struct wp_presentation_feedback *,
@@ -404,13 +400,6 @@ static void presentation_feedback_on_presented(void *,
                                                uint32_t,
                                                uint32_t);
 static void presentation_feedback_on_sync_output(void *, struct wp_presentation_feedback *, struct wl_output *);
-
-static void pointer_on_axis(void *, struct wl_pointer *, uint32_t, uint32_t, wl_fixed_t);
-static void pointer_on_button(void *, struct wl_pointer *, uint32_t, uint32_t, uint32_t, uint32_t);
-static void pointer_on_enter(void *, struct wl_pointer *, uint32_t, struct wl_surface *, wl_fixed_t, wl_fixed_t);
-static void pointer_on_frame(void *, struct wl_pointer *);
-static void pointer_on_leave(void *, struct wl_pointer *, uint32_t, struct wl_surface *);
-static void pointer_on_motion(void *data, struct wl_pointer *, uint32_t, wl_fixed_t, wl_fixed_t);
 
 static inline bool pointer_uses_frame_event(struct wl_pointer *);
 
@@ -487,38 +476,6 @@ static struct {
     .configured = false,
 };
 
-static const struct wl_output_listener s_output_listener = {
-    .geometry = noop,
-    .mode = output_handle_mode,
-    .done = output_handle_done,
-#ifdef WL_OUTPUT_SCALE_SINCE_VERSION
-    .scale = output_handle_scale,
-#endif /* WL_OUTPUT_SCALE_SINCE_VERSION */
-};
-
-static const struct wl_pointer_listener s_pointer_listener = {
-    .enter = pointer_on_enter,
-    .leave = pointer_on_leave,
-    .motion = pointer_on_motion,
-    .button = pointer_on_button,
-    .axis = pointer_on_axis,
-
-#ifdef WL_POINTER_FRAME_SINCE_VERSION
-    .frame = pointer_on_frame,
-    .axis_source = noop,
-    .axis_stop = noop,
-    .axis_discrete = noop,
-#endif /* WL_POINTER_FRAME_SINCE_VERSION */
-};
-
-static const struct wp_presentation_feedback_listener s_presentation_feedback_listener = {
-    .sync_output = presentation_feedback_on_sync_output,
-    .presented = presentation_feedback_on_presented,
-    .discarded = presentation_feedback_on_discarded};
-
-static const struct wl_registry_listener s_registry_listener = {.global = registry_global,
-                                                                .global_remove = registry_global_remove};
-
 static const struct wl_seat_listener s_seat_listener = {
     .capabilities = seat_on_capabilities,
 #ifdef WL_SEAT_NAME_SINCE_VERSION
@@ -526,47 +483,9 @@ static const struct wl_seat_listener s_seat_listener = {
 #endif /* WL_SEAT_NAME_SINCE_VERSION */
 };
 
-static const struct wl_shell_surface_listener s_shell_popup_surface_listener = {
-    .ping = shell_popup_surface_ping,
-    .configure = shell_popup_surface_configure,
-    .popup_done = shell_popup_surface_popup_done,
-};
-
-static const struct wl_shell_surface_listener s_shell_surface_listener = {
-    .ping = shell_surface_ping,
-    .configure = shell_surface_configure,
-};
-
-static const struct wl_surface_listener s_surface_listener = {
-    .enter = surface_handle_enter,
-    .leave = noop,
-};
-
-static const struct wl_touch_listener s_touch_listener = {
-    .down = touch_on_down,
-    .up = touch_on_up,
-    .motion = touch_on_motion,
-    .frame = touch_on_frame,
-    .cancel = touch_on_cancel,
-};
-
 static CogWlWindow *s_window = NULL;
 
-static const struct xdg_popup_listener s_xdg_popup_listener = {
-    .configure = xdg_popup_on_configure,
-    .popup_done = xdg_popup_on_popup_done,
-};
-
 static const struct xdg_surface_listener s_xdg_surface_listener = {.configure = xdg_surface_on_configure};
-
-static const struct xdg_wm_base_listener s_xdg_shell_listener = {
-    .ping = xdg_shell_ping,
-};
-
-static const struct xdg_toplevel_listener s_xdg_toplevel_listener = {
-    .configure = xdg_toplevel_on_configure,
-    .close = xdg_toplevel_on_close,
-};
 
 // clang-format off
 #define SHELL_PROTOCOLS(m) \
@@ -776,7 +695,11 @@ cog_wl_init(CogWlPlatform *platform, GError **error)
 
     display->registry = wl_display_get_registry(display->display);
     g_assert(display->registry);
-    wl_registry_add_listener(display->registry, &s_registry_listener, platform);
+
+    static const struct wl_registry_listener registry_listener = {.global = registry_global,
+                                                                  .global_remove = registry_global_remove};
+
+    wl_registry_add_listener(display->registry, &registry_listener, platform);
     wl_display_roundtrip(display->display);
 
 #if COG_USE_WAYLAND_CURSOR
@@ -929,7 +852,11 @@ cog_wl_platform_create_window(CogWlPlatform *self, GError **error)
     window->video_surfaces = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, video_surface_destroy);
 #endif
 
-    wl_surface_add_listener(window->wl_surface, &s_surface_listener, window);
+    static const struct wl_surface_listener surface_listener = {
+        .enter = surface_handle_enter,
+        .leave = noop,
+    };
+    wl_surface_add_listener(window->wl_surface, &surface_listener, window);
 
     if (display->xdg_shell != NULL) {
         window->xdg_surface = xdg_wm_base_get_xdg_surface(display->xdg_shell, window->wl_surface);
@@ -939,7 +866,11 @@ cog_wl_platform_create_window(CogWlPlatform *self, GError **error)
         window->xdg_toplevel = xdg_surface_get_toplevel(window->xdg_surface);
         g_assert(window->xdg_toplevel);
 
-        xdg_toplevel_add_listener(window->xdg_toplevel, &s_xdg_toplevel_listener, self);
+        static const struct xdg_toplevel_listener xdg_toplevel_listener = {
+            .configure = xdg_toplevel_on_configure,
+            .close = xdg_toplevel_on_close,
+        };
+        xdg_toplevel_add_listener(window->xdg_toplevel, &xdg_toplevel_listener, self);
         xdg_toplevel_set_title(window->xdg_toplevel, COG_DEFAULT_APPNAME);
 
         const char   *app_id = NULL;
@@ -965,7 +896,11 @@ cog_wl_platform_create_window(CogWlPlatform *self, GError **error)
         window->shell_surface = wl_shell_get_shell_surface(display->shell, window->wl_surface);
         g_assert(window->shell_surface);
 
-        wl_shell_surface_add_listener(window->shell_surface, &s_shell_surface_listener, self);
+        static const struct wl_shell_surface_listener shell_surface_listener = {
+            .ping = shell_surface_ping,
+            .configure = shell_surface_configure,
+        };
+        wl_shell_surface_add_listener(window->shell_surface, &shell_surface_listener, self);
         wl_shell_surface_set_toplevel(window->shell_surface);
 
         /* wl_shell needs an initial surface configuration. */
@@ -1218,14 +1153,23 @@ cog_wl_popup_create(CogWlView *view, WebKitOptionMenu *option_menu)
             xdg_surface_get_popup(s_popup_data.xdg_surface, view->window->xdg_surface, s_popup_data.xdg_positioner);
         g_assert(s_popup_data.xdg_popup);
 
-        xdg_popup_add_listener(s_popup_data.xdg_popup, &s_xdg_popup_listener, NULL);
+        static const struct xdg_popup_listener xdg_popup_listener = {
+            .configure = xdg_popup_on_configure,
+            .popup_done = xdg_popup_on_popup_done,
+        };
+        xdg_popup_add_listener(s_popup_data.xdg_popup, &xdg_popup_listener, NULL);
         xdg_popup_grab(s_popup_data.xdg_popup, display->seat, display->keyboard.serial);
         wl_surface_commit(s_popup_data.wl_surface);
     } else if (display->shell != NULL) {
         s_popup_data.shell_surface = wl_shell_get_shell_surface(display->shell, s_popup_data.wl_surface);
         g_assert(s_popup_data.shell_surface);
 
-        wl_shell_surface_add_listener(s_popup_data.shell_surface, &s_shell_popup_surface_listener, NULL);
+        static const struct wl_shell_surface_listener shell_popup_surface_listener = {
+            .ping = shell_popup_surface_ping,
+            .configure = shell_popup_surface_configure,
+            .popup_done = shell_popup_surface_popup_done,
+        };
+        wl_shell_surface_add_listener(s_popup_data.shell_surface, &shell_popup_surface_listener, NULL);
         wl_shell_surface_set_popup(s_popup_data.shell_surface, display->seat, display->keyboard.serial,
                                    view->window->wl_surface, 0, (view->window->height - s_popup_data.height), 0);
 
@@ -1291,9 +1235,13 @@ cog_wl_request_frame(CogWlView *view)
     }
 
     if (display->presentation != NULL) {
+        static const struct wp_presentation_feedback_listener presentation_feedback_listener = {
+            .sync_output = presentation_feedback_on_sync_output,
+            .presented = presentation_feedback_on_presented,
+            .discarded = presentation_feedback_on_discarded};
         struct wp_presentation_feedback *presentation_feedback =
             wp_presentation_feedback(display->presentation, view->window->wl_surface);
-        wp_presentation_feedback_add_listener(presentation_feedback, &s_presentation_feedback_listener, NULL);
+        wp_presentation_feedback_add_listener(presentation_feedback, &presentation_feedback_listener, NULL);
     }
 }
 
@@ -2366,7 +2314,10 @@ registry_global(void *data, struct wl_registry *registry, uint32_t name, const c
     } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
         display->xdg_shell = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
         g_assert(display->xdg_shell);
-        xdg_wm_base_add_listener(display->xdg_shell, &s_xdg_shell_listener, NULL);
+        static const struct xdg_wm_base_listener xdg_shell_listener = {
+            .ping = xdg_shell_ping,
+        };
+        xdg_wm_base_add_listener(display->xdg_shell, &xdg_shell_listener, NULL);
     } else if (strcmp(interface, zwp_fullscreen_shell_v1_interface.name) == 0) {
         display->fshell = wl_registry_bind(registry, name, &zwp_fullscreen_shell_v1_interface, 1);
     } else if (strcmp(interface, wl_seat_interface.name) == 0) {
@@ -2386,14 +2337,22 @@ registry_global(void *data, struct wl_registry *registry, uint32_t name, const c
         display->protection = wl_registry_bind(registry, name, &weston_content_protection_interface, 1);
 #endif /* COG_ENABLE_WESTON_CONTENT_PROTECTION */
     } else if (strcmp(interface, wl_output_interface.name) == 0) {
-        /* Version 2 introduced the wl_s_output_listener::scale. */
+        static const struct wl_output_listener output_listener = {
+            .geometry = noop,
+            .mode = output_handle_mode,
+            .done = output_handle_done,
+#ifdef WL_OUTPUT_SCALE_SINCE_VERSION
+            .scale = output_handle_scale,
+#endif /* WL_OUTPUT_SCALE_SINCE_VERSION */
+        };
+        /* Version 2 introduced the wl_output_listener::scale. */
         CogWlOutput *item = g_new0(CogWlOutput, 1);
         item->output = wl_registry_bind(registry, name, &wl_output_interface, MIN(2, version));
         item->name = name;
         item->scale = 1;
         wl_list_init(&item->link);
         wl_list_insert(&platform->outputs, &item->link);
-        wl_output_add_listener(item->output, &s_output_listener, platform);
+        wl_output_add_listener(item->output, &output_listener, platform);
     } else if (strcmp(interface, zwp_text_input_manager_v3_interface.name) == 0) {
         display->text_input_manager = wl_registry_bind(registry, name, &zwp_text_input_manager_v3_interface, 1);
     } else if (strcmp(interface, zwp_text_input_manager_v1_interface.name) == 0) {
@@ -2437,9 +2396,22 @@ seat_on_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities)
     /* Pointer */
     const bool has_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
     if (has_pointer && display->pointer_obj == NULL) {
+        static const struct wl_pointer_listener pointer_listener = {
+            .enter = pointer_on_enter,
+            .leave = pointer_on_leave,
+            .motion = pointer_on_motion,
+            .button = pointer_on_button,
+            .axis = pointer_on_axis,
+#ifdef WL_POINTER_FRAME_SINCE_VERSION
+            .frame = pointer_on_frame,
+            .axis_source = noop,
+            .axis_stop = noop,
+            .axis_discrete = noop,
+#endif /* WL_POINTER_FRAME_SINCE_VERSION */
+        };
         display->pointer_obj = wl_seat_get_pointer(display->seat);
         g_assert(display->pointer_obj);
-        wl_pointer_add_listener(display->pointer_obj, &s_pointer_listener, platform);
+        wl_pointer_add_listener(display->pointer_obj, &pointer_listener, platform);
         g_debug("  - Pointer");
     } else if (!has_pointer && display->pointer_obj != NULL) {
         wl_pointer_release(display->pointer_obj);
@@ -2469,9 +2441,16 @@ seat_on_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities)
     /* Touch */
     const bool has_touch = capabilities & WL_SEAT_CAPABILITY_TOUCH;
     if (has_touch && display->touch_obj == NULL) {
+        static const struct wl_touch_listener touch_listener = {
+            .down = touch_on_down,
+            .up = touch_on_up,
+            .motion = touch_on_motion,
+            .frame = touch_on_frame,
+            .cancel = touch_on_cancel,
+        };
         display->touch_obj = wl_seat_get_touch(display->seat);
         g_assert(display->touch_obj);
-        wl_touch_add_listener(display->touch_obj, &s_touch_listener, platform);
+        wl_touch_add_listener(display->touch_obj, &touch_listener, platform);
         g_debug("  - Touch");
     } else if (!has_touch && display->touch_obj != NULL) {
         wl_touch_release(display->touch_obj);
