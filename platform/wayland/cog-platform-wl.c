@@ -36,6 +36,7 @@
 #if COG_HAVE_LIBPORTAL
 #    include "../common/cog-file-chooser.h"
 #endif /* COG_HAVE_LIBPORTAL */
+#include "../common/cursors.h"
 #include "../common/egl-proc-address.h"
 #include "os-compatibility.h"
 
@@ -105,6 +106,7 @@ static struct {
     struct wl_shell                *shell;
 
     struct wl_seat *seat;
+    uint32_t        pointer_on_enter_event_serial;
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     struct zwp_linux_dmabuf_v1      *dmabuf;
@@ -117,8 +119,7 @@ static struct {
 
 #ifdef COG_USE_WAYLAND_CURSOR
     struct wl_cursor_theme *cursor_theme;
-    struct wl_cursor       *cursor_left_ptr;
-    struct wl_surface      *cursor_left_ptr_surface;
+    struct wl_surface      *cursor_surface;
 #endif /* COG_USE_WAYLAND_CURSOR */
 
     CogWlOutput  metrics[16];
@@ -744,6 +745,40 @@ registry_global (void               *data,
     g_debug("%s '%s' interface obtained from the Wayland registry.", interface_used ? "Using" : "Ignoring", interface);
 }
 
+#ifdef COG_USE_WAYLAND_CURSOR
+static void
+set_cursor(enum cursor_type type)
+{
+    if (!wl_data.cursor_theme || !wl_data.cursor_surface)
+        return;
+
+    struct wl_cursor *cursor = NULL;
+    for (int i = 0; !cursor && i < G_N_ELEMENTS(cursor_names[type]) && cursor_names[type][i]; i++) {
+        cursor = wl_cursor_theme_get_cursor(wl_data.cursor_theme, cursor_names[type][i]);
+    }
+
+    if (!cursor) {
+        g_warning("Could not get %s cursor", cursor_names[type][0]);
+        return;
+    }
+
+    /*
+     * TODO: Take the output device scaling into account and load
+     *       a cursor image of the appropriate size, if possible.
+     */
+    struct wl_cursor_image *image = cursor->images[0];
+    struct wl_buffer       *buffer = wl_cursor_image_get_buffer(image);
+    wl_pointer_set_cursor(wl_data.pointer_obj,
+                          wl_data.pointer_on_enter_event_serial,
+                          wl_data.cursor_surface,
+                          image->hotspot_x,
+                          image->hotspot_y);
+    wl_surface_attach(wl_data.cursor_surface, buffer, 0, 0);
+    wl_surface_damage(wl_data.cursor_surface, 0, 0, image->width, image->height);
+    wl_surface_commit(wl_data.cursor_surface);
+}
+#endif /* COG_USE_WAYLAND_CURSOR */
+
 static void
 pointer_on_enter(void              *data,
                  struct wl_pointer *pointer,
@@ -753,31 +788,11 @@ pointer_on_enter(void              *data,
                  wl_fixed_t         fixed_y)
 {
     wl_data.keyboard.serial = serial;
+    wl_data.pointer_on_enter_event_serial = serial;
     wl_data.pointer.surface = surface;
 
 #ifdef COG_USE_WAYLAND_CURSOR
-    if (wl_data.cursor_left_ptr) {
-        /*
-         * TODO: Take the output device scaling into account and load
-         *       a cursor image of the appropriate size, if possible.
-         */
-        if (!wl_data.cursor_left_ptr_surface) {
-            struct wl_buffer *buffer = wl_cursor_image_get_buffer(wl_data.cursor_left_ptr->images[0]);
-            if (buffer) {
-                struct wl_surface *surface = wl_compositor_create_surface(wl_data.compositor);
-                wl_surface_attach(surface, buffer, 0, 0);
-                wl_surface_damage(surface, 0, 0, wl_data.cursor_left_ptr->images[0]->width,
-                                  wl_data.cursor_left_ptr->images[0]->height);
-                wl_surface_commit(surface);
-                wl_data.cursor_left_ptr_surface = surface;
-            }
-        }
-        wl_pointer_set_cursor(wl_data.pointer_obj,
-                              serial,
-                              wl_data.cursor_left_ptr_surface,
-                              wl_data.cursor_left_ptr->images[0]->hotspot_x,
-                              wl_data.cursor_left_ptr->images[0]->hotspot_y);
-    }
+    set_cursor(CURSOR_LEFT_PTR);
 #endif /* COG_USE_WAYLAND_CURSOR */
 }
 
@@ -1839,13 +1854,10 @@ init_wayland (GError **error)
     wl_display_roundtrip (wl_data.display);
 
 #if COG_USE_WAYLAND_CURSOR
-    if (wl_data.shm) {
-        if (!(wl_data.cursor_theme = wl_cursor_theme_load(NULL, 32, wl_data.shm))) {
-            g_warning("%s: Could not load cursor theme.", G_STRFUNC);
-        } else if (!(wl_data.cursor_left_ptr = wl_cursor_theme_get_cursor(wl_data.cursor_theme, "left_ptr"))) {
-            g_warning("%s: Could not load left_ptr cursor.", G_STRFUNC);
-        }
+    if (!(wl_data.cursor_theme = wl_cursor_theme_load(NULL, 32, wl_data.shm))) {
+        g_warning("%s: Could not load cursor theme", G_STRFUNC);
     }
+    wl_data.cursor_surface = wl_compositor_create_surface(wl_data.compositor);
 #endif /* COG_USE_WAYLAND_CURSOR */
 
     g_assert (wl_data.compositor);
@@ -1884,7 +1896,7 @@ clear_wayland (void)
 #endif
 
 #ifdef COG_USE_WAYLAND_CURSOR
-    g_clear_pointer (&wl_data.cursor_left_ptr_surface, wl_surface_destroy);
+    g_clear_pointer(&wl_data.cursor_surface, wl_surface_destroy);
     g_clear_pointer (&wl_data.cursor_theme, wl_cursor_theme_destroy);
 #endif /* COG_USE_WAYLAND_CURSOR */
 
@@ -2446,12 +2458,29 @@ on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
 #endif /* COG_HAVE_LIBPORTAL */
 
 static void
+on_mouse_target_changed(WebKitWebView *view, WebKitHitTestResult *hitTestResult, guint mouseModifiers)
+{
+#ifdef COG_USE_WAYLAND_CURSOR
+    if (webkit_hit_test_result_context_is_link(hitTestResult)) {
+        set_cursor(CURSOR_HAND);
+    } else if (webkit_hit_test_result_context_is_editable(hitTestResult)) {
+        set_cursor(CURSOR_TEXT);
+    } else if (webkit_hit_test_result_context_is_selection(hitTestResult)) {
+        set_cursor(CURSOR_TEXT);
+    } else {
+        set_cursor(CURSOR_LEFT_PTR);
+    }
+#endif /* COG_USE_WAYLAND_CURSOR */
+}
+
+static void
 cog_wl_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
 {
     g_signal_connect (view, "show-option-menu", G_CALLBACK (on_show_option_menu), NULL);
 #if COG_HAVE_LIBPORTAL
     g_signal_connect(view, "run-file-chooser", G_CALLBACK(on_run_file_chooser), NULL);
 #endif /* COG_HAVE_LIBPORTAL */
+    g_signal_connect(view, "mouse-target-changed", G_CALLBACK(on_mouse_target_changed), NULL);
     COG_WL_PLATFORM(platform)->web_view = view;
 }
 
