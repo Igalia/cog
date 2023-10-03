@@ -134,24 +134,6 @@ struct wl_event_source {
     struct wl_display *display;
 };
 
-struct _CogWlKeyboard {
-    struct wl_keyboard *obj;
-
-    struct {
-        int32_t rate;
-        int32_t delay;
-    } repeat_info;
-
-    struct {
-        uint32_t key;
-        uint32_t time;
-        uint32_t state;
-        uint32_t event_source;
-    } repeat_data;
-
-    uint32_t serial;
-};
-
 struct _CogWlPlatformClass {
     CogPlatformClass parent_class;
 };
@@ -174,21 +156,6 @@ G_DEFINE_DYNAMIC_TYPE_EXTENDED(
     0,
     g_io_extension_point_implement(COG_MODULES_PLATFORM_EXTENSION_POINT, g_define_type_id, "wl", 500);)
 
-struct _CogWlPointer {
-    struct wl_pointer *obj;
-    struct wl_surface *surface;
-    int32_t            x;
-    int32_t            y;
-    uint32_t           button;
-    uint32_t           state;
-};
-
-struct _CogWlTouch {
-    struct wl_touch                 *obj;
-    struct wl_surface               *surface;
-    struct wpe_input_touch_event_raw points[10];
-};
-
 struct _CogWlView {
     CogView parent;
 
@@ -205,6 +172,39 @@ struct _CogWlView {
 
 G_DECLARE_FINAL_TYPE(CogWlView, cog_wl_view, COG, WL_VIEW, CogView)
 G_DEFINE_DYNAMIC_TYPE(CogWlView, cog_wl_view, COG_TYPE_VIEW)
+
+struct _CogWlKeyboard {
+    struct wl_keyboard *obj;
+
+    struct {
+        int32_t rate;
+        int32_t delay;
+    } repeat_info;
+
+    struct {
+        uint32_t key;
+        uint32_t time;
+        uint32_t state;
+        uint32_t event_source;
+    } repeat_data;
+
+    uint32_t serial;
+};
+
+struct _CogWlPointer {
+    struct wl_pointer *obj;
+    struct wl_surface *surface;
+    int32_t            x;
+    int32_t            y;
+    uint32_t           button;
+    uint32_t           state;
+};
+
+struct _CogWlTouch {
+    struct wl_touch                 *obj;
+    struct wl_surface               *surface;
+    struct wpe_input_touch_event_raw points[10];
+};
 
 struct _CogWlXkb {
     struct xkb_context *context;
@@ -287,7 +287,7 @@ struct _CogWlOutput {
     int32_t           height;
     int32_t           refresh;
     struct wl_list    link;
-} _CogWlOutput;
+};
 
 struct _CogWlWindow {
 
