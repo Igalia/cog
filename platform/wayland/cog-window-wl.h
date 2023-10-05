@@ -80,6 +80,13 @@ struct _CogWlWindow {
 
 CogWlWindow *cog_wl_window_new(void);
 
+void cog_wl_window_popup_destroy(CogWlWindow *);
+void cog_wl_window_popup_display(CogWlWindow *);
+void cog_wl_window_popup_update(CogWlWindow *);
+
+void cog_wl_window_xdg_popup_on_configure(void *, struct xdg_popup *, int32_t, int32_t, int32_t, int32_t);
+void cog_wl_window_xdg_popup_on_done(void *, struct xdg_popup *);
+
 G_END_DECLS
 
 #endif /* !COG_PLATFORM_WL_WINDOW_H */
