@@ -276,15 +276,6 @@ CogWlWindow                 *cog_wl_view_get_window(CogWlView *);
 static void                  cog_wl_view_resize(CogView *, CogWlPlatform *);
 static void                  cog_wl_view_update_surface_contents(CogWlView *, struct wl_surface *);
 
-static void     keyboard_on_keymap(void *, struct wl_keyboard *, uint32_t, int32_t, uint32_t);
-static void     keyboard_on_enter(void *, struct wl_keyboard *, uint32_t, struct wl_surface *, struct wl_array *);
-static void     keyboard_on_leave(void *, struct wl_keyboard *, uint32_t, struct wl_surface *);
-static void     handle_key_event(CogWlSeat *, uint32_t, uint32_t, uint32_t);
-static gboolean repeat_delay_timeout(CogWlSeat *Seat);
-static void     keyboard_on_key(void *, struct wl_keyboard *, uint32_t, uint32_t, uint32_t, uint32_t);
-static void     keyboard_on_modifiers(void *, struct wl_keyboard *, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
-static void     keyboard_on_repeat_info(void *, struct wl_keyboard *, int32_t, int32_t);
-
 static void noop();
 
 #if HAVE_SHM_EXPORTED_BUFFER
@@ -1224,6 +1215,211 @@ cog_wl_seat_destroy(CogWlSeat *self)
     g_slice_free(CogWlSeat, self);
 }
 
+static void
+cog_wl_seat_keyboard_handle_key_event(CogWlSeat *seat, uint32_t key, uint32_t state, uint32_t time)
+{
+    CogView *view = cog_view_stack_get_visible_view(s_platform->views);
+    if (!view || seat->xkb.state == NULL)
+        return;
+
+    uint32_t keysym = xkb_state_key_get_one_sym(seat->xkb.state, key);
+    uint32_t unicode = xkb_state_key_get_utf32(seat->xkb.state, key);
+
+    /* TODO: Move as much as possible from fullscreen handling to common code. */
+    if (cog_view_get_use_key_bindings(view) && state == WL_KEYBOARD_KEY_STATE_PRESSED && seat->xkb.modifiers == 0 &&
+        unicode == 0 && keysym == XKB_KEY_F11) {
+#if HAVE_FULLSCREEN_HANDLING
+        if (window->is_fullscreen && window->was_fullscreen_requested_from_dom) {
+            wpe_view_backend_dispatch_request_exit_fullscreen(wpe_view_data.backend);
+            return;
+        }
+#endif
+        CogWlWindow *window = cog_wl_view_get_window(COG_WL_VIEW(view));
+        cog_wl_set_fullscreen(0, !window->is_fullscreen);
+        return;
+    }
+
+    if (seat->xkb.compose_state != NULL && state == WL_KEYBOARD_KEY_STATE_PRESSED &&
+        xkb_compose_state_feed(seat->xkb.compose_state, keysym) == XKB_COMPOSE_FEED_ACCEPTED &&
+        xkb_compose_state_get_status(seat->xkb.compose_state) == XKB_COMPOSE_COMPOSED) {
+        keysym = xkb_compose_state_get_one_sym(seat->xkb.compose_state);
+    }
+
+    struct wpe_input_keyboard_event event = {time, keysym, key, state == true, seat->xkb.modifiers};
+
+    cog_view_handle_key_event(view, &event);
+}
+
+static void
+cog_wl_seat_keyboard_on_keymap(void *data, struct wl_keyboard *wl_keyboard, uint32_t format, int32_t fd, uint32_t size)
+{
+    CogWlSeat *seat = data;
+
+    if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1) {
+        close(fd);
+        return;
+    }
+
+    const int map_mode = wl_seat_get_version(seat->seat) > 6 ? MAP_PRIVATE : MAP_SHARED;
+    void     *mapping = mmap(NULL, size, PROT_READ, map_mode, fd, 0);
+    if (mapping == MAP_FAILED) {
+        close(fd);
+        return;
+    }
+
+    seat->xkb.keymap = xkb_keymap_new_from_string(seat->xkb.context,
+                                                  (char *) mapping,
+                                                  XKB_KEYMAP_FORMAT_TEXT_V1,
+                                                  XKB_KEYMAP_COMPILE_NO_FLAGS);
+    munmap(mapping, size);
+    close(fd);
+
+    if (!seat->xkb.keymap) {
+        g_error("Could not initialize XKB keymap");
+        return;
+    }
+
+    if (!(seat->xkb.state = xkb_state_new(seat->xkb.keymap))) {
+        g_error("Could not initialize XKB state");
+        return;
+    }
+
+    seat->xkb.indexes.control = xkb_keymap_mod_get_index(seat->xkb.keymap, XKB_MOD_NAME_CTRL);
+    seat->xkb.indexes.alt = xkb_keymap_mod_get_index(seat->xkb.keymap, XKB_MOD_NAME_ALT);
+    seat->xkb.indexes.shift = xkb_keymap_mod_get_index(seat->xkb.keymap, XKB_MOD_NAME_SHIFT);
+}
+
+static void
+cog_wl_seat_keyboard_on_enter(void               *data,
+                              struct wl_keyboard *wl_keyboard,
+                              uint32_t            serial,
+                              struct wl_surface  *surface,
+                              struct wl_array    *keys)
+{
+    CogWlSeat *seat = data;
+
+    if (wl_keyboard != seat->keyboard_obj) {
+        g_critical("%s: Got keyboard %p, expected %p.", G_STRFUNC, wl_keyboard, seat->keyboard_obj);
+        return;
+    }
+
+    CogWlWindow *window = wl_surface_get_user_data(surface);
+    seat->keyboard_target = window;
+
+    seat->keyboard.serial = serial;
+}
+
+static void
+cog_wl_seat_keyboard_on_leave(void *data, struct wl_keyboard *wl_keyboard, uint32_t serial, struct wl_surface *surface)
+{
+    CogWlSeat *seat = data;
+    seat->keyboard.serial = serial;
+}
+
+static gboolean
+cog_wl_seat_keyboard_repeat_delay_timeout(CogWlSeat *seat)
+{
+    cog_wl_seat_keyboard_handle_key_event(seat,
+                                          seat->keyboard.repeat_data.key,
+                                          seat->keyboard.repeat_data.state,
+                                          seat->keyboard.repeat_data.time);
+
+    seat->keyboard.repeat_data.event_source =
+        g_timeout_add(seat->keyboard.repeat_info.rate, (GSourceFunc) cog_wl_seat_keyboard_repeat_delay_timeout, seat);
+
+    return G_SOURCE_REMOVE;
+}
+
+static void
+cog_wl_seat_keyboard_on_key(void               *data,
+                            struct wl_keyboard *wl_keyboard,
+                            uint32_t            serial,
+                            uint32_t            time,
+                            uint32_t            key,
+                            uint32_t            state)
+{
+    CogWlSeat *seat = data;
+
+    // wl_keyboard protocol sends key events as a physical key signals on
+    // the keyboard (limited to 256 - 8 bits).  The XKB protocol doesn't share
+    // this limitation and uses extended keycodes and it restricts these
+    // names to at most 4 (ASCII) characters:
+    //
+    //   xkb_keycode_t keycode_A = KEY_A + 8;
+    //
+    // Ref: xkb_keycode_t section in
+    // https://xkbcommon.org/doc/current/xkbcommon_8h.html
+    key += 8;
+
+    seat->keyboard.serial = serial;
+    cog_wl_seat_keyboard_handle_key_event(seat, key, state, time);
+
+    if (seat->keyboard.repeat_info.rate == 0)
+        return;
+
+    if (state == WL_KEYBOARD_KEY_STATE_RELEASED && seat->keyboard.repeat_data.key == key) {
+        if (seat->keyboard.repeat_data.event_source)
+            g_source_remove(seat->keyboard.repeat_data.event_source);
+
+        memset(&seat->keyboard.repeat_data, 0x00, sizeof(seat->keyboard.repeat_data));
+    } else if (seat->xkb.keymap != NULL && state == WL_KEYBOARD_KEY_STATE_PRESSED &&
+               xkb_keymap_key_repeats(seat->xkb.keymap, key)) {
+        if (seat->keyboard.repeat_data.event_source)
+            g_source_remove(seat->keyboard.repeat_data.event_source);
+
+        seat->keyboard.repeat_data.key = key;
+        seat->keyboard.repeat_data.time = time;
+        seat->keyboard.repeat_data.state = state;
+        seat->keyboard.repeat_data.event_source = g_timeout_add(
+            seat->keyboard.repeat_info.delay, (GSourceFunc) cog_wl_seat_keyboard_repeat_delay_timeout, seat);
+    }
+}
+
+static void
+cog_wl_seat_keyboard_on_modifiers(void               *data,
+                                  struct wl_keyboard *wl_keyboard,
+                                  uint32_t            serial,
+                                  uint32_t            mods_depressed,
+                                  uint32_t            mods_latched,
+                                  uint32_t            mods_locked,
+                                  uint32_t            group)
+{
+    CogWlSeat *seat = data;
+
+    if (seat->xkb.state == NULL)
+        return;
+    seat->keyboard.serial = serial;
+
+    xkb_state_update_mask(seat->xkb.state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
+
+    seat->xkb.modifiers = 0;
+    uint32_t component = (XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_LATCHED);
+
+    if (xkb_state_mod_index_is_active(seat->xkb.state, seat->xkb.indexes.control, component)) {
+        seat->xkb.modifiers |= wpe_input_keyboard_modifier_control;
+    }
+    if (xkb_state_mod_index_is_active(seat->xkb.state, seat->xkb.indexes.alt, component)) {
+        seat->xkb.modifiers |= wpe_input_keyboard_modifier_alt;
+    }
+    if (xkb_state_mod_index_is_active(seat->xkb.state, seat->xkb.indexes.shift, component)) {
+        seat->xkb.modifiers |= wpe_input_keyboard_modifier_shift;
+    }
+}
+
+static void
+cog_wl_seat_keyboard_on_repeat_info(void *data, struct wl_keyboard *wl_keyboard, int32_t rate, int32_t delay)
+{
+    CogWlSeat *seat = data;
+
+    seat->keyboard.repeat_info.rate = rate;
+    seat->keyboard.repeat_info.delay = delay;
+
+    /* a rate of zero disables any repeating. */
+    if (rate == 0 && seat->keyboard.repeat_data.event_source > 0) {
+        g_source_remove(seat->keyboard.repeat_data.event_source);
+        memset(&seat->keyboard.repeat_data, 0x00, sizeof(seat->keyboard.repeat_data));
+    }
+}
 static bool
 cog_wl_set_fullscreen(CogWlPlatform *self, bool fullscreen)
 {
@@ -1606,212 +1802,6 @@ dmabuf_on_buffer_release(void *data, struct wl_buffer *buffer)
     g_clear_pointer(&buffer, wl_buffer_destroy);
 }
 #endif /* COG_ENABLE_WESTON_DIRECT_DISPLAY */
-
-static void
-keyboard_on_keymap(void *data, struct wl_keyboard *wl_keyboard, uint32_t format, int32_t fd, uint32_t size)
-{
-    CogWlSeat *seat = data;
-
-    if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1) {
-        close(fd);
-        return;
-    }
-
-    const int map_mode = wl_seat_get_version(seat->seat) > 6 ? MAP_PRIVATE : MAP_SHARED;
-    void     *mapping = mmap(NULL, size, PROT_READ, map_mode, fd, 0);
-    if (mapping == MAP_FAILED) {
-        close(fd);
-        return;
-    }
-
-    seat->xkb.keymap = xkb_keymap_new_from_string(seat->xkb.context,
-                                                  (char *) mapping,
-                                                  XKB_KEYMAP_FORMAT_TEXT_V1,
-                                                  XKB_KEYMAP_COMPILE_NO_FLAGS);
-    munmap(mapping, size);
-    close(fd);
-
-    if (!seat->xkb.keymap) {
-        g_error("Could not initialize XKB keymap");
-        return;
-    }
-
-    if (!(seat->xkb.state = xkb_state_new(seat->xkb.keymap))) {
-        g_error("Could not initialize XKB state");
-        return;
-    }
-
-    seat->xkb.indexes.control = xkb_keymap_mod_get_index(seat->xkb.keymap, XKB_MOD_NAME_CTRL);
-    seat->xkb.indexes.alt = xkb_keymap_mod_get_index(seat->xkb.keymap, XKB_MOD_NAME_ALT);
-    seat->xkb.indexes.shift = xkb_keymap_mod_get_index(seat->xkb.keymap, XKB_MOD_NAME_SHIFT);
-}
-
-static void
-keyboard_on_enter(void               *data,
-                  struct wl_keyboard *wl_keyboard,
-                  uint32_t            serial,
-                  struct wl_surface  *surface,
-                  struct wl_array    *keys)
-{
-    CogWlSeat *seat = data;
-
-    if (wl_keyboard != seat->keyboard_obj) {
-        g_critical("%s: Got keyboard %p, expected %p.", G_STRFUNC, wl_keyboard, seat->keyboard_obj);
-        return;
-    }
-
-    CogWlWindow *window = wl_surface_get_user_data(surface);
-    seat->keyboard_target = window;
-
-    seat->keyboard.serial = serial;
-}
-
-static void
-keyboard_on_leave(void *data, struct wl_keyboard *wl_keyboard, uint32_t serial, struct wl_surface *surface)
-{
-    CogWlSeat *seat = data;
-    seat->keyboard.serial = serial;
-}
-
-static void
-handle_key_event(CogWlSeat *seat, uint32_t key, uint32_t state, uint32_t time)
-{
-    CogView *view = cog_view_stack_get_visible_view(s_platform->views);
-    if (!view || seat->xkb.state == NULL)
-        return;
-
-    uint32_t keysym = xkb_state_key_get_one_sym(seat->xkb.state, key);
-    uint32_t unicode = xkb_state_key_get_utf32(seat->xkb.state, key);
-
-    /* TODO: Move as much as possible from fullscreen handling to common code. */
-    if (cog_view_get_use_key_bindings(view) && state == WL_KEYBOARD_KEY_STATE_PRESSED && seat->xkb.modifiers == 0 &&
-        unicode == 0 && keysym == XKB_KEY_F11) {
-#if HAVE_FULLSCREEN_HANDLING
-        if (window->is_fullscreen && window->was_fullscreen_requested_from_dom) {
-            wpe_view_backend_dispatch_request_exit_fullscreen(wpe_view_data.backend);
-            return;
-        }
-#endif
-        CogWlWindow *window = cog_wl_view_get_window(COG_WL_VIEW(view));
-        cog_wl_set_fullscreen(0, !window->is_fullscreen);
-        return;
-    }
-
-    if (seat->xkb.compose_state != NULL && state == WL_KEYBOARD_KEY_STATE_PRESSED &&
-        xkb_compose_state_feed(seat->xkb.compose_state, keysym) == XKB_COMPOSE_FEED_ACCEPTED &&
-        xkb_compose_state_get_status(seat->xkb.compose_state) == XKB_COMPOSE_COMPOSED) {
-        keysym = xkb_compose_state_get_one_sym(seat->xkb.compose_state);
-    }
-
-    struct wpe_input_keyboard_event event = {time, keysym, key, state == true, seat->xkb.modifiers};
-
-    cog_view_handle_key_event(view, &event);
-}
-
-static gboolean
-repeat_delay_timeout(CogWlSeat *seat)
-{
-    handle_key_event(seat,
-                     seat->keyboard.repeat_data.key,
-                     seat->keyboard.repeat_data.state,
-                     seat->keyboard.repeat_data.time);
-
-    seat->keyboard.repeat_data.event_source =
-        g_timeout_add(seat->keyboard.repeat_info.rate, (GSourceFunc) repeat_delay_timeout, seat);
-
-    return G_SOURCE_REMOVE;
-}
-
-static void
-keyboard_on_key(void               *data,
-                struct wl_keyboard *wl_keyboard,
-                uint32_t            serial,
-                uint32_t            time,
-                uint32_t            key,
-                uint32_t            state)
-{
-    CogWlSeat *seat = data;
-
-    // wl_keyboard protocol sends key events as a physical key signals on
-    // the keyboard (limited to 256 - 8 bits).  The XKB protocol doesn't share
-    // this limitation and uses extended keycodes and it restricts these
-    // names to at most 4 (ASCII) characters:
-    //
-    //   xkb_keycode_t keycode_A = KEY_A + 8;
-    //
-    // Ref: xkb_keycode_t section in
-    // https://xkbcommon.org/doc/current/xkbcommon_8h.html
-    key += 8;
-
-    seat->keyboard.serial = serial;
-    handle_key_event(seat, key, state, time);
-
-    if (seat->keyboard.repeat_info.rate == 0)
-        return;
-
-    if (state == WL_KEYBOARD_KEY_STATE_RELEASED && seat->keyboard.repeat_data.key == key) {
-        if (seat->keyboard.repeat_data.event_source)
-            g_source_remove(seat->keyboard.repeat_data.event_source);
-
-        memset(&seat->keyboard.repeat_data, 0x00, sizeof(seat->keyboard.repeat_data));
-    } else if (seat->xkb.keymap != NULL && state == WL_KEYBOARD_KEY_STATE_PRESSED &&
-               xkb_keymap_key_repeats(seat->xkb.keymap, key)) {
-        if (seat->keyboard.repeat_data.event_source)
-            g_source_remove(seat->keyboard.repeat_data.event_source);
-
-        seat->keyboard.repeat_data.key = key;
-        seat->keyboard.repeat_data.time = time;
-        seat->keyboard.repeat_data.state = state;
-        seat->keyboard.repeat_data.event_source =
-            g_timeout_add(seat->keyboard.repeat_info.delay, (GSourceFunc) repeat_delay_timeout, seat);
-    }
-}
-
-static void
-keyboard_on_modifiers(void               *data,
-                      struct wl_keyboard *wl_keyboard,
-                      uint32_t            serial,
-                      uint32_t            mods_depressed,
-                      uint32_t            mods_latched,
-                      uint32_t            mods_locked,
-                      uint32_t            group)
-{
-    CogWlSeat *seat = data;
-
-    if (seat->xkb.state == NULL)
-        return;
-    seat->keyboard.serial = serial;
-
-    xkb_state_update_mask(seat->xkb.state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
-
-    seat->xkb.modifiers = 0;
-    uint32_t component = (XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_LATCHED);
-
-    if (xkb_state_mod_index_is_active(seat->xkb.state, seat->xkb.indexes.control, component)) {
-        seat->xkb.modifiers |= wpe_input_keyboard_modifier_control;
-    }
-    if (xkb_state_mod_index_is_active(seat->xkb.state, seat->xkb.indexes.alt, component)) {
-        seat->xkb.modifiers |= wpe_input_keyboard_modifier_alt;
-    }
-    if (xkb_state_mod_index_is_active(seat->xkb.state, seat->xkb.indexes.shift, component)) {
-        seat->xkb.modifiers |= wpe_input_keyboard_modifier_shift;
-    }
-}
-
-static void
-keyboard_on_repeat_info(void *data, struct wl_keyboard *wl_keyboard, int32_t rate, int32_t delay)
-{
-    CogWlSeat *seat = data;
-
-    seat->keyboard.repeat_info.rate = rate;
-    seat->keyboard.repeat_info.delay = delay;
-
-    /* a rate of zero disables any repeating. */
-    if (rate == 0 && seat->keyboard.repeat_data.event_source > 0) {
-        g_source_remove(seat->keyboard.repeat_data.event_source);
-        memset(&seat->keyboard.repeat_data, 0x00, sizeof(seat->keyboard.repeat_data));
-    }
-}
 
 static void
 noop()
@@ -2397,12 +2387,12 @@ seat_on_capabilities(void *data, struct wl_seat *wl_seat, uint32_t capabilities)
         cog_wl_seat->keyboard_obj = wl_seat_get_keyboard(cog_wl_seat->seat);
         g_assert(cog_wl_seat->keyboard_obj);
         static const struct wl_keyboard_listener keyboard_listener = {
-            .keymap = keyboard_on_keymap,
-            .enter = keyboard_on_enter,
-            .leave = keyboard_on_leave,
-            .key = keyboard_on_key,
-            .modifiers = keyboard_on_modifiers,
-            .repeat_info = keyboard_on_repeat_info,
+            .keymap = cog_wl_seat_keyboard_on_keymap,
+            .enter = cog_wl_seat_keyboard_on_enter,
+            .leave = cog_wl_seat_keyboard_on_leave,
+            .key = cog_wl_seat_keyboard_on_key,
+            .modifiers = cog_wl_seat_keyboard_on_modifiers,
+            .repeat_info = cog_wl_seat_keyboard_on_repeat_info,
         };
         wl_keyboard_add_listener(cog_wl_seat->keyboard_obj, &keyboard_listener, cog_wl_seat);
         g_debug("  - Keyboard");
