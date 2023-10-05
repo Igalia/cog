@@ -258,8 +258,6 @@ static WebKitInputMethodContext *cog_wl_platform_create_im_context(CogPlatform *
 static void cog_wl_popup_destroy(CogWlWindow *);
 static void cog_wl_popup_display(CogWlWindow *);
 
-static void cog_wl_request_frame(CogWlView *);
-
 static void cog_wl_seat_destroy(CogWlSeat *);
 
 static bool     cog_wl_set_fullscreen(CogWlPlatform *, bool);
@@ -1168,32 +1166,6 @@ cog_wl_popup_update(CogWlWindow *window)
 }
 
 static void
-cog_wl_request_frame(CogWlView *view)
-{
-    CogWlDisplay *display = s_platform->display;
-    g_assert(display);
-
-    CogWlWindow *window = cog_wl_view_get_window(view);
-    g_assert(window);
-
-    if (!view->frame_callback) {
-        static const struct wl_callback_listener listener = {.done = on_wl_surface_frame};
-        view->frame_callback = wl_surface_frame(window->wl_surface);
-        wl_callback_add_listener(view->frame_callback, &listener, view);
-    }
-
-    if (display->presentation != NULL) {
-        static const struct wp_presentation_feedback_listener presentation_feedback_listener = {
-            .sync_output = presentation_feedback_on_sync_output,
-            .presented = presentation_feedback_on_presented,
-            .discarded = presentation_feedback_on_discarded};
-        struct wp_presentation_feedback *presentation_feedback =
-            wp_presentation_feedback(display->presentation, window->wl_surface);
-        wp_presentation_feedback_add_listener(presentation_feedback, &presentation_feedback_listener, NULL);
-    }
-}
-
-static void
 cog_wl_seat_destroy(CogWlSeat *self)
 {
     g_assert(self != NULL);
@@ -1674,6 +1646,32 @@ cog_wl_view_init(CogWlView *self)
 }
 
 static void
+cog_wl_view_request_frame(CogWlView *view)
+{
+    CogWlDisplay *display = s_platform->display;
+    g_assert(display);
+
+    CogWlWindow *window = cog_wl_view_get_window(view);
+    g_assert(window);
+
+    if (!view->frame_callback) {
+        static const struct wl_callback_listener listener = {.done = on_wl_surface_frame};
+        view->frame_callback = wl_surface_frame(window->wl_surface);
+        wl_callback_add_listener(view->frame_callback, &listener, view);
+    }
+
+    if (display->presentation != NULL) {
+        static const struct wp_presentation_feedback_listener presentation_feedback_listener = {
+            .sync_output = presentation_feedback_on_sync_output,
+            .presented = presentation_feedback_on_presented,
+            .discarded = presentation_feedback_on_discarded};
+        struct wp_presentation_feedback *presentation_feedback =
+            wp_presentation_feedback(display->presentation, window->wl_surface);
+        wp_presentation_feedback_add_listener(presentation_feedback, &presentation_feedback_listener, NULL);
+    }
+}
+
+static void
 cog_wl_view_resize(CogView *view, CogWlPlatform *platform)
 {
     g_assert(platform);
@@ -1736,7 +1734,7 @@ cog_wl_view_update_surface_contents(CogWlView *view, struct wl_surface *surface)
     wl_surface_attach(surface, buffer, 0, 0);
     wl_surface_damage(surface, 0, 0, INT32_MAX, INT32_MAX);
 
-    cog_wl_request_frame(view);
+    cog_wl_view_request_frame(view);
 
     wl_surface_commit(surface);
 
@@ -1861,7 +1859,7 @@ on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_bu
 
     wl_surface_attach(window->wl_surface, buffer->buffer, 0, 0);
     wl_surface_damage(window->wl_surface, 0, 0, INT32_MAX, INT32_MAX);
-    cog_wl_request_frame(view);
+    cog_wl_view_request_frame(view);
     wl_surface_commit(window->wl_surface);
 }
 #endif
