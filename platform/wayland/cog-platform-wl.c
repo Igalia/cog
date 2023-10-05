@@ -236,20 +236,7 @@ static void *check_supported(void *);
 
 static void cog_egl_terminate(CogWlPlatform *);
 
-CogWlDisplay *cog_wl_display_connect(const char *, GError **);
-void          cog_wl_display_destroy(CogWlDisplay *);
-
-static bool cog_wl_does_image_match_win_size(CogWlView *);
-
-static void cog_wl_fullscreen_image_ready(CogWlView *);
-
-static void                      cog_wl_platform_clear_buffers(CogWlPlatform *);
-static void                      cog_wl_platform_clear_input(CogWlPlatform *);
-static void                      cog_wl_platform_configure_surface_geometry(CogWlPlatform *, int32_t, int32_t);
-static CogWlWindow              *cog_wl_platform_create_window(CogWlPlatform *);
-static void                      cog_wl_platform_destroy_window(void *);
 static void                      cog_wl_platform_finalize(GObject *);
-static inline CogWlOutput       *cog_wl_platform_get_output(struct wl_output *);
 static gboolean                  cog_wl_platform_is_supported(void);
 static void                      cog_wl_platform_resize_to_largest_output(CogWlPlatform *);
 static gboolean                  cog_wl_platform_setup(CogPlatform *, CogShell *, const char *, GError **);
