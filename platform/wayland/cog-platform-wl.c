@@ -267,6 +267,8 @@ struct _CogWlDisplay {
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     struct zwp_linux_dmabuf_v1      *dmabuf;
     struct weston_direct_display_v1 *direct_display;
+
+    GHashTable *video_surfaces;
 #endif
 
 #if COG_ENABLE_WESTON_CONTENT_PROTECTION
@@ -292,25 +294,11 @@ struct _CogWlDisplay {
     struct wl_list seats; /* wl_list<CogWlSeat> */
 };
 
-struct _CogWlOutput {
-    struct wl_output *output;
-    int32_t           name;
-    int32_t           scale;
-    int32_t           width;
-    int32_t           height;
-    int32_t           refresh;
-    struct wl_list    link;
-};
-
 struct _CogWlWindow {
 
     CogWlDisplay *display;
 
     struct wl_surface *wl_surface;
-
-#if COG_ENABLE_WESTON_DIRECT_DISPLAY
-    GHashTable *video_surfaces;
-#endif
 
     CogWlAxis    axis;
     CogWlPointer pointer;
@@ -462,6 +450,8 @@ static void touch_on_motion(void *, struct wl_touch *, uint32_t, int32_t, wl_fix
 static void touch_on_up(void *, struct wl_touch *, uint32_t, uint32_t, int32_t);
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
+static void video_surface_create_succeeded(void *, struct zwp_linux_buffer_params_v1 *, struct wl_buffer *);
+static void video_surface_create_failed(void *, struct zwp_linux_buffer_params_v1 *);
 static void video_plane_display_dmabuf_receiver_on_handle_dmabuf(void *,
                                                                  struct wpe_video_plane_display_dmabuf_export *,
                                                                  uint32_t,
@@ -684,6 +674,10 @@ cog_wl_display_destroy(CogWlDisplay *self)
         g_clear_pointer(&self->display, wl_display_disconnect);
     }
 
+#if COG_ENABLE_WESTON_DIRECT_DISPLAY
+    g_clear_pointer(&self->video_surfaces, g_hash_table_destroy);
+#endif
+
     self->seat_default = NULL;
 
     CogWlSeat *item, *tmp;
@@ -902,7 +896,7 @@ cog_wl_platform_create_window(CogWlPlatform *self)
     g_assert(window->wl_surface);
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
-    window->video_surfaces = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, video_surface_destroy);
+    display->video_surfaces = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, video_surface_destroy);
 #endif
 
     static const struct wl_surface_listener surface_listener = {
@@ -1016,10 +1010,6 @@ cog_wl_platform_destroy_window(void *data)
     g_clear_pointer(&window->xdg_surface, xdg_surface_destroy);
     g_clear_pointer(&window->shell_surface, wl_shell_surface_destroy);
     g_clear_pointer(&window->wl_surface, wl_surface_destroy);
-
-#if COG_ENABLE_WESTON_DIRECT_DISPLAY
-    g_clear_pointer(&window->video_surfaces, g_hash_table_destroy);
-#endif
 
     g_slice_free(CogWlWindow, window);
 }
@@ -1163,6 +1153,10 @@ cog_wl_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, cons
     wpe_fdo_initialize_for_egl_display(self->display->egl_display);
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
+    static const struct wpe_video_plane_display_dmabuf_receiver video_plane_display_dmabuf_receiver = {
+        .handle_dmabuf = video_plane_display_dmabuf_receiver_on_handle_dmabuf,
+        .end_of_stream = video_plane_display_dmabuf_receiver_on_end_of_stream,
+    };
     wpe_video_plane_display_dmabuf_register_receiver(&video_plane_display_dmabuf_receiver, self);
 #endif
 
@@ -2882,6 +2876,8 @@ video_plane_display_dmabuf_receiver_on_handle_dmabuf(void                       
 {
     CogWlPlatform *platform = data;
     CogWlDisplay  *display = platform->display;
+    CogView       *view = cog_view_stack_get_visible_view(platform->views);
+    CogWlWindow   *window = cog_wl_view_get_window(COG_WL_VIEW(view));
 
     if (fd < 0)
         return;
@@ -2906,7 +2902,7 @@ video_plane_display_dmabuf_receiver_on_handle_dmabuf(void                       
         weston_direct_display_v1_enable(display->direct_display, params);
 
     struct video_surface *surf =
-        (struct video_surface *) g_hash_table_lookup(platform->window->video_surfaces, GUINT_TO_POINTER(id));
+        (struct video_surface *) g_hash_table_lookup(display->video_surfaces, GUINT_TO_POINTER(id));
     if (!surf) {
         surf = g_slice_new0(struct video_surface);
         surf->wl_subsurface = NULL;
@@ -2920,15 +2916,15 @@ video_plane_display_dmabuf_receiver_on_handle_dmabuf(void                       
             weston_protected_surface_enforce(surf->protected_surface);
         }
 #    endif
-        g_hash_table_insert(platform->window->video_surfaces, GUINT_TO_POINTER(id), surf);
+        g_hash_table_insert(display->video_surfaces, GUINT_TO_POINTER(id), surf);
     }
 
     zwp_linux_buffer_params_v1_add(params, fd, 0, 0, stride, modifier >> 32, modifier & 0xffffffff);
 
-    if ((x + width) > platform->window->width)
+    if ((x + width) > window->width)
         width -= x;
 
-    if ((y + height) > platform->window->height)
+    if ((y + height) > window->height)
         height -= y;
 
     struct video_buffer *buffer = g_slice_new0(struct video_buffer);
@@ -2963,7 +2959,7 @@ video_plane_display_dmabuf_receiver_on_handle_dmabuf(void                       
 
     if (!surf->wl_subsurface) {
         surf->wl_subsurface =
-            wl_subcompositor_get_subsurface(display->subcompositor, surf->wl_surface, platform->window->wl_surface);
+            wl_subcompositor_get_subsurface(display->subcompositor, surf->wl_surface, window->wl_surface);
         wl_subsurface_set_sync(surf->wl_subsurface);
     }
 
@@ -2975,13 +2971,10 @@ static void
 video_plane_display_dmabuf_receiver_on_end_of_stream(void *data, uint32_t id)
 {
     CogWlPlatform *platform = data;
-    g_hash_table_remove(platform->window->video_surfaces, GUINT_TO_POINTER(id));
+
+    g_hash_table_remove(platform->display->video_surfaces, GUINT_TO_POINTER(id));
 }
 
-static const struct wpe_video_plane_display_dmabuf_receiver video_plane_display_dmabuf_receiver = {
-    .handle_dmabuf = video_plane_display_dmabuf_receiver_on_handle_dmabuf,
-    .end_of_stream = video_plane_display_dmabuf_receiver_on_end_of_stream,
-};
 static void
 video_surface_create_succeeded(void *data, struct zwp_linux_buffer_params_v1 *params, struct wl_buffer *new_buffer)
 {
