@@ -38,6 +38,7 @@
 
 #include "cog-im-context-wl-v1.h"
 #include "cog-im-context-wl.h"
+#include "cog-platform-wl.h"
 #include "cog-utils-wl.h"
 #include "cog-window-wl.h"
 
@@ -80,23 +81,6 @@
 typedef struct wl_buffer *(EGLAPIENTRYP PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)(EGLDisplay dpy, EGLImageKHR image);
 #endif
 
-typedef struct _CogWlDisplay CogWlDisplay;
-typedef struct _CogWlSeat    CogWlSeat;
-
-struct _CogWlPlatformClass {
-    CogPlatformClass parent_class;
-};
-
-struct _CogWlPlatform {
-    CogPlatform    parent;
-    CogWlDisplay  *display;
-    CogViewStack  *views;
-    GHashTable    *windows;
-    CogWlOutput   *current_output;
-    struct wl_list outputs; /* wl_list<CogWlOutput> */
-};
-
-G_DECLARE_FINAL_TYPE(CogWlPlatform, cog_wl_platform, COG, WL_PLATFORM, CogPlatform)
 G_DEFINE_DYNAMIC_TYPE_EXTENDED(
     CogWlPlatform,
     cog_wl_platform,
@@ -104,86 +88,7 @@ G_DEFINE_DYNAMIC_TYPE_EXTENDED(
     0,
     g_io_extension_point_implement(COG_MODULES_PLATFORM_EXTENSION_POINT, g_define_type_id, "wl", 500);)
 
-struct _CogWlView {
-    CogView parent;
-
-    CogViewStack *stack;
-
-    struct wpe_view_backend_exportable_fdo *exportable;
-    struct wpe_fdo_egl_exported_image      *image;
-
-    struct wl_callback *frame_callback;
-
-    bool    should_update_opaque_region;
-    int32_t scale_factor;
-};
-
-G_DECLARE_FINAL_TYPE(CogWlView, cog_wl_view, COG, WL_VIEW, CogView)
 G_DEFINE_DYNAMIC_TYPE(CogWlView, cog_wl_view, COG_TYPE_VIEW)
-
-struct _CogWlSeat {
-    struct wl_seat *seat;
-    uint32_t        seat_name;
-    uint32_t        seat_version;
-
-    struct wl_pointer *pointer_obj;
-    CogWlWindow       *pointer_target; /* Current target of pointer events. */
-
-    struct wl_touch *touch_obj;
-    CogWlWindow     *touch_target; /* Current target of touch events. */
-
-    CogWlKeyboard       keyboard;
-    struct wl_keyboard *keyboard_obj;
-    CogWlWindow        *keyboard_target; /* Current target of keyboard events. */
-
-    CogWlXkb xkb;
-
-    struct wl_list link;
-};
-
-struct _CogWlDisplay {
-    struct egl_display *egl_display;
-
-    struct wl_display    *display;
-    struct wl_registry   *registry;
-    struct wl_compositor *compositor;
-
-    struct wl_subcompositor *subcompositor;
-    struct wl_shm           *shm;
-
-    struct xdg_wm_base             *xdg_shell;
-    struct zwp_fullscreen_shell_v1 *fshell;
-    struct wl_shell                *shell;
-
-#if COG_ENABLE_WESTON_DIRECT_DISPLAY
-    struct zwp_linux_dmabuf_v1      *dmabuf;
-    struct weston_direct_display_v1 *direct_display;
-
-    GHashTable *video_surfaces;
-#endif
-
-#if COG_ENABLE_WESTON_CONTENT_PROTECTION
-    struct weston_content_protection *protection;
-#endif
-
-#ifdef COG_USE_WAYLAND_CURSOR
-    struct wl_cursor_theme *cursor_theme;
-    struct wl_cursor       *cursor_left_ptr;
-    struct wl_surface      *cursor_left_ptr_surface;
-#endif /* COG_USE_WAYLAND_CURSOR */
-
-    struct zwp_text_input_manager_v3 *text_input_manager;
-    struct zwp_text_input_manager_v1 *text_input_manager_v1;
-
-    struct wp_presentation *presentation;
-
-    GSource *event_src;
-
-    struct wl_list shm_buffer_list;
-
-    CogWlSeat     *seat_default;
-    struct wl_list seats; /* wl_list<CogWlSeat> */
-};
 
 static void cog_egl_terminate(CogWlPlatform *);
 
