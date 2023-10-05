@@ -6,9 +6,6 @@
  * Distributed under terms of the MIT license.
  */
 
-#ifndef COG_PLATFORM_WL_WINDOW_C
-#define COG_PLATFORM_WL_WINDOW_C
-
 #include "../../core/cog.h"
 
 #include "xdg-shell-client.h"
@@ -108,5 +105,3 @@ cog_wl_window_xdg_popup_on_done(void *data, struct xdg_popup *xdg_popup)
     CogWlWindow *window = data;
     cog_wl_window_popup_destroy(window);
 }
-
-#endif /* !COG_PLATFORM_WL_WINDOW_C */
