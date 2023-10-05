@@ -126,8 +126,6 @@ G_DECLARE_FINAL_TYPE(CogWlView, cog_wl_view, COG, WL_VIEW, CogView)
 G_DEFINE_DYNAMIC_TYPE(CogWlView, cog_wl_view, COG_TYPE_VIEW)
 
 struct _CogWlSeat {
-    CogWlDisplay *display; /* Reference to the CogWlDisplay*/
-
     struct wl_seat *seat;
     uint32_t        seat_name;
     uint32_t        seat_version;
@@ -192,9 +190,6 @@ struct _CogWlDisplay {
 };
 
 struct _CogWlWindow {
-
-    CogWlDisplay *display;
-
     struct wl_surface *wl_surface;
 
     CogWlAxis    axis;
@@ -499,7 +494,6 @@ cog_wl_display_add_seat(CogWlDisplay *display, struct wl_seat *wl_seat, uint32_t
     seat->seat = wl_seat;
     seat->seat_name = name;
     seat->seat_version = version;
-    seat->display = display;
     if (!display->seat_default)
         display->seat_default = seat;
     wl_list_init(&seat->link);
@@ -598,13 +592,16 @@ cog_wl_does_image_match_win_size(CogWlView *view)
 static void
 cog_wl_fullscreen_image_ready(CogWlView *view)
 {
+    CogWlDisplay *display = s_platform->display;
+    g_assert(display);
     CogWlWindow *window = cog_wl_view_get_window(view);
+    g_assert(window);
 
-    if (window->display->xdg_shell) {
+    if (display->xdg_shell) {
         xdg_toplevel_set_fullscreen(window->xdg_toplevel, NULL);
-    } else if (window->display->shell) {
+    } else if (display->shell) {
         wl_shell_surface_set_fullscreen(window->shell_surface, WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE, 0, NULL);
-    } else if (window->display->fshell == NULL) {
+    } else if (display->fshell == NULL) {
         g_assert_not_reached();
     }
 
@@ -781,7 +778,6 @@ cog_wl_platform_create_window(CogWlPlatform *self)
 
     CogWlWindow *window = g_slice_new0(CogWlWindow);
     g_assert(window != NULL);
-    window->display = display;
 
     window->width = DEFAULT_WIDTH;
     window->height = DEFAULT_HEIGHT;
@@ -891,7 +887,7 @@ cog_wl_platform_destroy_window(void *data)
 
     g_return_if_fail(window);
 
-    CogWlDisplay *display = window->display;
+    CogWlDisplay *display = s_platform->display;
     CogWlSeat    *seat, *tmp_seat;
     wl_list_for_each_safe(seat, tmp_seat, &display->seats, link) {
         if (seat->keyboard_target == window)
@@ -1073,7 +1069,7 @@ static void
 cog_wl_popup_create(CogWlView *view, WebKitOptionMenu *option_menu)
 {
     CogWlWindow  *window = cog_wl_view_get_window(view);
-    CogWlDisplay *display = window->display;
+    CogWlDisplay *display = s_platform->display;
 
     window->popup_data.configured = false;
 
@@ -1185,8 +1181,11 @@ cog_wl_popup_update(CogWlWindow *window)
 static void
 cog_wl_request_frame(CogWlView *view)
 {
-    CogWlWindow  *window = cog_wl_view_get_window(view);
-    CogWlDisplay *display = window->display;
+    CogWlDisplay *display = s_platform->display;
+    g_assert(display);
+
+    CogWlWindow *window = cog_wl_view_get_window(view);
+    g_assert(window);
 
     if (!view->frame_callback) {
         static const struct wl_callback_listener listener = {.done = on_wl_surface_frame};
@@ -1228,8 +1227,12 @@ cog_wl_seat_destroy(CogWlSeat *self)
 static bool
 cog_wl_set_fullscreen(CogWlPlatform *self, bool fullscreen)
 {
-    CogView     *view = cog_view_stack_get_visible_view(self->views);
+    CogWlDisplay *display = self->display;
+    g_assert(display);
+    CogView *view = cog_view_stack_get_visible_view(self->views);
+    g_assert(view);
     CogWlWindow *window = cog_wl_view_get_window(COG_WL_VIEW(view));
+    g_assert(window);
 
     if (window->is_resizing_fullscreen || window->is_fullscreen == fullscreen)
         return false;
@@ -1246,13 +1249,13 @@ cog_wl_set_fullscreen(CogWlPlatform *self, bool fullscreen)
         if (view && cog_wl_does_image_match_win_size(COG_WL_VIEW(view)))
             cog_wl_fullscreen_image_ready(COG_WL_VIEW(view));
     } else {
-        if (window->display->xdg_shell != NULL) {
+        if (display->xdg_shell != NULL) {
             xdg_toplevel_unset_fullscreen(window->xdg_toplevel);
-        } else if (window->display->fshell != NULL) {
+        } else if (display->fshell != NULL) {
             cog_wl_platform_configure_surface_geometry(self, window->width_before_fullscreen,
                                                        window->height_before_fullscreen);
             cog_view_group_foreach(COG_VIEW_GROUP(self->views), (GFunc) cog_wl_view_resize, self);
-        } else if (window->display->shell != NULL) {
+        } else if (display->shell != NULL) {
             wl_shell_surface_set_toplevel(window->shell_surface);
             cog_wl_platform_configure_surface_geometry(self, window->width_before_fullscreen,
                                                        window->height_before_fullscreen);
@@ -1507,7 +1510,7 @@ cog_wl_view_update_surface_contents(CogWlView *view, struct wl_surface *surface)
     g_assert(view);
     CogWlWindow *window = cog_wl_view_get_window(COG_WL_VIEW(view));
     g_assert(window);
-    CogWlDisplay *display = window->display;
+    CogWlDisplay *display = s_platform->display;
     g_assert(display);
 
     if (view->should_update_opaque_region) {
@@ -2112,8 +2115,10 @@ pointer_on_enter(void              *data,
         return;
     }
 
-    CogWlWindow  *window = wl_surface_get_user_data(surface);
-    CogWlDisplay *display = window->display;
+    CogWlWindow *window = wl_surface_get_user_data(surface);
+    g_assert(window);
+    CogWlDisplay *display = s_platform->display;
+    g_assert(display);
 
     seat->pointer_target = window;
     seat->keyboard.serial = serial;
