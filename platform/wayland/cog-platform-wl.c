@@ -255,10 +255,8 @@ static void                      cog_wl_platform_resize_to_largest_output(CogWlP
 static gboolean                  cog_wl_platform_setup(CogPlatform *, CogShell *, const char *, GError **);
 static WebKitInputMethodContext *cog_wl_platform_create_im_context(CogPlatform *);
 
-static void cog_wl_popup_create(CogWlView *, WebKitOptionMenu *);
 static void cog_wl_popup_destroy(CogWlWindow *);
 static void cog_wl_popup_display(CogWlWindow *);
-static void cog_wl_popup_update(CogWlWindow *);
 
 static void cog_wl_request_frame(CogWlView *);
 
