@@ -969,6 +969,8 @@ cog_wl_platform_on_notify_visible_view(CogWlPlatform *self)
     CogWlView   *view = COG_WL_VIEW(cog_view_stack_get_visible_view(self->views));
     CogWlWindow *window = cog_wl_view_get_window(view);
 
+    wpe_view_backend_exportable_fdo_dispatch_frame_complete(view->exportable);
+
     if (window) {
         g_debug("%s: visible view %p", G_STRFUNC, view);
 
