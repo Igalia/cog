@@ -586,27 +586,6 @@ cog_wl_fullscreen_image_ready(CogWlView *view)
 #endif
 }
 
-#if HAVE_FULLSCREEN_HANDLING
-static bool
-cog_wl_handle_dom_fullscreen_request(void *data, bool fullscreen)
-{
-    CogWlView   *view = data;
-    CogWlWindow *window = window;
-
-    window->was_fullscreen_requested_from_dom = true;
-    if (fullscreen != window->is_fullscreen)
-        return cog_wl_set_fullscreen(unused, fullscreen);
-
-    // Handle situations where DOM fullscreen requests are mixed with system fullscreen commands (e.g F11)
-    if (fullscreen)
-        wpe_view_backend_dispatch_did_enter_fullscreen(wpe_view_data.backend);
-    else
-        wpe_view_backend_dispatch_did_exit_fullscreen(wpe_view_data.backend);
-
-    return true;
-}
-#endif
-
 static gboolean
 cog_wl_init(CogWlPlatform *platform, GError **error)
 {
@@ -1599,7 +1578,7 @@ cog_wl_view_create_backend(CogView *view)
 
     /* TODO: Fullscreen support. */
 #if HAVE_FULLSCREEN_HANDLING
-    wpe_view_backend_set_fullscreen_handler(wpe_view_data.backend, cog_wl_handle_dom_fullscreen_request, self);
+    wpe_view_backend_set_fullscreen_handler(wpe_view_data.backend, cog_wl_view_handle_dom_fullscreen_request, self);
 #endif
 
     return backend;
@@ -1620,6 +1599,27 @@ cog_wl_view_dispose(GObject *object)
 
     G_OBJECT_CLASS(cog_wl_view_parent_class)->dispose(object);
 }
+
+#if HAVE_FULLSCREEN_HANDLING
+static bool
+cog_wl_view_handle_dom_fullscreen_request(void *data, bool fullscreen)
+{
+    CogWlView   *view = data;
+    CogWlWindow *window = window;
+
+    window->was_fullscreen_requested_from_dom = true;
+    if (fullscreen != window->is_fullscreen)
+        return cog_wl_set_fullscreen(unused, fullscreen);
+
+    // Handle situations where DOM fullscreen requests are mixed with system fullscreen commands (e.g F11)
+    if (fullscreen)
+        wpe_view_backend_dispatch_did_enter_fullscreen(wpe_view_data.backend);
+    else
+        wpe_view_backend_dispatch_did_exit_fullscreen(wpe_view_data.backend);
+
+    return true;
+}
+#endif
 
 static void
 cog_wl_view_init(CogWlView *self)
