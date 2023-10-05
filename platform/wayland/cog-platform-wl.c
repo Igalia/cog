@@ -29,17 +29,17 @@
 /* for mmap */
 #include <sys/mman.h>
 
-#include <xkbcommon/xkbcommon.h>
-#include <xkbcommon/xkbcommon-compose.h>
 #include <locale.h>
+#include <xkbcommon/xkbcommon-compose.h>
+#include <xkbcommon/xkbcommon.h>
 
-#include "../common/egl-proc-address.h"
 #include "os-compatibility.h"
 
 #include "cog-im-context-wl-v1.h"
 #include "cog-im-context-wl.h"
 #include "cog-platform-wl.h"
 #include "cog-utils-wl.h"
+#include "cog-view-wl.h"
 #include "cog-window-wl.h"
 
 #include "fullscreen-shell-unstable-v1-client.h"
@@ -88,8 +88,6 @@ G_DEFINE_DYNAMIC_TYPE_EXTENDED(
     0,
     g_io_extension_point_implement(COG_MODULES_PLATFORM_EXTENSION_POINT, g_define_type_id, "wl", 500);)
 
-G_DEFINE_DYNAMIC_TYPE(CogWlView, cog_wl_view, COG_TYPE_VIEW)
-
 static void cog_egl_terminate(CogWlPlatform *);
 
 static void                      cog_wl_platform_finalize(GObject *);
@@ -105,53 +103,20 @@ static GSource *cog_wl_src_setup(GMainContext *, struct wl_display *);
 
 static void cog_wl_terminate(CogWlPlatform *);
 
-static inline bool           cog_wl_view_background_has_alpha(CogView *);
-static WebKitWebViewBackend *cog_wl_view_create_backend(CogView *);
-static void                  cog_wl_view_dispose(GObject *);
-CogWlWindow                 *cog_wl_view_get_window(CogWlView *);
-static void                  cog_wl_view_resize(CogView *, CogWlPlatform *);
-static void                  cog_wl_view_update_surface_contents(CogWlView *, struct wl_surface *);
-
 static void noop();
 
-#if HAVE_SHM_EXPORTED_BUFFER
-static void on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *buffer);
-#endif
-
-static void on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image);
-
-static void on_registry_global_is_supported_check(void *, struct wl_registry *, uint32_t, const char *, uint32_t);
-
-static void on_show_option_menu(WebKitWebView *, WebKitOptionMenu *, WebKitRectangle *, gpointer *);
-
-static void on_wl_surface_frame(void *, struct wl_callback *, uint32_t);
-
-static void presentation_feedback_on_discarded(void *, struct wp_presentation_feedback *);
-static void presentation_feedback_on_presented(void *,
-                                               struct wp_presentation_feedback *,
-                                               uint32_t,
-                                               uint32_t,
-                                               uint32_t,
-                                               uint32_t,
-                                               uint32_t,
-                                               uint32_t,
-                                               uint32_t);
-static void presentation_feedback_on_sync_output(void *, struct wp_presentation_feedback *, struct wl_output *);
+static void check_supported_registry_on_global(void *, struct wl_registry *, uint32_t, const char *, uint32_t);
 
 static inline bool pointer_uses_frame_event(struct wl_pointer *);
 
-static void registry_global(void *, struct wl_registry *, uint32_t, const char *, uint32_t);
-static void registry_global_remove(void *, struct wl_registry *, uint32_t);
+static void registry_on_global(void *, struct wl_registry *, uint32_t, const char *, uint32_t);
+static void registry_on_global_remove(void *, struct wl_registry *, uint32_t);
 
 static void seat_on_capabilities(void *, struct wl_seat *, uint32_t);
 static void seat_on_name(void *, struct wl_seat *, const char *);
 
-static void shell_popup_surface_configure(void *, struct wl_shell_surface *, uint32_t, int32_t, int32_t);
-static void shell_popup_surface_ping(void *, struct wl_shell_surface *, uint32_t);
-static void shell_popup_surface_popup_done(void *, struct wl_shell_surface *);
-
-static void shell_surface_configure(void *, struct wl_shell_surface *, uint32_t, int32_t, int32_t);
-static void shell_surface_ping(void *, struct wl_shell_surface *, uint32_t);
+static void shell_surface_on_configure(void *, struct wl_shell_surface *, uint32_t, int32_t, int32_t);
+static void shell_surface_on_ping(void *, struct wl_shell_surface *, uint32_t);
 
 #if HAVE_SHM_EXPORTED_BUFFER
 static struct shm_buffer *shm_buffer_create(CogWlDisplay *, struct wl_resource *, size_t);
@@ -159,7 +124,7 @@ static void               shm_buffer_destroy_notify(struct wl_listener *, void *
 static struct shm_buffer *shm_buffer_for_resource(CogWlDisplay *, struct wl_resource *);
 #endif
 
-static void surface_handle_enter(void *, struct wl_surface *, struct wl_output *);
+static void surface_on_enter(void *, struct wl_surface *, struct wl_output *);
 
 static void touch_on_cancel(void *, struct wl_touch *);
 static void
@@ -169,8 +134,6 @@ static void touch_on_motion(void *, struct wl_touch *, uint32_t, int32_t, wl_fix
 static void touch_on_up(void *, struct wl_touch *, uint32_t, uint32_t, int32_t);
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
-static void video_surface_create_succeeded(void *, struct zwp_linux_buffer_params_v1 *, struct wl_buffer *);
-static void video_surface_create_failed(void *, struct zwp_linux_buffer_params_v1 *);
 static void video_plane_display_dmabuf_receiver_on_handle_dmabuf(void *,
                                                                  struct wpe_video_plane_display_dmabuf_export *,
                                                                  uint32_t,
@@ -182,10 +145,12 @@ static void video_plane_display_dmabuf_receiver_on_handle_dmabuf(void *,
                                                                  uint32_t);
 static void video_plane_display_dmabuf_receiver_on_end_of_stream(void *, uint32_t);
 
+static void video_surface_create_succeeded(void *, struct zwp_linux_buffer_params_v1 *, struct wl_buffer *);
+static void video_surface_create_failed(void *, struct zwp_linux_buffer_params_v1 *);
 static void video_surface_destroy(gpointer);
 #endif
 
-static void xdg_shell_ping(void *, struct xdg_wm_base *, uint32_t);
+static void xdg_shell_on_ping(void *, struct xdg_wm_base *, uint32_t);
 
 static void xdg_surface_on_configure(void *, struct xdg_surface *, uint32_t);
 
@@ -193,8 +158,6 @@ static void xdg_toplevel_on_configure(void *, struct xdg_toplevel *, int32_t, in
 static void xdg_toplevel_on_close(void *, struct xdg_toplevel *);
 
 static CogWlPlatform *s_platform = NULL;
-
-static const struct xdg_surface_listener s_xdg_surface_listener = {.configure = xdg_surface_on_configure};
 
 // clang-format off
 #define SHELL_PROTOCOLS(m) \
@@ -291,7 +254,7 @@ cog_wl_check_supported(void *data G_GNUC_UNUSED)
         struct wl_registry                     *registry = wl_display_get_registry(display);
         wl_registry_add_listener(registry,
                                  &((const struct wl_registry_listener){
-                                     .global = on_registry_global_is_supported_check,
+                                     .global = check_supported_registry_on_global,
                                  }),
                                  &protocols);
         wl_display_roundtrip(display);
@@ -402,39 +365,6 @@ cog_wl_display_destroy(CogWlDisplay *self)
     g_slice_free(CogWlDisplay, self);
 }
 
-static bool
-cog_wl_does_image_match_win_size(CogWlView *view)
-{
-    CogWlWindow *window = cog_wl_view_get_window(view);
-
-    struct wpe_fdo_egl_exported_image *image = view->image;
-    return image && wpe_fdo_egl_exported_image_get_width(image) == window->width &&
-           wpe_fdo_egl_exported_image_get_height(image) == window->height;
-}
-
-static void
-cog_wl_fullscreen_image_ready(CogWlView *view)
-{
-    CogWlDisplay *display = s_platform->display;
-    g_assert(display);
-    CogWlWindow *window = cog_wl_view_get_window(view);
-    g_assert(window);
-
-    if (display->xdg_shell) {
-        xdg_toplevel_set_fullscreen(window->xdg_toplevel, NULL);
-    } else if (display->shell) {
-        wl_shell_surface_set_fullscreen(window->shell_surface, WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE, 0, NULL);
-    } else if (display->fshell == NULL) {
-        g_assert_not_reached();
-    }
-
-    window->is_resizing_fullscreen = false;
-#if HAVE_FULLSCREEN_HANDLING
-    if (window->was_fullscreen_requested_from_dom)
-        wpe_view_backend_dispatch_did_enter_fullscreen(cog_view_get_backend(COG_VIEW(view)));
-#endif
-}
-
 static gboolean
 cog_wl_init(CogWlPlatform *platform, GError **error)
 {
@@ -450,8 +380,8 @@ cog_wl_init(CogWlPlatform *platform, GError **error)
     display->registry = wl_display_get_registry(display->display);
     g_assert(display->registry);
 
-    static const struct wl_registry_listener registry_listener = {.global = registry_global,
-                                                                  .global_remove = registry_global_remove};
+    static const struct wl_registry_listener registry_listener = {.global = registry_on_global,
+                                                                  .global_remove = registry_on_global_remove};
 
     wl_registry_add_listener(display->registry, &registry_listener, platform);
     wl_display_roundtrip(display->display);
@@ -471,12 +401,6 @@ cog_wl_init(CogWlPlatform *platform, GError **error)
 
     wl_list_init(&display->shm_buffer_list);
     return TRUE;
-}
-
-static void
-cog_wl_on_buffer_release(void *data G_GNUC_UNUSED, struct wl_buffer *buffer)
-{
-    wl_buffer_destroy(buffer);
 }
 
 static void
@@ -590,7 +514,7 @@ cog_wl_platform_create_window(CogWlPlatform *self)
 #endif
 
     static const struct wl_surface_listener surface_listener = {
-        .enter = surface_handle_enter,
+        .enter = surface_on_enter,
         .leave = noop,
     };
     wl_surface_add_listener(window->wl_surface, &surface_listener, window);
@@ -599,7 +523,8 @@ cog_wl_platform_create_window(CogWlPlatform *self)
         window->xdg_surface = xdg_wm_base_get_xdg_surface(display->xdg_shell, window->wl_surface);
         g_assert(window->xdg_surface);
 
-        xdg_surface_add_listener(window->xdg_surface, &s_xdg_surface_listener, window);
+        static const struct xdg_surface_listener xdg_surface_listener = {.configure = xdg_surface_on_configure};
+        xdg_surface_add_listener(window->xdg_surface, &xdg_surface_listener, window);
         window->xdg_toplevel = xdg_surface_get_toplevel(window->xdg_surface);
         g_assert(window->xdg_toplevel);
 
@@ -634,8 +559,8 @@ cog_wl_platform_create_window(CogWlPlatform *self)
         g_assert(window->shell_surface);
 
         static const struct wl_shell_surface_listener shell_surface_listener = {
-            .ping = shell_surface_ping,
-            .configure = shell_surface_configure,
+            .ping = shell_surface_on_ping,
+            .configure = shell_surface_on_configure,
         };
         wl_shell_surface_add_listener(window->shell_surface, &shell_surface_listener, self);
         wl_shell_surface_set_toplevel(window->shell_surface);
@@ -777,6 +702,31 @@ cog_wl_platform_on_notify_visible_view(CogWlPlatform *self)
 }
 
 static void
+cog_wl_view_resize(CogView *view, CogWlPlatform *platform)
+{
+    g_assert(platform);
+
+    CogWlWindow *window = cog_wl_view_get_window(COG_WL_VIEW(view));
+
+    struct wpe_view_backend *backend = cog_view_get_backend(view);
+
+    if (platform->current_output) {
+        COG_WL_VIEW(view)->scale_factor = platform->current_output->scale;
+
+        int32_t pixel_width = window->width * platform->current_output->scale;
+        int32_t pixel_height = window->height * platform->current_output->scale;
+
+        wpe_view_backend_dispatch_set_size(backend, window->width, window->height);
+        wpe_view_backend_dispatch_set_device_scale_factor(backend, platform->current_output->scale);
+
+        g_debug("%s<%p>: Resized EGL buffer to: (%" PRIi32 ", %" PRIi32 ") @%" PRIi32 "x", G_STRFUNC, view, pixel_width,
+                pixel_height, platform->current_output->scale);
+    } else {
+        g_debug("Window resize failed. No current output defined.");
+    }
+}
+
+static void
 cog_wl_platform_resize_to_largest_output(CogWlPlatform *platform)
 {
     /* Find the largest output and resize the surface to match */
@@ -794,17 +744,11 @@ cog_wl_platform_resize_to_largest_output(CogWlPlatform *platform)
     cog_view_group_foreach(COG_VIEW_GROUP(platform->views), (GFunc) cog_wl_view_resize, platform);
 }
 
-CogWlWindow *
-cog_wl_view_get_window(CogWlView *view)
-{
-    CogViewStack *stack = view->stack;
-    return (CogWlWindow *) g_hash_table_lookup(s_platform->windows, stack);
-}
-
 static void
 cog_wl_view_stack_handle_add(CogViewStack *self, CogView *view)
 {
     COG_WL_VIEW(view)->stack = COG_VIEW_STACK(self);
+    COG_WL_VIEW(view)->platform = s_platform;
     CogWlWindow *window = (CogWlWindow *) g_hash_table_lookup(s_platform->windows, self);
     if (!window) {
         window = cog_wl_platform_create_window(s_platform);
@@ -860,73 +804,6 @@ cog_wl_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, cons
                             self, G_CONNECT_AFTER | G_CONNECT_SWAPPED);
 
     return TRUE;
-}
-
-static void
-cog_wl_window_popup_create(CogWlView *view, WebKitOptionMenu *option_menu)
-{
-    CogWlWindow  *window = cog_wl_view_get_window(view);
-    CogWlDisplay *display = s_platform->display;
-
-    window->popup_data.configured = false;
-
-    window->popup_data.option_menu = option_menu;
-
-    window->popup_data.width = window->width;
-    window->popup_data.height = cog_popup_menu_get_height_for_option_menu(option_menu);
-
-    window->popup_data.popup_menu = cog_popup_menu_create(option_menu, display->shm, window->popup_data.width,
-                                                          window->popup_data.height, view->scale_factor);
-
-    window->popup_data.wl_surface = wl_compositor_create_surface(display->compositor);
-    g_assert(window->popup_data.wl_surface);
-
-#ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
-    if (wl_surface_get_version(window->popup_data.wl_surface) >= WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION)
-        wl_surface_set_buffer_scale(window->popup_data.wl_surface, view->scale_factor);
-#endif /* WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION */
-
-    if (display->xdg_shell != NULL) {
-        window->popup_data.xdg_positioner = xdg_wm_base_create_positioner(display->xdg_shell);
-        g_assert(window->popup_data.xdg_positioner);
-
-        xdg_positioner_set_size(window->popup_data.xdg_positioner, window->popup_data.width, window->popup_data.height);
-        xdg_positioner_set_anchor_rect(window->popup_data.xdg_positioner, 0,
-                                       (window->height - window->popup_data.height), window->popup_data.width,
-                                       window->popup_data.height);
-
-        window->popup_data.xdg_surface = xdg_wm_base_get_xdg_surface(display->xdg_shell, window->popup_data.wl_surface);
-        g_assert(window->popup_data.xdg_surface);
-
-        xdg_surface_add_listener(window->popup_data.xdg_surface, &s_xdg_surface_listener, window);
-        window->popup_data.xdg_popup = xdg_surface_get_popup(window->popup_data.xdg_surface, window->xdg_surface,
-                                                             window->popup_data.xdg_positioner);
-        g_assert(window->popup_data.xdg_popup);
-
-        static const struct xdg_popup_listener xdg_popup_listener = {
-            .configure = cog_wl_window_xdg_popup_on_configure,
-            .popup_done = cog_wl_window_xdg_popup_on_done,
-        };
-        xdg_popup_add_listener(window->popup_data.xdg_popup, &xdg_popup_listener, window);
-        xdg_popup_grab(window->popup_data.xdg_popup, display->seat_default->seat,
-                       display->seat_default->keyboard.serial);
-        wl_surface_commit(window->popup_data.wl_surface);
-    } else if (display->shell != NULL) {
-        window->popup_data.shell_surface = wl_shell_get_shell_surface(display->shell, window->popup_data.wl_surface);
-        g_assert(window->popup_data.shell_surface);
-
-        static const struct wl_shell_surface_listener shell_popup_surface_listener = {
-            .ping = shell_popup_surface_ping,
-            .configure = shell_popup_surface_configure,
-            .popup_done = shell_popup_surface_popup_done,
-        };
-        wl_shell_surface_add_listener(window->popup_data.shell_surface, &shell_popup_surface_listener, NULL);
-        wl_shell_surface_set_popup(window->popup_data.shell_surface, display->seat_default->seat,
-                                   display->seat_default->keyboard.serial, window->wl_surface, 0,
-                                   (window->height - window->popup_data.height), 0);
-
-        cog_wl_window_popup_display(window);
-    }
 }
 
 static void
@@ -1171,13 +1048,13 @@ cog_wl_set_fullscreen(CogWlPlatform *self, bool fullscreen)
 
     if (fullscreen) {
         // Resize the view_backend to the size of the screen.
-        // Wait until a new exported image is reveived. See cog_wl_fullscreen_image_ready().
+        // Wait until a new exported image is reveived. See cog_wl_view_fullscreen_image_ready().
         window->is_resizing_fullscreen = true;
         window->width_before_fullscreen = window->width;
         window->height_before_fullscreen = window->height;
         cog_wl_platform_resize_to_largest_output(self);
-        if (view && cog_wl_does_image_match_win_size(COG_WL_VIEW(view)))
-            cog_wl_fullscreen_image_ready(COG_WL_VIEW(view));
+        if (view && cog_wl_view_does_image_match_win_size(COG_WL_VIEW(view)))
+            cog_wl_view_fullscreen_image_ready(COG_WL_VIEW(view));
     } else {
         if (display->xdg_shell != NULL) {
             xdg_toplevel_unset_fullscreen(window->xdg_toplevel);
@@ -1324,210 +1201,6 @@ cog_wl_terminate(CogWlPlatform *platform)
     cog_wl_display_destroy(display);
 }
 
-static inline bool
-cog_wl_view_background_has_alpha(CogView *view)
-{
-    WebKitColor bg_color;
-    webkit_web_view_get_background_color((WebKitWebView *) view, &bg_color);
-    return bg_color.alpha != .0f;
-}
-
-static void
-cog_wl_view_class_finalize(CogWlViewClass *klass G_GNUC_UNUSED)
-{
-}
-
-static void
-cog_wl_view_class_init(CogWlViewClass *klass)
-{
-    GObjectClass *object_class = G_OBJECT_CLASS(klass);
-    object_class->dispose = cog_wl_view_dispose;
-
-    CogViewClass *view_class = COG_VIEW_CLASS(klass);
-    view_class->create_backend = cog_wl_view_create_backend;
-}
-
-static WebKitWebViewBackend *
-cog_wl_view_create_backend(CogView *view)
-{
-    CogWlView *self = COG_WL_VIEW(view);
-
-    static const struct wpe_view_backend_exportable_fdo_egl_client client = {
-        .export_fdo_egl_image = on_export_wl_egl_image,
-#if HAVE_SHM_EXPORTED_BUFFER
-        .export_shm_buffer = on_export_shm_buffer,
-#endif
-    };
-
-    self->exportable =
-        wpe_view_backend_exportable_fdo_egl_create(&client, self, COG_WL_WIN_DEFAULT_WIDTH, COG_WL_WIN_DEFAULT_HEIGHT);
-
-    struct wpe_view_backend *view_backend = wpe_view_backend_exportable_fdo_get_view_backend(self->exportable);
-
-    /* TODO: IM support. */
-#if 0
-    if (display->text_input_manager_v1 != NULL)
-        cog_im_context_wl_v1_set_view_backend(wpe_view_data.backend);
-#endif
-
-    WebKitWebViewBackend *backend =
-        webkit_web_view_backend_new(view_backend,
-                                    (GDestroyNotify) wpe_view_backend_exportable_fdo_destroy,
-                                    self->exportable);
-
-    /* TODO: Fullscreen support. */
-#if HAVE_FULLSCREEN_HANDLING
-    wpe_view_backend_set_fullscreen_handler(wpe_view_data.backend, cog_wl_view_handle_dom_fullscreen_request, self);
-#endif
-
-    return backend;
-}
-
-static void
-cog_wl_view_dispose(GObject *object)
-{
-    CogWlView *self = COG_WL_VIEW(object);
-
-    g_clear_pointer(&self->frame_callback, wl_callback_destroy);
-
-    if (self->image) {
-        g_assert(self->exportable);
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image(self->exportable, self->image);
-        self->image = NULL;
-    }
-
-    G_OBJECT_CLASS(cog_wl_view_parent_class)->dispose(object);
-}
-
-#if HAVE_FULLSCREEN_HANDLING
-static bool
-cog_wl_view_handle_dom_fullscreen_request(void *data, bool fullscreen)
-{
-    CogWlView   *view = data;
-    CogWlWindow *window = window;
-
-    window->was_fullscreen_requested_from_dom = true;
-    if (fullscreen != window->is_fullscreen)
-        return cog_wl_set_fullscreen(unused, fullscreen);
-
-    // Handle situations where DOM fullscreen requests are mixed with system fullscreen commands (e.g F11)
-    if (fullscreen)
-        wpe_view_backend_dispatch_did_enter_fullscreen(wpe_view_data.backend);
-    else
-        wpe_view_backend_dispatch_did_exit_fullscreen(wpe_view_data.backend);
-
-    return true;
-}
-#endif
-
-static void
-cog_wl_view_init(CogWlView *self)
-{
-    /* Always configure the opaque region on first display after creation. */
-    self->should_update_opaque_region = true;
-
-    self->scale_factor = 1;
-
-    g_signal_connect(self, "show-option-menu", G_CALLBACK(on_show_option_menu), NULL);
-}
-
-static void
-cog_wl_view_request_frame(CogWlView *view)
-{
-    CogWlDisplay *display = s_platform->display;
-    g_assert(display);
-
-    CogWlWindow *window = cog_wl_view_get_window(view);
-    g_assert(window);
-
-    if (!view->frame_callback) {
-        static const struct wl_callback_listener listener = {.done = on_wl_surface_frame};
-        view->frame_callback = wl_surface_frame(window->wl_surface);
-        wl_callback_add_listener(view->frame_callback, &listener, view);
-    }
-
-    if (display->presentation != NULL) {
-        static const struct wp_presentation_feedback_listener presentation_feedback_listener = {
-            .sync_output = presentation_feedback_on_sync_output,
-            .presented = presentation_feedback_on_presented,
-            .discarded = presentation_feedback_on_discarded};
-        struct wp_presentation_feedback *presentation_feedback =
-            wp_presentation_feedback(display->presentation, window->wl_surface);
-        wp_presentation_feedback_add_listener(presentation_feedback, &presentation_feedback_listener, NULL);
-    }
-}
-
-static void
-cog_wl_view_resize(CogView *view, CogWlPlatform *platform)
-{
-    g_assert(platform);
-
-    CogWlWindow *window = cog_wl_view_get_window(COG_WL_VIEW(view));
-
-    struct wpe_view_backend *backend = cog_view_get_backend(view);
-
-    if (platform->current_output) {
-        COG_WL_VIEW(view)->scale_factor = platform->current_output->scale;
-
-        int32_t pixel_width = window->width * platform->current_output->scale;
-        int32_t pixel_height = window->height * platform->current_output->scale;
-
-        wpe_view_backend_dispatch_set_size(backend, window->width, window->height);
-        wpe_view_backend_dispatch_set_device_scale_factor(backend, platform->current_output->scale);
-
-        g_debug("%s<%p>: Resized EGL buffer to: (%" PRIi32 ", %" PRIi32 ") @%" PRIi32 "x", G_STRFUNC, view, pixel_width,
-                pixel_height, platform->current_output->scale);
-    } else {
-        g_debug("Window resize failed. No current output defined.");
-    }
-}
-
-static void
-cog_wl_view_update_surface_contents(CogWlView *view, struct wl_surface *surface)
-{
-    g_assert(view);
-    CogWlWindow *window = cog_wl_view_get_window(COG_WL_VIEW(view));
-    g_assert(window);
-    CogWlDisplay *display = s_platform->display;
-    g_assert(display);
-
-    if (view->should_update_opaque_region) {
-        view->should_update_opaque_region = false;
-        if (window->is_fullscreen || !cog_wl_view_background_has_alpha((CogView *) view)) {
-            struct wl_region *region = wl_compositor_create_region(display->compositor);
-            wl_region_add(region, 0, 0, INT32_MAX, INT32_MAX);
-            wl_surface_set_opaque_region(surface, region);
-            wl_region_destroy(region);
-        } else {
-            wl_surface_set_opaque_region(surface, NULL);
-        }
-    }
-
-    static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL s_eglCreateWaylandBufferFromImageWL;
-    if (G_UNLIKELY(s_eglCreateWaylandBufferFromImageWL == NULL)) {
-        s_eglCreateWaylandBufferFromImageWL =
-            (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL) load_egl_proc_address("eglCreateWaylandBufferFromImageWL");
-        g_assert(s_eglCreateWaylandBufferFromImageWL);
-    }
-
-    struct wl_buffer *buffer = s_eglCreateWaylandBufferFromImageWL(
-        display->egl_display, wpe_fdo_egl_exported_image_get_egl_image(view->image));
-    g_assert(buffer);
-
-    static const struct wl_buffer_listener buffer_listener = {.release = cog_wl_on_buffer_release};
-    wl_buffer_add_listener(buffer, &buffer_listener, NULL);
-
-    wl_surface_attach(surface, buffer, 0, 0);
-    wl_surface_damage(surface, 0, 0, INT32_MAX, INT32_MAX);
-
-    cog_wl_view_request_frame(view);
-
-    wl_surface_commit(surface);
-
-    if (window->is_resizing_fullscreen && cog_wl_does_image_match_win_size(view))
-        cog_wl_fullscreen_image_ready(view);
-}
-
 static void
 dispatch_axis_event(CogWlSeat *seat)
 {
@@ -1590,102 +1263,12 @@ noop()
 {
 }
 
-#if HAVE_SHM_EXPORTED_BUFFER
 static void
-on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_buffer)
-{
-    CogWlView    *view = data;
-    CogWlWindow  *window = COG_WL_VIEW(view)->window;
-    CogWlDisplay *display = window->display;
-
-    struct wl_resource   *exported_resource = wpe_fdo_shm_exported_buffer_get_resource(exported_buffer);
-    struct wl_shm_buffer *exported_shm_buffer = wpe_fdo_shm_exported_buffer_get_shm_buffer(exported_buffer);
-
-    const uint32_t surface_pixel_width = platform->current_output->scale * window->width;
-    const uint32_t surface_pixel_height = platform->current_output->scale * window->height;
-
-    if (surface_pixel_width != wl_shm_buffer_get_width(exported_shm_buffer) ||
-        surface_pixel_height != wl_shm_buffer_get_height(exported_shm_buffer)) {
-        g_debug("Exported SHM buffer size %" PRIu32 "x%" PRIu32 ", does not match surface size %" PRIu32 "x%" PRIu32
-                ", skipping.",
-                wl_shm_buffer_get_width(exported_shm_buffer), wl_shm_buffer_get_width(exported_shm_buffer),
-                surface_pixel_width, surface_pixel_width);
-        wpe_view_backend_exportable_fdo_dispatch_frame_complete(wpe_host_data.exportable);
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_shm_exported_buffer(wpe_host_data.exportable,
-                                                                                 exported_buffer);
-        return;
-    }
-
-    struct shm_buffer *buffer = shm_buffer_for_resource(window->display, exported_resource);
-    if (!buffer) {
-        int32_t width;
-        int32_t height;
-        if (window->is_fullscreen) {
-            width = window->width;
-            height = window->height;
-        } else {
-            width = wl_shm_buffer_get_width(exported_shm_buffer);
-            height = wl_shm_buffer_get_height(exported_shm_buffer);
-        }
-        int32_t  stride = wl_shm_buffer_get_stride(exported_shm_buffer);
-        uint32_t format = wl_shm_buffer_get_format(exported_shm_buffer);
-
-        size_t size = stride * height;
-        buffer = shm_buffer_create(window->display, exported_resource, size);
-        if (!buffer)
-            return;
-        wl_list_insert(&display->shm_buffer_list, &buffer->link);
-
-        buffer->buffer = wl_shm_pool_create_buffer(buffer->shm_pool, 0, width, height, stride, format);
-        wl_buffer_add_listener(buffer->buffer, &shm_buffer_listener, buffer);
-    }
-
-    buffer->exported_buffer = exported_buffer;
-    shm_buffer_copy_contents(buffer, exported_shm_buffer);
-
-    wl_surface_attach(window->wl_surface, buffer->buffer, 0, 0);
-    wl_surface_damage(window->wl_surface, 0, 0, INT32_MAX, INT32_MAX);
-    cog_wl_view_request_frame(view);
-    wl_surface_commit(window->wl_surface);
-}
-#endif
-
-static void
-on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
-{
-    CogWlView   *self = data;
-    CogWlWindow *window = cog_wl_view_get_window(self);
-
-    const uint32_t surface_pixel_width = self->scale_factor * window->width;
-    const uint32_t surface_pixel_height = self->scale_factor * window->height;
-
-    if (surface_pixel_width != wpe_fdo_egl_exported_image_get_width(image) ||
-        surface_pixel_height != wpe_fdo_egl_exported_image_get_height(image)) {
-        g_debug("Exported FDO EGL image size %" PRIu32 "x%" PRIu32 ", does not match surface size %" PRIu32 "x%" PRIu32
-                ", skipping.",
-                wpe_fdo_egl_exported_image_get_width(image), wpe_fdo_egl_exported_image_get_height(image),
-                surface_pixel_width, surface_pixel_width);
-        wpe_view_backend_exportable_fdo_dispatch_frame_complete(self->exportable);
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image(self->exportable, image);
-        return;
-    }
-
-    if (self->image)
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image(self->exportable, self->image);
-
-    self->image = image;
-
-    const int32_t state = wpe_view_backend_get_activity_state(cog_view_get_backend((CogView *) self));
-    if (state & wpe_view_activity_state_visible)
-        cog_wl_view_update_surface_contents(self, window->wl_surface);
-}
-
-static void
-on_registry_global_is_supported_check(void               *data,
-                                      struct wl_registry *registry,
-                                      uint32_t            name,
-                                      const char         *interface,
-                                      uint32_t            version)
+check_supported_registry_on_global(void               *data,
+                                   struct wl_registry *registry,
+                                   uint32_t            name,
+                                   const char         *interface,
+                                   uint32_t            version)
 {
     struct cog_wl_check_supported_protocols *protocols = data;
 
@@ -1701,26 +1284,7 @@ on_registry_global_is_supported_check(void               *data,
 }
 
 static void
-on_show_option_menu(WebKitWebView *view, WebKitOptionMenu *menu, WebKitRectangle *rectangle, gpointer *data)
-{
-    cog_wl_window_popup_create(COG_WL_VIEW(view), g_object_ref(menu));
-}
-
-static void
-on_wl_surface_frame(void *data, struct wl_callback *callback, uint32_t time)
-{
-    CogWlView *view = data;
-
-    if (view->frame_callback) {
-        g_assert(view->frame_callback == callback);
-        g_clear_pointer(&view->frame_callback, wl_callback_destroy);
-    }
-
-    wpe_view_backend_exportable_fdo_dispatch_frame_complete(view->exportable);
-}
-
-static void
-output_handle_done(void *data, struct wl_output *output)
+output_on_done(void *data, struct wl_output *output)
 {
     CogWlPlatform *platform = data;
     CogWlView     *view = COG_WL_VIEW(cog_view_stack_get_visible_view(platform->views));
@@ -1752,7 +1316,7 @@ output_handle_done(void *data, struct wl_output *output)
 }
 
 static void
-output_handle_mode(void *data, struct wl_output *output, uint32_t flags, int32_t width, int32_t height, int32_t refresh)
+output_on_mode(void *data, struct wl_output *output, uint32_t flags, int32_t width, int32_t height, int32_t refresh)
 {
     CogWlOutput *metrics = cog_wl_platform_get_output(output);
 
@@ -1765,7 +1329,7 @@ output_handle_mode(void *data, struct wl_output *output, uint32_t flags, int32_t
 #ifdef WL_OUTPUT_SCALE_SINCE_VERSION
 
 static void
-output_handle_scale(void *data, struct wl_output *output, int32_t scale)
+output_on_scale(void *data, struct wl_output *output, int32_t scale)
 {
     cog_wl_platform_get_output(output)->scale = scale;
 }
@@ -2005,34 +1569,7 @@ pointer_uses_frame_event(struct wl_pointer *pointer)
 }
 
 static void
-presentation_feedback_on_discarded(void *data, struct wp_presentation_feedback *presentation_feedback)
-{
-    wp_presentation_feedback_destroy(presentation_feedback);
-}
-
-static void
-presentation_feedback_on_presented(void                            *data,
-                                   struct wp_presentation_feedback *presentation_feedback,
-                                   uint32_t                         tv_sec_hi,
-                                   uint32_t                         tv_sec_lo,
-                                   uint32_t                         tv_nsec,
-                                   uint32_t                         refresh,
-                                   uint32_t                         seq_hi,
-                                   uint32_t                         seq_lo,
-                                   uint32_t                         flags)
-{
-    wp_presentation_feedback_destroy(presentation_feedback);
-}
-
-static void
-presentation_feedback_on_sync_output(void                            *data,
-                                     struct wp_presentation_feedback *presentation_feedback,
-                                     struct wl_output                *output)
-{
-}
-
-static void
-registry_global(void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version)
+registry_on_global(void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version)
 {
     CogWlPlatform *platform = data;
     CogWlDisplay  *display = platform->display;
@@ -2051,7 +1588,7 @@ registry_global(void *data, struct wl_registry *registry, uint32_t name, const c
         display->xdg_shell = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
         g_assert(display->xdg_shell);
         static const struct xdg_wm_base_listener xdg_shell_listener = {
-            .ping = xdg_shell_ping,
+            .ping = xdg_shell_on_ping,
         };
         xdg_wm_base_add_listener(display->xdg_shell, &xdg_shell_listener, NULL);
     } else if (strcmp(interface, zwp_fullscreen_shell_v1_interface.name) == 0) {
@@ -2077,10 +1614,10 @@ registry_global(void *data, struct wl_registry *registry, uint32_t name, const c
     } else if (strcmp(interface, wl_output_interface.name) == 0) {
         static const struct wl_output_listener output_listener = {
             .geometry = noop,
-            .mode = output_handle_mode,
-            .done = output_handle_done,
+            .mode = output_on_mode,
+            .done = output_on_done,
 #ifdef WL_OUTPUT_SCALE_SINCE_VERSION
-            .scale = output_handle_scale,
+            .scale = output_on_scale,
 #endif /* WL_OUTPUT_SCALE_SINCE_VERSION */
         };
         /* Version 2 introduced the wl_output_listener::scale. */
@@ -2104,7 +1641,7 @@ registry_global(void *data, struct wl_registry *registry, uint32_t name, const c
 }
 
 static void
-registry_global_remove(void *data, struct wl_registry *registry, uint32_t name)
+registry_on_global_remove(void *data, struct wl_registry *registry, uint32_t name)
 {
     CogWlPlatform *platform = data;
     CogWlOutput   *output, *tmp_output;
@@ -2214,31 +1751,11 @@ seat_on_name(void *data, struct wl_seat *seat, const char *name)
 #endif /* WL_SEAT_NAME_SINCE_VERSION */
 
 static void
-shell_popup_surface_configure(void                    *data,
-                              struct wl_shell_surface *shell_surface,
-                              uint32_t                 edges,
-                              int32_t                  width,
-                              int32_t                  height)
-{
-}
-
-static void
-shell_popup_surface_ping(void *data, struct wl_shell_surface *shell_surface, uint32_t serial)
-{
-    wl_shell_surface_pong(shell_surface, serial);
-}
-
-static void
-shell_popup_surface_popup_done(void *data, struct wl_shell_surface *shell_surface)
-{
-}
-
-static void
-shell_surface_configure(void                    *data,
-                        struct wl_shell_surface *shell_surface,
-                        uint32_t                 edges,
-                        int32_t                  width,
-                        int32_t                  height)
+shell_surface_on_configure(void                    *data,
+                           struct wl_shell_surface *shell_surface,
+                           uint32_t                 edges,
+                           int32_t                  width,
+                           int32_t                  height)
 {
     CogWlPlatform *platform = data;
 
@@ -2249,7 +1766,7 @@ shell_surface_configure(void                    *data,
 }
 
 static void
-shell_surface_ping(void *data, struct wl_shell_surface *shell_surface, uint32_t serial)
+shell_surface_on_ping(void *data, struct wl_shell_surface *shell_surface, uint32_t serial)
 {
     wl_shell_surface_pong(shell_surface, serial);
 }
@@ -2350,7 +1867,7 @@ shm_buffer_copy_contents(struct shm_buffer *buffer, struct wl_shm_buffer *export
 #endif
 
 static void
-surface_handle_enter(void *data, struct wl_surface *surface, struct wl_output *output)
+surface_on_enter(void *data, struct wl_surface *surface, struct wl_output *output)
 {
     if (s_platform->current_output->output != output) {
         g_debug("%s: Surface %p output changed %p -> %p", G_STRFUNC, surface, s_platform->current_output->output,
@@ -2682,7 +2199,7 @@ video_surface_destroy(gpointer data)
 #endif
 
 static void
-xdg_shell_ping(void *data, struct xdg_wm_base *shell, uint32_t serial)
+xdg_shell_on_ping(void *data, struct xdg_wm_base *shell, uint32_t serial)
 {
     xdg_wm_base_pong(shell, serial);
 }
@@ -2728,7 +2245,7 @@ g_io_cogplatform_wl_load(GIOModule *module)
 {
     GTypeModule *type_module = G_TYPE_MODULE(module);
     cog_wl_platform_register_type(type_module);
-    cog_wl_view_register_type(type_module);
+    cog_wl_view_register_type_exported(type_module);
 }
 
 G_MODULE_EXPORT void

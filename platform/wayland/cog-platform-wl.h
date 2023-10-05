@@ -11,6 +11,7 @@
 
 #include "../../core/cog.h"
 
+#include "cog-view-wl.h"
 #include "cog-window-wl.h"
 
 G_BEGIN_DECLS
@@ -97,21 +98,5 @@ struct _CogWlPlatform {
     CogWlOutput   *current_output;
     struct wl_list outputs; /* wl_list<CogWlOutput> */
 };
-
-struct _CogWlView {
-    CogView parent;
-
-    CogViewStack *stack;
-
-    struct wpe_view_backend_exportable_fdo *exportable;
-    struct wpe_fdo_egl_exported_image      *image;
-
-    struct wl_callback *frame_callback;
-
-    bool    should_update_opaque_region;
-    int32_t scale_factor;
-};
-
-G_DECLARE_FINAL_TYPE(CogWlView, cog_wl_view, COG, WL_VIEW, CogView)
 
 #endif /* !COG_PLATFORM_WL_PLATFORM_H */
