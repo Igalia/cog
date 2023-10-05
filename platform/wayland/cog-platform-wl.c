@@ -118,12 +118,6 @@ static void seat_on_name(void *, struct wl_seat *, const char *);
 static void shell_surface_on_configure(void *, struct wl_shell_surface *, uint32_t, int32_t, int32_t);
 static void shell_surface_on_ping(void *, struct wl_shell_surface *, uint32_t);
 
-#if HAVE_SHM_EXPORTED_BUFFER
-static struct shm_buffer *shm_buffer_create(CogWlDisplay *, struct wl_resource *, size_t);
-static void               shm_buffer_destroy_notify(struct wl_listener *, void *);
-static struct shm_buffer *shm_buffer_for_resource(CogWlDisplay *, struct wl_resource *);
-#endif
-
 static void surface_on_enter(void *, struct wl_surface *, struct wl_output *);
 
 static void touch_on_cancel(void *, struct wl_touch *);
@@ -1770,101 +1764,6 @@ shell_surface_on_ping(void *data, struct wl_shell_surface *shell_surface, uint32
 {
     wl_shell_surface_pong(shell_surface, serial);
 }
-
-#if HAVE_SHM_EXPORTED_BUFFER
-static struct shm_buffer *
-shm_buffer_for_resource(CogWlDisplay *display, struct wl_resource *buffer_resource)
-{
-    struct shm_buffer *buffer;
-    wl_list_for_each(buffer, &display->shm_buffer_list, link) {
-        if (buffer->buffer_resource == buffer_resource)
-            return buffer;
-    }
-
-    return NULL;
-}
-
-static struct shm_buffer *
-shm_buffer_create(CogWlDisplay *display, struct wl_resource *buffer_resource, size_t size)
-{
-    int fd = os_create_anonymous_file(size);
-    if (fd < 0)
-        return NULL;
-
-    void *data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (data == MAP_FAILED) {
-        close(fd);
-        return NULL;
-    }
-
-    struct shm_buffer *buffer = g_new0(struct shm_buffer, 1);
-    buffer->destroy_listener.notify = shm_buffer_destroy_notify;
-    buffer->buffer_resource = buffer_resource;
-    wl_resource_add_destroy_listener(buffer_resource, &buffer->destroy_listener);
-
-    buffer->shm_pool = wl_shm_create_pool(display->shm, fd, size);
-    buffer->data = data;
-    buffer->size = size;
-
-    close(fd);
-    return buffer;
-}
-
-static void
-shm_buffer_destroy(struct shm_buffer *buffer)
-{
-    if (buffer->exported_buffer) {
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_shm_exported_buffer(wpe_host_data.exportable,
-                                                                                 buffer->exported_buffer);
-    }
-
-    wl_buffer_destroy(buffer->buffer);
-    wl_shm_pool_destroy(buffer->shm_pool);
-    munmap(buffer->data, buffer->size);
-
-    g_free(buffer);
-}
-
-static void
-shm_buffer_destroy_notify(struct wl_listener *listener, void *data)
-{
-    struct shm_buffer *buffer = wl_container_of(listener, buffer, destroy_listener);
-
-    wl_list_remove(&buffer->link);
-    shm_buffer_destroy(buffer);
-}
-
-static void
-shm_buffer_on_release(void *data, struct wl_buffer *wl_buffer)
-{
-    struct shm_buffer *buffer = data;
-    if (buffer->exported_buffer) {
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_shm_exported_buffer(wpe_host_data.exportable,
-                                                                                 buffer->exported_buffer);
-        buffer->exported_buffer = NULL;
-    }
-}
-
-static const struct wl_buffer_listener shm_buffer_listener = {
-    .release = shm_buffer_on_release,
-};
-
-static void
-shm_buffer_copy_contents(struct shm_buffer *buffer, struct wl_shm_buffer *exported_shm_buffer)
-{
-    int32_t height = wl_shm_buffer_get_height(exported_shm_buffer);
-    int32_t stride = wl_shm_buffer_get_stride(exported_shm_buffer);
-
-    size_t data_size = height * stride;
-
-    wl_shm_buffer_begin_access(exported_shm_buffer);
-    void *exported_data = wl_shm_buffer_get_data(exported_shm_buffer);
-
-    memcpy(buffer->data, exported_data, data_size);
-
-    wl_shm_buffer_end_access(exported_shm_buffer);
-}
-#endif
 
 static void
 surface_on_enter(void *data, struct wl_surface *surface, struct wl_output *output)
