@@ -232,8 +232,6 @@ struct _CogWlWindow {
     } popup_data;
 };
 
-static void *check_supported(void *);
-
 static void cog_egl_terminate(CogWlPlatform *);
 
 static void                      cog_wl_platform_finalize(GObject *);
@@ -354,47 +352,10 @@ static const struct xdg_surface_listener s_xdg_surface_listener = {.configure = 
 // clang-format on
 
 #define DECLARE_PROTOCOL_ENTRY(proto) gboolean found_##proto;
-struct check_supported_protocols {
+struct cog_wl_check_supported_protocols {
     SHELL_PROTOCOLS(DECLARE_PROTOCOL_ENTRY)
 };
 #undef DECLARE_PROTOCOL_ENTRY
-
-static void *
-check_supported(void *data G_GNUC_UNUSED)
-{
-    /*
-     * XXX: It would be neat to have some way of determining whether EGL is
-     *      usable without doing EGL initialization. Maybe an option is
-     *      checking whether the wl_drm protocol is present, but some GPU
-     *      drivers might expose other protocols (w.g. wl_viv for Vivante)
-     *      so that could result in needing to maintain the list updated.
-     *
-     *      For now the check assumes that EGL will work if the compositor
-     *      handles at least one of the shell protocols supported by Cog.
-     */
-    struct wl_display *display = wl_display_connect(NULL);
-    if (display) {
-        struct check_supported_protocols protocols = {};
-        struct wl_registry              *registry = wl_display_get_registry(display);
-        wl_registry_add_listener(registry,
-                                 &((const struct wl_registry_listener){
-                                     .global = on_registry_global_is_supported_check,
-                                 }),
-                                 &protocols);
-        wl_display_roundtrip(display);
-
-        gboolean ok = FALSE;
-#define CHECK_SHELL_PROTOCOL(proto) ok = ok || protocols.found_##proto;
-        SHELL_PROTOCOLS(CHECK_SHELL_PROTOCOL)
-#undef CHECK_SHELL_PROTOCOL
-
-        wl_registry_destroy(registry);
-        wl_display_disconnect(display);
-        return GINT_TO_POINTER(ok);
-    } else {
-        return GINT_TO_POINTER(FALSE);
-    }
-}
 
 #define ERR_EGL(_err, _msg)                                                                                         \
     do {                                                                                                            \
@@ -459,6 +420,42 @@ gamepad_provider_get_view_backend_for_gamepad(void *provider G_GNUC_UNUSED, void
 }
 #endif
 
+static void *
+cog_wl_check_supported(void *data G_GNUC_UNUSED)
+{
+    /*
+     * XXX: It would be neat to have some way of determining whether EGL is
+     *      usable without doing EGL initialization. Maybe an option is
+     *      checking whether the wl_drm protocol is present, but some GPU
+     *      drivers might expose other protocols (w.g. wl_viv for Vivante)
+     *      so that could result in needing to maintain the list updated.
+     *
+     *      For now the check assumes that EGL will work if the compositor
+     *      handles at least one of the shell protocols supported by Cog.
+     */
+    struct wl_display *display = wl_display_connect(NULL);
+    if (display) {
+        struct cog_wl_check_supported_protocols protocols = {};
+        struct wl_registry                     *registry = wl_display_get_registry(display);
+        wl_registry_add_listener(registry,
+                                 &((const struct wl_registry_listener){
+                                     .global = on_registry_global_is_supported_check,
+                                 }),
+                                 &protocols);
+        wl_display_roundtrip(display);
+
+        gboolean ok = FALSE;
+#define CHECK_SHELL_PROTOCOL(proto) ok = ok || protocols.found_##proto;
+        SHELL_PROTOCOLS(CHECK_SHELL_PROTOCOL)
+#undef CHECK_SHELL_PROTOCOL
+
+        wl_registry_destroy(registry);
+        wl_display_disconnect(display);
+        return GINT_TO_POINTER(ok);
+    } else {
+        return GINT_TO_POINTER(FALSE);
+    }
+}
 static void
 cog_wl_display_add_seat(CogWlDisplay *display, struct wl_seat *wl_seat, uint32_t name, uint32_t version)
 {
@@ -908,7 +905,7 @@ static gboolean
 cog_wl_platform_is_supported(void)
 {
     static GOnce once = G_ONCE_INIT;
-    g_once(&once, check_supported, NULL);
+    g_once(&once, cog_wl_check_supported, NULL);
     return GPOINTER_TO_INT(once.retval);
 }
 
@@ -1888,7 +1885,7 @@ on_registry_global_is_supported_check(void               *data,
                                       const char         *interface,
                                       uint32_t            version)
 {
-    struct check_supported_protocols *protocols = data;
+    struct cog_wl_check_supported_protocols *protocols = data;
 
 #define TRY_MATCH_PROTOCOL_ENTRY(proto)                   \
     if (strcmp(interface, proto##_interface.name) == 0) { \
