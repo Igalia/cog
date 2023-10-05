@@ -38,8 +38,8 @@
 
 #include "cog-im-context-wl-v1.h"
 #include "cog-im-context-wl.h"
-#include "cog-popup-menu-wl.h"
 #include "cog-utils-wl.h"
+#include "cog-window-wl.h"
 
 #include "fullscreen-shell-unstable-v1-client.h"
 #include "linux-dmabuf-unstable-v1-client.h"
@@ -59,11 +59,8 @@
 #endif
 
 #ifdef COG_USE_WAYLAND_CURSOR
-#include <wayland-cursor.h>
+#    include <wayland-cursor.h>
 #endif
-
-#define DEFAULT_WIDTH  1024
-#define DEFAULT_HEIGHT  768
 
 #if defined(WPE_CHECK_VERSION)
 #    define HAVE_REFRESH_RATE_HANDLING WPE_CHECK_VERSION(1, 13, 2)
@@ -85,7 +82,6 @@ typedef struct wl_buffer *(EGLAPIENTRYP PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)(EG
 
 typedef struct _CogWlDisplay CogWlDisplay;
 typedef struct _CogWlSeat    CogWlSeat;
-typedef struct _CogWlWindow  CogWlWindow;
 
 struct _CogWlPlatformClass {
     CogPlatformClass parent_class;
@@ -187,49 +183,6 @@ struct _CogWlDisplay {
 
     CogWlSeat     *seat_default;
     struct wl_list seats; /* wl_list<CogWlSeat> */
-};
-
-struct _CogWlWindow {
-    struct wl_surface *wl_surface;
-
-    CogWlAxis    axis;
-    CogWlPointer pointer;
-    CogWlTouch   touch;
-
-    struct xdg_surface      *xdg_surface;
-    struct xdg_toplevel     *xdg_toplevel;
-    struct wl_shell_surface *shell_surface;
-
-    uint32_t width;
-    uint32_t height;
-    uint32_t width_before_fullscreen;
-    uint32_t height_before_fullscreen;
-
-    bool is_fullscreen;
-#if HAVE_FULLSCREEN_HANDLING
-    bool was_fullscreen_requested_from_dom;
-#endif
-    bool is_resizing_fullscreen;
-    bool is_maximized;
-    bool should_cog_wl_platform_resize_to_largest_output;
-
-    struct {
-        struct wl_surface *wl_surface;
-
-        struct xdg_positioner *xdg_positioner;
-        struct xdg_surface    *xdg_surface;
-        struct xdg_popup      *xdg_popup;
-
-        struct wl_shell_surface *shell_surface;
-
-        uint32_t width;
-        uint32_t height;
-
-        CogPopupMenu     *popup_menu;
-        WebKitOptionMenu *option_menu;
-
-        bool configured;
-    } popup_data;
 };
 
 static void cog_egl_terminate(CogWlPlatform *);
@@ -684,14 +637,14 @@ cog_wl_platform_configure_surface_geometry(CogWlPlatform *platform, int32_t widt
         if (env_var != NULL)
             width = (int32_t) g_ascii_strtod(env_var, NULL);
         else
-            width = DEFAULT_WIDTH;
+            width = COG_WL_WIN_DEFAULT_WIDTH;
     }
     if (height == 0) {
         env_var = g_getenv("COG_PLATFORM_WL_VIEW_HEIGHT");
         if (env_var != NULL)
             height = (int32_t) g_ascii_strtod(env_var, NULL);
         else
-            height = DEFAULT_HEIGHT;
+            height = COG_WL_WIN_DEFAULT_HEIGHT;
     }
 
     CogWlWindow *window = cog_wl_view_get_window(COG_WL_VIEW(view));
@@ -726,13 +679,8 @@ cog_wl_platform_create_window(CogWlPlatform *self)
 
     g_debug("Creating Wayland surface...");
 
-    CogWlWindow *window = g_slice_new0(CogWlWindow);
+    CogWlWindow *window = cog_wl_window_new();
     g_assert(window != NULL);
-
-    window->width = DEFAULT_WIDTH;
-    window->height = DEFAULT_HEIGHT;
-    window->width_before_fullscreen = DEFAULT_WIDTH;
-    window->height_before_fullscreen = DEFAULT_HEIGHT;
 
     window->wl_surface = wl_compositor_create_surface(display->compositor);
     wl_surface_set_user_data(window->wl_surface, window);
@@ -1558,7 +1506,8 @@ cog_wl_view_create_backend(CogView *view)
 #endif
     };
 
-    self->exportable = wpe_view_backend_exportable_fdo_egl_create(&client, self, DEFAULT_WIDTH, DEFAULT_HEIGHT);
+    self->exportable =
+        wpe_view_backend_exportable_fdo_egl_create(&client, self, COG_WL_WIN_DEFAULT_WIDTH, COG_WL_WIN_DEFAULT_HEIGHT);
 
     struct wpe_view_backend *view_backend = wpe_view_backend_exportable_fdo_get_view_backend(self->exportable);
 

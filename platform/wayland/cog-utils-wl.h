@@ -6,7 +6,13 @@
  * Distributed under terms of the MIT license.
  */
 
+#ifndef COG_PLATFORM_WL_UTILS_H
+#define COG_PLATFORM_WL_UTILS_H
+
 #include "../../core/cog.h"
+
+#include <wayland-util.h>
+#include <xkbcommon/xkbcommon.h>
 
 #if defined(WPE_FDO_CHECK_VERSION) && 0
 #    define HAVE_SHM_EXPORTED_BUFFER WPE_FDO_CHECK_VERSION(1, 9, 0)
@@ -129,3 +135,5 @@ struct _CogWlXkb {
 
     uint8_t modifiers;
 };
+
+#endif /* !COG_PLATFORM_WL_UTILS_H */
