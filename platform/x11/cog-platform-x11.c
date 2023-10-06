@@ -24,7 +24,9 @@
 #endif /* COG_HAVE_LIBPORTAL */
 #include "../common/cog-gl-utils.h"
 #include "../common/egl-proc-address.h"
-
+#if COG_HAVE_LIBPORTAL
+#    include "cog-xdp-parent-x11.h"
+#endif /* COG_HAVE_LIBPORTAL */
 
 #ifndef EGL_EXT_platform_base
 #define EGL_EXT_platform_base 1
@@ -880,9 +882,9 @@ cog_x11_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_
 static void
 on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
 {
-    /* TODO: Disable input of main window and keep this new file chooser
-     * window always on top. This could be done adding an XdpParent. */
-    run_file_chooser(view, request, NULL);
+    g_autoptr(XdpParent) xdp_parent = xdp_parent_new_x11(&s_window->xcb.window);
+
+    run_file_chooser(view, request, xdp_parent);
 }
 #endif /* COG_HAVE_LIBPORTAL */
 
