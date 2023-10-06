@@ -33,6 +33,9 @@
 #include <xkbcommon/xkbcommon-compose.h>
 #include <locale.h>
 
+#if COG_HAVE_LIBPORTAL
+#    include "../common/cog-file-chooser.h"
+#endif /* COG_HAVE_LIBPORTAL */
 #include "../common/egl-proc-address.h"
 #include "os-compatibility.h"
 
@@ -2548,10 +2551,23 @@ on_show_option_menu(WebKitWebView *view, WebKitOptionMenu *menu, WebKitRectangle
     create_popup (g_object_ref (menu));
 }
 
+#if COG_HAVE_LIBPORTAL
+static void
+on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
+{
+    /* TODO: Disable input of main window and keep this new file chooser
+     * window always on top. This could be done adding an XdpParent. */
+    run_file_chooser(view, request, NULL);
+}
+#endif /* COG_HAVE_LIBPORTAL */
+
 static void
 cog_wl_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
 {
     g_signal_connect (view, "show-option-menu", G_CALLBACK (on_show_option_menu), NULL);
+#if COG_HAVE_LIBPORTAL
+    g_signal_connect(view, "run-file-chooser", G_CALLBACK(on_run_file_chooser), NULL);
+#endif /* COG_HAVE_LIBPORTAL */
     COG_WL_PLATFORM(platform)->web_view = view;
 }
 

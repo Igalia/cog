@@ -1,10 +1,17 @@
 cogplatformcommon_dependencies = [
     cogcore_dep,
+    libportal_dep,
     dependency('epoxy'),
 ]
 
+cogplatformcommon_sources = []
+if libportal_dep.found()
+    cogplatformcommon_sources += ['cog-file-chooser.c']
+endif
+
 cogplatformcommon_lib = static_library('cogplatformcommon',
     'cog-gl-utils.c',
+    cogplatformcommon_sources,
     dependencies: cogplatformcommon_dependencies,
     build_by_default: false,
     gnu_symbol_visibility: 'hidden',

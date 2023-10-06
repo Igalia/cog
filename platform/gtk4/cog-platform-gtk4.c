@@ -11,6 +11,9 @@
 #include <wpe/fdo.h>
 
 #include "../../core/cog.h"
+#if COG_HAVE_LIBPORTAL
+#    include "../common/cog-file-chooser.h"
+#endif /* COG_HAVE_LIBPORTAL */
 #include "../common/cog-gl-utils.h"
 #include "cog-gtk-settings-dialog.h"
 
@@ -745,6 +748,16 @@ on_back_forward_changed(WebKitBackForwardList* back_forward_list,
         webkit_web_view_can_go_forward(win->web_view));
 }
 
+#if COG_HAVE_LIBPORTAL
+static void
+on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
+{
+    /* TODO: Disable input of main window and keep this new file chooser
+     * window always on top. This could be done adding an XdpParent. */
+    run_file_chooser(view, request, NULL);
+}
+#endif /* COG_HAVE_LIBPORTAL */
+
 static void
 cog_gtk4_platform_init_web_view(CogPlatform* platform, WebKitWebView* view)
 {
@@ -754,6 +767,9 @@ cog_gtk4_platform_init_web_view(CogPlatform* platform, WebKitWebView* view)
         G_CALLBACK(on_load_progress), &win);
     g_signal_connect(webkit_web_view_get_back_forward_list(view), "changed",
         G_CALLBACK(on_back_forward_changed), &win);
+#if COG_HAVE_LIBPORTAL
+    g_signal_connect(view, "run-file-chooser", G_CALLBACK(on_run_file_chooser), NULL);
+#endif /* COG_HAVE_LIBPORTAL */
     win.web_view = view;
 
     win.device_scale_factor = gtk_widget_get_scale_factor(win.gl_drawing_area);

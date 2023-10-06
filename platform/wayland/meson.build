@@ -8,6 +8,7 @@ with_wayland_weston_content_protection = (with_wayland_platform
 
 wayland_platform_dependencies = [
     cogcore_dep,
+    cogplatformcommon_dep,
     wpebackend_fdo_dep,
     dependency('cairo'),
     dependency('egl'),
