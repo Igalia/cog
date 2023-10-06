@@ -6,6 +6,7 @@ gtk4_platform_plugin = shared_module('cogplatform-gtk4',
     dependencies: [
         cogplatformcommon_dep,
         wpebackend_fdo_dep,
+        dependency('libportal-gtk4', required: libportal_dep.found()),
         dependency('gtk4'),
     ],
     gnu_symbol_visibility: 'hidden',
