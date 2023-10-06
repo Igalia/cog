@@ -42,12 +42,16 @@
 #include "cog-im-context-wl-v1.h"
 #include "cog-im-context-wl.h"
 #include "cog-popup-menu-wl.h"
+#if COG_HAVE_LIBPORTAL
+#    include "cog-xdp-parent-wl.h"
+#endif /* COG_HAVE_LIBPORTAL */
 
 #include "fullscreen-shell-unstable-v1-client.h"
 #include "linux-dmabuf-unstable-v1-client.h"
 #include "presentation-time-client.h"
 #include "text-input-unstable-v1-client.h"
 #include "text-input-unstable-v3-client.h"
+#include "xdg-foreign-unstable-v2-client.h"
 #include "xdg-shell-client.h"
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
@@ -184,6 +188,7 @@ static struct {
 
     struct zwp_text_input_manager_v3 *text_input_manager;
     struct zwp_text_input_manager_v1 *text_input_manager_v1;
+    struct zxdg_exporter_v2          *zxdg_exporter;
 
     struct wp_presentation *presentation;
 
@@ -244,6 +249,10 @@ static struct {
     struct xdg_surface *xdg_surface;
     struct xdg_toplevel *xdg_toplevel;
     struct wl_shell_surface *shell_surface;
+
+#if COG_HAVE_LIBPORTAL
+    struct xdp_parent_wl_data xdp_parent_wl_data;
+#endif /* COG_HAVE_LIBPORTAL */
 
     uint32_t width;
     uint32_t height;
@@ -834,6 +843,8 @@ registry_global (void               *data,
         wl_data.text_input_manager = wl_registry_bind(registry, name, &zwp_text_input_manager_v3_interface, 1);
     } else if (strcmp(interface, zwp_text_input_manager_v1_interface.name) == 0) {
         wl_data.text_input_manager_v1 = wl_registry_bind(registry, name, &zwp_text_input_manager_v1_interface, 1);
+    } else if (strcmp(interface, zxdg_exporter_v2_interface.name) == 0) {
+        wl_data.zxdg_exporter = wl_registry_bind(registry, name, &zxdg_exporter_v2_interface, 1);
     } else if (strcmp(interface, wp_presentation_interface.name) == 0) {
         wl_data.presentation = wl_registry_bind(registry, name, &wp_presentation_interface, 1);
     } else {
@@ -1988,6 +1999,8 @@ clear_wayland (void)
         zwp_fullscreen_shell_v1_destroy (wl_data.fshell);
     if (wl_data.shell != NULL)
         wl_shell_destroy (wl_data.shell);
+    if (wl_data.zxdg_exporter != NULL)
+        zxdg_exporter_v2_destroy(wl_data.zxdg_exporter);
 
     g_clear_pointer (&wl_data.shm, wl_shm_destroy);
     g_clear_pointer (&wl_data.subcompositor, wl_subcompositor_destroy);
@@ -2195,6 +2208,11 @@ create_window (GError **error)
         /* wl_shell needs an initial surface configuration. */
         configure_surface_geometry(0, 0);
     }
+
+#if COG_HAVE_LIBPORTAL
+    win_data.xdp_parent_wl_data.zxdg_exporter = wl_data.zxdg_exporter;
+    win_data.xdp_parent_wl_data.wl_surface = win_data.wl_surface;
+#endif /* COG_HAVE_LIBPORTAL */
 
     const char *env_var;
     if ((env_var = g_getenv("COG_PLATFORM_WL_VIEW_FULLSCREEN")) && g_ascii_strtoll(env_var, NULL, 10) > 0) {
@@ -2555,9 +2573,13 @@ on_show_option_menu(WebKitWebView *view, WebKitOptionMenu *menu, WebKitRectangle
 static void
 on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
 {
-    /* TODO: Disable input of main window and keep this new file chooser
-     * window always on top. This could be done adding an XdpParent. */
-    run_file_chooser(view, request, NULL);
+    g_autoptr(XdpParent) xdp_parent = NULL;
+
+    if (win_data.xdp_parent_wl_data.zxdg_exporter && win_data.xdp_parent_wl_data.wl_surface) {
+        xdp_parent = xdp_parent_new_wl(&win_data.xdp_parent_wl_data);
+    }
+
+    run_file_chooser(view, request, xdp_parent);
 }
 #endif /* COG_HAVE_LIBPORTAL */
 
