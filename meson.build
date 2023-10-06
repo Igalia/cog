@@ -152,6 +152,7 @@ endif
 
 wpe_dep = dependency('wpe-1.0')
 manette_dep = dependency('manette-0.2', version: '>=0.2.4', required: false)
+libportal_dep = dependency('libportal', required: false)
 
 subdir('core')
 
