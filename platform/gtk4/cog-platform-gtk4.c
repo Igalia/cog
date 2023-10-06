@@ -5,12 +5,16 @@
  * Distributed under terms of the MIT license.
  */
 
+#include "../../core/cog.h"
+
 #include <gdk/gdk.h>
 #include <gtk/gtk.h>
 #include <wpe/fdo-egl.h>
 #include <wpe/fdo.h>
+#if COG_HAVE_LIBPORTAL
+#    include <libportal-gtk4/portal-gtk4.h>
+#endif /* COG_HAVE_LIBPORTAL */
 
-#include "../../core/cog.h"
 #if COG_HAVE_LIBPORTAL
 #    include "../common/cog-file-chooser.h"
 #endif /* COG_HAVE_LIBPORTAL */
@@ -752,9 +756,9 @@ on_back_forward_changed(WebKitBackForwardList* back_forward_list,
 static void
 on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
 {
-    /* TODO: Disable input of main window and keep this new file chooser
-     * window always on top. This could be done adding an XdpParent. */
-    run_file_chooser(view, request, NULL);
+    g_autoptr(XdpParent) xdp_parent = xdp_parent_new_gtk(GTK_WINDOW(win.gtk_window));
+
+    run_file_chooser(view, request, xdp_parent);
 }
 #endif /* COG_HAVE_LIBPORTAL */
 
