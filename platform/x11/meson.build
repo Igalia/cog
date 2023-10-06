@@ -1,5 +1,11 @@
+x11_platform_sources = []
+if libportal_dep.found()
+    x11_platform_sources += ['cog-xdp-parent-x11.c']
+endif
+
 x11_platform_plugin = shared_module('cogplatform-x11',
     'cog-platform-x11.c',
+    x11_platform_sources,
     c_args: ['-DG_LOG_DOMAIN="Cog-X11"'],
     dependencies: [
         wpebackend_fdo_dep,
