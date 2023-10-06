@@ -39,6 +39,7 @@ wayland_platform_protocols = {
         ['linux-dmabuf', 1],
         ['text-input', 1],
         ['text-input', 3],
+        ['xdg-foreign', 2],
     ],
     'weston': wayland_platform_weston_protocols,
 }
@@ -116,6 +117,10 @@ wayland_cursor_dep = dependency('wayland-cursor', required: false)
 if wayland_cursor_dep.found()
     wayland_platform_dependencies += [wayland_cursor_dep]
     wayland_platform_c_args += ['-DCOG_USE_WAYLAND_CURSOR=1']
+endif
+
+if libportal_dep.found()
+    wayland_platform_sources += ['cog-xdp-parent-wl.c']
 endif
 
 cc = meson.get_compiler('c')
