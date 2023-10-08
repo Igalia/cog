@@ -35,6 +35,7 @@ cogcore_headers = files(
     'cog-view.h',
     'cog-view-group.h',
     'cog-view-stack.h',
+    'cog-window.h',
 )
 cogcore_sources = files(
     'cog-directory-files-handler.c',
@@ -51,6 +52,7 @@ cogcore_sources = files(
     'cog-view.c',
     'cog-view-group.c',
     'cog-view-stack.c',
+    'cog-window.c',
 )
 
 cogcore_dependencies = [

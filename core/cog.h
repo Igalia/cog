@@ -26,6 +26,7 @@
 #include "cog-view-stack.h"
 #include "cog-view.h"
 #include "cog-webkit-utils.h"
+#include "cog-window.h"
 
 #undef COG_INSIDE_COG__
 
