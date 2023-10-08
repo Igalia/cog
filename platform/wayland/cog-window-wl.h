@@ -14,9 +14,6 @@
 #include "cog-popup-menu-wl.h"
 #include "cog-utils-wl.h"
 
-#define COG_WL_WIN_DEFAULT_WIDTH  1024
-#define COG_WL_WIN_DEFAULT_HEIGHT 768
-
 G_BEGIN_DECLS
 
 /*
@@ -25,13 +22,9 @@ G_BEGIN_DECLS
 
 #define COG_WL_WINDOW_TYPE cog_wl_window_get_type()
 
-G_DECLARE_FINAL_TYPE(CogWlWindow, cog_wl_window, COG, WL_WINDOW, GObject)
-
-struct _CogWlWindowClass {
-    GObjectClass parent_class;
-};
-
 struct _CogWlWindow {
+    CogWindow parent;
+
     struct wl_surface *wl_surface;
 
     CogWlAxis    axis;
@@ -42,17 +35,6 @@ struct _CogWlWindow {
     struct xdg_toplevel     *xdg_toplevel;
     struct wl_shell_surface *shell_surface;
 
-    uint32_t width;
-    uint32_t height;
-    uint32_t width_before_fullscreen;
-    uint32_t height_before_fullscreen;
-
-    bool is_fullscreen;
-#if HAVE_FULLSCREEN_HANDLING
-    bool was_fullscreen_requested_from_dom;
-#endif
-    bool is_resizing_fullscreen;
-    bool is_maximized;
     bool should_cog_wl_platform_resize_to_largest_output;
 
     struct {
@@ -73,6 +55,8 @@ struct _CogWlWindow {
         bool configured;
     } popup_data;
 };
+
+G_DECLARE_FINAL_TYPE(CogWlWindow, cog_wl_window, COG, WL_WINDOW, CogWindow)
 
 /*
  * Method definitions.

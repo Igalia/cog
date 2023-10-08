@@ -1,5 +1,5 @@
 /*
- * cog-utils-wl.c
+ * cog-window-wl.c
  * Copyright (C) 2023 Pablo Saavedra <psaavedra@igalia.com>
  * Copyright (C) 2023 Adrian Perez de Castro <aperez@igalia.com>
  *
@@ -26,10 +26,6 @@ cog_wl_window_class_init(CogWlWindowClass *klass)
 static void
 cog_wl_window_init(CogWlWindow *self)
 {
-    self->width = COG_WL_WIN_DEFAULT_WIDTH;
-    self->height = COG_WL_WIN_DEFAULT_HEIGHT;
-    self->width_before_fullscreen = COG_WL_WIN_DEFAULT_WIDTH;
-    self->height_before_fullscreen = COG_WL_WIN_DEFAULT_HEIGHT;
 }
 
 /*

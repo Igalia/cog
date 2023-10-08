@@ -454,21 +454,22 @@ cog_wl_platform_configure_surface_geometry(CogWlPlatform *platform, int32_t widt
         if (env_var != NULL)
             width = (int32_t) g_ascii_strtod(env_var, NULL);
         else
-            width = COG_WL_WIN_DEFAULT_WIDTH;
+            width = COG_WIN_DEFAULT_WIDTH;
     }
     if (height == 0) {
         env_var = g_getenv("COG_PLATFORM_WL_VIEW_HEIGHT");
         if (env_var != NULL)
             height = (int32_t) g_ascii_strtod(env_var, NULL);
         else
-            height = COG_WL_WIN_DEFAULT_HEIGHT;
+            height = COG_WIN_DEFAULT_HEIGHT;
     }
 
     CogWlWindow *window = cog_wl_view_get_window(COG_WL_VIEW(view));
-    if (view || window->width != width || window->height != height) {
+    if (view || cog_window_get_width(COG_WINDOW(window)) != width ||
+        cog_window_get_height(COG_WINDOW(window)) != height) {
         g_debug("Configuring new size: %" PRId32 "x%" PRId32, width, height);
-        window->width = width;
-        window->height = height;
+        cog_window_set_width(COG_WINDOW(window), width);
+        cog_window_set_height(COG_WINDOW(window), height);
 
         for (gsize i = 0; i < cog_view_group_get_n_views(COG_VIEW_GROUP(platform->views)); i++) {
             CogView *view = cog_view_group_get_nth_view(COG_VIEW_GROUP(platform->views), i);
@@ -565,8 +566,8 @@ cog_wl_platform_create_window(CogWlPlatform *self)
 
     const char *env_var;
     if ((env_var = g_getenv("COG_PLATFORM_WL_VIEW_FULLSCREEN")) && g_ascii_strtoll(env_var, NULL, 10) > 0) {
-        window->is_maximized = false;
-        window->is_fullscreen = true;
+        cog_window_set_maximized(COG_WINDOW(window), false);
+        cog_window_set_fullscreen(COG_WINDOW(window), true);
 
         if (display->xdg_shell != NULL) {
             xdg_toplevel_set_fullscreen(window->xdg_toplevel, NULL);
@@ -577,11 +578,11 @@ cog_wl_platform_create_window(CogWlPlatform *self)
             wl_shell_surface_set_fullscreen(window->shell_surface, WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE, 0, NULL);
         } else {
             g_warning("No available shell capable of fullscreening.");
-            window->is_fullscreen = false;
+            cog_window_set_fullscreen(COG_WINDOW(window), false);
         }
     } else if ((env_var = g_getenv("COG_PLATFORM_WL_VIEW_MAXIMIZE")) && g_ascii_strtoll(env_var, NULL, 10) > 0) {
-        window->is_maximized = true;
-        window->is_fullscreen = false;
+        cog_window_set_maximized(COG_WINDOW(window), true);
+        cog_window_set_fullscreen(COG_WINDOW(window), false);
 
         if (display->xdg_shell != NULL) {
             xdg_toplevel_set_maximized(window->xdg_toplevel);
@@ -589,7 +590,7 @@ cog_wl_platform_create_window(CogWlPlatform *self)
             wl_shell_surface_set_maximized(window->shell_surface, NULL);
         } else {
             g_warning("No available shell capable of maximizing.");
-            window->is_maximized = false;
+            cog_window_set_maximized(COG_WINDOW(window), false);
         }
     }
 
@@ -707,10 +708,11 @@ cog_wl_view_resize(CogView *view, CogWlPlatform *platform)
     if (platform->current_output) {
         COG_WL_VIEW(view)->scale_factor = platform->current_output->scale;
 
-        int32_t pixel_width = window->width * platform->current_output->scale;
-        int32_t pixel_height = window->height * platform->current_output->scale;
+        int32_t pixel_width = cog_window_get_width(COG_WINDOW(window)) * platform->current_output->scale;
+        int32_t pixel_height = cog_window_get_height(COG_WINDOW(window)) * platform->current_output->scale;
 
-        wpe_view_backend_dispatch_set_size(backend, window->width, window->height);
+        wpe_view_backend_dispatch_set_size(backend, cog_window_get_width(COG_WINDOW(window)),
+                                           cog_window_get_height(COG_WINDOW(window)));
         wpe_view_backend_dispatch_set_device_scale_factor(backend, platform->current_output->scale);
 
         g_debug("%s<%p>: Resized EGL buffer to: (%" PRIi32 ", %" PRIi32 ") @%" PRIi32 "x", G_STRFUNC, view, pixel_width,
@@ -840,7 +842,7 @@ cog_wl_seat_keyboard_handle_key_event(CogWlSeat *seat, uint32_t key, uint32_t st
         }
 #endif
         CogWlWindow *window = cog_wl_view_get_window(COG_WL_VIEW(view));
-        cog_wl_set_fullscreen(0, !window->is_fullscreen);
+        cog_wl_set_fullscreen(0, !cog_window_is_fullscreen(COG_WINDOW(window)));
         return;
     }
 
@@ -1035,17 +1037,18 @@ cog_wl_set_fullscreen(CogWlPlatform *self, bool fullscreen)
     CogWlWindow *window = cog_wl_view_get_window(COG_WL_VIEW(view));
     g_assert(window);
 
-    if (window->is_resizing_fullscreen || window->is_fullscreen == fullscreen)
+    if (cog_window_is_resizing_fullscreen(COG_WINDOW(window)) ||
+        cog_window_is_fullscreen(COG_WINDOW(window)) == fullscreen)
         return false;
 
-    window->is_fullscreen = fullscreen;
+    cog_window_set_fullscreen(COG_WINDOW(window), fullscreen);
 
     if (fullscreen) {
         // Resize the view_backend to the size of the screen.
         // Wait until a new exported image is reveived. See cog_wl_view_fullscreen_image_ready().
-        window->is_resizing_fullscreen = true;
-        window->width_before_fullscreen = window->width;
-        window->height_before_fullscreen = window->height;
+        cog_window_set_resizing_fullscreen(COG_WINDOW(window), true);
+        cog_window_set_width_before_fullscreen(COG_WINDOW(window), cog_window_get_width(COG_WINDOW(window)));
+        cog_window_set_height_before_fullscreen(COG_WINDOW(window), cog_window_get_height(COG_WINDOW(window)));
         cog_wl_platform_resize_to_largest_output(self);
         if (view && cog_wl_view_does_image_match_win_size(COG_WL_VIEW(view)))
             cog_wl_view_fullscreen_image_ready(COG_WL_VIEW(view));
@@ -1053,13 +1056,15 @@ cog_wl_set_fullscreen(CogWlPlatform *self, bool fullscreen)
         if (display->xdg_shell != NULL) {
             xdg_toplevel_unset_fullscreen(window->xdg_toplevel);
         } else if (display->fshell != NULL) {
-            cog_wl_platform_configure_surface_geometry(self, window->width_before_fullscreen,
-                                                       window->height_before_fullscreen);
+            cog_wl_platform_configure_surface_geometry(self,
+                                                       cog_window_get_width_before_fullscreen(COG_WINDOW(window)),
+                                                       cog_window_get_height_before_fullscreen(COG_WINDOW(window)));
             cog_view_group_foreach(COG_VIEW_GROUP(self->views), (GFunc) cog_wl_view_resize, self);
         } else if (display->shell != NULL) {
             wl_shell_surface_set_toplevel(window->shell_surface);
-            cog_wl_platform_configure_surface_geometry(self, window->width_before_fullscreen,
-                                                       window->height_before_fullscreen);
+            cog_wl_platform_configure_surface_geometry(self,
+                                                       cog_window_get_width_before_fullscreen(COG_WINDOW(window)),
+                                                       cog_window_get_height_before_fullscreen(COG_WINDOW(window)));
             cog_view_group_foreach(COG_VIEW_GROUP(self->views), (GFunc) cog_wl_view_resize, self);
         } else {
             g_assert_not_reached();
@@ -2013,10 +2018,10 @@ video_plane_display_dmabuf_receiver_on_handle_dmabuf(void                       
 
     zwp_linux_buffer_params_v1_add(params, fd, 0, 0, stride, modifier >> 32, modifier & 0xffffffff);
 
-    if ((x + width) > window->width)
+    if ((x + width) > cog_window_get_width(COG_WINDOW(window)))
         width -= x;
 
-    if ((y + height) > window->height)
+    if ((y + height) > cog_window_get_height(COG_WINDOW(window)))
         height -= y;
 
     struct video_buffer *buffer = g_slice_new0(struct video_buffer);

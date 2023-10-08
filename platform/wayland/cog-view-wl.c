@@ -163,7 +163,7 @@ cog_wl_view_create_backend(CogView *view)
     };
 
     self->exportable =
-        wpe_view_backend_exportable_fdo_egl_create(&client, self, COG_WL_WIN_DEFAULT_WIDTH, COG_WL_WIN_DEFAULT_HEIGHT);
+        wpe_view_backend_exportable_fdo_egl_create(&client, self, COG_WIN_DEFAULT_WIDTH, COG_WIN_DEFAULT_HEIGHT);
 
     struct wpe_view_backend *view_backend = wpe_view_backend_exportable_fdo_get_view_backend(self->exportable);
 
@@ -192,8 +192,8 @@ cog_wl_view_does_image_match_win_size(CogWlView *view)
     CogWlWindow *window = cog_wl_view_get_window(view);
 
     struct wpe_fdo_egl_exported_image *image = view->image;
-    return image && wpe_fdo_egl_exported_image_get_width(image) == window->width &&
-           wpe_fdo_egl_exported_image_get_height(image) == window->height;
+    return image && wpe_fdo_egl_exported_image_get_width(image) == cog_window_get_width(COG_WINDOW(window)) &&
+           wpe_fdo_egl_exported_image_get_height(image) == cog_window_get_height(COG_WINDOW(window));
 }
 
 void
@@ -212,7 +212,7 @@ cog_wl_view_fullscreen_image_ready(CogWlView *view)
         g_assert_not_reached();
     }
 
-    window->is_resizing_fullscreen = false;
+    cog_window_set_resizing_fullscreen(COG_WINDOW(window), false);
 #if HAVE_FULLSCREEN_HANDLING
     if (window->was_fullscreen_requested_from_dom)
         wpe_view_backend_dispatch_did_enter_fullscreen(cog_view_get_backend(COG_VIEW(view)));
@@ -256,7 +256,7 @@ cog_wl_view_popup_create(CogWlView *view, WebKitOptionMenu *option_menu)
 
     window->popup_data.option_menu = option_menu;
 
-    window->popup_data.width = window->width;
+    window->popup_data.width = cog_window_get_width(COG_WINDOW(window));
     window->popup_data.height = cog_popup_menu_get_height_for_option_menu(option_menu);
 
     window->popup_data.popup_menu = cog_popup_menu_create(option_menu, display->shm, window->popup_data.width,
@@ -276,8 +276,8 @@ cog_wl_view_popup_create(CogWlView *view, WebKitOptionMenu *option_menu)
 
         xdg_positioner_set_size(window->popup_data.xdg_positioner, window->popup_data.width, window->popup_data.height);
         xdg_positioner_set_anchor_rect(window->popup_data.xdg_positioner, 0,
-                                       (window->height - window->popup_data.height), window->popup_data.width,
-                                       window->popup_data.height);
+                                       (cog_window_get_height(COG_WINDOW(window)) - window->popup_data.height),
+                                       window->popup_data.width, window->popup_data.height);
 
         window->popup_data.xdg_surface = xdg_wm_base_get_xdg_surface(display->xdg_shell, window->popup_data.wl_surface);
         g_assert(window->popup_data.xdg_surface);
@@ -308,7 +308,7 @@ cog_wl_view_popup_create(CogWlView *view, WebKitOptionMenu *option_menu)
         wl_shell_surface_add_listener(window->popup_data.shell_surface, &shell_popup_surface_listener, NULL);
         wl_shell_surface_set_popup(window->popup_data.shell_surface, display->seat_default->seat,
                                    display->seat_default->keyboard.serial, window->wl_surface, 0,
-                                   (window->height - window->popup_data.height), 0);
+                                   (cog_window_get_height(COG_WINDOW(window)) - window->popup_data.height), 0);
 
         cog_wl_window_popup_display(window);
     }
@@ -351,7 +351,7 @@ cog_wl_view_update_surface_contents(CogWlView *view, struct wl_surface *surface)
 
     if (view->should_update_opaque_region) {
         view->should_update_opaque_region = false;
-        if (window->is_fullscreen || !cog_wl_view_background_has_alpha((CogView *) view)) {
+        if (cog_window_is_fullscreen(COG_WINDOW(window)) || !cog_wl_view_background_has_alpha((CogView *) view)) {
             struct wl_region *region = wl_compositor_create_region(display->compositor);
             wl_region_add(region, 0, 0, INT32_MAX, INT32_MAX);
             wl_surface_set_opaque_region(surface, region);
@@ -382,7 +382,7 @@ cog_wl_view_update_surface_contents(CogWlView *view, struct wl_surface *surface)
 
     wl_surface_commit(surface);
 
-    if (window->is_resizing_fullscreen && cog_wl_view_does_image_match_win_size(view))
+    if (cog_window_is_resizing_fullscreen(COG_WINDOW(window)) && cog_wl_view_does_image_match_win_size(view))
         cog_wl_view_fullscreen_image_ready(view);
 }
 
@@ -452,8 +452,8 @@ on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
     CogWlView   *self = data;
     CogWlWindow *window = cog_wl_view_get_window(self);
 
-    const uint32_t surface_pixel_width = self->scale_factor * window->width;
-    const uint32_t surface_pixel_height = self->scale_factor * window->height;
+    const uint32_t surface_pixel_width = self->scale_factor * cog_window_get_width(COG_WINDOW(window));
+    const uint32_t surface_pixel_height = self->scale_factor * cog_window_get_height(COG_WINDOW(window));
 
     if (surface_pixel_width != wpe_fdo_egl_exported_image_get_width(image) ||
         surface_pixel_height != wpe_fdo_egl_exported_image_get_height(image)) {
