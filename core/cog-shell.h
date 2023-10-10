@@ -13,7 +13,11 @@
 
 #include "cog-request-handler.h"
 
+#define COG_VIEW_STACK_DEFAULT GUINT_TO_POINTER(0)
+
 G_BEGIN_DECLS
+
+typedef gpointer CogViewStackKey;
 
 typedef struct _CogViewStack  CogViewStack;
 typedef struct _WebKitWebView WebKitWebView;
@@ -27,23 +31,27 @@ struct _CogShellClass {
     GObjectClass parent_class;
 
     /*< public >*/
-    WebKitWebView* (*create_view) (CogShell*);
-    void           (*startup)     (CogShell*);
-    void           (*shutdown)    (CogShell*);
+    WebKitWebView *(*create_view)(CogShell *);
+    void (*startup)(CogShell *);
+    void (*shutdown)(CogShell *);
 };
 
-CogShell *        cog_shell_new(const char *name, gboolean automated);
-const char *      cog_shell_get_name(CogShell *shell);
-WebKitWebContext *cog_shell_get_web_context(CogShell *shell);
-WebKitSettings   *cog_shell_get_web_settings        (CogShell          *shell);
-WebKitWebView    *cog_shell_get_web_view            (CogShell          *shell);
-CogViewStack     *cog_shell_get_view_stack(CogShell *shell);
-GKeyFile         *cog_shell_get_config_file         (CogShell          *shell);
-gdouble           cog_shell_get_device_scale_factor (CogShell          *shell);
-gboolean          cog_shell_is_automated(CogShell *shell);
-void              cog_shell_set_request_handler(CogShell *shell, const char *scheme, CogRequestHandler *handler);
+CogShell         *cog_shell_new(const char *name, gboolean automated);
+const char       *cog_shell_get_name(CogShell *);
+WebKitWebContext *cog_shell_get_web_context(CogShell *);
+WebKitSettings   *cog_shell_get_web_settings(CogShell *);
+WebKitWebView    *cog_shell_get_web_view_default(CogShell *);
+WebKitWebView    *cog_shell_get_web_view(CogShell *, CogViewStackKey);
+GHashTable       *cog_shell_get_view_stacks(CogShell *);
+CogViewStack     *cog_shell_view_stack_lookup(CogShell *, CogViewStackKey);
+CogViewStack     *cog_shell_view_stack_new(CogShell *, CogViewStackKey);
+bool              cog_shell_view_stack_remove(CogShell *, CogViewStackKey);
+GKeyFile         *cog_shell_get_config_file(CogShell *);
+gdouble           cog_shell_get_device_scale_factor(CogShell *);
+gboolean          cog_shell_is_automated(CogShell *);
+void              cog_shell_set_request_handler(CogShell *, const char *scheme, CogRequestHandler *);
 
-void              cog_shell_startup                 (CogShell          *shell);
-void              cog_shell_shutdown                (CogShell          *shell);
+void cog_shell_startup(CogShell *);
+void cog_shell_shutdown(CogShell *);
 
 G_END_DECLS

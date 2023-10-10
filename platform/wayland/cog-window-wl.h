@@ -35,7 +35,7 @@ struct _CogWlWindow {
     struct xdg_toplevel     *xdg_toplevel;
     struct wl_shell_surface *shell_surface;
 
-    bool should_cog_wl_platform_resize_to_largest_output;
+    bool should_resize_to_largest_output;
 
     struct {
         struct wl_surface *wl_surface;

@@ -39,4 +39,6 @@ void                     cog_view_handle_key_event(CogView *self, const struct w
 void                     cog_view_set_use_key_bindings(CogView *self, gboolean enable);
 gboolean                 cog_view_get_use_key_bindings(CogView *self);
 
+struct wpe_view_backend *cog_view_get_backend(CogView *);
+
 G_END_DECLS

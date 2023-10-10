@@ -212,7 +212,7 @@ cog_wl_view_fullscreen_image_ready(CogWlView *view)
         g_assert_not_reached();
     }
 
-    cog_window_set_resizing_fullscreen(COG_WINDOW(window), false);
+    cog_window_fullscreen_done(COG_WINDOW(window));
 #if HAVE_FULLSCREEN_HANDLING
     if (window->was_fullscreen_requested_from_dom)
         wpe_view_backend_dispatch_did_enter_fullscreen(cog_view_get_backend(COG_VIEW(view)));
@@ -341,6 +341,32 @@ cog_wl_view_request_frame(CogWlView *view)
 }
 
 void
+cog_wl_view_resize(CogWlView *view)
+{
+    CogWlPlatform *platform = COG_WL_VIEW(view)->platform;
+    g_assert(platform);
+    CogWindow *window = COG_WINDOW(cog_wl_view_get_window(COG_WL_VIEW(view)));
+    g_assert(window);
+
+    struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(view));
+
+    if (platform->current_output) {
+        COG_WL_VIEW(view)->scale_factor = platform->current_output->scale;
+
+        int32_t pixel_width = cog_window_get_width(window) * platform->current_output->scale;
+        int32_t pixel_height = cog_window_get_height(window) * platform->current_output->scale;
+
+        wpe_view_backend_dispatch_set_size(backend, cog_window_get_width(window), cog_window_get_height(window));
+        wpe_view_backend_dispatch_set_device_scale_factor(backend, platform->current_output->scale);
+
+        g_debug("%s<%p>: Resized EGL buffer to: (%" PRIi32 ", %" PRIi32 ") @%" PRIi32 "x", G_STRFUNC, view, pixel_width,
+                pixel_height, platform->current_output->scale);
+    } else {
+        g_debug("Window resize failed. No current output defined.");
+    }
+}
+
+void
 cog_wl_view_update_surface_contents(CogWlView *view, struct wl_surface *surface)
 {
     g_assert(view);
@@ -382,7 +408,7 @@ cog_wl_view_update_surface_contents(CogWlView *view, struct wl_surface *surface)
 
     wl_surface_commit(surface);
 
-    if (cog_window_is_resizing_fullscreen(COG_WINDOW(window)) && cog_wl_view_does_image_match_win_size(view))
+    if (cog_window_fullscreen_is_resizing(COG_WINDOW(window)) && cog_wl_view_does_image_match_win_size(view))
         cog_wl_view_fullscreen_image_ready(view);
 }
 
@@ -451,6 +477,8 @@ on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 {
     CogWlView   *self = data;
     CogWlWindow *window = cog_wl_view_get_window(self);
+    if (!window)
+        return;
 
     const uint32_t surface_pixel_width = self->scale_factor * cog_window_get_width(COG_WINDOW(window));
     const uint32_t surface_pixel_height = self->scale_factor * cog_window_get_height(COG_WINDOW(window));

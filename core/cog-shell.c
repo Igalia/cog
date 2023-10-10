@@ -29,9 +29,10 @@ typedef struct {
     GHashTable *request_handlers; /* (string, RequestHandlerMapEntry) */
     gboolean    automated;
 
-    WebKitSettings           *web_settings;
-    WebKitWebContext         *web_context;
-    CogViewStack             *view_stack;
+    GHashTable *view_stacks; /* (CogViewStackKey, CogViewStack) */
+
+    WebKitSettings   *web_settings;
+    WebKitWebContext *web_context;
 
 #if !COG_USE_WPE2
     WebKitWebsiteDataManager *web_data_manager;
@@ -54,8 +55,6 @@ enum {
     PROP_NAME,
     PROP_WEB_SETTINGS,
     PROP_WEB_CONTEXT,
-    PROP_WEB_VIEW,
-    PROP_VIEW_STACK,
     PROP_CONFIG_FILE,
     PROP_DEVICE_SCALE_FACTOR,
     PROP_AUTOMATED,
@@ -67,11 +66,13 @@ enum {
     N_PROPERTIES,
 };
 
-static GParamSpec *s_properties[N_PROPERTIES] = { NULL, };
-
+static GParamSpec *s_properties[N_PROPERTIES] = {
+    NULL,
+};
 
 enum {
     CREATE_VIEW,
+    CREATE_STACK,
     STARTUP,
     SHUTDOWN,
     N_SIGNALS,
@@ -141,8 +142,8 @@ request_handler_map_entry_register (const char             *scheme,
 static WebKitWebView *
 cog_shell_create_web_view_for_automation(WebKitAutomationSession *session, CogShell *shell)
 {
-    /* FIXME: Actually crete a fresh web view. */
-    return cog_shell_get_web_view(shell);
+    /* FIXME: Actually create a fresh web view. */
+    return cog_shell_get_web_view_default(shell);
 }
 
 static void
@@ -180,9 +181,11 @@ cog_shell_startup_base(CogShell *shell)
 
     webkit_web_context_set_automation_allowed(priv->web_context, priv->automated);
     g_signal_connect(priv->web_context, "automation-started", G_CALLBACK(cog_shell_automation_started_callback), shell);
-    g_signal_connect_swapped(web_view, "close", G_CALLBACK(cog_view_group_remove), priv->view_stack);
 
-    cog_view_group_add(COG_VIEW_GROUP(priv->view_stack), COG_VIEW(web_view));
+    priv->view_stacks = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, g_object_unref);
+    CogViewGroup *stack = COG_VIEW_GROUP(cog_shell_view_stack_new(shell, COG_VIEW_STACK_DEFAULT));
+
+    cog_view_group_add(stack, COG_VIEW(web_view));
 }
 
 static void
@@ -191,100 +194,80 @@ cog_shell_shutdown_base(CogShell *shell G_GNUC_UNUSED)
 }
 
 static void
-cog_shell_get_property (GObject    *object,
-                        unsigned    prop_id,
-                        GValue     *value,
-                        GParamSpec *pspec)
+cog_shell_get_property(GObject *object, unsigned prop_id, GValue *value, GParamSpec *pspec)
 {
-    CogShell *shell = COG_SHELL (object);
+    CogShell *shell = COG_SHELL(object);
     switch (prop_id) {
-        case PROP_NAME:
-            g_value_set_string (value, cog_shell_get_name (shell));
-            break;
-        case PROP_WEB_SETTINGS:
-            g_value_set_object (value, cog_shell_get_web_settings (shell));
-            break;
-        case PROP_WEB_CONTEXT:
-            g_value_set_object (value, cog_shell_get_web_context (shell));
-            break;
-        case PROP_WEB_VIEW:
-            g_value_set_object (value, cog_shell_get_web_view (shell));
-            break;
-        case PROP_VIEW_STACK:
-            g_value_set_object(value, cog_shell_get_view_stack(shell));
-            break;
+    case PROP_NAME:
+        g_value_set_string(value, cog_shell_get_name(shell));
+        break;
+    case PROP_WEB_SETTINGS:
+        g_value_set_object(value, cog_shell_get_web_settings(shell));
+        break;
+    case PROP_WEB_CONTEXT:
+        g_value_set_object(value, cog_shell_get_web_context(shell));
+        break;
 #if COG_HAVE_MEM_PRESSURE
-        case PROP_WEB_MEMORY_SETTINGS:
-            g_value_set_boxed(value, PRIV(shell)->web_mem_settings);
-            break;
-        case PROP_NETWORK_MEMORY_SETTINGS:
-            g_value_set_boxed(value, PRIV(shell)->net_mem_settings);
-            break;
+    case PROP_WEB_MEMORY_SETTINGS:
+        g_value_set_boxed(value, PRIV(shell)->web_mem_settings);
+        break;
+    case PROP_NETWORK_MEMORY_SETTINGS:
+        g_value_set_boxed(value, PRIV(shell)->net_mem_settings);
+        break;
 #endif /* COG_HAVE_MEM_PRESSURE */
-        case PROP_WEB_DATA_MANAGER:
+    case PROP_WEB_DATA_MANAGER:
 #if COG_USE_WPE2
-            g_value_set_object(value, NULL);
+        g_value_set_object(value, NULL);
 #else
-            g_value_set_object(value, PRIV(shell)->web_data_manager);
+        g_value_set_object(value, PRIV(shell)->web_data_manager);
 #endif
-            break;
-        default:
-            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-        }
+        break;
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+    }
 }
 
 static void
-cog_shell_set_property (GObject      *object,
-                        unsigned      prop_id,
-                        const GValue *value,
-                        GParamSpec   *pspec)
+cog_shell_set_property(GObject *object, unsigned prop_id, const GValue *value, GParamSpec *pspec)
 {
     CogShell        *shell = COG_SHELL(object);
     CogShellPrivate *priv = PRIV(shell);
     switch (prop_id) {
-        case PROP_NAME:
-            priv->name = g_value_dup_string(value);
-            break;
-        case PROP_WEB_SETTINGS:
-            g_clear_object(&priv->web_settings);
-            priv->web_settings = g_value_dup_object(value);
-            break;
-        case PROP_CONFIG_FILE:
-            priv->config_file = g_value_dup_boxed(value);
-            break;
-        case PROP_DEVICE_SCALE_FACTOR:
-            priv->device_scale_factor = g_value_get_double(value);
-            break;
-        case PROP_AUTOMATED:
-            priv->automated = g_value_get_boolean(value);
-            break;
+    case PROP_NAME:
+        priv->name = g_value_dup_string(value);
+        break;
+    case PROP_WEB_SETTINGS:
+        g_clear_object(&priv->web_settings);
+        priv->web_settings = g_value_dup_object(value);
+        break;
+    case PROP_CONFIG_FILE:
+        priv->config_file = g_value_dup_boxed(value);
+        break;
+    case PROP_DEVICE_SCALE_FACTOR:
+        priv->device_scale_factor = g_value_get_double(value);
+        break;
+    case PROP_AUTOMATED:
+        priv->automated = g_value_get_boolean(value);
+        break;
 #if COG_HAVE_MEM_PRESSURE
-        case PROP_WEB_MEMORY_SETTINGS:
-            g_clear_pointer(&priv->web_mem_settings, webkit_memory_pressure_settings_free);
-            priv->web_mem_settings = g_value_dup_boxed(value);
-            break;
-        case PROP_NETWORK_MEMORY_SETTINGS:
-            g_clear_pointer(&priv->net_mem_settings, webkit_memory_pressure_settings_free);
-            priv->net_mem_settings = g_value_dup_boxed(value);
-            break;
+    case PROP_WEB_MEMORY_SETTINGS:
+        g_clear_pointer(&priv->web_mem_settings, webkit_memory_pressure_settings_free);
+        priv->web_mem_settings = g_value_dup_boxed(value);
+        break;
+    case PROP_NETWORK_MEMORY_SETTINGS:
+        g_clear_pointer(&priv->net_mem_settings, webkit_memory_pressure_settings_free);
+        priv->net_mem_settings = g_value_dup_boxed(value);
+        break;
 #endif /* COG_HAVE_MEM_PRESSURE */
-        case PROP_WEB_DATA_MANAGER:
+    case PROP_WEB_DATA_MANAGER:
 #if !COG_USE_WPE2
-            g_clear_object(&priv->web_data_manager);
-            priv->web_data_manager = g_value_dup_object(value);
+        g_clear_object(&priv->web_data_manager);
+        priv->web_data_manager = g_value_dup_object(value);
 #endif
-            break;
-        default:
-            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-        }
-}
-
-static void
-cog_shell_view_stack_visible_view_changed(CogViewStack *view_group G_GNUC_UNUSED,
-                                          GParamSpec *pspec        G_GNUC_UNUSED,
-                                          GObject                 *shell)
-{
-        g_object_notify_by_pspec(shell, s_properties[PROP_WEB_VIEW]);
+        break;
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+    }
 }
 
 static void
@@ -292,16 +275,14 @@ cog_shell_constructed(GObject *object)
 {
     G_OBJECT_CLASS(cog_shell_parent_class)->constructed(object);
 
-    CogShellPrivate *priv = PRIV (object);
+    CogShellPrivate *priv = PRIV(object);
 
     if (!priv->web_settings)
         priv->web_settings = g_object_ref_sink(webkit_settings_new());
 
 #if !COG_USE_WPE2
-    g_autofree char *data_dir =
-        g_build_filename (g_get_user_data_dir (), priv->name, NULL);
-    g_autofree char *cache_dir =
-        g_build_filename (g_get_user_cache_dir (), priv->name, NULL);
+    g_autofree char *data_dir = g_build_filename(g_get_user_data_dir(), priv->name, NULL);
+    g_autofree char *cache_dir = g_build_filename(g_get_user_cache_dir(), priv->name, NULL);
 
     if (!priv->web_data_manager) {
         if (priv->automated)
@@ -320,10 +301,6 @@ cog_shell_constructed(GObject *object)
                                      "memory-pressure-settings", priv->web_mem_settings,
 #endif
                                      NULL);
-
-    priv->view_stack = cog_view_stack_new();
-    g_signal_connect_object(priv->view_stack, "notify::visible-view",
-                            G_CALLBACK(cog_shell_view_stack_visible_view_changed), object, G_CONNECT_DEFAULT);
 }
 
 static void
@@ -331,24 +308,24 @@ cog_shell_dispose(GObject *object)
 {
     CogShellPrivate *priv = PRIV(object);
 
-    g_clear_object(&priv->view_stack);
+    g_clear_object(&priv->view_stacks);
     g_clear_object(&priv->web_context);
     g_clear_object(&priv->web_settings);
 #if !COG_USE_WPE2
     g_clear_object(&priv->web_data_manager);
 #endif
 
-    g_clear_pointer (&priv->request_handlers, g_hash_table_unref);
-    g_clear_pointer (&priv->name, g_free);
-    g_clear_pointer (&priv->config_file, g_key_file_unref);
+    g_clear_pointer(&priv->request_handlers, g_hash_table_unref);
+    g_clear_pointer(&priv->name, g_free);
+    g_clear_pointer(&priv->config_file, g_key_file_unref);
 
-    G_OBJECT_CLASS (cog_shell_parent_class)->dispose (object);
+    G_OBJECT_CLASS(cog_shell_parent_class)->dispose(object);
 }
 
 static void
-cog_shell_class_init (CogShellClass *klass)
+cog_shell_class_init(CogShellClass *klass)
 {
-    GObjectClass *object_class = G_OBJECT_CLASS (klass);
+    GObjectClass *object_class = G_OBJECT_CLASS(klass);
     object_class->dispose = cog_shell_dispose;
     object_class->constructed = cog_shell_constructed;
     object_class->get_property = cog_shell_get_property;
@@ -385,6 +362,23 @@ cog_shell_class_init (CogShellClass *klass)
                                           0);
 
     /**
+     * CogShell::create-stack:
+     * @self: The shell creating the new CogViewStack.
+     * @stack: The new created stack.
+     * @user_data: User data.
+     *
+     * The `create-stack` signal is emitted when the shell creates a new a
+     * new CogViewStack.
+     *
+     * Handling this signal allows to customize the actions required to be
+     * done during the creation of a new stack.
+     *
+     * Returns: (void).
+     */
+    s_signals[CREATE_STACK] = g_signal_new("create-stack", COG_TYPE_SHELL, G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL,
+                                           G_TYPE_NONE, 1, COG_TYPE_VIEW_STACK);
+
+    /**
      * CogShell:name: (attributes org.gtk.Property.get=cog_shell_get_name):
      *
      * Name of the shell.
@@ -419,35 +413,11 @@ cog_shell_class_init (CogShellClass *klass)
      *
      * The [class@WebKit.WebContext] for this shell's view.
      */
-    s_properties[PROP_WEB_CONTEXT] =
-        g_param_spec_object ("web-context",
-                             "Web Contxt",
-                             "The WebKitWebContext used by the shell",
-                             WEBKIT_TYPE_WEB_CONTEXT,
-                             G_PARAM_READABLE |
-                             G_PARAM_STATIC_STRINGS);
-
-    /**
-     * CogShell:web-view: (attributes org.gtk.Property.get=cog_shell_get_web_view):
-     *
-     * The visible [class@WebKit.WebView] from the stack managed by this shell.
-     */
-    s_properties[PROP_WEB_VIEW] =
-        g_param_spec_object("web-view",
-                            "Web View",
-                            "The WebKitWebView used by the shell",
-                            WEBKIT_TYPE_WEB_VIEW,
-                            G_PARAM_READABLE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
-
-    /**
-     * CogShell:view-stack: (attributes org.gtk.Property.get=cog_shell_get_view_stack)
-     *
-     * The [class@ViewStack] managed by this shell.
-     *
-     * Since: 0.18
-     */
-    s_properties[PROP_VIEW_STACK] =
-        g_param_spec_object("view-stack", NULL, NULL, COG_TYPE_VIEW_STACK, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+    s_properties[PROP_WEB_CONTEXT] = g_param_spec_object("web-context",
+                                                         "Web Contxt",
+                                                         "The WebKitWebContext used by the shell",
+                                                         WEBKIT_TYPE_WEB_CONTEXT,
+                                                         G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
     /**
      * CogShell:config-file: (attributes org.gtk.Property.get=cog_shell_get_config_file):
@@ -456,20 +426,15 @@ cog_shell_class_init (CogShellClass *klass)
      * which can be read elsewhere. This is typically used to provide
      * additional options to [platform modules](overview.html).
      */
-    s_properties[PROP_CONFIG_FILE] =
-        g_param_spec_boxed ("config-file",
-                            "Configuration File",
-                            "Configuration file made available to the platform plugin",
-                            G_TYPE_KEY_FILE,
-                            G_PARAM_READWRITE |
-                            G_PARAM_STATIC_STRINGS);
+    s_properties[PROP_CONFIG_FILE] = g_param_spec_boxed("config-file",
+                                                        "Configuration File",
+                                                        "Configuration file made available to the platform plugin",
+                                                        G_TYPE_KEY_FILE,
+                                                        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
     s_properties[PROP_DEVICE_SCALE_FACTOR] =
-        g_param_spec_double ("device-scale-factor",
-                             "Device Scale Factor",
-                             "Device scale factor used for this shell",
-                             0, 64.0, 1.0,
-                             G_PARAM_READWRITE);
+        g_param_spec_double("device-scale-factor", "Device Scale Factor", "Device scale factor used for this shell", 0,
+                            64.0, 1.0, G_PARAM_READWRITE);
 
     s_properties[PROP_AUTOMATED] = g_param_spec_boolean("automated",
                                                         "Automated",
@@ -568,11 +533,11 @@ cog_shell_get_web_context(CogShell *shell)
  *
  * Returns: A settings object.
  */
-WebKitSettings*
-cog_shell_get_web_settings (CogShell *shell)
+WebKitSettings *
+cog_shell_get_web_settings(CogShell *shell)
 {
-    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
-    return PRIV (shell)->web_settings;
+    g_return_val_if_fail(COG_IS_SHELL(shell), NULL);
+    return PRIV(shell)->web_settings;
 }
 
 /**
@@ -582,11 +547,26 @@ cog_shell_get_web_settings (CogShell *shell)
  *
  * Returns: (nullable): A web view.
  */
-WebKitWebView*
-cog_shell_get_web_view (CogShell *shell)
+WebKitWebView *
+cog_shell_get_web_view(CogShell *shell, CogViewStackKey key)
 {
-    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
-    return WEBKIT_WEB_VIEW(cog_view_stack_get_visible_view(PRIV(shell)->view_stack));
+    g_return_val_if_fail(COG_IS_SHELL(shell), NULL);
+    CogViewStack *stack = cog_shell_view_stack_lookup(shell, key);
+    g_return_val_if_fail(COG_IS_VIEW_GROUP(stack), NULL);
+    return WEBKIT_WEB_VIEW(cog_view_stack_get_visible_view(stack));
+}
+
+/**
+ * cog_shell_get_web_view_default:
+ *
+ * Obtains the default visible [class@WebKit.WebView] for this shell.
+ *
+ * Returns: (nullable): A web view.
+ */
+WebKitWebView *
+cog_shell_get_web_view_default(CogShell *shell)
+{
+    return cog_shell_get_web_view(shell, COG_VIEW_STACK_DEFAULT);
 }
 
 /**
@@ -697,16 +677,41 @@ cog_shell_startup  (CogShell *shell)
  * Deinitialize the shell.
  */
 void
-cog_shell_shutdown (CogShell *shell)
+cog_shell_shutdown(CogShell *shell)
 {
-    g_return_if_fail (COG_IS_SHELL (shell));
-    CogShellClass *klass = COG_SHELL_GET_CLASS (shell);
-    (*klass->shutdown) (shell);
+    g_return_if_fail(COG_IS_SHELL(shell));
+    CogShellClass *klass = COG_SHELL_GET_CLASS(shell);
+    (*klass->shutdown)(shell);
+}
+
+GHashTable *
+cog_shell_get_view_stacks(CogShell *shell)
+{
+    g_return_val_if_fail(COG_IS_SHELL(shell), NULL);
+    return PRIV(shell)->view_stacks;
 }
 
 CogViewStack *
-cog_shell_get_view_stack(CogShell *shell)
+cog_shell_view_stack_lookup(CogShell *shell, CogViewStackKey key)
 {
     g_return_val_if_fail(COG_IS_SHELL(shell), NULL);
-    return PRIV(shell)->view_stack;
+    return g_hash_table_lookup(PRIV(shell)->view_stacks, key);
+}
+
+CogViewStack *
+cog_shell_view_stack_new(CogShell *shell, CogViewStackKey key)
+{
+    g_return_val_if_fail(COG_IS_SHELL(shell), NULL);
+    CogViewStack *stack = cog_view_stack_new();
+    g_hash_table_insert(PRIV(shell)->view_stacks, key, stack);
+
+    g_signal_emit(shell, s_signals[CREATE_STACK], 0, stack);
+    return stack;
+}
+
+bool
+cog_shell_view_stack_remove(CogShell *shell, CogViewStackKey key)
+{
+    g_return_val_if_fail(COG_IS_SHELL(shell), NULL);
+    return g_hash_table_remove(PRIV(shell)->view_stacks, key);
 }

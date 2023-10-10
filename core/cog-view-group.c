@@ -121,6 +121,7 @@ cog_view_group_add(CogViewGroup *self, CogView *view)
     g_return_if_fail(!g_ptr_array_find(priv->views, view, NULL));
 
     g_ptr_array_add(priv->views, g_object_ref(view));
+    g_signal_connect_swapped(view, "close", G_CALLBACK(cog_view_group_remove), self);
     g_signal_emit(self, s_signals[ADD], 0, view);
 }
 

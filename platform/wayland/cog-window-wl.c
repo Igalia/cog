@@ -12,7 +12,7 @@
 
 #include "cog-window-wl.h"
 
-G_DEFINE_TYPE(CogWlWindow, cog_wl_window, G_TYPE_OBJECT)
+G_DEFINE_TYPE(CogWlWindow, cog_wl_window, COG_WINDOW_TYPE)
 
 /*
  * CogWlWindow instantiation.

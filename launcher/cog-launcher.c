@@ -144,26 +144,26 @@ on_action_quit(G_GNUC_UNUSED GAction *action, G_GNUC_UNUSED GVariant *param, Cog
 static void
 on_action_prev(G_GNUC_UNUSED GAction *action, G_GNUC_UNUSED GVariant *param, CogLauncher *launcher)
 {
-    webkit_web_view_go_back(cog_shell_get_web_view(launcher->shell));
+    webkit_web_view_go_back(cog_shell_get_web_view_default(launcher->shell));
 }
 
 static void
 on_action_next(G_GNUC_UNUSED GAction *action, G_GNUC_UNUSED GVariant *param, CogLauncher *launcher)
 {
-    webkit_web_view_go_forward(cog_shell_get_web_view(launcher->shell));
+    webkit_web_view_go_forward(cog_shell_get_web_view_default(launcher->shell));
 }
 
 static void
 on_action_reload(G_GNUC_UNUSED GAction *action, G_GNUC_UNUSED GVariant *param, CogLauncher *launcher)
 {
-    webkit_web_view_reload(cog_shell_get_web_view(launcher->shell));
+    webkit_web_view_reload(cog_shell_get_web_view_default(launcher->shell));
 }
 
 static void
 on_action_open(G_GNUC_UNUSED GAction *action, GVariant *param, CogLauncher *launcher)
 {
     g_return_if_fail(g_variant_is_of_type(param, G_VARIANT_TYPE_STRING));
-    webkit_web_view_load_uri(cog_shell_get_web_view(launcher->shell), g_variant_get_string(param, NULL));
+    webkit_web_view_load_uri(cog_shell_get_web_view_default(launcher->shell), g_variant_get_string(param, NULL));
 }
 
 static gboolean
@@ -187,7 +187,7 @@ on_permission_request(G_GNUC_UNUSED WebKitWebView *web_view, WebKitPermissionReq
 static void
 on_notify_web_view(CogShell *shell, GParamSpec *arg G_GNUC_UNUSED, CogLauncher *launcher)
 {
-    WebKitWebView *web_view = cog_shell_get_web_view(shell);
+    WebKitWebView *web_view = cog_shell_get_web_view_default(shell);
 
     g_signal_connect(web_view, "permission-request", G_CALLBACK(on_permission_request), launcher);
 }
@@ -216,7 +216,7 @@ cog_launcher_open(GApplication *application, GFile **files, int n_files, const c
         g_warning("Requested opening %i files, opening only the first one", n_files);
 
     g_autofree char *uri = g_file_get_uri(files[0]);
-    webkit_web_view_load_uri(cog_shell_get_web_view(COG_LAUNCHER(application)->shell), uri);
+    webkit_web_view_load_uri(cog_shell_get_web_view_default(COG_LAUNCHER(application)->shell), uri);
 }
 
 static void *

@@ -128,7 +128,7 @@ cog_view_get_backend_internal(CogView *self)
 
 /**
  * cog_view_get_backend:
- * @self: A view.
+ * @view: A #CogView
  *
  * Get the backend for the view.
  *

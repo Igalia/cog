@@ -93,7 +93,8 @@ struct _CogWlPlatformClass {
 struct _CogWlPlatform {
     CogPlatform    parent;
     CogWlDisplay  *display;
-    CogViewStack  *views;
+    GHashTable    *stacks;
+    CogViewStack  *active_stack;
     GHashTable    *windows;
     CogWlOutput   *current_output;
     struct wl_list outputs; /* wl_list<CogWlOutput> */

@@ -123,7 +123,7 @@ cog_headless_platform_setup(CogPlatform* platform, CogShell* shell G_GNUC_UNUSED
     g_debug("Maximum refresh rate: %u FPS", self->max_fps);
 
     self->tick_source = g_timeout_add(1000.0 / self->max_fps, G_SOURCE_FUNC(on_cog_headless_platform_tick), self);
-    self->views = COG_VIEW_GROUP(cog_shell_get_view_stack(shell)); /* XXX: Ref? */
+    self->views = COG_VIEW_GROUP(cog_shell_view_stack_lookup(shell, COG_VIEW_STACK_DEFAULT)); /* XXX: Ref? */
     return TRUE;
 }
 
