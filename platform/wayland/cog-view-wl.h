@@ -49,8 +49,8 @@ void cog_wl_view_register_type_exported(GTypeModule *type_module);
 CogWlWindow *cog_wl_view_get_window(CogWlView *);
 bool         cog_wl_view_does_image_match_win_size(CogWlView *);
 void         cog_wl_view_fullscreen_image_ready(CogWlView *);
-void         cog_wl_view_resize(CogWlView *view);
-void         cog_wl_view_update_surface_contents(CogWlView *, struct wl_surface *);
+void         cog_wl_view_resize(CogWlView *);
+void         cog_wl_view_update_surface_contents(CogWlView *);
 
 G_END_DECLS
 

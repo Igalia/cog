@@ -367,13 +367,15 @@ cog_wl_view_resize(CogWlView *view)
 }
 
 void
-cog_wl_view_update_surface_contents(CogWlView *view, struct wl_surface *surface)
+cog_wl_view_update_surface_contents(CogWlView *view)
 {
     g_assert(view);
-    CogWlWindow *window = cog_wl_view_get_window(COG_WL_VIEW(view));
+    CogWlWindow *window = cog_wl_view_get_window(view);
     g_assert(window);
     CogWlDisplay *display = view->platform->display;
     g_assert(display);
+    struct wl_surface *surface = window->wl_surface;
+    g_assert(surface);
 
     if (view->should_update_opaque_region) {
         view->should_update_opaque_region = false;
@@ -501,7 +503,7 @@ on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 
     const int32_t state = wpe_view_backend_get_activity_state(cog_view_get_backend((CogView *) self));
     if (state & wpe_view_activity_state_visible)
-        cog_wl_view_update_surface_contents(self, window->wl_surface);
+        cog_wl_view_update_surface_contents(self);
 }
 
 static void

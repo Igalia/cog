@@ -655,7 +655,7 @@ cog_wl_platform_on_notify_visible_view(CogWlPlatform *platform, GParamSpec *pspe
             return;
         }
 
-        cog_wl_view_update_surface_contents(view, window->wl_surface);
+        cog_wl_view_update_surface_contents(view);
     }
 }
 
