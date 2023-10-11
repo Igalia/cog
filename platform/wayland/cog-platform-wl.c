@@ -444,7 +444,7 @@ cog_wl_platform_create_im_context(CogPlatform *platform)
 }
 
 static CogWlWindow *
-cog_wl_platform_create_window(CogWlPlatform *self)
+cog_wl_platform_create_window(CogWlPlatform *self, CogViewStack *stack)
 {
     CogWlDisplay *display = self->display;
 
@@ -465,7 +465,7 @@ cog_wl_platform_create_window(CogWlPlatform *self)
         .enter = surface_on_enter,
         .leave = noop,
     };
-    wl_surface_add_listener(window->wl_surface, &surface_listener, window);
+    wl_surface_add_listener(window->wl_surface, &surface_listener, stack);
 
     if (display->xdg_shell != NULL) {
         window->xdg_surface = xdg_wm_base_get_xdg_surface(display->xdg_shell, window->wl_surface);
@@ -659,6 +659,12 @@ cog_wl_platform_on_notify_visible_view(CogWlPlatform *platform, GParamSpec *pspe
     }
 }
 
+static CogWlWindow *
+cog_wl_platform_stack_get_window(CogWlPlatform *platform, CogViewStack *stack)
+{
+    return (CogWlWindow *) g_hash_table_lookup(platform->windows, stack);
+}
+
 static void
 on_stack_add_view(CogViewStack *self, CogView *view)
 {
@@ -667,9 +673,10 @@ on_stack_add_view(CogViewStack *self, CogView *view)
 
     COG_WL_VIEW(view)->stack = COG_VIEW_STACK(self);
     COG_WL_VIEW(view)->platform = s_platform;
-    CogWlWindow *window = (CogWlWindow *) g_hash_table_lookup(s_platform->windows, self);
+    CogWlWindow *window = cog_wl_platform_stack_get_window(s_platform, self);
+
     if (!window) {
-        window = cog_wl_platform_create_window(s_platform);
+        window = cog_wl_platform_create_window(s_platform, self);
         g_hash_table_insert(s_platform->windows, self, window);
     }
 
@@ -1736,8 +1743,8 @@ shell_surface_on_ping(void *data, struct wl_shell_surface *shell_surface, uint32
 static void
 surface_on_enter(void *data, struct wl_surface *surface, struct wl_output *output)
 {
-    // TODO: Should this be for all the stacks or just for the views of the
-    // active stack
+    CogViewStack *stack = COG_VIEW_STACK(data);
+
     if (s_platform->current_output->output != output) {
         g_debug("%s: Surface %p output changed %p -> %p", G_STRFUNC, surface, s_platform->current_output->output,
                 output);
@@ -1752,9 +1759,8 @@ surface_on_enter(void *data, struct wl_surface *surface, struct wl_output *outpu
         g_debug("%s: Surface %p uses old protocol version, cannot set scale factor", G_STRFUNC, surface);
 #endif /* WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION */
 
-    for (gsize i = 0; i < cog_view_group_get_n_views(COG_VIEW_GROUP(s_platform->active_stack)); i++) {
-        struct wpe_view_backend *backend =
-            cog_view_get_backend(cog_view_group_get_nth_view(COG_VIEW_GROUP(s_platform->active_stack), i));
+    for (gsize i = 0; i < cog_view_group_get_n_views(COG_VIEW_GROUP(stack)); i++) {
+        struct wpe_view_backend *backend = cog_view_get_backend(cog_view_group_get_nth_view(COG_VIEW_GROUP(stack), i));
 
 #ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
         if (can_set_surface_scale)
