@@ -121,8 +121,21 @@ else
     input_cmd=(git diff --no-color -U0 "${BASE}" "${HEAD}")
 fi
 
+declare -a ignore_iregex_flags=( )
+ignore_iregex_file="$(dirname "$0")/../.check-style-ignore"
+declare -r ignore_iregex_file
+
+if [[ -r ${ignore_iregex_file} ]] ; then
+    while read -r ignore_iregex_line ; do
+        if [[ -z ${ignore_iregex_line} || ${ignore_iregex_line} = \#* ]] ; then
+            continue
+        fi
+        ignore_iregex_flags+=(-iregex "${ignore_iregex_line}")
+    done < "${ignore_iregex_file}"
+fi
+
 "${input_cmd[@]}" \
-    | "${clang_format_diff}" -p1 -style=file -regex='.+\.(c|h)' \
+    | "${clang_format_diff}" -p1 -style=file -regex='.+\.(c|h)' "${ignore_iregex_flags[@]}" \
     | tee "${FILE}"
 
 [[ ! -s ${FILE} ]]
