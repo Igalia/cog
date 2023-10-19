@@ -1,3 +1,7 @@
 # File paths matching the regular expressions in this file (one per line)
 # will be skipped by data/check-style. Empty lines and lines starting with
 # a hash mark are ignored.
+
+platform/common/xdp-parent-private\.h$
+platform/drm/kms\.[hc]$
+platform/wayland/os-compatibility\.[hc]$
