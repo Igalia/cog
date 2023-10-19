@@ -34,7 +34,7 @@ jobs:
             libgirepository1.0-dev gir1.2-glib-2.0 gir1.2-soup-2.4 \
             libwayland-bin libwayland-dev wayland-protocols libepoxy-dev \
             libdrm-dev libinput-dev libudev-dev libgbm-dev \
-            libxkbcommon-x11-dev libx11-xcb-dev
+            libxkbcommon-x11-dev libx11-xcb-dev libxcb-cursor-dev
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
