@@ -42,6 +42,7 @@
 
 #include "cog-im-context-wl-v1.h"
 #include "cog-im-context-wl.h"
+#include "cog-platform-wl.h"
 #include "cog-popup-menu-wl.h"
 #include "cog-utils-wl.h"
 #if COG_HAVE_LIBPORTAL
@@ -69,17 +70,6 @@
 #ifdef COG_USE_WAYLAND_CURSOR
 #    include <wayland-cursor.h>
 #endif
-
-struct _CogWlPlatformClass {
-    CogPlatformClass parent_class;
-};
-
-struct _CogWlPlatform {
-    CogPlatform    parent;
-    WebKitWebView *web_view;
-};
-
-G_DECLARE_FINAL_TYPE(CogWlPlatform, cog_wl_platform, COG, WL_PLATFORM, CogPlatform)
 
 G_DEFINE_DYNAMIC_TYPE_EXTENDED(
     CogWlPlatform,
