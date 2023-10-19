@@ -42,6 +42,7 @@
 #include "cog-im-context-wl-v1.h"
 #include "cog-im-context-wl.h"
 #include "cog-popup-menu-wl.h"
+#include "cog-utils-wl.h"
 #if COG_HAVE_LIBPORTAL
 #    include "cog-xdp-parent-wl.h"
 #endif /* COG_HAVE_LIBPORTAL */
@@ -68,23 +69,6 @@
 #include <wayland-cursor.h>
 #endif
 
-#define DEFAULT_WIDTH  1024
-#define DEFAULT_HEIGHT  768
-
-#if defined(WPE_CHECK_VERSION)
-#    define HAVE_REFRESH_RATE_HANDLING WPE_CHECK_VERSION(1, 13, 2)
-#else
-#    define HAVE_REFRESH_RATE_HANDLING 0
-#endif
-
-#if defined(WPE_FDO_CHECK_VERSION)
-#    define HAVE_SHM_EXPORTED_BUFFER WPE_FDO_CHECK_VERSION(1, 9, 0)
-#    define HAVE_FULLSCREEN_HANDLING WPE_FDO_CHECK_VERSION(1, 11, 1)
-#else
-#    define HAVE_SHM_EXPORTED_BUFFER 0
-#    define HAVE_FULLSCREEN_HANDLING 0
-#endif
-
 struct _CogWlPlatformClass {
     CogPlatformClass parent_class;
 };
@@ -103,70 +87,24 @@ G_DEFINE_DYNAMIC_TYPE_EXTENDED(
     0,
     g_io_extension_point_implement(COG_MODULES_PLATFORM_EXTENSION_POINT, g_define_type_id, "wl", 500);)
 
-#if COG_ENABLE_WESTON_DIRECT_DISPLAY
-#    define VIDEO_BUFFER_FORMAT DRM_FORMAT_YUYV
-struct video_buffer {
-    struct wl_buffer *buffer;
-
-    int32_t x;
-    int32_t y;
-    int32_t width;
-    int32_t height;
-    int fd;
-
-    struct wpe_video_plane_display_dmabuf_export* dmabuf_export;
-};
-
-struct video_surface {
-#    if COG_ENABLE_WESTON_CONTENT_PROTECTION
-    struct weston_protected_surface *protected_surface;
-#    endif
-    struct wl_surface *wl_surface;
-    struct wl_subsurface *wl_subsurface;
-};
-#endif
-
-#if HAVE_SHM_EXPORTED_BUFFER
-struct shm_buffer {
-    struct wl_list link;
-    struct wl_listener destroy_listener;
-
-    struct wl_resource *buffer_resource;
-    struct wpe_fdo_shm_exported_buffer *exported_buffer;
-
-    struct wl_shm_pool *shm_pool;
-    void *data;
-    size_t size;
-    struct wl_buffer *buffer;
-};
-#endif
-
 #ifndef EGL_WL_create_wayland_buffer_from_image
 typedef struct wl_buffer *(EGLAPIENTRYP PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)(EGLDisplay dpy, EGLImageKHR image);
 #endif
 
-typedef struct output_metrics {
-    struct wl_output *output;
-    int32_t           name;
-    int32_t           scale;
-    int32_t           width;
-    int32_t           height;
-    int32_t           refresh;
-} output_metrics;
+CogWlOutput output_metrics;
 
 static struct {
-    struct wl_display *display;
-    struct wl_registry *registry;
-    struct wl_compositor *compositor;
+    struct wl_display       *display;
+    struct wl_registry      *registry;
+    struct wl_compositor    *compositor;
     struct wl_subcompositor *subcompositor;
-    struct wl_shm *shm;
+    struct wl_shm           *shm;
 
-    struct xdg_wm_base *xdg_shell;
+    struct xdg_wm_base             *xdg_shell;
     struct zwp_fullscreen_shell_v1 *fshell;
-    struct wl_shell *shell;
+    struct wl_shell                *shell;
 
     struct wl_seat *seat;
-    uint32_t event_serial;
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     struct zwp_linux_dmabuf_v1 *dmabuf;
@@ -183,8 +121,8 @@ static struct {
     struct wl_surface      *cursor_left_ptr_surface;
 #endif /* COG_USE_WAYLAND_CURSOR */
 
-    struct output_metrics metrics[16];
-    struct output_metrics *current_output;
+    CogWlOutput  metrics[16];
+    CogWlOutput *current_output;
 
     struct zwp_text_input_manager_v3 *text_input_manager;
     struct zwp_text_input_manager_v1 *text_input_manager_v1;
@@ -192,43 +130,16 @@ static struct {
 
     struct wp_presentation *presentation;
 
-    struct {
-        struct wl_pointer *obj;
-        struct wl_surface *surface;
-        int32_t x;
-        int32_t y;
-        uint32_t button;
-        uint32_t state;
-    } pointer;
+    CogWlPointer       pointer;
+    struct wl_pointer *pointer_obj;
 
-    struct {
-        bool has_delta;
-        uint32_t time;
-        wl_fixed_t x_delta;
-        wl_fixed_t y_delta;
-    } axis;
+    CogWlAxis axis;
 
-    struct {
-        struct wl_keyboard *obj;
+    CogWlKeyboard       keyboard;
+    struct wl_keyboard *keyboard_obj;
 
-        struct {
-            int32_t rate;
-            int32_t delay;
-        } repeat_info;
-
-        struct {
-            uint32_t key;
-            uint32_t time;
-            uint32_t state;
-            uint32_t event_source;
-        } repeat_data;
-    } keyboard;
-
-    struct {
-        struct wl_touch *obj;
-        struct wl_surface *surface;
-        struct wpe_input_touch_event_raw points[10];
-    } touch;
+    CogWlTouch       touch;
+    struct wl_touch *touch_obj;
 
     GSource *event_src;
 
@@ -293,22 +204,9 @@ static struct {
     .configured = false,
 };
 
-
-static struct {
-    struct xkb_context* context;
-    struct xkb_keymap* keymap;
-    struct xkb_state* state;
-
-    struct xkb_compose_table* compose_table;
-    struct xkb_compose_state* compose_state;
-
-    struct {
-        xkb_mod_index_t control;
-        xkb_mod_index_t alt;
-        xkb_mod_index_t shift;
-    } indexes;
-    uint8_t modifiers;
-} xkb_data = {NULL, };
+CogWlXkb xkb_data = {
+    NULL,
+};
 
 static struct {
     struct wpe_view_backend_exportable_fdo *exportable;
@@ -322,13 +220,6 @@ static struct {
     bool should_update_opaque_region;
 } wpe_view_data = {
     .should_update_opaque_region = true, /* Force initial update. */
-};
-
-
-struct wl_event_source {
-    GSource source;
-    GPollFD pfd;
-    struct wl_display *display;
 };
 
 static gboolean
@@ -596,7 +487,7 @@ noop()
 {
 }
 
-static struct output_metrics *
+static CogWlOutput *
 find_output(struct wl_output *output)
 {
     for (int i = 0; i < G_N_ELEMENTS(wl_data.metrics); i++) {
@@ -611,7 +502,7 @@ find_output(struct wl_output *output)
 static void
 output_handle_mode(void *data, struct wl_output *output, uint32_t flags, int32_t width, int32_t height, int32_t refresh)
 {
-    struct output_metrics *metrics = find_output(output);
+    CogWlOutput *metrics = find_output(output);
     if (!metrics) {
         return;
     }
@@ -627,7 +518,7 @@ output_handle_mode(void *data, struct wl_output *output, uint32_t flags, int32_t
 static void
 output_handle_done(void *data, struct wl_output *output)
 {
-    struct output_metrics *metrics = find_output(output);
+    CogWlOutput *metrics = find_output(output);
 
     if (!metrics->refresh) {
         g_warning("No refresh rate reported for output %p, using 60Hz", output);
@@ -653,7 +544,7 @@ output_handle_done(void *data, struct wl_output *output)
 static void
 output_handle_scale(void *data, struct wl_output *output, int32_t factor)
 {
-    struct output_metrics *metrics = find_output(output);
+    CogWlOutput *metrics = find_output(output);
     if (!metrics) {
         return;
     }
@@ -861,7 +752,7 @@ pointer_on_enter(void *data,
                  wl_fixed_t fixed_x,
                  wl_fixed_t fixed_y)
 {
-    wl_data.event_serial = serial;
+    wl_data.keyboard.serial = serial;
     wl_data.pointer.surface = surface;
 
 #ifdef COG_USE_WAYLAND_CURSOR
@@ -881,7 +772,7 @@ pointer_on_enter(void *data,
                 wl_data.cursor_left_ptr_surface = surface;
             }
         }
-        wl_pointer_set_cursor(wl_data.pointer.obj,
+        wl_pointer_set_cursor(wl_data.pointer_obj,
                               serial,
                               wl_data.cursor_left_ptr_surface,
                               wl_data.cursor_left_ptr->images[0]->hotspot_x,
@@ -893,7 +784,7 @@ pointer_on_enter(void *data,
 static void
 pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface)
 {
-    wl_data.event_serial = serial;
+    wl_data.keyboard.serial = serial;
     wl_data.pointer.surface = NULL;
 }
 
@@ -921,7 +812,7 @@ pointer_on_button(void *data,
                   uint32_t button,
                   uint32_t state)
 {
-    wl_data.event_serial = serial;
+    wl_data.keyboard.serial = serial;
 
     /* @FIXME: what is this for?
     if (button >= BTN_MOUSE)
@@ -1095,7 +986,7 @@ keyboard_on_enter (void *data,
                    struct wl_surface *surface,
                    struct wl_array *keys)
 {
-    wl_data.event_serial = serial;
+    wl_data.keyboard.serial = serial;
 }
 
 static void
@@ -1104,7 +995,7 @@ keyboard_on_leave (void *data,
                    uint32_t serial,
                    struct wl_surface *surface)
 {
-    wl_data.event_serial = serial;
+    wl_data.keyboard.serial = serial;
 }
 
 static void
@@ -1178,7 +1069,7 @@ keyboard_on_key (void *data,
     // https://xkbcommon.org/doc/current/xkbcommon_8h.html
     key += 8;
 
-    wl_data.event_serial = serial;
+    wl_data.keyboard.serial = serial;
     handle_key_event(self, key, state, time);
 
     if (wl_data.keyboard.repeat_info.rate == 0)
@@ -1217,7 +1108,7 @@ keyboard_on_modifiers (void *data,
 {
     if (xkb_data.state == NULL)
         return;
-    wl_data.event_serial = serial;
+    wl_data.keyboard.serial = serial;
 
     xkb_state_update_mask (xkb_data.state,
                            mods_depressed,
@@ -1286,7 +1177,7 @@ touch_on_down (void *data,
                wl_fixed_t y)
 {
     wl_data.touch.surface = surface;
-    wl_data.event_serial = serial;
+    wl_data.keyboard.serial = serial;
 
     if (id < 0 || id >= 10)
         return;
@@ -1334,7 +1225,7 @@ touch_on_up (void *data,
 {
     struct wl_surface *target_surface = wl_data.touch.surface;
     wl_data.touch.surface = NULL;
-    wl_data.event_serial = serial;
+    wl_data.keyboard.serial = serial;
 
     if (id < 0 || id >= 10)
         return;
@@ -1434,44 +1325,44 @@ static const struct wl_touch_listener touch_listener = {
 };
 
 static void
-seat_on_capabilities (void* data, struct wl_seat* seat, uint32_t capabilities)
+seat_on_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities)
 {
-    g_debug ("Enumerating seat capabilities:");
+    g_debug("Enumerating seat capabilities:");
 
     /* Pointer */
     const bool has_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
-    if (has_pointer && wl_data.pointer.obj == NULL) {
-        wl_data.pointer.obj = wl_seat_get_pointer (wl_data.seat);
-        g_assert (wl_data.pointer.obj);
-        wl_pointer_add_listener (wl_data.pointer.obj, &pointer_listener, NULL);
-        g_debug ("  - Pointer");
-    } else if (! has_pointer && wl_data.pointer.obj != NULL) {
-        wl_pointer_release (wl_data.pointer.obj);
-        wl_data.pointer.obj = NULL;
+    if (has_pointer && wl_data.pointer_obj == NULL) {
+        wl_data.pointer_obj = wl_seat_get_pointer(wl_data.seat);
+        g_assert(wl_data.pointer_obj);
+        wl_pointer_add_listener(wl_data.pointer_obj, &pointer_listener, NULL);
+        g_debug("  - Pointer");
+    } else if (!has_pointer && wl_data.pointer_obj != NULL) {
+        wl_pointer_release(wl_data.pointer_obj);
+        wl_data.pointer_obj = NULL;
     }
 
     /* Keyboard */
     const bool has_keyboard = capabilities & WL_SEAT_CAPABILITY_KEYBOARD;
-    if (has_keyboard && wl_data.keyboard.obj == NULL) {
-        wl_data.keyboard.obj = wl_seat_get_keyboard (wl_data.seat);
-        g_assert (wl_data.keyboard.obj);
-        wl_keyboard_add_listener(wl_data.keyboard.obj, &keyboard_listener, data);
-        g_debug ("  - Keyboard");
-    } else if (! has_keyboard && wl_data.keyboard.obj != NULL) {
-        wl_keyboard_release (wl_data.keyboard.obj);
-        wl_data.keyboard.obj = NULL;
+    if (has_keyboard && wl_data.keyboard_obj == NULL) {
+        wl_data.keyboard_obj = wl_seat_get_keyboard(wl_data.seat);
+        g_assert(wl_data.keyboard_obj);
+        wl_keyboard_add_listener(wl_data.keyboard_obj, &keyboard_listener, data);
+        g_debug("  - Keyboard");
+    } else if (!has_keyboard && wl_data.keyboard_obj != NULL) {
+        wl_keyboard_release(wl_data.keyboard_obj);
+        wl_data.keyboard_obj = NULL;
     }
 
     /* Touch */
     const bool has_touch = capabilities & WL_SEAT_CAPABILITY_TOUCH;
-    if (has_touch && wl_data.touch.obj == NULL) {
-        wl_data.touch.obj = wl_seat_get_touch (wl_data.seat);
-        g_assert (wl_data.touch.obj);
-        wl_touch_add_listener (wl_data.touch.obj, &touch_listener, NULL);
-        g_debug ("  - Touch");
-    } else if (! has_touch && wl_data.touch.obj != NULL) {
-        wl_touch_release (wl_data.touch.obj);
-        wl_data.touch.obj = NULL;
+    if (has_touch && wl_data.touch_obj == NULL) {
+        wl_data.touch_obj = wl_seat_get_touch(wl_data.seat);
+        g_assert(wl_data.touch_obj);
+        wl_touch_add_listener(wl_data.touch_obj, &touch_listener, NULL);
+        g_debug("  - Touch");
+    } else if (!has_touch && wl_data.touch_obj != NULL) {
+        wl_touch_release(wl_data.touch_obj);
+        wl_data.touch_obj = NULL;
     }
 
     g_debug ("Done enumerating seat capabilities.");
@@ -2309,7 +2200,7 @@ create_popup (WebKitOptionMenu *option_menu)
         xdg_popup_add_listener (popup_data.xdg_popup,
                                 &xdg_popup_listener,
                                 NULL);
-        xdg_popup_grab (popup_data.xdg_popup, wl_data.seat, wl_data.event_serial);
+        xdg_popup_grab(popup_data.xdg_popup, wl_data.seat, wl_data.keyboard.serial);
         wl_surface_commit (popup_data.wl_surface);
     } else if (wl_data.shell != NULL) {
         popup_data.shell_surface = wl_shell_get_shell_surface (wl_data.shell,
@@ -2320,7 +2211,7 @@ create_popup (WebKitOptionMenu *option_menu)
                                        &shell_popup_surface_listener,
                                        NULL);
         wl_shell_surface_set_popup (popup_data.shell_surface,
-                                    wl_data.seat, wl_data.event_serial,
+                                    wl_data.seat, wl_data.keyboard.serial,
                                     win_data.wl_surface,
                                     0, (win_data.height - popup_data.height), 0);
 
@@ -2410,8 +2301,8 @@ init_input(CogWlPlatform *self, GError **error)
 static void
 clear_input(void)
 {
-    g_clear_pointer(&wl_data.pointer.obj, wl_pointer_destroy);
-    g_clear_pointer(&wl_data.keyboard.obj, wl_keyboard_destroy);
+    g_clear_pointer(&wl_data.pointer_obj, wl_pointer_destroy);
+    g_clear_pointer(&wl_data.keyboard_obj, wl_keyboard_destroy);
     g_clear_pointer(&wl_data.seat, wl_seat_destroy);
 
     cog_im_context_wl_set_text_input(NULL);
