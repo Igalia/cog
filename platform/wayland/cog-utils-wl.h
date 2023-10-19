@@ -32,6 +32,7 @@
 #endif
 
 typedef struct _CogWlAxis     CogWlAxis;
+typedef struct _CogWlDisplay  CogWlDisplay;
 typedef struct _CogWlKeyboard CogWlKeyboard;
 typedef struct _CogWlOutput   CogWlOutput;
 typedef struct _CogWlPointer  CogWlPointer;
@@ -143,6 +144,62 @@ struct wl_event_source {
     GSource            source;
     GPollFD            pfd;
     struct wl_display *display;
+};
+
+struct _CogWlDisplay {
+    struct egl_display *egl_display;
+
+    struct wl_display    *display;
+    struct wl_registry   *registry;
+    struct wl_compositor *compositor;
+
+    struct wl_subcompositor *subcompositor;
+    struct wl_shm           *shm;
+
+    struct xdg_wm_base             *xdg_shell;
+    struct zwp_fullscreen_shell_v1 *fshell;
+    struct wl_shell                *shell;
+
+    struct wl_seat *seat;
+    uint32_t        pointer_on_enter_event_serial;
+
+#if COG_ENABLE_WESTON_DIRECT_DISPLAY
+    struct zwp_linux_dmabuf_v1      *dmabuf;
+    struct weston_direct_display_v1 *direct_display;
+#endif
+
+#if COG_ENABLE_WESTON_CONTENT_PROTECTION
+    struct weston_content_protection *protection;
+#endif
+
+#ifdef COG_USE_WAYLAND_CURSOR
+    struct wl_cursor_theme *cursor_theme;
+    struct wl_surface      *cursor_surface;
+#endif /* COG_USE_WAYLAND_CURSOR */
+
+    CogWlOutput  metrics[16];
+    CogWlOutput *current_output;
+
+    struct zwp_text_input_manager_v3 *text_input_manager;
+    struct zwp_text_input_manager_v1 *text_input_manager_v1;
+    struct zxdg_exporter_v2          *zxdg_exporter;
+
+    struct wp_presentation *presentation;
+
+    CogWlAxis axis;
+
+    CogWlKeyboard       keyboard;
+    struct wl_keyboard *keyboard_obj;
+
+    CogWlPointer       pointer;
+    struct wl_pointer *pointer_obj;
+
+    CogWlTouch       touch;
+    struct wl_touch *touch_obj;
+
+    GSource *event_src;
+
+    struct wl_list shm_buffer_list;
 };
 
 #endif /* !COG_PLATFORM_WL_UTILS_H */
