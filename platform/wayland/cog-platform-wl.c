@@ -66,7 +66,7 @@
 #endif
 
 #ifdef COG_USE_WAYLAND_CURSOR
-#include <wayland-cursor.h>
+#    include <wayland-cursor.h>
 #endif
 
 struct _CogWlPlatformClass {
@@ -107,7 +107,7 @@ static struct {
     struct wl_seat *seat;
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
-    struct zwp_linux_dmabuf_v1 *dmabuf;
+    struct zwp_linux_dmabuf_v1      *dmabuf;
     struct weston_direct_display_v1 *direct_display;
 #endif
 
@@ -745,12 +745,12 @@ registry_global (void               *data,
 }
 
 static void
-pointer_on_enter(void *data,
+pointer_on_enter(void              *data,
                  struct wl_pointer *pointer,
-                 uint32_t serial,
+                 uint32_t           serial,
                  struct wl_surface *surface,
-                 wl_fixed_t fixed_x,
-                 wl_fixed_t fixed_y)
+                 wl_fixed_t         fixed_x,
+                 wl_fixed_t         fixed_y)
 {
     wl_data.keyboard.serial = serial;
     wl_data.pointer.surface = surface;
@@ -805,12 +805,12 @@ pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixe
 }
 
 static void
-pointer_on_button(void *data,
+pointer_on_button(void              *data,
                   struct wl_pointer *pointer,
-                  uint32_t serial,
-                  uint32_t time,
-                  uint32_t button,
-                  uint32_t state)
+                  uint32_t           serial,
+                  uint32_t           time,
+                  uint32_t           button,
+                  uint32_t           state)
 {
     wl_data.keyboard.serial = serial;
 
@@ -980,20 +980,17 @@ keyboard_on_keymap (void *data,
 }
 
 static void
-keyboard_on_enter (void *data,
-                   struct wl_keyboard *wl_keyboard,
-                   uint32_t serial,
-                   struct wl_surface *surface,
-                   struct wl_array *keys)
+keyboard_on_enter(void               *data,
+                  struct wl_keyboard *wl_keyboard,
+                  uint32_t            serial,
+                  struct wl_surface  *surface,
+                  struct wl_array    *keys)
 {
     wl_data.keyboard.serial = serial;
 }
 
 static void
-keyboard_on_leave (void *data,
-                   struct wl_keyboard *wl_keyboard,
-                   uint32_t serial,
-                   struct wl_surface *surface)
+keyboard_on_leave(void *data, struct wl_keyboard *wl_keyboard, uint32_t serial, struct wl_surface *surface)
 {
     wl_data.keyboard.serial = serial;
 }
@@ -1075,17 +1072,15 @@ keyboard_on_key (void *data,
     if (wl_data.keyboard.repeat_info.rate == 0)
         return;
 
-    if (state == WL_KEYBOARD_KEY_STATE_RELEASED
-        && wl_data.keyboard.repeat_data.key == key) {
+    if (state == WL_KEYBOARD_KEY_STATE_RELEASED && wl_data.keyboard.repeat_data.key == key) {
         if (wl_data.keyboard.repeat_data.event_source)
             g_source_remove (wl_data.keyboard.repeat_data.event_source);
 
         memset (&wl_data.keyboard.repeat_data,
                 0x00,
                 sizeof (wl_data.keyboard.repeat_data));
-    } else if (xkb_data.keymap != NULL
-               && state == WL_KEYBOARD_KEY_STATE_PRESSED
-               && xkb_keymap_key_repeats (xkb_data.keymap, key)) {
+    } else if (xkb_data.keymap != NULL && state == WL_KEYBOARD_KEY_STATE_PRESSED &&
+               xkb_keymap_key_repeats(xkb_data.keymap, key)) {
         if (wl_data.keyboard.repeat_data.event_source)
             g_source_remove (wl_data.keyboard.repeat_data.event_source);
 
@@ -1110,21 +1105,12 @@ keyboard_on_modifiers (void *data,
         return;
     wl_data.keyboard.serial = serial;
 
-    xkb_state_update_mask (xkb_data.state,
-                           mods_depressed,
-                           mods_latched,
-                           mods_locked,
-                           0,
-                           0,
-                           group);
+    xkb_state_update_mask(xkb_data.state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
 
     xkb_data.modifiers = 0;
-    uint32_t component
-        = (XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_LATCHED);
+    uint32_t component = (XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_LATCHED);
 
-    if (xkb_state_mod_index_is_active (xkb_data.state,
-                                       xkb_data.indexes.control,
-                                       component)) {
+    if (xkb_state_mod_index_is_active(xkb_data.state, xkb_data.indexes.control, component)) {
         xkb_data.modifiers |= wpe_input_keyboard_modifier_control;
     }
     if (xkb_state_mod_index_is_active (xkb_data.state,
@@ -1167,14 +1153,14 @@ static const struct wl_keyboard_listener keyboard_listener = {
 };
 
 static void
-touch_on_down (void *data,
-               struct wl_touch *touch,
-               uint32_t serial,
-               uint32_t time,
-               struct wl_surface *surface,
-               int32_t id,
-               wl_fixed_t x,
-               wl_fixed_t y)
+touch_on_down(void              *data,
+              struct wl_touch   *touch,
+              uint32_t           serial,
+              uint32_t           time,
+              struct wl_surface *surface,
+              int32_t            id,
+              wl_fixed_t         x,
+              wl_fixed_t         y)
 {
     wl_data.touch.surface = surface;
     wl_data.keyboard.serial = serial;
@@ -1190,15 +1176,12 @@ touch_on_down (void *data,
         wl_fixed_to_int(y) * wl_data.current_output->scale,
     };
 
-    memcpy (&wl_data.touch.points[id],
-            &raw_event,
-            sizeof (struct wpe_input_touch_event_raw));
+    memcpy(&wl_data.touch.points[id], &raw_event, sizeof(struct wpe_input_touch_event_raw));
 
     if (popup_data.wl_surface) {
         if (wl_data.touch.surface == popup_data.wl_surface) {
-            cog_popup_menu_handle_event (popup_data.popup_menu,
-                                         COG_POPUP_MENU_EVENT_STATE_PRESSED,
-                                         raw_event.x, raw_event.y);
+            cog_popup_menu_handle_event(popup_data.popup_menu, COG_POPUP_MENU_EVENT_STATE_PRESSED, raw_event.x,
+                                        raw_event.y);
             update_popup ();
             return;
         } else
@@ -1231,30 +1214,21 @@ touch_on_up (void *data,
         return;
 
     struct wpe_input_touch_event_raw raw_event = {
-        wpe_input_touch_event_type_up,
-        time,
-        id,
-        wl_data.touch.points[id].x,
-        wl_data.touch.points[id].y,
+        wpe_input_touch_event_type_up, time, id, wl_data.touch.points[id].x, wl_data.touch.points[id].y,
     };
 
     if (popup_data.wl_surface) {
         if (target_surface == popup_data.wl_surface) {
-            cog_popup_menu_handle_event (popup_data.popup_menu,
-                                         COG_POPUP_MENU_EVENT_STATE_RELEASED,
-                                         raw_event.x, raw_event.y);
-            update_popup ();
+            cog_popup_menu_handle_event(popup_data.popup_menu, COG_POPUP_MENU_EVENT_STATE_RELEASED, raw_event.x,
+                                        raw_event.y);
+            update_popup();
 
-            memset (&wl_data.touch.points[id],
-                    0x00,
-                    sizeof (struct wpe_input_touch_event_raw));
+            memset(&wl_data.touch.points[id], 0x00, sizeof(struct wpe_input_touch_event_raw));
             return;
         }
     }
 
-    memcpy (&wl_data.touch.points[id],
-            &raw_event,
-            sizeof (struct wpe_input_touch_event_raw));
+    memcpy(&wl_data.touch.points[id], &raw_event, sizeof(struct wpe_input_touch_event_raw));
 
     struct wpe_input_touch_event event = {
         wl_data.touch.points,
@@ -1365,14 +1339,14 @@ seat_on_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities)
         wl_data.touch_obj = NULL;
     }
 
-    g_debug ("Done enumerating seat capabilities.");
+    g_debug("Done enumerating seat capabilities.");
 }
 
 #ifdef WL_SEAT_NAME_SINCE_VERSION
 static void
-seat_on_name (void *data, struct wl_seat *seat, const char *name)
+seat_on_name(void *data, struct wl_seat *seat, const char *name)
 {
-    g_debug ("Seat name: '%s'", name);
+    g_debug("Seat name: '%s'", name);
 }
 #endif /* WL_SEAT_NAME_SINCE_VERSION */
 
@@ -1384,14 +1358,13 @@ static const struct wl_seat_listener seat_listener = {
 };
 
 static void
-registry_global_remove (void *data, struct wl_registry *registry, uint32_t name)
+registry_global_remove(void *data, struct wl_registry *registry, uint32_t name)
 {
-    for (int i = 0; i < G_N_ELEMENTS (wl_data.metrics); i++)
-    {
+    for (int i = 0; i < G_N_ELEMENTS(wl_data.metrics); i++) {
         if (wl_data.metrics[i].name == name) {
             wl_data.metrics[i].output = NULL;
             wl_data.metrics[i].name = 0;
-            g_debug ("Removed output %i\n", name);
+            g_debug("Removed output %i\n", name);
             break;
         }
     }
@@ -2197,58 +2170,51 @@ create_popup (WebKitOptionMenu *option_menu)
                                                       popup_data.xdg_positioner);
         g_assert (popup_data.xdg_popup);
 
-        xdg_popup_add_listener (popup_data.xdg_popup,
-                                &xdg_popup_listener,
-                                NULL);
+        xdg_popup_add_listener(popup_data.xdg_popup, &xdg_popup_listener, NULL);
         xdg_popup_grab(popup_data.xdg_popup, wl_data.seat, wl_data.keyboard.serial);
-        wl_surface_commit (popup_data.wl_surface);
+        wl_surface_commit(popup_data.wl_surface);
     } else if (wl_data.shell != NULL) {
-        popup_data.shell_surface = wl_shell_get_shell_surface (wl_data.shell,
-                                                               popup_data.wl_surface);
+        popup_data.shell_surface = wl_shell_get_shell_surface(wl_data.shell, popup_data.wl_surface);
         g_assert(popup_data.shell_surface);
 
-        wl_shell_surface_add_listener (popup_data.shell_surface,
-                                       &shell_popup_surface_listener,
-                                       NULL);
-        wl_shell_surface_set_popup (popup_data.shell_surface,
-                                    wl_data.seat, wl_data.keyboard.serial,
-                                    win_data.wl_surface,
-                                    0, (win_data.height - popup_data.height), 0);
+        wl_shell_surface_add_listener(popup_data.shell_surface, &shell_popup_surface_listener, NULL);
+        wl_shell_surface_set_popup(popup_data.shell_surface, wl_data.seat, wl_data.keyboard.serial, win_data.wl_surface,
+                                   0, (win_data.height - popup_data.height), 0);
 
         display_popup();
     }
 }
 
 static void
-destroy_popup (void)
+destroy_popup(void)
 {
     if (popup_data.option_menu == NULL)
         return;
 
-    webkit_option_menu_close (popup_data.option_menu);
-    g_clear_pointer (&popup_data.popup_menu, cog_popup_menu_destroy);
-    g_clear_object (&popup_data.option_menu);
+    webkit_option_menu_close(popup_data.option_menu);
+    g_clear_pointer(&popup_data.popup_menu, cog_popup_menu_destroy);
+    g_clear_object(&popup_data.option_menu);
 
-    g_clear_pointer (&popup_data.xdg_popup, xdg_popup_destroy);
-    g_clear_pointer (&popup_data.xdg_surface, xdg_surface_destroy);
-    g_clear_pointer (&popup_data.xdg_positioner, xdg_positioner_destroy);
-    g_clear_pointer (&popup_data.shell_surface, wl_shell_surface_destroy);
-    g_clear_pointer (&popup_data.wl_surface, wl_surface_destroy);
+    g_clear_pointer(&popup_data.xdg_popup, xdg_popup_destroy);
+    g_clear_pointer(&popup_data.xdg_surface, xdg_surface_destroy);
+    g_clear_pointer(&popup_data.xdg_positioner, xdg_positioner_destroy);
+    g_clear_pointer(&popup_data.shell_surface, wl_shell_surface_destroy);
+    g_clear_pointer(&popup_data.wl_surface, wl_surface_destroy);
 
     popup_data.configured = false;
 }
 
 static void
-display_popup (void)
+display_popup(void)
 {
-    struct wl_buffer *buffer = cog_popup_menu_get_buffer (popup_data.popup_menu);
-    wl_surface_attach (popup_data.wl_surface, buffer, 0, 0);
-    wl_surface_damage (popup_data.wl_surface, 0, 0, INT32_MAX, INT32_MAX);
-    wl_surface_commit (popup_data.wl_surface);
+    struct wl_buffer *buffer = cog_popup_menu_get_buffer(popup_data.popup_menu);
+    wl_surface_attach(popup_data.wl_surface, buffer, 0, 0);
+    wl_surface_damage(popup_data.wl_surface, 0, 0, INT32_MAX, INT32_MAX);
+    wl_surface_commit(popup_data.wl_surface);
 }
 
 static void
-update_popup (void)
+update_popup(void)
 {
     int selected_index;
     bool has_final_selection = cog_popup_menu_has_final_selection (popup_data.popup_menu,
@@ -2322,14 +2288,14 @@ clear_buffers(void)
 {
 #if HAVE_SHM_EXPORTED_BUFFER
     struct shm_buffer *buffer, *tmp;
-    wl_list_for_each_safe (buffer, tmp, &wl_data.shm_buffer_list, link) {
+    wl_list_for_each_safe(buffer, tmp, &wl_data.shm_buffer_list, link) {
 
-        wl_list_remove (&buffer->link);
-        wl_list_remove (&buffer->destroy_listener.link);
+        wl_list_remove(&buffer->link);
+        wl_list_remove(&buffer->destroy_listener.link);
 
-        shm_buffer_destroy (buffer);
+        shm_buffer_destroy(buffer);
     }
-    wl_list_init (&wl_data.shm_buffer_list);
+    wl_list_init(&wl_data.shm_buffer_list);
 #endif
 }
 
