@@ -36,6 +36,7 @@ typedef struct _CogWlDisplay  CogWlDisplay;
 typedef struct _CogWlKeyboard CogWlKeyboard;
 typedef struct _CogWlOutput   CogWlOutput;
 typedef struct _CogWlPointer  CogWlPointer;
+typedef struct _CogWlSeat     CogWlSeat;
 typedef struct _CogWlTouch    CogWlTouch;
 typedef struct _CogWlXkb      CogWlXkb;
 
@@ -78,6 +79,7 @@ struct _CogWlPointer {
     int32_t            y;
     uint32_t           button;
     uint32_t           state;
+    uint32_t           serial;
 };
 
 struct _CogWlTouch {
@@ -100,6 +102,25 @@ struct _CogWlXkb {
     } indexes;
 
     uint8_t modifiers;
+};
+
+struct _CogWlSeat {
+    struct wl_seat *seat;
+    uint32_t        seat_name;
+    uint32_t        seat_version;
+
+    CogWlAxis axis;
+
+    CogWlKeyboard       keyboard;
+    struct wl_keyboard *keyboard_obj;
+
+    CogWlPointer       pointer;
+    struct wl_pointer *pointer_obj;
+
+    CogWlTouch       touch;
+    struct wl_touch *touch_obj;
+
+    CogWlXkb xkb;
 };
 
 #if HAVE_SHM_EXPORTED_BUFFER
@@ -160,8 +181,7 @@ struct _CogWlDisplay {
     struct zwp_fullscreen_shell_v1 *fshell;
     struct wl_shell                *shell;
 
-    struct wl_seat *seat;
-    uint32_t        pointer_on_enter_event_serial;
+    CogWlSeat seat;
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     struct zwp_linux_dmabuf_v1      *dmabuf;
@@ -185,17 +205,6 @@ struct _CogWlDisplay {
     struct zxdg_exporter_v2          *zxdg_exporter;
 
     struct wp_presentation *presentation;
-
-    CogWlAxis axis;
-
-    CogWlKeyboard       keyboard;
-    struct wl_keyboard *keyboard_obj;
-
-    CogWlPointer       pointer;
-    struct wl_pointer *pointer_obj;
-
-    CogWlTouch       touch;
-    struct wl_touch *touch_obj;
 
     GSource *event_src;
 

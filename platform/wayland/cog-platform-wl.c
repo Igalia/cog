@@ -140,10 +140,6 @@ static struct {
     .configured = false,
 };
 
-CogWlXkb xkb_data = {
-    NULL,
-};
-
 static struct {
     struct wpe_view_backend_exportable_fdo *exportable;
 } wpe_host_data;
@@ -635,7 +631,9 @@ registry_global (void               *data,
     } else if (strcmp(interface, zwp_fullscreen_shell_v1_interface.name) == 0) {
         s_display.fshell = wl_registry_bind(registry, name, &zwp_fullscreen_shell_v1_interface, 1);
     } else if (strcmp(interface, wl_seat_interface.name) == 0) {
-        s_display.seat = wl_registry_bind(registry, name, &wl_seat_interface, MAX(3, MIN(version, 7)));
+        s_display.seat.seat_name = name;
+        s_display.seat.seat_version = MAX(3, MIN(version, 7));
+        s_display.seat.seat = wl_registry_bind(registry, name, &wl_seat_interface, MAX(3, MIN(version, 7)));
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     } else if (strcmp(interface, zwp_linux_dmabuf_v1_interface.name) == 0) {
         if (version < 3) {
@@ -703,8 +701,8 @@ set_cursor(enum cursor_type type)
      */
     struct wl_cursor_image *image = cursor->images[0];
     struct wl_buffer       *buffer = wl_cursor_image_get_buffer(image);
-    wl_pointer_set_cursor(s_display.pointer_obj,
-                          s_display.pointer_on_enter_event_serial,
+    wl_pointer_set_cursor(s_display.seat.pointer_obj,
+                          s_display.seat.pointer.serial,
                           s_display.cursor_surface,
                           image->hotspot_x,
                           image->hotspot_y);
@@ -722,9 +720,9 @@ pointer_on_enter(void              *data,
                  wl_fixed_t         fixed_x,
                  wl_fixed_t         fixed_y)
 {
-    s_display.keyboard.serial = serial;
-    s_display.pointer_on_enter_event_serial = serial;
-    s_display.pointer.surface = surface;
+    s_display.seat.keyboard.serial = serial;
+    s_display.seat.pointer.serial = serial;
+    s_display.seat.pointer.surface = surface;
 
 #ifdef COG_USE_WAYLAND_CURSOR
     set_cursor(CURSOR_LEFT_PTR);
@@ -734,22 +732,22 @@ pointer_on_enter(void              *data,
 static void
 pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface)
 {
-    s_display.keyboard.serial = serial;
-    s_display.pointer.surface = NULL;
+    s_display.seat.keyboard.serial = serial;
+    s_display.seat.pointer.surface = NULL;
 }
 
 static void
 pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t fixed_x, wl_fixed_t fixed_y)
 {
-    s_display.pointer.x = wl_fixed_to_int(fixed_x);
-    s_display.pointer.y = wl_fixed_to_int(fixed_y);
+    s_display.seat.pointer.x = wl_fixed_to_int(fixed_x);
+    s_display.seat.pointer.y = wl_fixed_to_int(fixed_y);
 
     struct wpe_input_pointer_event event = {wpe_input_pointer_event_type_motion,
                                             time,
-                                            s_display.pointer.x * s_display.current_output->scale,
-                                            s_display.pointer.y * s_display.current_output->scale,
-                                            s_display.pointer.button,
-                                            s_display.pointer.state};
+                                            s_display.seat.pointer.x * s_display.current_output->scale,
+                                            s_display.seat.pointer.y * s_display.current_output->scale,
+                                            s_display.seat.pointer.button,
+                                            s_display.seat.pointer.state};
 
     wpe_view_backend_dispatch_pointer_event(wpe_view_data.backend, &event);
 }
@@ -762,7 +760,7 @@ pointer_on_button(void              *data,
                   uint32_t           button,
                   uint32_t           state)
 {
-    s_display.keyboard.serial = serial;
+    s_display.seat.keyboard.serial = serial;
 
     /* @FIXME: what is this for?
     if (button >= BTN_MOUSE)
@@ -771,20 +769,20 @@ pointer_on_button(void              *data,
         button = 0;
     */
 
-    s_display.pointer.button = !!state ? button : 0;
-    s_display.pointer.state = state;
+    s_display.seat.pointer.button = !!state ? button : 0;
+    s_display.seat.pointer.state = state;
 
     struct wpe_input_pointer_event event = {
         wpe_input_pointer_event_type_button,
         time,
-        s_display.pointer.x * s_display.current_output->scale,
-        s_display.pointer.y * s_display.current_output->scale,
-        s_display.pointer.button,
-        s_display.pointer.state,
+        s_display.seat.pointer.x * s_display.current_output->scale,
+        s_display.seat.pointer.y * s_display.current_output->scale,
+        s_display.seat.pointer.button,
+        s_display.seat.pointer.state,
     };
 
     if (popup_data.wl_surface) {
-        if (s_display.pointer.surface == popup_data.wl_surface) {
+        if (s_display.seat.pointer.surface == popup_data.wl_surface) {
             cog_popup_menu_handle_event(
                 popup_data.popup_menu,
                 !!state ? COG_POPUP_MENU_EVENT_STATE_PRESSED : COG_POPUP_MENU_EVENT_STATE_RELEASED, event.x, event.y);
@@ -802,23 +800,25 @@ pointer_on_button(void              *data,
 static void
 dispatch_axis_event()
 {
-    if (!s_display.axis.has_delta)
+    if (!s_display.seat.axis.has_delta)
         return;
 
-    struct wpe_input_axis_2d_event event = { 0, };
+    struct wpe_input_axis_2d_event event = {
+        0,
+    };
     event.base.type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion_smooth;
-    event.base.time = s_display.axis.time;
-    event.base.x = s_display.pointer.x * s_display.current_output->scale;
-    event.base.y = s_display.pointer.y * s_display.current_output->scale;
+    event.base.time = s_display.seat.axis.time;
+    event.base.x = s_display.seat.pointer.x * s_display.current_output->scale;
+    event.base.y = s_display.seat.pointer.y * s_display.current_output->scale;
 
-    event.x_axis = wl_fixed_to_double(s_display.axis.x_delta) * s_display.current_output->scale;
-    event.y_axis = -wl_fixed_to_double(s_display.axis.y_delta) * s_display.current_output->scale;
+    event.x_axis = wl_fixed_to_double(s_display.seat.axis.x_delta) * s_display.current_output->scale;
+    event.y_axis = -wl_fixed_to_double(s_display.seat.axis.y_delta) * s_display.current_output->scale;
 
     wpe_view_backend_dispatch_axis_event(wpe_view_data.backend, &event.base);
 
-    s_display.axis.has_delta = false;
-    s_display.axis.time = 0;
-    s_display.axis.x_delta = s_display.axis.y_delta = 0;
+    s_display.seat.axis.has_delta = false;
+    s_display.seat.axis.time = 0;
+    s_display.seat.axis.x_delta = s_display.seat.axis.y_delta = 0;
 }
 
 static inline bool
@@ -844,15 +844,15 @@ static void
 pointer_on_axis(void *data, struct wl_pointer *pointer, uint32_t time, uint32_t axis, wl_fixed_t value)
 {
     if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
-        s_display.axis.has_delta = true;
-        s_display.axis.time = time;
-        s_display.axis.y_delta += value * SCROLL_WHEEL_STEP_SCALING_FACTOR;
+        s_display.seat.axis.has_delta = true;
+        s_display.seat.axis.time = time;
+        s_display.seat.axis.y_delta += value * SCROLL_WHEEL_STEP_SCALING_FACTOR;
     }
 
     if (axis == WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
-        s_display.axis.has_delta = true;
-        s_display.axis.time = time;
-        s_display.axis.x_delta += value * SCROLL_WHEEL_STEP_SCALING_FACTOR;
+        s_display.seat.axis.has_delta = true;
+        s_display.seat.axis.time = time;
+        s_display.seat.axis.x_delta += value * SCROLL_WHEEL_STEP_SCALING_FACTOR;
     }
 
     if (!pointer_uses_frame_event(pointer))
@@ -888,45 +888,37 @@ static const struct wl_pointer_listener pointer_listener = {
 };
 
 static void
-keyboard_on_keymap (void *data,
-                    struct wl_keyboard *wl_keyboard,
-                    uint32_t format,
-                    int32_t fd,
-                    uint32_t size)
+keyboard_on_keymap(void *data, struct wl_keyboard *wl_keyboard, uint32_t format, int32_t fd, uint32_t size)
 {
     if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1) {
-        close (fd);
+        close(fd);
         return;
     }
 
-    const int map_mode = wl_seat_get_version(s_display.seat) > 6 ? MAP_PRIVATE : MAP_SHARED;
-    void* mapping = mmap (NULL, size, PROT_READ, map_mode, fd, 0);
+    const int map_mode = wl_seat_get_version(s_display.seat.seat) > 6 ? MAP_PRIVATE : MAP_SHARED;
+    void     *mapping = mmap(NULL, size, PROT_READ, map_mode, fd, 0);
     if (mapping == MAP_FAILED) {
-        close (fd);
+        close(fd);
         return;
     }
 
-    xkb_data.keymap =
-        xkb_keymap_new_from_string (xkb_data.context,
-                                    (char *) mapping,
-                                    XKB_KEYMAP_FORMAT_TEXT_V1,
-                                    XKB_KEYMAP_COMPILE_NO_FLAGS);
-    munmap (mapping, size);
-    close (fd);
+    s_display.seat.xkb.keymap = xkb_keymap_new_from_string(s_display.seat.xkb.context,
+                                                           (char *) mapping,
+                                                           XKB_KEYMAP_FORMAT_TEXT_V1,
+                                                           XKB_KEYMAP_COMPILE_NO_FLAGS);
+    munmap(mapping, size);
+    close(fd);
 
-    if (xkb_data.keymap == NULL)
+    if (s_display.seat.xkb.keymap == NULL)
         return;
 
-    xkb_data.state = xkb_state_new (xkb_data.keymap);
-    if (xkb_data.state == NULL)
+    s_display.seat.xkb.state = xkb_state_new(s_display.seat.xkb.keymap);
+    if (s_display.seat.xkb.state == NULL)
         return;
 
-    xkb_data.indexes.control = xkb_keymap_mod_get_index (xkb_data.keymap,
-                                                         XKB_MOD_NAME_CTRL);
-    xkb_data.indexes.alt = xkb_keymap_mod_get_index (xkb_data.keymap,
-                                                     XKB_MOD_NAME_ALT);
-    xkb_data.indexes.shift = xkb_keymap_mod_get_index (xkb_data.keymap,
-                                                       XKB_MOD_NAME_SHIFT);
+    s_display.seat.xkb.indexes.control = xkb_keymap_mod_get_index(s_display.seat.xkb.keymap, XKB_MOD_NAME_CTRL);
+    s_display.seat.xkb.indexes.alt = xkb_keymap_mod_get_index(s_display.seat.xkb.keymap, XKB_MOD_NAME_ALT);
+    s_display.seat.xkb.indexes.shift = xkb_keymap_mod_get_index(s_display.seat.xkb.keymap, XKB_MOD_NAME_SHIFT);
 }
 
 static void
@@ -936,27 +928,27 @@ keyboard_on_enter(void               *data,
                   struct wl_surface  *surface,
                   struct wl_array    *keys)
 {
-    s_display.keyboard.serial = serial;
+    s_display.seat.keyboard.serial = serial;
 }
 
 static void
 keyboard_on_leave(void *data, struct wl_keyboard *wl_keyboard, uint32_t serial, struct wl_surface *surface)
 {
-    s_display.keyboard.serial = serial;
+    s_display.seat.keyboard.serial = serial;
 }
 
 static void
 handle_key_event(CogWlPlatform *self, uint32_t key, uint32_t state, uint32_t time)
 {
-    if (xkb_data.state == NULL)
+    if (s_display.seat.xkb.state == NULL)
         return;
 
-    uint32_t keysym = xkb_state_key_get_one_sym (xkb_data.state, key);
-    uint32_t unicode = xkb_state_key_get_utf32 (xkb_data.state, key);
+    uint32_t keysym = xkb_state_key_get_one_sym(s_display.seat.xkb.state, key);
+    uint32_t unicode = xkb_state_key_get_utf32(s_display.seat.xkb.state, key);
 
     /* TODO: Move as much as possible from fullscreen handling to common code. */
     if (cog_view_get_use_key_bindings(COG_VIEW(self->web_view)) && state == WL_KEYBOARD_KEY_STATE_PRESSED &&
-        xkb_data.modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F11) {
+        s_display.seat.xkb.modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F11) {
 #if HAVE_FULLSCREEN_HANDLING
         if (win_data.is_fullscreen && win_data.was_fullscreen_requested_from_dom) {
             wpe_view_backend_dispatch_request_exit_fullscreen(wpe_view_data.backend);
@@ -967,16 +959,13 @@ handle_key_event(CogWlPlatform *self, uint32_t key, uint32_t state, uint32_t tim
         return;
     }
 
-    if (xkb_data.compose_state != NULL
-            && state == WL_KEYBOARD_KEY_STATE_PRESSED
-            && xkb_compose_state_feed (xkb_data.compose_state, keysym)
-            == XKB_COMPOSE_FEED_ACCEPTED
-            && xkb_compose_state_get_status (xkb_data.compose_state)
-            == XKB_COMPOSE_COMPOSED) {
-        keysym = xkb_compose_state_get_one_sym (xkb_data.compose_state);
+    if (s_display.seat.xkb.compose_state != NULL && state == WL_KEYBOARD_KEY_STATE_PRESSED &&
+        xkb_compose_state_feed(s_display.seat.xkb.compose_state, keysym) == XKB_COMPOSE_FEED_ACCEPTED &&
+        xkb_compose_state_get_status(s_display.seat.xkb.compose_state) == XKB_COMPOSE_COMPOSED) {
+        keysym = xkb_compose_state_get_one_sym(s_display.seat.xkb.compose_state);
     }
 
-    struct wpe_input_keyboard_event event = {time, keysym, key, state == true, xkb_data.modifiers};
+    struct wpe_input_keyboard_event event = {time, keysym, key, state == true, s_display.seat.xkb.modifiers};
 
     cog_view_handle_key_event(COG_VIEW(self->web_view), &event);
 }
@@ -985,23 +974,23 @@ static gboolean
 repeat_delay_timeout(CogWlPlatform *self)
 {
     handle_key_event(self,
-                     s_display.keyboard.repeat_data.key,
-                     s_display.keyboard.repeat_data.state,
-                     s_display.keyboard.repeat_data.time);
+                     s_display.seat.keyboard.repeat_data.key,
+                     s_display.seat.keyboard.repeat_data.state,
+                     s_display.seat.keyboard.repeat_data.time);
 
-    s_display.keyboard.repeat_data.event_source =
-        g_timeout_add(s_display.keyboard.repeat_info.rate, (GSourceFunc) repeat_delay_timeout, self);
+    s_display.seat.keyboard.repeat_data.event_source =
+        g_timeout_add(s_display.seat.keyboard.repeat_info.rate, (GSourceFunc) repeat_delay_timeout, self);
 
     return G_SOURCE_REMOVE;
 }
 
 static void
-keyboard_on_key (void *data,
-                 struct wl_keyboard *wl_keyboard,
-                 uint32_t serial,
-                 uint32_t time,
-                 uint32_t key,
-                 uint32_t state)
+keyboard_on_key(void               *data,
+                struct wl_keyboard *wl_keyboard,
+                uint32_t            serial,
+                uint32_t            time,
+                uint32_t            key,
+                uint32_t            state)
 {
     CogWlPlatform *self = data;
 
@@ -1016,76 +1005,69 @@ keyboard_on_key (void *data,
     // https://xkbcommon.org/doc/current/xkbcommon_8h.html
     key += 8;
 
-    s_display.keyboard.serial = serial;
+    s_display.seat.keyboard.serial = serial;
     handle_key_event(self, key, state, time);
 
-    if (s_display.keyboard.repeat_info.rate == 0)
+    if (s_display.seat.keyboard.repeat_info.rate == 0)
         return;
 
-    if (state == WL_KEYBOARD_KEY_STATE_RELEASED && s_display.keyboard.repeat_data.key == key) {
-        if (s_display.keyboard.repeat_data.event_source)
-            g_source_remove(s_display.keyboard.repeat_data.event_source);
+    if (state == WL_KEYBOARD_KEY_STATE_RELEASED && s_display.seat.keyboard.repeat_data.key == key) {
+        if (s_display.seat.keyboard.repeat_data.event_source)
+            g_source_remove(s_display.seat.keyboard.repeat_data.event_source);
 
-        memset(&s_display.keyboard.repeat_data, 0x00, sizeof(s_display.keyboard.repeat_data));
-    } else if (xkb_data.keymap != NULL && state == WL_KEYBOARD_KEY_STATE_PRESSED &&
-               xkb_keymap_key_repeats(xkb_data.keymap, key)) {
-        if (s_display.keyboard.repeat_data.event_source)
-            g_source_remove(s_display.keyboard.repeat_data.event_source);
+        memset(&s_display.seat.keyboard.repeat_data, 0x00, sizeof(s_display.seat.keyboard.repeat_data));
+    } else if (s_display.seat.xkb.keymap != NULL && state == WL_KEYBOARD_KEY_STATE_PRESSED &&
+               xkb_keymap_key_repeats(s_display.seat.xkb.keymap, key)) {
+        if (s_display.seat.keyboard.repeat_data.event_source)
+            g_source_remove(s_display.seat.keyboard.repeat_data.event_source);
 
-        s_display.keyboard.repeat_data.key = key;
-        s_display.keyboard.repeat_data.time = time;
-        s_display.keyboard.repeat_data.state = state;
-        s_display.keyboard.repeat_data.event_source =
-            g_timeout_add(s_display.keyboard.repeat_info.delay, (GSourceFunc) repeat_delay_timeout, self);
+        s_display.seat.keyboard.repeat_data.key = key;
+        s_display.seat.keyboard.repeat_data.time = time;
+        s_display.seat.keyboard.repeat_data.state = state;
+        s_display.seat.keyboard.repeat_data.event_source =
+            g_timeout_add(s_display.seat.keyboard.repeat_info.delay, (GSourceFunc) repeat_delay_timeout, self);
     }
 }
 
 static void
-keyboard_on_modifiers (void *data,
-                       struct wl_keyboard *wl_keyboard,
-                       uint32_t serial,
-                       uint32_t mods_depressed,
-                       uint32_t mods_latched,
-                       uint32_t mods_locked,
-                       uint32_t group)
+keyboard_on_modifiers(void               *data,
+                      struct wl_keyboard *wl_keyboard,
+                      uint32_t            serial,
+                      uint32_t            mods_depressed,
+                      uint32_t            mods_latched,
+                      uint32_t            mods_locked,
+                      uint32_t            group)
 {
-    if (xkb_data.state == NULL)
+    if (s_display.seat.xkb.state == NULL)
         return;
-    s_display.keyboard.serial = serial;
+    s_display.seat.keyboard.serial = serial;
 
-    xkb_state_update_mask(xkb_data.state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
+    xkb_state_update_mask(s_display.seat.xkb.state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
 
-    xkb_data.modifiers = 0;
+    s_display.seat.xkb.modifiers = 0;
     uint32_t component = (XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_LATCHED);
 
-    if (xkb_state_mod_index_is_active(xkb_data.state, xkb_data.indexes.control, component)) {
-        xkb_data.modifiers |= wpe_input_keyboard_modifier_control;
+    if (xkb_state_mod_index_is_active(s_display.seat.xkb.state, s_display.seat.xkb.indexes.control, component)) {
+        s_display.seat.xkb.modifiers |= wpe_input_keyboard_modifier_control;
     }
-    if (xkb_state_mod_index_is_active (xkb_data.state,
-                                       xkb_data.indexes.alt,
-                                       component)) {
-        xkb_data.modifiers |= wpe_input_keyboard_modifier_alt;
+    if (xkb_state_mod_index_is_active(s_display.seat.xkb.state, s_display.seat.xkb.indexes.alt, component)) {
+        s_display.seat.xkb.modifiers |= wpe_input_keyboard_modifier_alt;
     }
-    if (xkb_state_mod_index_is_active (xkb_data.state,
-                                       xkb_data.indexes.shift,
-                                       component)) {
-        xkb_data.modifiers |= wpe_input_keyboard_modifier_shift;
+    if (xkb_state_mod_index_is_active(s_display.seat.xkb.state, s_display.seat.xkb.indexes.shift, component)) {
+        s_display.seat.xkb.modifiers |= wpe_input_keyboard_modifier_shift;
     }
 }
 
 static void
-keyboard_on_repeat_info (void *data,
-                         struct wl_keyboard *wl_keyboard,
-                         int32_t rate,
-                         int32_t delay)
+keyboard_on_repeat_info(void *data, struct wl_keyboard *wl_keyboard, int32_t rate, int32_t delay)
 {
-    s_display.keyboard.repeat_info.rate = rate;
-    s_display.keyboard.repeat_info.delay = delay;
+    s_display.seat.keyboard.repeat_info.rate = rate;
+    s_display.seat.keyboard.repeat_info.delay = delay;
 
     /* a rate of zero disables any repeating. */
-    if (rate == 0 && s_display.keyboard.repeat_data.event_source > 0) {
-        g_source_remove(s_display.keyboard.repeat_data.event_source);
-        memset(&s_display.keyboard.repeat_data, 0x00, sizeof(s_display.keyboard.repeat_data));
+    if (rate == 0 && s_display.seat.keyboard.repeat_data.event_source > 0) {
+        g_source_remove(s_display.seat.keyboard.repeat_data.event_source);
+        memset(&s_display.seat.keyboard.repeat_data, 0x00, sizeof(s_display.seat.keyboard.repeat_data));
     }
 }
 
@@ -1108,8 +1090,8 @@ touch_on_down(void              *data,
               wl_fixed_t         x,
               wl_fixed_t         y)
 {
-    s_display.touch.surface = surface;
-    s_display.keyboard.serial = serial;
+    s_display.seat.touch.surface = surface;
+    s_display.seat.keyboard.serial = serial;
 
     if (id < 0 || id >= 10)
         return;
@@ -1122,45 +1104,36 @@ touch_on_down(void              *data,
         wl_fixed_to_int(y) * s_display.current_output->scale,
     };
 
-    memcpy(&s_display.touch.points[id], &raw_event, sizeof(struct wpe_input_touch_event_raw));
+    memcpy(&s_display.seat.touch.points[id], &raw_event, sizeof(struct wpe_input_touch_event_raw));
 
     if (popup_data.wl_surface) {
-        if (s_display.touch.surface == popup_data.wl_surface) {
+        if (s_display.seat.touch.surface == popup_data.wl_surface) {
             cog_popup_menu_handle_event(popup_data.popup_menu, COG_POPUP_MENU_EVENT_STATE_PRESSED, raw_event.x,
                                         raw_event.y);
-            update_popup ();
+            update_popup();
             return;
         } else
-            destroy_popup ();
+            destroy_popup();
     }
 
-    struct wpe_input_touch_event event = {
-        s_display.touch.points,
-        10,
-        raw_event.type,
-        raw_event.id,
-        raw_event.time
-    };
+    struct wpe_input_touch_event event = {s_display.seat.touch.points, 10, raw_event.type, raw_event.id,
+                                          raw_event.time};
 
-    wpe_view_backend_dispatch_touch_event (wpe_view_data.backend, &event);
+    wpe_view_backend_dispatch_touch_event(wpe_view_data.backend, &event);
 }
 
 static void
-touch_on_up (void *data,
-             struct wl_touch *touch,
-             uint32_t serial,
-             uint32_t time,
-             int32_t id)
+touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, int32_t id)
 {
-    struct wl_surface *target_surface = s_display.touch.surface;
-    s_display.touch.surface = NULL;
-    s_display.keyboard.serial = serial;
+    struct wl_surface *target_surface = s_display.seat.touch.surface;
+    s_display.seat.touch.surface = NULL;
+    s_display.seat.keyboard.serial = serial;
 
     if (id < 0 || id >= 10)
         return;
 
     struct wpe_input_touch_event_raw raw_event = {
-        wpe_input_touch_event_type_up, time, id, s_display.touch.points[id].x, s_display.touch.points[id].y,
+        wpe_input_touch_event_type_up, time, id, s_display.seat.touch.points[id].x, s_display.seat.touch.points[id].y,
     };
 
     if (popup_data.wl_surface) {
@@ -1169,27 +1142,23 @@ touch_on_up (void *data,
                                         raw_event.y);
             update_popup();
 
-            memset(&s_display.touch.points[id], 0x00, sizeof(struct wpe_input_touch_event_raw));
+            memset(&s_display.seat.touch.points[id], 0x00, sizeof(struct wpe_input_touch_event_raw));
             return;
         }
     }
 
-    memcpy(&s_display.touch.points[id], &raw_event, sizeof(struct wpe_input_touch_event_raw));
+    memcpy(&s_display.seat.touch.points[id], &raw_event, sizeof(struct wpe_input_touch_event_raw));
 
-    struct wpe_input_touch_event event = {s_display.touch.points, 10, raw_event.type, raw_event.id, raw_event.time};
+    struct wpe_input_touch_event event = {s_display.seat.touch.points, 10, raw_event.type, raw_event.id,
+                                          raw_event.time};
 
     wpe_view_backend_dispatch_touch_event(wpe_view_data.backend, &event);
 
-    memset(&s_display.touch.points[id], 0x00, sizeof(struct wpe_input_touch_event_raw));
+    memset(&s_display.seat.touch.points[id], 0x00, sizeof(struct wpe_input_touch_event_raw));
 }
 
 static void
-touch_on_motion (void *data,
-                 struct wl_touch *touch,
-                 uint32_t time,
-                 int32_t id,
-                 wl_fixed_t x,
-                 wl_fixed_t y)
+touch_on_motion(void *data, struct wl_touch *touch, uint32_t time, int32_t id, wl_fixed_t x, wl_fixed_t y)
 {
     if (id < 0 || id >= 10)
         return;
@@ -1202,21 +1171,22 @@ touch_on_motion (void *data,
         wl_fixed_to_int(y) * s_display.current_output->scale,
     };
 
-    memcpy(&s_display.touch.points[id], &raw_event, sizeof(struct wpe_input_touch_event_raw));
+    memcpy(&s_display.seat.touch.points[id], &raw_event, sizeof(struct wpe_input_touch_event_raw));
 
-    struct wpe_input_touch_event event = {s_display.touch.points, 10, raw_event.type, raw_event.id, raw_event.time};
+    struct wpe_input_touch_event event = {s_display.seat.touch.points, 10, raw_event.type, raw_event.id,
+                                          raw_event.time};
 
-    wpe_view_backend_dispatch_touch_event (wpe_view_data.backend, &event);
+    wpe_view_backend_dispatch_touch_event(wpe_view_data.backend, &event);
 }
 
 static void
-touch_on_frame (void *data, struct wl_touch *touch)
+touch_on_frame(void *data, struct wl_touch *touch)
 {
     /* @FIXME: buffer touch events and handle them here */
 }
 
 static void
-touch_on_cancel (void *data, struct wl_touch *touch)
+touch_on_cancel(void *data, struct wl_touch *touch)
 {
 }
 
@@ -1235,38 +1205,38 @@ seat_on_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities)
 
     /* Pointer */
     const bool has_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
-    if (has_pointer && s_display.pointer_obj == NULL) {
-        s_display.pointer_obj = wl_seat_get_pointer(s_display.seat);
-        g_assert(s_display.pointer_obj);
-        wl_pointer_add_listener(s_display.pointer_obj, &pointer_listener, NULL);
+    if (has_pointer && s_display.seat.pointer_obj == NULL) {
+        s_display.seat.pointer_obj = wl_seat_get_pointer(s_display.seat.seat);
+        g_assert(s_display.seat.pointer_obj);
+        wl_pointer_add_listener(s_display.seat.pointer_obj, &pointer_listener, NULL);
         g_debug("  - Pointer");
-    } else if (!has_pointer && s_display.pointer_obj != NULL) {
-        wl_pointer_release(s_display.pointer_obj);
-        s_display.pointer_obj = NULL;
+    } else if (!has_pointer && s_display.seat.pointer_obj != NULL) {
+        wl_pointer_release(s_display.seat.pointer_obj);
+        s_display.seat.pointer_obj = NULL;
     }
 
     /* Keyboard */
     const bool has_keyboard = capabilities & WL_SEAT_CAPABILITY_KEYBOARD;
-    if (has_keyboard && s_display.keyboard_obj == NULL) {
-        s_display.keyboard_obj = wl_seat_get_keyboard(s_display.seat);
-        g_assert(s_display.keyboard_obj);
-        wl_keyboard_add_listener(s_display.keyboard_obj, &keyboard_listener, data);
+    if (has_keyboard && s_display.seat.keyboard_obj == NULL) {
+        s_display.seat.keyboard_obj = wl_seat_get_keyboard(s_display.seat.seat);
+        g_assert(s_display.seat.keyboard_obj);
+        wl_keyboard_add_listener(s_display.seat.keyboard_obj, &keyboard_listener, data);
         g_debug("  - Keyboard");
-    } else if (!has_keyboard && s_display.keyboard_obj != NULL) {
-        wl_keyboard_release(s_display.keyboard_obj);
-        s_display.keyboard_obj = NULL;
+    } else if (!has_keyboard && s_display.seat.keyboard_obj != NULL) {
+        wl_keyboard_release(s_display.seat.keyboard_obj);
+        s_display.seat.keyboard_obj = NULL;
     }
 
     /* Touch */
     const bool has_touch = capabilities & WL_SEAT_CAPABILITY_TOUCH;
-    if (has_touch && s_display.touch_obj == NULL) {
-        s_display.touch_obj = wl_seat_get_touch(s_display.seat);
-        g_assert(s_display.touch_obj);
-        wl_touch_add_listener(s_display.touch_obj, &touch_listener, NULL);
+    if (has_touch && s_display.seat.touch_obj == NULL) {
+        s_display.seat.touch_obj = wl_seat_get_touch(s_display.seat.seat);
+        g_assert(s_display.seat.touch_obj);
+        wl_touch_add_listener(s_display.seat.touch_obj, &touch_listener, NULL);
         g_debug("  - Touch");
-    } else if (!has_touch && s_display.touch_obj != NULL) {
-        wl_touch_release(s_display.touch_obj);
-        s_display.touch_obj = NULL;
+    } else if (!has_touch && s_display.seat.touch_obj != NULL) {
+        wl_touch_release(s_display.seat.touch_obj);
+        s_display.seat.touch_obj = NULL;
     }
 
     g_debug("Done enumerating seat capabilities.");
@@ -2080,17 +2050,17 @@ create_popup (WebKitOptionMenu *option_menu)
         popup_data.xdg_popup = xdg_surface_get_popup (popup_data.xdg_surface,
                                                       win_data.xdg_surface,
                                                       popup_data.xdg_positioner);
-        g_assert (popup_data.xdg_popup);
+        g_assert(popup_data.xdg_popup);
 
         xdg_popup_add_listener(popup_data.xdg_popup, &xdg_popup_listener, NULL);
-        xdg_popup_grab(popup_data.xdg_popup, s_display.seat, s_display.keyboard.serial);
+        xdg_popup_grab(popup_data.xdg_popup, s_display.seat.seat, s_display.seat.keyboard.serial);
         wl_surface_commit(popup_data.wl_surface);
     } else if (s_display.shell != NULL) {
         popup_data.shell_surface = wl_shell_get_shell_surface(s_display.shell, popup_data.wl_surface);
         g_assert(popup_data.shell_surface);
 
         wl_shell_surface_add_listener(popup_data.shell_surface, &shell_popup_surface_listener, NULL);
-        wl_shell_surface_set_popup(popup_data.shell_surface, s_display.seat, s_display.keyboard.serial,
+        wl_shell_surface_set_popup(popup_data.shell_surface, s_display.seat.seat, s_display.seat.keyboard.serial,
                                    win_data.wl_surface, 0, (win_data.height - popup_data.height), 0);
 
         display_popup();
@@ -2147,27 +2117,27 @@ update_popup(void)
 static gboolean
 init_input(CogWlPlatform *self, GError **error)
 {
-    if (s_display.seat != NULL) {
-        wl_seat_add_listener(s_display.seat, &seat_listener, self);
+    if (s_display.seat.seat != NULL) {
+        wl_seat_add_listener(s_display.seat.seat, &seat_listener, self);
 
-        xkb_data.context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-        g_assert(xkb_data.context);
-        xkb_data.compose_table =
-            xkb_compose_table_new_from_locale (xkb_data.context,
-                                               setlocale (LC_CTYPE, NULL),
-                                               XKB_COMPOSE_COMPILE_NO_FLAGS);
-        if (xkb_data.compose_table != NULL) {
-            xkb_data.compose_state = xkb_compose_state_new(xkb_data.compose_table, XKB_COMPOSE_STATE_NO_FLAGS);
+        s_display.seat.xkb.context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+        g_assert(s_display.seat.xkb.context);
+        s_display.seat.xkb.compose_table = xkb_compose_table_new_from_locale(s_display.seat.xkb.context,
+                                                                             setlocale(LC_CTYPE, NULL),
+                                                                             XKB_COMPOSE_COMPILE_NO_FLAGS);
+        if (s_display.seat.xkb.compose_table != NULL) {
+            s_display.seat.xkb.compose_state =
+                xkb_compose_state_new(s_display.seat.xkb.compose_table, XKB_COMPOSE_STATE_NO_FLAGS);
         }
 
         if (s_display.text_input_manager != NULL) {
             struct zwp_text_input_v3 *text_input =
-                zwp_text_input_manager_v3_get_text_input(s_display.text_input_manager, s_display.seat);
+                zwp_text_input_manager_v3_get_text_input(s_display.text_input_manager, s_display.seat.seat);
             cog_im_context_wl_set_text_input(text_input);
         } else if (s_display.text_input_manager_v1 != NULL) {
             struct zwp_text_input_v1 *text_input =
                 zwp_text_input_manager_v1_create_text_input(s_display.text_input_manager_v1);
-            cog_im_context_wl_v1_set_text_input(text_input, s_display.seat, win_data.wl_surface);
+            cog_im_context_wl_v1_set_text_input(text_input, s_display.seat.seat, win_data.wl_surface);
         }
     }
 
@@ -2177,20 +2147,20 @@ init_input(CogWlPlatform *self, GError **error)
 static void
 clear_input(void)
 {
-    g_clear_pointer(&s_display.pointer_obj, wl_pointer_destroy);
-    g_clear_pointer(&s_display.keyboard_obj, wl_keyboard_destroy);
-    g_clear_pointer(&s_display.seat, wl_seat_destroy);
+    g_clear_pointer(&s_display.seat.pointer_obj, wl_pointer_destroy);
+    g_clear_pointer(&s_display.seat.keyboard_obj, wl_keyboard_destroy);
+    g_clear_pointer(&s_display.seat.seat, wl_seat_destroy);
 
     cog_im_context_wl_set_text_input(NULL);
     g_clear_pointer(&s_display.text_input_manager, zwp_text_input_manager_v3_destroy);
     cog_im_context_wl_v1_set_text_input(NULL, NULL, NULL);
     g_clear_pointer(&s_display.text_input_manager_v1, zwp_text_input_manager_v1_destroy);
 
-    g_clear_pointer(&xkb_data.state, xkb_state_unref);
-    g_clear_pointer(&xkb_data.compose_state, xkb_compose_state_unref);
-    g_clear_pointer(&xkb_data.compose_table, xkb_compose_table_unref);
-    g_clear_pointer(&xkb_data.keymap, xkb_keymap_unref);
-    g_clear_pointer(&xkb_data.context, xkb_context_unref);
+    g_clear_pointer(&s_display.seat.xkb.state, xkb_state_unref);
+    g_clear_pointer(&s_display.seat.xkb.compose_state, xkb_compose_state_unref);
+    g_clear_pointer(&s_display.seat.xkb.compose_table, xkb_compose_table_unref);
+    g_clear_pointer(&s_display.seat.xkb.keymap, xkb_keymap_unref);
+    g_clear_pointer(&s_display.seat.xkb.context, xkb_context_unref);
 }
 
 static void
