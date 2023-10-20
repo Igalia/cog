@@ -1321,7 +1321,7 @@ static void
 request_frame (void)
 {
     if (wpe_view_data.frame_callback == NULL) {
-        wpe_view_data.frame_callback = wl_surface_frame (win_data.wl_surface);
+        wpe_view_data.frame_callback = wl_surface_frame(win_data.wl_surface);
         wl_callback_add_listener(wpe_view_data.frame_callback, &frame_listener, NULL);
     }
 
@@ -1416,8 +1416,8 @@ on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
     static PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL
         s_eglCreateWaylandBufferFromImageWL;
     if (s_eglCreateWaylandBufferFromImageWL == NULL) {
-        s_eglCreateWaylandBufferFromImageWL = (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL)
-            load_egl_proc_address ("eglCreateWaylandBufferFromImageWL");
+        s_eglCreateWaylandBufferFromImageWL =
+            (PFNEGLCREATEWAYLANDBUFFERFROMIMAGEWL) load_egl_proc_address("eglCreateWaylandBufferFromImageWL");
         g_assert(s_eglCreateWaylandBufferFromImageWL);
     }
 
@@ -1426,7 +1426,7 @@ on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
     g_assert(wpe_view_data.buffer);
     wl_buffer_add_listener(wpe_view_data.buffer, &buffer_listener, image);
 
-    wl_surface_attach (win_data.wl_surface, wpe_view_data.buffer, 0, 0);
+    wl_surface_attach(win_data.wl_surface, wpe_view_data.buffer, 0, 0);
     wl_surface_damage(win_data.wl_surface, 0, 0, surface_pixel_width, surface_pixel_height);
 
     request_frame ();
@@ -1537,8 +1537,8 @@ shm_buffer_copy_contents (struct shm_buffer *buffer, struct wl_shm_buffer *expor
 static void
 on_export_shm_buffer (void* data, struct wpe_fdo_shm_exported_buffer* exported_buffer)
 {
-    struct wl_resource *exported_resource = wpe_fdo_shm_exported_buffer_get_resource (exported_buffer);
-    struct wl_shm_buffer *exported_shm_buffer = wpe_fdo_shm_exported_buffer_get_shm_buffer (exported_buffer);
+    struct wl_resource   *exported_resource = wpe_fdo_shm_exported_buffer_get_resource(exported_buffer);
+    struct wl_shm_buffer *exported_shm_buffer = wpe_fdo_shm_exported_buffer_get_shm_buffer(exported_buffer);
 
     const uint32_t surface_pixel_width = s_display.current_output->scale * win_data.width;
     const uint32_t surface_pixel_height = s_display.current_output->scale * win_data.height;
@@ -1567,7 +1567,7 @@ on_export_shm_buffer (void* data, struct wpe_fdo_shm_exported_buffer* exported_b
             height = wl_shm_buffer_get_height(exported_shm_buffer);
         }
         int32_t stride = wl_shm_buffer_get_stride (exported_shm_buffer);
-        uint32_t format = wl_shm_buffer_get_format (exported_shm_buffer);
+        uint32_t format = wl_shm_buffer_get_format(exported_shm_buffer);
 
         size_t size = stride * height;
         buffer = shm_buffer_create(exported_resource, size);
@@ -1662,7 +1662,7 @@ on_video_plane_display_dmabuf_receiver_handle_dmabuf (void* data, struct wpe_vid
             weston_protected_surface_enforce(surf->protected_surface);
         }
 #    endif
-        g_hash_table_insert (win_data.video_surfaces, GUINT_TO_POINTER (id), surf);
+        g_hash_table_insert(win_data.video_surfaces, GUINT_TO_POINTER(id), surf);
     }
 
     zwp_linux_buffer_params_v1_add (params, fd, 0, 0, stride, modifier >> 32, modifier & 0xffffffff);
@@ -1688,9 +1688,9 @@ on_video_plane_display_dmabuf_receiver_handle_dmabuf (void* data, struct wpe_vid
     wl_buffer_add_listener (buffer->buffer, &dmabuf_buffer_listener, buffer);
 
     wl_surface_attach (surf->wl_surface, buffer->buffer, 0, 0);
-    wl_surface_damage (surf->wl_surface, 0, 0, buffer->width, buffer->height);
+    wl_surface_damage(surf->wl_surface, 0, 0, buffer->width, buffer->height);
 
-    struct wl_callback *callback = wl_surface_frame (surf->wl_surface);
+    struct wl_callback *callback = wl_surface_frame(surf->wl_surface);
     wl_callback_add_listener(callback, &dmabuf_frame_listener, NULL);
 
     if (!surf->wl_subsurface) {
@@ -1699,7 +1699,7 @@ on_video_plane_display_dmabuf_receiver_handle_dmabuf (void* data, struct wpe_vid
         wl_subsurface_set_sync(surf->wl_subsurface);
     }
 
-    wl_subsurface_set_position (surf->wl_subsurface, buffer->x, buffer->y);
+    wl_subsurface_set_position(surf->wl_subsurface, buffer->x, buffer->y);
     wl_surface_commit (surf->wl_surface);
 }
 
@@ -1716,7 +1716,7 @@ static const struct wpe_video_plane_display_dmabuf_receiver video_plane_display_
 #endif
 
 static gboolean
-init_wayland (GError **error)
+init_wayland(GError **error)
 {
     g_debug("Initializing Wayland...");
 
@@ -1872,9 +1872,8 @@ cog_wl_platform_is_supported(void)
 static void clear_egl (void);
 static void destroy_window (void);
 
-
 static gboolean
-init_egl (GError **error)
+init_egl(GError **error)
 {
     g_debug("Initializing EGL...");
 
@@ -1890,7 +1889,7 @@ init_egl (GError **error)
         clear_egl();
         return FALSE;
     }
-    g_info ("EGL version %d.%d initialized.", major, minor);
+    g_info("EGL version %d.%d initialized.", major, minor);
 
     return TRUE;
 }
@@ -1906,7 +1905,7 @@ clear_egl(void)
 }
 
 static gboolean
-create_window (GError **error)
+create_window(GError **error)
 {
     g_debug("Creating Wayland surface...");
 
@@ -1914,7 +1913,7 @@ create_window (GError **error)
     g_assert(win_data.wl_surface);
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
-    win_data.video_surfaces = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, destroy_video_surface);
+    win_data.video_surfaces = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, destroy_video_surface);
 #endif
 
     wl_surface_add_listener(win_data.wl_surface, &surface_listener, NULL);
@@ -1923,10 +1922,8 @@ create_window (GError **error)
         win_data.xdg_surface = xdg_wm_base_get_xdg_surface(s_display.xdg_shell, win_data.wl_surface);
         g_assert(win_data.xdg_surface);
 
-        xdg_surface_add_listener (win_data.xdg_surface, &xdg_surface_listener,
-                                  NULL);
-        win_data.xdg_toplevel =
-            xdg_surface_get_toplevel (win_data.xdg_surface);
+        xdg_surface_add_listener(win_data.xdg_surface, &xdg_surface_listener, NULL);
+        win_data.xdg_toplevel = xdg_surface_get_toplevel(win_data.xdg_surface);
         g_assert(win_data.xdg_toplevel);
 
         xdg_toplevel_add_listener (win_data.xdg_toplevel,
@@ -2044,12 +2041,9 @@ create_popup (WebKitOptionMenu *option_menu)
         popup_data.xdg_surface = xdg_wm_base_get_xdg_surface(s_display.xdg_shell, popup_data.wl_surface);
         g_assert(popup_data.xdg_surface);
 
-        xdg_surface_add_listener (popup_data.xdg_surface,
-                                  &xdg_surface_listener,
-                                  NULL);
-        popup_data.xdg_popup = xdg_surface_get_popup (popup_data.xdg_surface,
-                                                      win_data.xdg_surface,
-                                                      popup_data.xdg_positioner);
+        xdg_surface_add_listener(popup_data.xdg_surface, &xdg_surface_listener, NULL);
+        popup_data.xdg_popup =
+            xdg_surface_get_popup(popup_data.xdg_surface, win_data.xdg_surface, popup_data.xdg_positioner);
         g_assert(popup_data.xdg_popup);
 
         xdg_popup_add_listener(popup_data.xdg_popup, &xdg_popup_listener, NULL);
@@ -2306,7 +2300,7 @@ cog_wl_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_v
 static void
 on_show_option_menu(WebKitWebView *view, WebKitOptionMenu *menu, WebKitRectangle *rectangle, gpointer *data)
 {
-    create_popup (g_object_ref (menu));
+    create_popup(g_object_ref(menu));
 }
 
 #if COG_HAVE_LIBPORTAL
