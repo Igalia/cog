@@ -10,7 +10,12 @@
 
 #include "../../core/cog.h"
 
+#include "cog-utils-wl.h"
+#include "cog-view-wl.h"
+
 G_BEGIN_DECLS
+
+typedef struct _CogWlView CogWlView;
 
 G_DECLARE_FINAL_TYPE(CogWlPlatform, cog_wl_platform, COG, WL_PLATFORM, CogPlatform)
 
@@ -19,8 +24,18 @@ struct _CogWlPlatformClass {
 };
 
 struct _CogWlPlatform {
-    CogPlatform    parent;
-    WebKitWebView *web_view;
+    CogPlatform   parent;
+    CogWlDisplay *display;
+    CogWlView    *view;
+    CogWlWindow   window;
 };
+
+/*
+ * Method declarations.
+ */
+
+void cog_wl_platform_popup_create(CogWlPlatform *platform, WebKitOptionMenu *);
+
+bool cog_wl_platform_set_fullscreen(CogWlPlatform *platform, bool fullscreen);
 
 G_END_DECLS
