@@ -11,6 +11,7 @@
 
 #include "../../core/cog.h"
 
+#include <wayland-server.h>
 #include <wayland-util.h>
 #include <xkbcommon/xkbcommon.h>
 
@@ -38,6 +39,7 @@ typedef struct _CogWlOutput   CogWlOutput;
 typedef struct _CogWlPointer  CogWlPointer;
 typedef struct _CogWlSeat     CogWlSeat;
 typedef struct _CogWlTouch    CogWlTouch;
+typedef struct _CogWlWindow   CogWlWindow;
 typedef struct _CogWlXkb      CogWlXkb;
 
 struct _CogWlAxis {
@@ -85,6 +87,35 @@ struct _CogWlPointer {
 struct _CogWlTouch {
     struct wl_surface               *surface;
     struct wpe_input_touch_event_raw points[10];
+};
+
+struct _CogWlWindow {
+    struct wl_surface *wl_surface;
+
+#if COG_ENABLE_WESTON_DIRECT_DISPLAY
+    GHashTable *video_surfaces;
+#endif
+
+    struct xdg_surface      *xdg_surface;
+    struct xdg_toplevel     *xdg_toplevel;
+    struct wl_shell_surface *shell_surface;
+
+#if COG_HAVE_LIBPORTAL
+    struct xdp_parent_wl_data xdp_parent_wl_data;
+#endif /* COG_HAVE_LIBPORTAL */
+
+    uint32_t width;
+    uint32_t height;
+    uint32_t width_before_fullscreen;
+    uint32_t height_before_fullscreen;
+
+    bool is_fullscreen;
+#if HAVE_FULLSCREEN_HANDLING
+    bool was_fullscreen_requested_from_dom;
+#endif
+    bool is_resizing_fullscreen;
+    bool is_maximized;
+    bool should_resize_to_largest_output;
 };
 
 struct _CogWlXkb {
@@ -135,6 +166,8 @@ struct shm_buffer {
     void               *data;
     size_t              size;
     struct wl_buffer   *buffer;
+
+    void *user_data;
 };
 #endif
 
@@ -207,8 +240,6 @@ struct _CogWlDisplay {
     struct wp_presentation *presentation;
 
     GSource *event_src;
-
-    struct wl_list shm_buffer_list;
 };
 
 #endif /* !COG_PLATFORM_WL_UTILS_H */
