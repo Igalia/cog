@@ -1399,7 +1399,7 @@ on_video_plane_display_dmabuf_receiver_handle_dmabuf(void                       
     buffer->dmabuf_export = dmabuf_export;
     wl_buffer_add_listener (buffer->buffer, &dmabuf_buffer_listener, buffer);
 
-    wl_surface_attach (surf->wl_surface, buffer->buffer, 0, 0);
+    wl_surface_attach(surf->wl_surface, buffer->buffer, 0, 0);
     wl_surface_damage(surf->wl_surface, 0, 0, buffer->width, buffer->height);
 
     struct wl_callback *callback = wl_surface_frame(surf->wl_surface);
