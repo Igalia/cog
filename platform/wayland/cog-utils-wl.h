@@ -6,8 +6,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#ifndef COG_PLATFORM_WL_UTILS_H
-#define COG_PLATFORM_WL_UTILS_H
+#pragma once
 
 #include "../../core/cog.h"
 
@@ -18,6 +17,8 @@
 #include <wayland-server.h>
 #include <wayland-util.h>
 #include <xkbcommon/xkbcommon.h>
+
+G_BEGIN_DECLS
 
 #define DEFAULT_HEIGHT 768
 #define DEFAULT_WIDTH  1024
@@ -45,6 +46,8 @@ typedef struct _CogWlSeat     CogWlSeat;
 typedef struct _CogWlTouch    CogWlTouch;
 typedef struct _CogWlWindow   CogWlWindow;
 typedef struct _CogWlXkb      CogWlXkb;
+
+typedef struct _CogWlPlatform CogWlPlatform;
 
 struct _CogWlAxis {
     bool       has_delta;
@@ -91,6 +94,7 @@ struct _CogWlPointer {
 struct _CogWlTouch {
     struct wl_surface               *surface;
     struct wpe_input_touch_event_raw points[10];
+    uint32_t                         serial;
 };
 
 struct _CogWlWindow {
@@ -139,9 +143,10 @@ struct _CogWlXkb {
 };
 
 struct _CogWlSeat {
+    CogWlDisplay *display; /* Reference to the CogWlDisplay*/
+
     struct wl_seat *seat;
     uint32_t        seat_name;
-    uint32_t        seat_version;
 
     CogWlAxis axis;
 
@@ -155,6 +160,8 @@ struct _CogWlSeat {
     struct wl_touch *touch_obj;
 
     CogWlXkb xkb;
+
+    struct wl_list link;
 };
 
 #if HAVE_SHM_EXPORTED_BUFFER
@@ -217,7 +224,8 @@ struct _CogWlDisplay {
     struct zwp_fullscreen_shell_v1 *fshell;
     struct wl_shell                *shell;
 
-    CogWlSeat seat;
+    CogWlSeat     *seat_default;
+    struct wl_list seats; /* wl_list<CogWlSeat> */
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     struct zwp_linux_dmabuf_v1      *dmabuf;
@@ -245,7 +253,16 @@ struct _CogWlDisplay {
     GSource *event_src;
 };
 
+void          cog_wl_display_add_seat(CogWlDisplay *, CogWlSeat *);
 CogWlDisplay *cog_wl_display_create(const char *name, GError **error);
 void          cog_wl_display_destroy(CogWlDisplay *self);
 
-#endif /* !COG_PLATFORM_WL_UTILS_H */
+CogWlSeat *cog_wl_seat_create(struct wl_seat *, uint32_t);
+void       cog_wl_seat_destroy(CogWlSeat *);
+void       cog_wl_seat_set_cursor(CogWlSeat *, enum cursor_type);
+uint32_t   cog_wl_seat_get_serial(CogWlSeat *);
+
+void cog_wl_text_input_clear(CogWlPlatform *);
+void cog_wl_text_input_set(CogWlPlatform *, CogWlSeat *);
+
+G_END_DECLS
