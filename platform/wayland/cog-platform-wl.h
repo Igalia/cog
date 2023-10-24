@@ -37,6 +37,5 @@ struct _CogWlPlatform {
 void cog_wl_platform_popup_create(CogWlPlatform *platform, WebKitOptionMenu *);
 
 bool cog_wl_platform_set_fullscreen(CogWlPlatform *platform, bool fullscreen);
-void cog_wl_platform_set_cursor(CogWlPlatform *, enum cursor_type);
 
 G_END_DECLS
