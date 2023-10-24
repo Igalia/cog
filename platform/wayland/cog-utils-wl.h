@@ -245,4 +245,7 @@ struct _CogWlDisplay {
     GSource *event_src;
 };
 
+CogWlDisplay *cog_wl_display_create(const char *name, GError **error);
+void          cog_wl_display_destroy(CogWlDisplay *self);
+
 #endif /* !COG_PLATFORM_WL_UTILS_H */
