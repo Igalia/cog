@@ -3,7 +3,7 @@
  * Copyright (C) 2023 Pablo Saavedra <psaavedra@igalia.com>
  * Copyright (C) 2023 Adrian Perez de Castro <aperez@igalia.com>
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #pragma once

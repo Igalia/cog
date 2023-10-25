@@ -2,7 +2,7 @@
  * cog-xdp-parent-x11.c
  * Copyright (C) 2023 SUSE Software Solutions Germany GmbH
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #include "cog-xdp-parent-x11.h"

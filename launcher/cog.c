@@ -4,7 +4,7 @@
  * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  * Copyright (C) 2017-2018 Adrian Perez <aperez@igalia.com>
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #include "cog-launcher.h"

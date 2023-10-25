@@ -3,7 +3,7 @@
  * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  * Copyright (C) 2018 Adrian Perez de Castro <aperez@igalia.com>
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #include "../../core/cog.h"

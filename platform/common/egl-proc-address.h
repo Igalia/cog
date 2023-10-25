@@ -2,7 +2,7 @@
  * egl-proc-address.h
  * Copyright (C) 2020 Igalia S.L.
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #pragma once

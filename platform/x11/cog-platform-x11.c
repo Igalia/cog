@@ -2,7 +2,7 @@
  * cog-platform-x11.c
  * Copyright (C) 2020-2022 Igalia S.L.
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #include "../../core/cog.h"

@@ -2,7 +2,7 @@
  * cog-modules.h
  * Copyright (C) 2021 Adrian Perez de Castro <aperez@igalia.com>
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #pragma once
