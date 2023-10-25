@@ -2,7 +2,7 @@
  * cog-directory-files-handler.h
  * Copyright (C) 2017-2018 Adrian Perez <aperez@igalia.com>
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #ifndef COG_DIRECTORY_FILES_HANDLER_H

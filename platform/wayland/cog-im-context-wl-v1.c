@@ -2,7 +2,7 @@
  * cog-im-context-wl-v1.c
  * Copyright (C) 2020 Igalia S.L.
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #include "cog-im-context-wl-v1.h"

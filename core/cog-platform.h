@@ -3,7 +3,7 @@
  * Copyright (C) 2018 Adrian Perez <aperez@igalia.com>
  * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #ifndef COG_PLATFORM_H

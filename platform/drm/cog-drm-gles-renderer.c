@@ -2,7 +2,7 @@
  * cog-drm-gles-renderer.c
  * Copyright (C) 2021-2022 Igalia S.L.
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #include "../../core/cog.h"

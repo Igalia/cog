@@ -2,7 +2,7 @@
  * cog-xdp-parent-wl.h
  * Copyright (C) 2023 SUSE Software Solutions Germany GmbH
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #pragma once

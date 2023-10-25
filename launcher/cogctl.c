@@ -3,7 +3,7 @@
  * Copyright (C) 2021 Igalia S.L.
  * Copyright (C) 2018 Adrian Perez <aperez@igalia.com>
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #define COG_INSIDE_COG__ 1

@@ -2,7 +2,7 @@
  * cog-prefix-routes-handler.c
  * Copyright (C) 2021 Igalia S.L.
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #include "cog-prefix-routes-handler.h"

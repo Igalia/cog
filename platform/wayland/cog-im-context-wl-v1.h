@@ -2,7 +2,7 @@
  * cog-platform-wl-v1.h
  * Copyright (C) 2020 Igalia S.L.
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #pragma once

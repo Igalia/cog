@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2021 Michal Artazov
+ *
+ * SPDX-License-Identifier: MIT
+ */
 
 #ifndef COG_CURSOR_DRM_H
 #define COG_CURSOR_DRM_H

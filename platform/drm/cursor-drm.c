@@ -1,3 +1,9 @@
+/*
+ * Copyright (C) 2021 Michal Artazov
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #include <drm_fourcc.h>
 #include "cursor-drm.h"
 

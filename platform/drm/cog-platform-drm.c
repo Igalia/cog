@@ -3,7 +3,7 @@
  * Copyright (C) 2019-2022 Igalia S.L.
  * Copyright (C) 2020 Michal Artazov <michal@artazov.cz>
  *
- * Distributed under terms of the MIT license.
+ * SPDX-License-Identifier: MIT
  */
 
 #include "../../core/cog.h"
