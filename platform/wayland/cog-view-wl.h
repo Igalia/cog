@@ -43,6 +43,7 @@ G_DECLARE_FINAL_TYPE(CogWlView, cog_wl_view, COG, WL_VIEW, CogView)
  */
 
 void cog_wl_view_enter_fullscreen(CogWlView *);
+void cog_wl_view_resize(CogWlView *);
 
 void cog_wl_view_register_type_exported(GTypeModule *type_module);
 

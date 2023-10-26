@@ -210,25 +210,9 @@ cog_wl_platform_configure_geometry(CogWlPlatform *platform, int32_t width, int32
         g_debug("Configuring new size: %" PRId32 "x%" PRId32, width, height);
         platform->window.width = width;
         platform->window.height = height;
-        platform->view->should_update_opaque_region = true;
+
+        cog_wl_view_resize(platform->view);
     }
-}
-
-static void
-cog_wl_platform_resize_window(CogWlPlatform *platform)
-{
-    CogWlDisplay *display = platform->display;
-    CogWlWindow  *window = &platform->window;
-
-    int32_t pixel_width = window->width * display->current_output->scale;
-    int32_t pixel_height = window->height * display->current_output->scale;
-
-    struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(platform->view));
-    wpe_view_backend_dispatch_set_size(backend, window->width, window->height);
-    wpe_view_backend_dispatch_set_device_scale_factor(backend, display->current_output->scale);
-
-    g_debug("Resized EGL buffer to: (%" PRIi32 ", %" PRIi32 ") @%" PRIi32 "x", pixel_width, pixel_height,
-            display->current_output->scale);
 }
 
 static void
@@ -249,8 +233,6 @@ shell_surface_on_configure(void                    *data,
     cog_wl_platform_configure_geometry(platform, width, height);
 
     g_debug("New wl_shell configuration: (%" PRIu32 ", %" PRIu32 ")", width, height);
-
-    cog_wl_platform_resize_window(platform);
 }
 
 static const struct wl_shell_surface_listener shell_surface_listener = {
@@ -364,11 +346,6 @@ resize_to_largest_output(CogWlPlatform *platform)
         }
     }
     cog_wl_platform_configure_geometry(platform, width, height);
-
-    struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(platform->view));
-    if (backend != NULL) {
-        cog_wl_platform_resize_window(platform);
-    }
 }
 
 static void
@@ -459,9 +436,8 @@ cog_wl_platform_set_fullscreen(CogWlPlatform *platform, bool fullscreen)
         return false;
 
     platform->window.is_fullscreen = fullscreen;
-
     if (fullscreen) {
-        // Resize the view_backend to the size of the screen.
+        // Resize window to the size of the screen.
         // Wait until a new exported image is reveived. See cog_wl_view_enter_fullscreen().
         platform->window.is_resizing_fullscreen = true;
         platform->window.width_before_fullscreen = platform->window.width;
@@ -480,8 +456,6 @@ cog_wl_platform_set_fullscreen(CogWlPlatform *platform, bool fullscreen)
         }
         cog_wl_platform_configure_geometry(platform, platform->window.width_before_fullscreen,
                                            platform->window.height_before_fullscreen);
-        cog_wl_platform_resize_window(platform);
-
 #if HAVE_FULLSCREEN_HANDLING
         if (platform->window.was_fullscreen_requested_from_dom) {
             struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(platform->view));
