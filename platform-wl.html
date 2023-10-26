@@ -39,6 +39,9 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <meta name="twitter:card" content="summary"/>
 
   
+  
+  
+  
 
   <link rel="stylesheet" href="style.css" type="text/css" />
 
@@ -50,7 +53,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <script src="search.js"></script>
   
   <script src="main.js"></script>
-  <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
 </head>
 
 <body>
@@ -79,10 +81,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       
       
     </nav>
-
     
     <button id="btn-to-top" class="hidden"><span class="up-arrow"></span></button>
-    
 
     
 <section id="main" class="content">
@@ -111,7 +111,7 @@ from a terminal in a <span class="caps">GNOME</span> session, should work withou
 <p>A notable exception is Cage, because it is designed to run a single
 application under the compositor control. The command used to execute
 Cog needs to be provided when starting&nbsp;it:</p>
-<div class="codehilite"><pre><span></span><code>cage<span class="w"> </span>--<span class="w"> </span>cog<span class="w"> </span>wpewebkit.org
+<div class="codehilite"><pre><span></span><code>cage -- cog wpewebkit.org
 </code></pre></div>
 
 <p>Weston and all the <a href="https://gitlab.freedesktop.org/wlroots/wlroots">wlroots</a>-based compositors listed above will run
@@ -134,31 +134,31 @@ surface used for output will be&nbsp;configured:</p>
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Variable</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: right;">Default</th>
+<th align="left">Variable</th>
+<th align="left">Type</th>
+<th align="right">Default</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><code>COG_PLATFORM_WL_VIEW_FULLSCREEN</code></td>
-<td style="text-align: left;">boolean</td>
-<td style="text-align: right;"><code>0</code></td>
+<td align="left"><code>COG_PLATFORM_WL_VIEW_FULLSCREEN</code></td>
+<td align="left">boolean</td>
+<td align="right"><code>0</code></td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>COG_PLATFORM_WL_VIEW_MAXIMIZE</code></td>
-<td style="text-align: left;">boolean</td>
-<td style="text-align: right;"><code>0</code></td>
+<td align="left"><code>COG_PLATFORM_WL_VIEW_MAXIMIZE</code></td>
+<td align="left">boolean</td>
+<td align="right"><code>0</code></td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>COG_PLATFORM_WL_VIEW_WIDTH</code></td>
-<td style="text-align: left;">number</td>
-<td style="text-align: right;"><code>1024</code></td>
+<td align="left"><code>COG_PLATFORM_WL_VIEW_WIDTH</code></td>
+<td align="left">number</td>
+<td align="right"><code>1024</code></td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>COG_PLATFORM_WL_VIEW_HEIGHT</code></td>
-<td style="text-align: left;">number</td>
-<td style="text-align: right;"><code>768</code></td>
+<td align="left"><code>COG_PLATFORM_WL_VIEW_HEIGHT</code></td>
+<td align="left">number</td>
+<td align="right"><code>768</code></td>
 </tr>
 </tbody>
 </table>
@@ -174,19 +174,19 @@ some user interface elements (like borders or buttons) while trying to make
 the surface as big as possible. Some compositors take faster approaches when
 there is only a single fullscreen surface being&nbsp;displayed.</p>
 <h2 id="key-bindings">Key Bindings<a class="md-anchor" href="#key-bindings" title="Permanent link"></a></h2>
-<p>On top of the [built-in keybindings]<a href="method.View.set_use_key_bindings.html">cog_view_set_use_key_bindings()</a>, the
+<p>On top of the <a href="method.View.set_use_key_bindings.html">built-in keybindings</a>, the
 additional following key bindings are&nbsp;supported:</p>
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Binding</th>
-<th style="text-align: left;">Action</th>
+<th align="left">Binding</th>
+<th align="left">Action</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><code>F11</code></td>
-<td style="text-align: left;">Toggle fullscreen.</td>
+<td align="left"><code>F11</code></td>
+<td align="left">Toggle fullscreen.</td>
 </tr>
 </tbody>
 </table>
@@ -206,7 +206,7 @@ additional following key bindings are&nbsp;supported:</p>
 <code>XDG_RUNTIME_DIR</code> environment variables can be found by pulling
 <code>XDG_RUNTIME_DIR</code> from the running process&mdash;make sure to replace <code>cage</code>
 when using a different&nbsp;compositor:</p>
-<div class="codehilite"><pre><span></span><code>tr<span class="w"> </span><span class="s1">&#39;\0&#39;</span><span class="w"> </span><span class="s1">&#39;\n&#39;</span><span class="w"> </span>&lt;<span class="w"> </span>/proc/<span class="k">$(</span>pidof<span class="w"> </span>cage<span class="k">)</span>/environ<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;^XDG_RUNTIME_DIR=&#39;</span>
+<div class="codehilite"><pre><span></span><code>tr <span class="s1">&#39;\0&#39;</span> <span class="s1">&#39;\n&#39;</span> &lt; /proc/<span class="k">$(</span>pidof cage<span class="k">)</span>/environ <span class="p">|</span> grep <span class="s1">&#39;^XDG_RUNTIME_DIR=&#39;</span>
 </code></pre></div>
 
 <p>Then look into the resulting location for a socket named <code>wayland-N</code>, where
@@ -214,29 +214,50 @@ when using a different&nbsp;compositor:</p>
 <p>The following shell snippet will define both variables if&nbsp;needed:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Needs Bash or Zsh</span>
 
-<span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-z<span class="w"> </span><span class="nv">$XDG_RUNTIME_DIR</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
-<span class="w">  </span><span class="nb">eval</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>tr<span class="w"> </span><span class="s1">&#39;\0&#39;</span><span class="w"> </span><span class="s1">&#39;\n&#39;</span><span class="w"> </span>&lt;<span class="w"> </span>/proc/<span class="k">$(</span>pidof<span class="w"> </span>cage<span class="k">)</span>/environ<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;^XDG_RUNTIME_DIR=&#39;</span><span class="k">)</span><span class="s2">&quot;</span>
+<span class="k">if</span> <span class="o">[[</span> -z <span class="nv">$XDG_RUNTIME_DIR</span> <span class="o">]]</span> <span class="p">;</span> <span class="k">then</span>
+  <span class="nb">eval</span> <span class="s2">&quot;</span><span class="k">$(</span>tr <span class="s1">&#39;\0&#39;</span> <span class="s1">&#39;\n&#39;</span> &lt; /proc/<span class="k">$(</span>pidof cage<span class="k">)</span>/environ <span class="p">|</span> grep <span class="s1">&#39;^XDG_RUNTIME_DIR=&#39;</span><span class="k">)</span><span class="s2">&quot;</span>
 <span class="k">fi</span>
 
-<span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-z<span class="w"> </span><span class="nv">$WAYLAND_DISPLAY</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
-<span class="w">  </span><span class="k">for</span><span class="w"> </span>path<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$XDG_RUNTIME_DIR</span><span class="s2">&quot;</span>/*<span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
-<span class="w">    </span><span class="nv">name</span><span class="o">=</span><span class="si">${</span><span class="nv">path</span><span class="p">#</span><span class="si">${</span><span class="nv">XDG_RUNTIME_DIR</span><span class="si">}</span><span class="p">/</span><span class="si">}</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="nv">$name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>wayland-*<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>-S<span class="w"> </span><span class="nv">$path</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
-<span class="w">      </span><span class="nv">WAYLAND_DISPLAY</span><span class="o">=</span><span class="nv">$name</span>
-<span class="w">      </span><span class="k">break</span>
-<span class="w">    </span><span class="k">fi</span>
-<span class="w">  </span><span class="k">done</span>
+<span class="k">if</span> <span class="o">[[</span> -z <span class="nv">$WAYLAND_DISPLAY</span> <span class="o">]]</span> <span class="p">;</span> <span class="k">then</span>
+  <span class="k">for</span> path <span class="k">in</span> <span class="s2">&quot;</span><span class="nv">$XDG_RUNTIME_DIR</span><span class="s2">&quot;</span>/* <span class="p">;</span> <span class="k">do</span>
+    <span class="nv">name</span><span class="o">=</span><span class="si">${</span><span class="nv">path</span><span class="p">#</span><span class="si">${</span><span class="nv">XDG_RUNTIME_DIR</span><span class="si">}</span><span class="p">/</span><span class="si">}</span>
+    <span class="k">if</span> <span class="o">[[</span> <span class="nv">$name</span> <span class="o">=</span> wayland-* <span class="o">&amp;&amp;</span> -S <span class="nv">$path</span> <span class="o">]]</span> <span class="p">;</span> <span class="k">then</span>
+      <span class="nv">WAYLAND_DISPLAY</span><span class="o">=</span><span class="nv">$name</span>
+      <span class="nb">break</span>
+    <span class="k">fi</span>
+  <span class="k">done</span>
 <span class="k">fi</span>
 
-<span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-z<span class="w"> </span><span class="nv">$WAYLAND_DISPLAY</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
-<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;No Wayland compositor running&#39;</span>
+<span class="k">if</span> <span class="o">[[</span> -z <span class="nv">$WAYLAND_DISPLAY</span> <span class="o">]]</span> <span class="p">;</span> <span class="k">then</span>
+  <span class="nb">echo</span> <span class="s1">&#39;No Wayland compositor running&#39;</span>
 <span class="k">else</span>
-<span class="w">  </span><span class="nb">export</span><span class="w"> </span>WAYLAND_DISPLAY<span class="w"> </span>XDG_RUNTIME_DIR
+  <span class="nb">export</span> WAYLAND_DISPLAY XDG_RUNTIME_DIR
 <span class="k">fi</span>
 </code></pre></div>
     </div>
   </section>
 </section>
+
+
+    
+<div id="toc" class="toc">
+  <nav aria-labelledby="toc-title">
+    <p id="toc-title">Content</p>
+    <ul class="toc-list">
+      
+        
+        <li class="toc-list-item"><a href="#requirements"><span class="link-text">Requirements</span></a></li>
+        
+        <li class="toc-list-item"><a href="#environment-variables"><span class="link-text">Environment Variables</span></a></li>
+        
+        <li class="toc-list-item"><a href="#key-bindings"><span class="link-text">Key Bindings</span></a></li>
+        
+        <li class="toc-list-item"><a href="#troubleshooting"><span class="link-text">Troubleshooting</span></a></li>
+        
+      
+    </ul>
+  </nav>
+</div>
 
 
     <section id="search" class="content hidden"></section>

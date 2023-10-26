@@ -39,6 +39,9 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <meta name="twitter:card" content="summary"/>
 
   
+  
+  
+  
 
   <link rel="stylesheet" href="style.css" type="text/css" />
 
@@ -50,7 +53,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <script src="search.js"></script>
   
   <script src="main.js"></script>
-  <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
 </head>
 
 <body>
@@ -79,10 +81,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       
       
     </nav>
-
     
     <button id="btn-to-top" class="hidden"><span class="up-arrow"></span></button>
-    
 
     
 <section id="main" class="content">
@@ -99,11 +99,28 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 to configure the maximum allowed refresh rate in frames per second (<span class="caps">FPS</span>/Hz);
 the default value is 30&nbsp;Hz.</p>
 <p>The following example sets the maximum refresh rate to 60&nbsp;Hz:</p>
-<div class="codehilite"><pre><span></span><code>cog<span class="w"> </span>--platform<span class="o">=</span>headless<span class="w"> </span>--platform-params<span class="o">=</span><span class="m">60</span><span class="w"> </span>...
+<div class="codehilite"><pre><span></span><code>cog --platform<span class="o">=</span>headless --platform-params<span class="o">=</span><span class="m">60</span> ...
 </code></pre></div>
     </div>
   </section>
 </section>
+
+
+    
+<div id="toc" class="toc">
+  <nav aria-labelledby="toc-title">
+    <p id="toc-title">Content</p>
+    <ul class="toc-list">
+      
+        
+        <li class="toc-list-item"><a href="#requirements"><span class="link-text">Requirements</span></a></li>
+        
+        <li class="toc-list-item"><a href="#parameters"><span class="link-text">Parameters</span></a></li>
+        
+      
+    </ul>
+  </nav>
+</div>
 
 
     <section id="search" class="content hidden"></section>

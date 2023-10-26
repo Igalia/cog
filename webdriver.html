@@ -39,6 +39,9 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <meta name="twitter:card" content="summary"/>
 
   
+  
+  
+  
 
   <link rel="stylesheet" href="style.css" type="text/css" />
 
@@ -50,7 +53,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <script src="search.js"></script>
   
   <script src="main.js"></script>
-  <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
 </head>
 
 <body>
@@ -79,10 +81,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       
       
     </nav>
-
     
     <button id="btn-to-top" class="hidden"><span class="up-arrow"></span></button>
-    
 
     
 <section id="main" class="content">
@@ -99,10 +99,10 @@ the tests on the target device directly from a host&nbsp;computer.</p>
 </ul>
 <h2 id="launching-the-webdriver">Launching the WebDriver<a class="md-anchor" href="#launching-the-webdriver" title="Permanent link"></a></h2>
 <p>For example, on a meta-webkit RPi3&nbsp;image:</p>
-<div class="codehilite"><pre><span></span><code>$<span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="nv">WAYLAND_DISPLAY</span><span class="o">=</span>wayland-0
-$<span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="nv">XDG_RUNTIME_DIR</span><span class="o">=</span>/run/user/0
+<div class="codehilite"><pre><span></span><code>$ <span class="nb">export</span> <span class="nv">WAYLAND_DISPLAY</span><span class="o">=</span>wayland-0
+$ <span class="nb">export</span> <span class="nv">XDG_RUNTIME_DIR</span><span class="o">=</span>/run/user/0
 <span class="c1"># host=all to allow requests from other machines</span>
-$<span class="w"> </span>WPEWebDriver<span class="w"> </span>--port<span class="o">=</span><span class="m">8088</span><span class="w"> </span>--host<span class="o">=</span>all
+$ WPEWebDriver --port<span class="o">=</span><span class="m">8088</span> --host<span class="o">=</span>all
 </code></pre></div>
 
 <h2 id="connecting-to-the-driver">Connecting to the driver<a class="md-anchor" href="#connecting-to-the-driver" title="Permanent link"></a></h2>
@@ -145,6 +145,27 @@ $<span class="w"> </span>WPEWebDriver<span class="w"> </span>--port<span class="
     </div>
   </section>
 </section>
+
+
+    
+<div id="toc" class="toc">
+  <nav aria-labelledby="toc-title">
+    <p id="toc-title">Content</p>
+    <ul class="toc-list">
+      
+        
+        <li class="toc-list-item"><a href="#requirements"><span class="link-text">Requirements</span></a></li>
+        
+        <li class="toc-list-item"><a href="#launching-the-webdriver"><span class="link-text">Launching the WebDriver</span></a></li>
+        
+        <li class="toc-list-item"><a href="#connecting-to-the-driver"><span class="link-text">Connecting to the driver</span></a></li>
+        
+        <li class="toc-list-item"><a href="#using-the-driver"><span class="link-text">Using the driver</span></a></li>
+        
+      
+    </ul>
+  </nav>
+</div>
 
 
     <section id="search" class="content hidden"></section>

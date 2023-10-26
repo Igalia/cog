@@ -39,6 +39,9 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <meta name="twitter:card" content="summary"/>
 
   
+  
+  
+  
 
   <link rel="stylesheet" href="style.css" type="text/css" />
 
@@ -50,7 +53,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <script src="search.js"></script>
   
   <script src="main.js"></script>
-  <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
 </head>
 
 <body>
@@ -96,6 +98,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
 
 
+
+
 <div class="section">
   <h5>Instance methods</h5>
   <div class="links">
@@ -137,9 +141,13 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
     <a class="property" href="property.Shell.name.html">name</a>
   
+    <a class="property" href="property.Shell.network-memory-settings.html">network-memory-settings</a>
+  
     <a class="property" href="property.Shell.web-context.html">web-context</a>
   
     <a class="property" href="property.Shell.web-data-manager.html">web-data-manager</a>
+  
+    <a class="property" href="property.Shell.web-memory-settings.html">web-memory-settings</a>
   
     <a class="property" href="property.Shell.web-settings.html">web-settings</a>
   
@@ -163,8 +171,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
 
 
-
-
 <div class="section">
   <h5>Virtual methods</h5>
   <div class="links">
@@ -181,10 +187,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
 
     </nav>
-
     
     <button id="btn-to-top" class="hidden"><span class="up-arrow"></span></button>
-    
 
     
 <section id="main" class="content">
@@ -241,12 +245,14 @@ signal to customize the web&nbsp;view.</p>
         <ul>
         
           
-          <li class="class">GObject</a></li>
+          <li class="class"><a class="external" href="javascript:void(0)" data-link="class.Object.html" data-namespace="GObject">GObject</a></li>
           
         
         </ul>
       </div>
     </div>
+    
+
     
 
     
@@ -272,6 +278,8 @@ signal to customize the web&nbsp;view.</p>
       
       </div>
     </div>
+    
+
     
 
     
@@ -367,6 +375,16 @@ signal to customize the web&nbsp;view.</p>
 
       
         
+        <div class="toggle-wrapper default-hide ancestor-methods"><h5 style="display:block;">Methods inherited from <a class="external" href="javascript:void(0)" data-link="class.Object.html" data-namespace="GObject">GObject</a> (43)</h5>
+          <div class="docblock">
+          
+            <div class="docblock">
+              <p>Please see&nbsp;<a class="external" href="javascript:void(0)" data-link="class.Object.html#methods" data-namespace="GObject">GObject</a>&nbsp;for a full list of methods.</em></p>
+            </div>
+          
+          </div>
+        </div>
+        
       
 
       
@@ -380,6 +398,7 @@ signal to customize the web&nbsp;view.</p>
         <a href="#properties" class="anchor"></a>
       </h4>
 
+      
       <div class="docblock">
       
         <div class="">
@@ -425,6 +444,17 @@ additional options to <a href="overview.html">platform modules</a>.</p>
         </div>
       
         <div class="">
+          <h6><a href="property.Shell.network-memory-settings.html">Cog.Shell:network-memory-settings</a></h6>
+
+          <div class="docblock">
+            <p>Optional memory settings to be applied to network processes, as a
+<code>WebKitMemoryPressureSettings</code> instance.</p>
+          </div>
+
+          
+        </div>
+      
+        <div class="">
           <h6><a href="property.Shell.web-context.html">Cog.Shell:web-context</a></h6>
 
           <div class="docblock">
@@ -443,6 +473,17 @@ specified at construction, then the <code>CogShell:automated</code>
 property will be ignored and the provided object should have
 WebKit.WebsiteDataManager:is-ephemeral enabled for running
 in automation&nbsp;mode.</p>
+          </div>
+
+          
+        </div>
+      
+        <div class="">
+          <h6><a href="property.Shell.web-memory-settings.html">Cog.Shell:web-memory-settings</a></h6>
+
+          <div class="docblock">
+            <p>Optional memory settings to be applied to web processes, as a
+<code>WebKitMemoryPressureSettings</code> instance.</p>
           </div>
 
           
@@ -469,6 +510,7 @@ in automation&nbsp;mode.</p>
         </div>
       
       </div>
+      
 
       
         
@@ -486,6 +528,7 @@ in automation&nbsp;mode.</p>
         <a href="#signals" class="anchor"></a>
       </h4>
 
+      
       <div class="docblock">
       
         <div class="">
@@ -498,8 +541,21 @@ a&nbsp;WebKit.WebView.</p>
         </div>
       
       </div>
+      
 
       
+        
+        <div class="toggle-wrapper default-hide ancestor-signals"><h5 style="display:block;">Signals inherited from <a class="external" href="javascript:void(0)" data-link="class.Object.html" data-namespace="GObject">GObject</a> (1)</h5>
+          <div class="docblock">
+          <h6><a class="external" href="javascript:void(0)" data-namespace="GObject" data-link="signal.Object.notify.html">GObject.Object::notify</a></h6>
+            <div class="docblock">
+              <p>The notify signal is emitted on an object when one of its properties has
+its value set through g_object_set_property(), g_object_set(), et&nbsp;al.</p>
+            </div>
+            
+          
+          </div>
+        </div>
         
       
 
@@ -628,12 +684,51 @@ a&nbsp;WebKit.WebView.</p>
     </div>
     
 
-     
-
     
 
   </section>
 </section>
+
+
+    
+<div id="toc" class="toc">
+  <nav aria-labelledby="toc-title">
+    <p id="toc-title">Content</p>
+    <ul class="toc-list">
+      <li class="toc-list-item"><a href="#description"><span class="link-text">Description</span></a></li>
+      
+      
+      
+      <li class="toc-list-item"><a href="#ancestors"><span class="link-text">Ancestors</span></a></li>
+      
+      
+      
+<li class="toc-list-item"><a href="#constructors"><span class="link-text">Constructors</span></a></li>
+
+
+      
+
+      
+<li class="toc-list-item"><a href="#methods"><span class="link-text">Methods</span></a></li>
+
+
+      
+<li class="toc-list-item"><a href="#properties"><span class="link-text">Properties</span></a></li>
+
+
+      
+<li class="toc-list-item"><a href="#signals"><span class="link-text">Signals</span></a></li>
+
+
+      
+
+      
+<li class="toc-list-item"><a href="#virtual-methods"><span class="link-text">Virtual methods</span></a></li>
+
+
+    </ul>
+  </nav>
+</div>
 
 
     <section id="search" class="content hidden"></section>

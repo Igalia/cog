@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Shell.create_view</title>
+  <title>Cog.Shell:web-memory-settings</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.Shell.create_view"/>
-  <meta property="og:description" content="Reference for Cog.Shell.create_view"/>
-  <meta name="twitter:title" content="Cog.Shell.create_view"/>
-  <meta name="twitter:description" content="Reference for Cog.Shell.create_view"/>
+  <meta property="og:title" content="Cog.Shell:web-memory-settings"/>
+  <meta property="og:description" content="Reference for property Cog.Shell:web-memory-settings"/>
+  <meta name="twitter:title" content="Cog.Shell:web-memory-settings"/>
+  <meta name="twitter:description" content="Reference for property Cog.Shell:web-memory-settings"/>
 
 
   
@@ -86,14 +86,28 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   </div>
 </div>
 <div class="section">
-  <h5>Virtual methods</h5>
+  <h5>Properties</h5>
   <div class="links">
   
-    <a class="method current" href="vfunc.Shell.create_view.html">create_view</a>
+    <a class="property"href="property.Shell.automated.html">automated</a>
   
-    <a class="method" href="vfunc.Shell.shutdown.html">shutdown</a>
+    <a class="property"href="property.Shell.config-file.html">config-file</a>
   
-    <a class="method" href="vfunc.Shell.startup.html">startup</a>
+    <a class="property"href="property.Shell.device-scale-factor.html">device-scale-factor</a>
+  
+    <a class="property"href="property.Shell.name.html">name</a>
+  
+    <a class="property"href="property.Shell.network-memory-settings.html">network-memory-settings</a>
+  
+    <a class="property"href="property.Shell.web-context.html">web-context</a>
+  
+    <a class="property"href="property.Shell.web-data-manager.html">web-data-manager</a>
+  
+    <a class="property current"href="property.Shell.web-memory-settings.html">web-memory-settings</a>
+  
+    <a class="property"href="property.Shell.web-settings.html">web-settings</a>
+  
+    <a class="property"href="property.Shell.web-view.html">web-view</a>
   
   </div>
 </div>
@@ -105,8 +119,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Virtual Method</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Shell.html">Shell</a><span class="sep"></span>create_view</h1>
+    <h3>Property</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Shell.html">Shell</a>:web-memory-settings</h1>
   </header>
 
   <section>
@@ -114,18 +128,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       <h4 id="declaration">
         Declaration
         <a href="#declaration" class="anchor"></a>
-        
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.h#L28">[src]</a>
-        
       </h4>
 
-      <div class="docblock c-decl">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">WebKitWebView</span><span class="o">*</span><span class="w"></span>
-<span class="n">create_view</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="n">CogShell</span><span class="o">*</span><span class="w"> </span><span class="n">arg0</span><span class="w"></span>
-<span class="p">)</span><span class="w"></span>
-</pre></div>
-</code></pre>
+      <div class="docblock">
+        <pre><code>property web-memory-settings: none [ read, write, construct-only ]</code></pre>
       </div>
     </div>
 
@@ -134,14 +140,20 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.c#L454">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Optional memory settings to be applied to web processes, as a
+<code>WebKitMemoryPressureSettings</code> instance.</p>
       </div>
 
       <div class="docblock">
         <table>
+          <tr><td>Type:</td>
+            <td><code>void</code></td>
+          </tr>
           
           
           
@@ -151,35 +163,21 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       
     </div>
 
-    
-
-    
-    <div class="return-value toggle-wrapper">
-      <h4 id="return-value">
-        Return value
-        <a href="#return-value" class="anchor"></a>
+    <div class="flags toggle-wrapper">
+      <h4 id="flags">
+        Flags
+        <a href="#flags" class="anchor"></a>
       </h4>
 
       <div class="docblock">
-        <table class="returns">
-          <tr class="arg-name">
-            <td>Returns:</td>
-            <td><code>WebKitWebView*</code></td>
-          </tr>
-          <tr class="arg-description">
-            <td>&nbsp;</td>
-            <td>No description available.</td>
-          </tr>
-          
-          
-          
-          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the called function.</td></tr>
-          
-          
-        </table>
+      <table>
+        <tr><td>Readable</td><td><b>yes</b></td></tr>
+        <tr><td>Writable</td><td><b>yes</b></td></tr>
+        <tr><td>Construct</td><td><b>no</b></td></tr>
+        <tr><td>Construct only</td><td><b>yes</b></td></tr>
+      </table>
       </div>
     </div>
-    
 
   </section>
 </section>

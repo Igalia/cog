@@ -144,8 +144,12 @@ function attachCopyHandlers() {
 
 function onKeyDown(event) {
     let search_input = document.querySelector("#search-input");
+    // We don't want to try to focus the search input if it isn't visible. That way
+    // we avoid the preventDefault(), hence allowing devhelp to use S as mnemonic.
+    let potentially_hidden_parent = search_input.closest('.hidden, .devhelp-hidden');
 
-    if (event.code === "KeyS" && document.activeElement !== search_input) {
+    if (window.getComputedStyle(potentially_hidden_parent).display !== 'none' &&
+        event.code === "KeyS" && document.activeElement !== search_input) {
         event.preventDefault();
         search_input.focus();
     }

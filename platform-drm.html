@@ -39,6 +39,9 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <meta name="twitter:card" content="summary"/>
 
   
+  
+  
+  
 
   <link rel="stylesheet" href="style.css" type="text/css" />
 
@@ -50,7 +53,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <script src="search.js"></script>
   
   <script src="main.js"></script>
-  <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
 </head>
 
 <body>
@@ -79,10 +81,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       
       
     </nav>
-
     
     <button id="btn-to-top" class="hidden"><span class="up-arrow"></span></button>
-    
 
     
 <section id="main" class="content">
@@ -106,26 +106,26 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Option</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: left;">Default</th>
+<th align="left">Option</th>
+<th align="left">Type</th>
+<th align="left">Default</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><code>device-scale-factor</code></td>
-<td style="text-align: left;">float</td>
-<td style="text-align: left;"><code>1.0</code></td>
+<td align="left"><code>device-scale-factor</code></td>
+<td align="left">float</td>
+<td align="left"><code>1.0</code></td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>disable-atomic-modesetting</code></td>
-<td style="text-align: left;">boolean</td>
-<td style="text-align: left;"><em>detect</em></td>
+<td align="left"><code>disable-atomic-modesetting</code></td>
+<td align="left">boolean</td>
+<td align="left"><em>detect</em></td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>renderer</code></td>
-<td style="text-align: left;">string</td>
-<td style="text-align: left;"><code>"modeset"</code></td>
+<td align="left"><code>renderer</code></td>
+<td align="left">string</td>
+<td align="left"><code>"modeset"</code></td>
 </tr>
 </tbody>
 </table>
@@ -151,21 +151,21 @@ initialization (e.g. using <code>cog --platform-params=…</code>):</p>
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Parameter</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: left;">Default</th>
+<th align="left">Parameter</th>
+<th align="left">Type</th>
+<th align="left">Default</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><code>renderer</code></td>
-<td style="text-align: left;">string</td>
-<td style="text-align: left;"><code>modeset</code></td>
+<td align="left"><code>renderer</code></td>
+<td align="left">string</td>
+<td align="left"><code>modeset</code></td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>rotation</code></td>
-<td style="text-align: left;">number</td>
-<td style="text-align: left;"><code>0</code></td>
+<td align="left"><code>rotation</code></td>
+<td align="left">number</td>
+<td align="left"><code>0</code></td>
 </tr>
 </tbody>
 </table>
@@ -179,26 +179,26 @@ rotation</a>&nbsp;applied.</p>
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Variable</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: right;">Default</th>
+<th align="left">Variable</th>
+<th align="left">Type</th>
+<th align="right">Default</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><code>COG_PLATFORM_DRM_VIDEO_MODE</code></td>
-<td style="text-align: left;">string</td>
-<td style="text-align: right;"><em>(unset</em>)</td>
+<td align="left"><code>COG_PLATFORM_DRM_VIDEO_MODE</code></td>
+<td align="left">string</td>
+<td align="right"><em>(unset</em>)</td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>COG_PLATFORM_DRM_MODE_MAX</code></td>
-<td style="text-align: left;">string</td>
-<td style="text-align: right;"><em>(unset)</em></td>
+<td align="left"><code>COG_PLATFORM_DRM_MODE_MAX</code></td>
+<td align="left">string</td>
+<td align="right"><em>(unset)</em></td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>COG_PLATFORM_DRM_CURSOR</code></td>
-<td style="text-align: left;">string</td>
-<td style="text-align: right;"><em>(unset)</em></td>
+<td align="left"><code>COG_PLATFORM_DRM_CURSOR</code></td>
+<td align="left">string</td>
+<td align="right"><em>(unset)</em></td>
 </tr>
 </tbody>
 </table>
@@ -224,23 +224,46 @@ This can be set in two&nbsp;ways:</p>
 amount 90 degree counter-clockwise turns to apply. For example a value of
 <code>3</code> would result in <code>3 × 90 = 270</code> degrees.</p>
 <p>The following example shows how to change the rotation at run&nbsp;time:</p>
-<div class="codehilite"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span>
-<span class="p">{</span>
-<span class="w">    </span><span class="n">cog_modules_add_directory</span><span class="p">(</span><span class="n">COG_MODULEDIR</span><span class="p">);</span>
-<span class="w">    </span><span class="n">g_autoptr</span><span class="p">(</span><span class="n">CogPlatform</span><span class="p">)</span><span class="w"> </span><span class="n">plat</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_platform_new</span><span class="p">(</span><span class="s">&quot;drm&quot;</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"></span>
+<span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">cog_modules_add_directory</span><span class="p">(</span><span class="n">COG_MODULEDIR</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">g_autoptr</span><span class="p">(</span><span class="n">CogPlatform</span><span class="p">)</span><span class="w"> </span><span class="n">plat</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_platform_new</span><span class="p">(</span><span class="s">&quot;drm&quot;</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">);</span><span class="w"></span>
 
-<span class="w">    </span><span class="n">g_autoptr</span><span class="p">(</span><span class="n">CogShell</span><span class="p">)</span><span class="w"> </span><span class="n">shell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_shell_new</span><span class="p">(</span><span class="s">&quot;example&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">FALSE</span><span class="p">);</span>
-<span class="w">    </span><span class="n">cog_platform_setup</span><span class="p">(</span><span class="n">plat</span><span class="p">,</span><span class="w"> </span><span class="n">shell</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;renderer=gles&quot;</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">);</span>
+<span class="w">    </span><span class="n">g_autoptr</span><span class="p">(</span><span class="n">CogShell</span><span class="p">)</span><span class="w"> </span><span class="n">shell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_shell_new</span><span class="p">(</span><span class="s">&quot;example&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">FALSE</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">cog_platform_setup</span><span class="p">(</span><span class="n">plat</span><span class="p">,</span><span class="w"> </span><span class="n">shell</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;renderer=gles&quot;</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">);</span><span class="w"></span>
 
-<span class="w">    </span><span class="cm">/* Set the rotation. */</span>
-<span class="w">    </span><span class="n">g_object_set</span><span class="p">(</span><span class="n">plat</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;rotation&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span>
+<span class="w">    </span><span class="cm">/* Set the rotation. */</span><span class="w"></span>
+<span class="w">    </span><span class="n">g_object_set</span><span class="p">(</span><span class="n">plat</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;rotation&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span><span class="w"></span>
 
-<span class="w">    </span><span class="cm">/* Now proceed to run a GMainLoop normally… */</span>
-<span class="p">}</span>
+<span class="w">    </span><span class="cm">/* Now proceed to run a GMainLoop normally… */</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
 </code></pre></div>
     </div>
   </section>
 </section>
+
+
+    
+<div id="toc" class="toc">
+  <nav aria-labelledby="toc-title">
+    <p id="toc-title">Content</p>
+    <ul class="toc-list">
+      
+        
+        <li class="toc-list-item"><a href="#requirements"><span class="link-text">Requirements</span></a></li>
+        
+        <li class="toc-list-item"><a href="#configuration-file-options"><span class="link-text">Configuration File Options</span></a></li>
+        
+        <li class="toc-list-item"><a href="#parameters"><span class="link-text">Parameters</span></a></li>
+        
+        <li class="toc-list-item"><a href="#environment-variables"><span class="link-text">Environment Variables</span></a></li>
+        
+        <li class="toc-list-item"><a href="#output-rotation"><span class="link-text">Output Rotation</span></a></li>
+        
+      
+    </ul>
+  </nav>
+</div>
 
 
     <section id="search" class="content hidden"></section>

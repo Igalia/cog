@@ -39,6 +39,9 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <meta name="twitter:card" content="summary"/>
 
   
+  
+  
+  
 
   <link rel="stylesheet" href="style.css" type="text/css" />
 
@@ -50,7 +53,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <script src="search.js"></script>
   
   <script src="main.js"></script>
-  <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
 </head>
 
 <body>
@@ -87,10 +89,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
 
     </nav>
-
     
     <button id="btn-to-top" class="hidden"><span class="up-arrow"></span></button>
-    
 
     
 <section id="main" class="content">
@@ -110,13 +110,13 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       </h4>
 
       <div class="docblock">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">gboolean</span>
-<span class="n">cog_webkit_settings_apply_from_key_file</span><span class="w"> </span><span class="p">(</span>
-<span class="w">  </span><span class="n">WebKitSettings</span><span class="o">*</span><span class="w"> </span><span class="n">settings</span><span class="p">,</span>
-<span class="w">  </span><span class="n">GKeyFile</span><span class="o">*</span><span class="w"> </span><span class="n">key_file</span><span class="p">,</span>
-<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">group</span><span class="p">,</span>
-<span class="w">  </span><span class="n">GError</span><span class="o">**</span><span class="w"> </span><span class="n">error</span>
-<span class="p">)</span>
+        <pre><code><div class="highlight"><pre><span></span><span class="n">gboolean</span><span class="w"></span>
+<span class="n">cog_webkit_settings_apply_from_key_file</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">  </span><span class="n">WebKitSettings</span><span class="o">*</span><span class="w"> </span><span class="n">settings</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">GKeyFile</span><span class="o">*</span><span class="w"> </span><span class="n">key_file</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">group</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">GError</span><span class="o">**</span><span class="w"> </span><span class="n">error</span><span class="w"></span>
+<span class="p">)</span><span class="w"></span>
 </pre></div>
 </code></pre>
       </div>
@@ -138,6 +138,11 @@ and uses them to set the writable properties of a WebKit.Settings&nbsp;object.</
 
       <div class="docblock">
         <table>
+          
+          
+          
+          
+          <tr><td>This function is not directly available to language bindings</td></tr>
           
           
           
@@ -177,7 +182,7 @@ and uses them to set the writable properties of a WebKit.Settings&nbsp;object.</
           
           <tr class="arg-name">
             <td><code>key_file</code></td>
-            <td><code>GKeyFile*</code></td>
+            <td><a href="javascript:void(0)" data-link="struct.KeyFile.html" data-namespace="GLib" class="external"><code>GKeyFile</code></a></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
@@ -209,7 +214,7 @@ and uses them to set the writable properties of a WebKit.Settings&nbsp;object.</
           
           
           <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
-          <tr><td>&nbsp;</td><td>The string is a NUL terminated UTF-8 string.</td></tr>
+          <tr><td>&nbsp;</td><td>The value is a NUL terminated UTF-8 string.</td></tr>
           
           
           <tr class="arg-name">
@@ -256,6 +261,8 @@ and uses them to set the writable properties of a WebKit.Settings&nbsp;object.</
   </section>
 </section>
 
+
+    
 
     <section id="search" class="content hidden"></section>
 

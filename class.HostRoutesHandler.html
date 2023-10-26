@@ -39,6 +39,9 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <meta name="twitter:card" content="summary"/>
 
   
+  
+  
+  
 
   <link rel="stylesheet" href="style.css" type="text/css" />
 
@@ -50,7 +53,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <script src="search.js"></script>
   
   <script src="main.js"></script>
-  <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
 </head>
 
 <body>
@@ -88,6 +90,17 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
 
 <div class="section">
+  <h5>Functions</h5>
+  <div class="links">
+  
+    <a class="func" href="type_func.HostRoutesHandler.new.html">new</a>
+  
+  </div>
+</div>
+
+
+
+<div class="section">
   <h5>Instance methods</h5>
   <div class="links">
   
@@ -119,24 +132,11 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
 
 
-<div class="section">
-  <h5>Functions</h5>
-  <div class="links">
-  
-    <a class="func" href="type_func.HostRoutesHandler.new.html">new</a>
-  
-  </div>
-</div>
-
-
-
 
 
     </nav>
-
     
     <button id="btn-to-top" class="hidden"><span class="up-arrow"></span></button>
-    
 
     
 <section id="main" class="content">
@@ -168,8 +168,8 @@ different handlers depending on the <em>host</em> component of the requested
 <p>Optionally, if a “fallback” handler has been specified, it will be
 used to serve requests which do not match any of the routed&nbsp;hosts.</p>
 <p>The set of available host routes entries can be configured using
-<a href="method.HostRoutesHandler.add.html">cog_host_routes_handler_add()</a> and
-<a href="method.HostRoutesHandler.remove.html">cog_host_routes_handler_remove()</a>. For each request, route entries
+<a href="method.HostRoutesHandler.add.html"><code>cog_host_routes_handler_add()</code></a> and
+<a href="method.HostRoutesHandler.remove.html"><code>cog_host_routes_handler_remove()</code></a>. For each request, route entries
 are checked and the one that matches the <span class="caps">URI</span> <em>host</em> component
 will handle the&nbsp;request.</p>
 <p>This handler is typically used in tandem with
@@ -178,16 +178,16 @@ fallback, or as the handler for a routed&nbsp;host.</p>
 <p>The following configures a handler to route requests with their host
 matching <code>example.host</code> to a certain directory, and all the rest of
 hosts to another&nbsp;directory:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">GFile</span><span class="w"> </span><span class="o">*</span><span class="n">fallback_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">g_file_new_for_path</span><span class="w"> </span><span class="p">(</span><span class="s">&quot;data/default&quot;</span><span class="p">);</span>
-<span class="n">CogRequestHandler</span><span class="w"> </span><span class="o">*</span><span class="n">fallback_handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_directory_files_handler_new</span><span class="w"> </span><span class="p">(</span><span class="n">fallback_dir</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="n">GFile</span><span class="w"> </span><span class="o">*</span><span class="n">fallback_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">g_file_new_for_path</span><span class="w"> </span><span class="p">(</span><span class="s">&quot;data/default&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="n">CogRequestHandler</span><span class="w"> </span><span class="o">*</span><span class="n">fallback_handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_directory_files_handler_new</span><span class="w"> </span><span class="p">(</span><span class="n">fallback_dir</span><span class="p">);</span><span class="w"></span>
 
-<span class="n">GFile</span><span class="w"> </span><span class="o">*</span><span class="n">example_host_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">g_file_new_for_path</span><span class="w"> </span><span class="p">(</span><span class="s">&quot;data/example&quot;</span><span class="p">);</span>
-<span class="n">CogRequestHandler</span><span class="w"> </span><span class="o">*</span><span class="n">example_host_handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_directory_files_handler_new</span><span class="w"> </span><span class="p">(</span><span class="n">example_host_handler</span><span class="p">);</span>
+<span class="n">GFile</span><span class="w"> </span><span class="o">*</span><span class="n">example_host_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">g_file_new_for_path</span><span class="w"> </span><span class="p">(</span><span class="s">&quot;data/example&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="n">CogRequestHandler</span><span class="w"> </span><span class="o">*</span><span class="n">example_host_handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_directory_files_handler_new</span><span class="w"> </span><span class="p">(</span><span class="n">example_host_handler</span><span class="p">);</span><span class="w"></span>
 
-<span class="n">CogRequestHandler</span><span class="w"> </span><span class="o">*</span><span class="n">handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_host_routes_handler_new</span><span class="w"> </span><span class="p">(</span><span class="n">fallback_handler</span><span class="p">);</span>
-<span class="n">cog_host_routes_handler_add</span><span class="w"> </span><span class="p">(</span><span class="n">COG_HOST_ROUTES_HANDLER</span><span class="w"> </span><span class="p">(</span><span class="n">handler</span><span class="p">),</span>
-<span class="w">                            </span><span class="s">&quot;example.host&quot;</span><span class="p">,</span>
-<span class="w">                            </span><span class="n">example_host_handler</span><span class="p">);</span>
+<span class="n">CogRequestHandler</span><span class="w"> </span><span class="o">*</span><span class="n">handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cog_host_routes_handler_new</span><span class="w"> </span><span class="p">(</span><span class="n">fallback_handler</span><span class="p">);</span><span class="w"></span>
+<span class="n">cog_host_routes_handler_add</span><span class="w"> </span><span class="p">(</span><span class="n">COG_HOST_ROUTES_HANDLER</span><span class="w"> </span><span class="p">(</span><span class="n">handler</span><span class="p">),</span><span class="w"></span>
+<span class="w">                            </span><span class="s">&quot;example.host&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">                            </span><span class="n">example_host_handler</span><span class="p">);</span><span class="w"></span>
 </code></pre></div>
         </div>
 
@@ -216,12 +216,14 @@ hosts to another&nbsp;directory:</p>
         <ul>
         
           
-          <li class="class">GObject</a></li>
+          <li class="class"><a class="external" href="javascript:void(0)" data-link="class.Object.html" data-namespace="GObject">GObject</a></li>
           
         
         </ul>
       </div>
     </div>
+    
+
     
 
     
@@ -243,6 +245,29 @@ hosts to another&nbsp;directory:</p>
     </div>
     
 
+    
+
+    
+    <div class="toggle-wrapper methods">
+      <h4 id="type-functions">
+        Functions
+        <a href="#type-functions" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+      
+      <div class="">
+        <h6><a href="type_func.HostRoutesHandler.new.html">cog_host_routes_handler_new</a></h6>
+
+        <div class="docblock">
+          <p>Create a new&nbsp;handler.</p>
+        </div>
+
+        
+      </div>
+      
+      </div>
+    </div>
     
 
     
@@ -290,24 +315,29 @@ hosts to another&nbsp;directory:</p>
 
       
         
+        <div class="toggle-wrapper default-hide ancestor-methods"><h5 style="display:block;">Methods inherited from <a class="external" href="javascript:void(0)" data-link="class.Object.html" data-namespace="GObject">GObject</a> (43)</h5>
+          <div class="docblock">
+          
+            <div class="docblock">
+              <p>Please see&nbsp;<a class="external" href="javascript:void(0)" data-link="class.Object.html#methods" data-namespace="GObject">GObject</a>&nbsp;for a full list of methods.</em></p>
+            </div>
+          
+          </div>
+        </div>
+        
       
 
       
         
         <div class="toggle-wrapper default-hide ancestor-methods">
-          <h5 style="display:block;">Methods inherited from <a href="iface.RequestHandler.html">CogRequestHandler</a> (1)</h5>
-
+          <h5 style="display:block;">Methods inherited from <a href="iface.RequestHandler.html">CogRequestHandler</a> (1)</h5><div class="docblock">
           
-          <div class="docblock">
-          
-            <h6><a href="method.RequestHandler.run.html">cog_request_handler_run</a></h6>
-            <div class="docblock">
+            <h6><a href="method.RequestHandler.run.html">cog_request_handler_run</a></h6><div class="docblock">
               <p>Handle a single custom <span class="caps">URI</span> scheme&nbsp;request.</p>
             </div>
             
           
           </div>
-          
         </div>
         
       
@@ -321,6 +351,7 @@ hosts to another&nbsp;directory:</p>
         <a href="#properties" class="anchor"></a>
       </h4>
 
+      
       <div class="docblock">
       
         <div class="">
@@ -335,6 +366,7 @@ the <span class="caps">URI</span>&nbsp;host.</p>
         </div>
       
       </div>
+      
 
       
         
@@ -347,6 +379,36 @@ the <span class="caps">URI</span>&nbsp;host.</p>
     </div>
     
 
+    
+    <div class="signals toggle-wrapper">
+      <h4 id="signals">
+        Signals
+        <a href="#signals" class="anchor"></a>
+      </h4>
+
+      
+
+      
+        
+        <div class="toggle-wrapper default-hide ancestor-signals"><h5 style="display:block;">Signals inherited from <a class="external" href="javascript:void(0)" data-link="class.Object.html" data-namespace="GObject">GObject</a> (1)</h5>
+          <div class="docblock">
+          <h6><a class="external" href="javascript:void(0)" data-namespace="GObject" data-link="signal.Object.notify.html">GObject.Object::notify</a></h6>
+            <div class="docblock">
+              <p>The notify signal is emitted on an object when one of its properties has
+its value set through g_object_set_property(), g_object_set(), et&nbsp;al.</p>
+            </div>
+            
+          
+          </div>
+        </div>
+        
+      
+
+      
+        
+      
+
+    </div>
     
 
     
@@ -386,33 +448,49 @@ the <span class="caps">URI</span>&nbsp;host.</p>
 
     
 
-     
-
-    
-    <div class="toggle-wrapper methods">
-      <h4 id="type-functions">
-        Functions
-        <a href="#type-functions" class="anchor"></a>
-      </h4>
-
-      <div class="docblock">
-      
-      <div class="">
-        <h6><a href="type_func.HostRoutesHandler.new.html">cog_host_routes_handler_new</a></h6>
-
-        <div class="docblock">
-          <p>Create a new&nbsp;handler.</p>
-        </div>
-
-        
-      </div>
-      
-      </div>
-    </div>
     
 
   </section>
 </section>
+
+
+    
+<div id="toc" class="toc">
+  <nav aria-labelledby="toc-title">
+    <p id="toc-title">Content</p>
+    <ul class="toc-list">
+      <li class="toc-list-item"><a href="#description"><span class="link-text">Description</span></a></li>
+      
+      
+      
+      <li class="toc-list-item"><a href="#ancestors"><span class="link-text">Ancestors</span></a></li>
+      
+      
+      <li class="toc-list-item"><a href="#implements"><span class="link-text">Implements</span></a></li>
+      
+      
+
+      
+<li class="toc-list-item"><a href="#type-functions"><span class="link-text">Functions</span></a></li>
+
+
+      
+<li class="toc-list-item"><a href="#methods"><span class="link-text">Methods</span></a></li>
+
+
+      
+<li class="toc-list-item"><a href="#properties"><span class="link-text">Properties</span></a></li>
+
+
+      
+
+      
+
+      
+
+    </ul>
+  </nav>
+</div>
 
 
     <section id="search" class="content hidden"></section>
