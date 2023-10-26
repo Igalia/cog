@@ -128,6 +128,7 @@ cog_platform_init_web_view (CogPlatform   *platform,
             g_warning_once("%s: class %s defines both .get_view_type and .init_web_view, "
                            "the latter should be removed.",
                            G_STRFUNC, G_OBJECT_CLASS_NAME(platform));
+            return;
         }
 
         klass->init_web_view(platform, view);
