@@ -29,13 +29,10 @@
 /* for mmap */
 #include <sys/mman.h>
 
-#include <xkbcommon/xkbcommon.h>
-#include <xkbcommon/xkbcommon-compose.h>
 #include <locale.h>
+#include <xkbcommon/xkbcommon-compose.h>
+#include <xkbcommon/xkbcommon.h>
 
-#if COG_HAVE_LIBPORTAL
-#    include "../common/cog-file-chooser.h"
-#endif /* COG_HAVE_LIBPORTAL */
 #include "../common/cursors.h"
 #include "../common/egl-proc-address.h"
 #include "os-compatibility.h"
@@ -632,8 +629,8 @@ registry_on_global(void *data, struct wl_registry *registry, uint32_t name, cons
 }
 
 #ifdef COG_USE_WAYLAND_CURSOR
-static void
-set_cursor(CogWlPlatform *platform, enum cursor_type type)
+void
+cog_wl_platform_set_cursor(CogWlPlatform *platform, enum cursor_type type)
 {
     CogWlDisplay *display = platform->display;
 
@@ -683,7 +680,7 @@ pointer_on_enter(void              *data,
     display->seat.pointer.surface = surface;
 
 #ifdef COG_USE_WAYLAND_CURSOR
-    set_cursor(platform, CURSOR_LEFT_PTR);
+    cog_wl_platform_set_cursor(platform, CURSOR_LEFT_PTR);
 #endif /* COG_USE_WAYLAND_CURSOR */
 }
 
@@ -1985,55 +1982,6 @@ cog_wl_platform_finalize(GObject *object)
     G_OBJECT_CLASS(cog_wl_platform_parent_class)->finalize(object);
 }
 
-#if COG_HAVE_LIBPORTAL
-static void
-on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
-{
-    g_autoptr(XdpParent) xdp_parent = NULL;
-
-    CogWlPlatform *platform = COG_WL_VIEW(view)->platform;
-
-    if (platform->window.xdp_parent_wl_data.zxdg_exporter && platform->window.xdp_parent_wl_data.wl_surface) {
-        xdp_parent = xdp_parent_new_wl(&COG_WL_VIEW(view)->platform->window.xdp_parent_wl_data);
-    }
-
-    run_file_chooser(view, request, xdp_parent);
-}
-#endif /* COG_HAVE_LIBPORTAL */
-
-static void
-on_mouse_target_changed(WebKitWebView *view, WebKitHitTestResult *hitTestResult, guint mouseModifiers)
-{
-#ifdef COG_USE_WAYLAND_CURSOR
-    CogWlPlatform *platform = COG_WL_VIEW(view)->platform;
-    if (webkit_hit_test_result_context_is_link(hitTestResult)) {
-        set_cursor(platform, CURSOR_HAND);
-    } else if (webkit_hit_test_result_context_is_editable(hitTestResult)) {
-        set_cursor(platform, CURSOR_TEXT);
-    } else if (webkit_hit_test_result_context_is_selection(hitTestResult)) {
-        set_cursor(platform, CURSOR_TEXT);
-    } else {
-        set_cursor(platform, CURSOR_LEFT_PTR);
-    }
-#endif /* COG_USE_WAYLAND_CURSOR */
-}
-
-static void
-cog_wl_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
-{
-    CogWlPlatform *cog_wl_platform = COG_WL_PLATFORM(platform);
-    CogWlView     *cog_wl_view = COG_WL_VIEW(view);
-
-    cog_wl_platform->view = cog_wl_view;
-    cog_wl_view->should_update_opaque_region = true;
-    cog_wl_view->platform = cog_wl_platform;
-
-#if COG_HAVE_LIBPORTAL
-    g_signal_connect(view, "run-file-chooser", G_CALLBACK(on_run_file_chooser), NULL);
-#endif /* COG_HAVE_LIBPORTAL */
-    g_signal_connect(view, "mouse-target-changed", G_CALLBACK(on_mouse_target_changed), NULL);
-}
-
 static WebKitInputMethodContext *
 cog_wl_platform_create_im_context(CogPlatform *platform)
 {
@@ -2056,7 +2004,6 @@ cog_wl_platform_class_init(CogWlPlatformClass *klass)
     platform_class->is_supported = cog_wl_platform_is_supported;
     platform_class->get_view_type = cog_wl_view_get_type;
     platform_class->setup = cog_wl_platform_setup;
-    platform_class->init_web_view = cog_wl_platform_init_web_view;
     platform_class->create_im_context = cog_wl_platform_create_im_context;
 }
 

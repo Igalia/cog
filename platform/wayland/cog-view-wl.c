@@ -11,6 +11,7 @@
 #include <wpe/fdo-egl.h>
 #include <wpe/fdo.h>
 
+#include "../common/cursors.h"
 #include "../common/egl-proc-address.h"
 
 #include <EGL/egl.h>
@@ -19,13 +20,24 @@
 /* for mmap */
 #include <sys/mman.h>
 
+#ifdef COG_USE_WAYLAND_CURSOR
+#    include <wayland-cursor.h>
+#endif
+
 #include "presentation-time-client.h"
 #include "xdg-shell-client.h"
+
+#if COG_HAVE_LIBPORTAL
+#    include "../common/cog-file-chooser.h"
+#endif /* COG_HAVE_LIBPORTAL */
 
 #include "cog-im-context-wl-v1.h"
 #include "cog-im-context-wl.h"
 #include "cog-utils-wl.h"
 #include "cog-view-wl.h"
+#if COG_HAVE_LIBPORTAL
+#    include "cog-xdp-parent-wl.h"
+#endif /* COG_HAVE_LIBPORTAL */
 
 #include "os-compatibility.h"
 
@@ -55,6 +67,12 @@ static void presentation_feedback_on_sync_output(void *, struct wp_presentation_
 static void on_export_shm_buffer(void *, struct wpe_fdo_shm_exported_buffer *);
 #endif
 static void on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image);
+#if COG_USE_WAYLAND_CURSOR
+static void on_mouse_target_changed(WebKitWebView *, WebKitHitTestResult *hitTestResult, guint mouseModifiers);
+#endif
+#if COG_HAVE_LIBPORTAL
+static void on_run_file_chooser(WebKitWebView *, WebKitFileChooserRequest *);
+#endif
 static void on_show_option_menu(WebKitWebView *, WebKitOptionMenu *, WebKitRectangle *, gpointer *);
 static void on_wl_surface_frame(void *, struct wl_callback *, uint32_t);
 
@@ -87,12 +105,20 @@ cog_wl_view_init(CogWlView *self)
     self->should_update_opaque_region = true;
 
     self->scale_factor = 1;
+    self->should_update_opaque_region = true;
     self->image = NULL;
     self->frame_callback = NULL;
     self->platform = COG_WL_PLATFORM(cog_platform_get_default());
 
+    // Only one view is managed by the Wayland Platform nowadays.
+    self->platform->view = self;
+
     wl_list_init(&self->shm_buffer_list);
 
+    g_signal_connect(self, "mouse-target-changed", G_CALLBACK(on_mouse_target_changed), NULL);
+#if COG_HAVE_LIBPORTAL
+    g_signal_connect(self, "run-file-chooser", G_CALLBACK(on_run_file_chooser), NULL);
+#endif /* COG_HAVE_LIBPORTAL */
     g_signal_connect(self, "show-option-menu", G_CALLBACK(on_show_option_menu), NULL);
 }
 
@@ -422,6 +448,39 @@ on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 
     cog_wl_view_update_surface_contents(self);
 }
+
+static void
+on_mouse_target_changed(WebKitWebView *view, WebKitHitTestResult *hitTestResult, guint mouseModifiers)
+{
+#ifdef COG_USE_WAYLAND_CURSOR
+    CogWlPlatform *platform = COG_WL_VIEW(view)->platform;
+    if (webkit_hit_test_result_context_is_link(hitTestResult)) {
+        cog_wl_platform_set_cursor(platform, CURSOR_HAND);
+    } else if (webkit_hit_test_result_context_is_editable(hitTestResult)) {
+        cog_wl_platform_set_cursor(platform, CURSOR_TEXT);
+    } else if (webkit_hit_test_result_context_is_selection(hitTestResult)) {
+        cog_wl_platform_set_cursor(platform, CURSOR_TEXT);
+    } else {
+        cog_wl_platform_set_cursor(platform, CURSOR_LEFT_PTR);
+    }
+#endif /* COG_USE_WAYLAND_CURSOR */
+}
+
+#if COG_HAVE_LIBPORTAL
+static void
+on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
+{
+    g_autoptr(XdpParent) xdp_parent = NULL;
+
+    CogWlPlatform *platform = COG_WL_VIEW(view)->platform;
+
+    if (platform->window.xdp_parent_wl_data.zxdg_exporter && platform->window.xdp_parent_wl_data.wl_surface) {
+        xdp_parent = xdp_parent_new_wl(&COG_WL_VIEW(view)->platform->window.xdp_parent_wl_data);
+    }
+
+    run_file_chooser(view, request, xdp_parent);
+}
+#endif /* COG_HAVE_LIBPORTAL */
 
 static void
 on_show_option_menu(WebKitWebView *view, WebKitOptionMenu *menu, WebKitRectangle *rectangle, gpointer *data)
