@@ -113,7 +113,6 @@ struct _CogWlWindow {
 #if HAVE_FULLSCREEN_HANDLING
     bool was_fullscreen_requested_from_dom;
 #endif
-    bool is_resizing_fullscreen;
     bool is_maximized;
     bool should_resize_to_largest_output;
 };
