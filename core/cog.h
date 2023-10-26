@@ -23,6 +23,7 @@
 #include "cog-shell.h"
 #include "cog-utils.h"
 #include "cog-view.h"
+#include "cog-viewport.h"
 #include "cog-webkit-utils.h"
 
 #undef COG_INSIDE_COG__
