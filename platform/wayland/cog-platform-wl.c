@@ -1980,8 +1980,9 @@ on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
 {
     g_autoptr(XdpParent) xdp_parent = NULL;
 
-    if (COG_WL_VIEW(view)->platform->window.xdp_parent_wl_data.zxdg_exporter &&
-        platform->window.xdp_parent_wl_data.wl_surface) {
+    CogWlPlatform *platform = COG_WL_VIEW(view)->platform;
+
+    if (platform->window.xdp_parent_wl_data.zxdg_exporter && platform->window.xdp_parent_wl_data.wl_surface) {
         xdp_parent = xdp_parent_new_wl(&COG_WL_VIEW(view)->platform->window.xdp_parent_wl_data);
     }
 

@@ -11,6 +11,10 @@
 
 #include "../../core/cog.h"
 
+#if COG_HAVE_LIBPORTAL
+#    include "cog-xdp-parent-wl.h"
+#endif
+
 #include <wayland-server.h>
 #include <wayland-util.h>
 #include <xkbcommon/xkbcommon.h>
