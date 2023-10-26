@@ -1,0 +1,382 @@
+/*
+ * Copyright (C) 2023 Adrian Perez de Castro <aperez@igalia.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+#include "cog-viewport.h"
+
+#include "cog-view.h"
+
+/**
+ * CogViewport:
+ *
+ * Observable set of views, one of which can be visible.
+ *
+ * Provides a container for [class@CogView] objects, which can be
+ * observed for changes by means of the [signal@CogViewport::add]
+ * and [signal@CogViewport::remove] signals.
+ *
+ * Each view associated with the viewport can be retrieved with
+ * [id@cog_viewport_get_nth_view], and the number of views obtained
+ * with [id@cog_viewport_get_n_views]. These can be used to iterate
+ * over the views, but for convenience the [id@cog_viewport_foreach]
+ * method is provided as well.
+ *
+ * The [property@CogViewport:visible-view] tracks the currently
+ * visible view among the ones associated with the viewport, which
+ * can be manipulated with [id@cog_viewport_set_visible_view] and
+ * inspected with [id@cog_viewport_get_visible_view].
+ *
+ * Since: 0.20
+ */
+
+typedef struct {
+    GPtrArray *views;
+    CogView   *visible_view;
+} CogViewportPrivate;
+
+enum {
+    ADD,
+    REMOVE,
+    N_SIGNALS,
+};
+
+static unsigned s_signals[N_SIGNALS] = {
+    0,
+};
+
+enum {
+    PROP_0,
+    PROP_VISIBLE_VIEW,
+    N_PROPERTIES,
+};
+
+static GParamSpec *s_properties[N_PROPERTIES] = {
+    NULL,
+};
+
+G_DEFINE_TYPE_WITH_PRIVATE(CogViewport, cog_viewport, G_TYPE_OBJECT)
+
+#define PRIV(obj) ((CogViewportPrivate *) cog_viewport_get_instance_private((CogViewport *) obj))
+
+static void
+cog_viewport_set_property(GObject *object, unsigned prop_id, const GValue *value, GParamSpec *pspec)
+{
+    CogViewport *self = COG_VIEWPORT(object);
+    switch (prop_id) {
+    case PROP_VISIBLE_VIEW:
+        cog_viewport_set_visible_view(self, g_value_get_object(value));
+        break;
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+    }
+}
+
+static void
+cog_viewport_get_property(GObject *object, unsigned prop_id, GValue *value, GParamSpec *pspec)
+{
+    CogViewport *self = COG_VIEWPORT(object);
+    switch (prop_id) {
+    case PROP_VISIBLE_VIEW:
+        g_value_set_object(value, cog_viewport_get_visible_view(self));
+        break;
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+    }
+}
+
+static void
+cog_viewport_dispose(GObject *object)
+{
+    g_ptr_array_set_size(PRIV(object)->views, 0);
+
+    G_OBJECT_CLASS(cog_viewport_parent_class)->dispose(object);
+}
+
+static void
+cog_viewport_finalize(GObject *object)
+{
+    g_ptr_array_free(PRIV(object)->views, TRUE);
+
+    G_OBJECT_CLASS(cog_viewport_parent_class)->finalize(object);
+}
+
+static void
+cog_viewport_class_init(CogViewportClass *klass)
+{
+    GObjectClass *object_class = G_OBJECT_CLASS(klass);
+    object_class->set_property = cog_viewport_set_property;
+    object_class->get_property = cog_viewport_get_property;
+    object_class->dispose = cog_viewport_dispose;
+    object_class->finalize = cog_viewport_finalize;
+
+    /**
+     * CogViewport::visible-view: (attributes org.gtk.Property.get=cog_viewport_get_visible_view org.gtk.Property.set=cog_viewport_set_visible_view) (setter set_visible_view) (getter get_visible_view):
+     *
+     * The web view currently visible in the viewport.
+     */
+    s_properties[PROP_VISIBLE_VIEW] =
+        g_param_spec_object("visible-view", NULL, NULL, COG_TYPE_VIEW,
+                            G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+
+    g_object_class_install_properties(object_class, N_PROPERTIES, s_properties);
+
+    /**
+     * CogViewport::add:
+     * @self: The viewport where the view was added.
+     * @view: The view that was added to the viewport.
+     * @user_data: User data.
+     *
+     * Emitted after a view has been added to the viewport.
+     */
+    s_signals[ADD] =
+        g_signal_new("add", COG_TYPE_VIEWPORT, G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 1, COG_TYPE_VIEW);
+
+    /**
+     * CogViewport::remove:
+     * @self: The viewport from which the view was removed.
+     * @view: The view that was removed from the viewport.
+     * @user_data: User data.
+     *
+     * Emitted after a view has been removed from the viewport.
+     */
+    s_signals[REMOVE] = g_signal_new("remove", COG_TYPE_VIEWPORT, G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE,
+                                     1, COG_TYPE_VIEW);
+}
+
+static void
+cog_viewport_init(CogViewport *self)
+{
+    PRIV(self)->views = g_ptr_array_new_full(3, g_object_unref);
+}
+
+static void
+cog_viewport_set_visible_view_internal(CogViewport *self, CogViewportPrivate *priv, CogView *view)
+{
+    if (priv->visible_view == view)
+        return;
+
+    if (priv->visible_view) {
+        struct wpe_view_backend *backend = cog_view_get_backend(priv->visible_view);
+        wpe_view_backend_remove_activity_state(backend, wpe_view_activity_state_visible);
+        wpe_view_backend_remove_activity_state(backend, wpe_view_activity_state_focused);
+    }
+
+    priv->visible_view = view;
+    g_object_notify_by_pspec(G_OBJECT(self), s_properties[PROP_VISIBLE_VIEW]);
+
+    if (priv->visible_view) {
+        struct wpe_view_backend *backend = cog_view_get_backend(priv->visible_view);
+        wpe_view_backend_add_activity_state(backend, wpe_view_activity_state_visible);
+    }
+}
+
+/**
+ * cog_viewport_add:
+ * @self: Viewport to add the view to.
+ * @view: The view to add.
+ *
+ * Adds a view to a viewport.
+ *
+ * The next available index will be assigned to the view.
+ */
+void
+cog_viewport_add(CogViewport *self, CogView *view)
+{
+    g_return_if_fail(COG_IS_VIEWPORT(self));
+    g_return_if_fail(COG_IS_VIEW(view));
+
+    CogViewportPrivate *priv = PRIV(self);
+    g_return_if_fail(!g_ptr_array_find(priv->views, view, NULL));
+
+    g_ptr_array_add(priv->views, g_object_ref(view));
+    g_signal_emit(self, s_signals[ADD], 0, view);
+
+    struct wpe_view_backend *backend = cog_view_get_backend(view);
+    wpe_view_backend_add_activity_state(backend, wpe_view_activity_state_in_window);
+
+    if (!priv->visible_view) {
+        g_debug("%s<%p>: adding view %p as visible", G_STRFUNC, self, view);
+        cog_viewport_set_visible_view_internal(self, priv, view);
+    } else {
+        g_debug("%s<%p>: adding view %p as invisible", G_STRFUNC, self, view);
+        wpe_view_backend_remove_activity_state(backend, wpe_view_activity_state_visible);
+        wpe_view_backend_remove_activity_state(backend, wpe_view_activity_state_focused);
+    }
+}
+
+/**
+ * cog_viewport_remove:
+ * @self: Viewport to remove the view from.
+ * @view: The view to remove.
+ *
+ * Removes a view from the viewport.
+ *
+ * Removing a view preserves the relative ordering of the rest of views in
+ * the viewport. This also means that the index used to retrieve them may
+ * change after removal.
+ *
+ * After removal, [property@CogViewport:visible-view] is updated if the
+ * view being removed was visible. If there are other views left associated
+ * with the viewport, the one at index zero will be set as visible; otherwise
+ * if there are no views left, the property is set to %NULL.
+ */
+void
+cog_viewport_remove(CogViewport *self, CogView *view)
+{
+    g_return_if_fail(COG_IS_VIEWPORT(self));
+    g_return_if_fail(COG_IS_VIEW(view));
+
+    CogViewportPrivate *priv = PRIV(self);
+
+    unsigned index;
+    if (!g_ptr_array_find(priv->views, view, &index)) {
+        g_warning("Attempted to remove view %p, which was not in viewport %p.", view, self);
+        return;
+    }
+
+    g_object_ref(view);
+    g_ptr_array_remove_index(priv->views, index);
+    g_signal_emit(self, s_signals[REMOVE], 0, view);
+
+    if (priv->visible_view == view) {
+        CogView *new_visible = priv->views->len ? g_ptr_array_index(priv->views, 0) : NULL;
+        g_debug("%s<%p>: view %p removed, %p now visible", G_STRFUNC, self, view, new_visible);
+        cog_viewport_set_visible_view_internal(self, priv, new_visible);
+    } else {
+        g_debug("%s<%p>: view %p removed, none visible", G_STRFUNC, self, view);
+    }
+
+    struct wpe_view_backend *backend = cog_view_get_backend(view);
+    wpe_view_backend_remove_activity_state(backend, wpe_view_activity_state_in_window);
+    wpe_view_backend_remove_activity_state(backend, wpe_view_activity_state_focused);
+
+    g_object_unref(view);
+}
+
+/**
+ * cog_viewport_contains:
+ * @self: Viewport.
+ * @view: The view to check.
+ *
+ * Checks whether a viewport contains a given view.
+ *
+ * Returns: Whether the @view is contained in the viewport.
+ */
+gboolean
+cog_viewport_contains(CogViewport *self, CogView *view)
+{
+    g_return_val_if_fail(COG_IS_VIEWPORT(self), FALSE);
+    g_return_val_if_fail(COG_IS_VIEW(view), FALSE);
+
+    return g_ptr_array_find(PRIV(self)->views, view, NULL);
+}
+
+/**
+ * cog_viewport_foreach:
+ * @self: Viewport.
+ * @func: (scope call): Callback function.
+ * @user_data: User data passed to the callback.
+ *
+ * Applies a function to each view in the viewport.
+ */
+void
+cog_viewport_foreach(CogViewport *self, GFunc func, void *user_data)
+{
+    g_return_if_fail(COG_IS_VIEWPORT(self));
+    g_return_if_fail(func != NULL);
+
+    g_ptr_array_foreach(PRIV(self)->views, func, user_data);
+}
+
+/**
+ * cog_viewport_get_n_views:
+ * @self: Viewport.
+ *
+ * Gets the number of views in a viewport.
+ *
+ * Returns: Number of views.
+ */
+gsize
+cog_viewport_get_n_views(CogViewport *self)
+{
+    g_return_val_if_fail(COG_IS_VIEWPORT(self), 0);
+
+    return PRIV(self)->views->len;
+}
+
+/**
+ * cog_viewport_get_nth_view:
+ * @self: Viewport.
+ * @index: Index of the view to get.
+ *
+ * Gets a view from the viewport given its index.
+ *
+ * This is typically used along [method@CogViewport.get_n_views] to iterate
+ * over the views:
+ *
+ * ```c
+ * CogViewport *viewport = get_viewport();
+ * for (gsize i = 0; i < cog_viewport_get_n_views(viewport); i++)
+ *     handle_view(cog_viewport_get_nth_view(viewport, i));
+ * ```
+ *
+ * Returns: (transfer none): View at the given @index.
+ */
+CogView *
+cog_viewport_get_nth_view(CogViewport *self, gsize index)
+{
+    g_return_val_if_fail(COG_IS_VIEWPORT(self), NULL);
+
+    CogViewportPrivate *priv = PRIV(self);
+    g_return_val_if_fail(index < priv->views->len, NULL);
+
+    return g_ptr_array_index(priv->views, index);
+}
+
+/**
+ * cog_viewport_get_visible_view: (get-property visible-view)
+ * @self: Viewport.
+ *
+ * Gets the visible view.
+ *
+ * Note that there is no visible view when none is contained in the viewport.
+ * In this case %NULL is returned.
+ *
+ * Returns: (transfer none) (nullable): Visible view, or %NULL.
+ */
+CogView *
+cog_viewport_get_visible_view(CogViewport *self)
+{
+    g_return_val_if_fail(COG_IS_VIEWPORT(self), NULL);
+    return PRIV(self)->visible_view;
+}
+
+/**
+ * cog_viewport_set_visible_view: (set-property visible-view)
+ * @self: Viewport.
+ * @view: The view to set as visible.
+ *
+ * Sets the visible view for the viewport.
+ *
+ * The view set as currently visible will gets its state flags
+ * %wpe_view_activity_state_visible set; and the previously visible
+ * one (if any) will get the flag removed, as well as the
+ * %wpe_view_activity_state_focused removed, too.
+ *
+ * Note that the %wpe_view_activity_state_focused flag **will not be
+ * enabled** for the view that was made visible. The reasons is that
+ * in theory only one view should have this flag at a time, and there
+ * is no way to determine whether a focused view may already be present
+ * in another viewport.
+ */
+void
+cog_viewport_set_visible_view(CogViewport *self, CogView *view)
+{
+    g_return_if_fail(COG_IS_VIEWPORT(self));
+    g_return_if_fail(COG_IS_VIEW(view));
+    g_return_if_fail(cog_viewport_contains(self, view));
+
+    cog_viewport_set_visible_view_internal(self, PRIV(self), view);
+}
