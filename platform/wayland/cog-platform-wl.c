@@ -70,6 +70,15 @@
 #    include <wayland-cursor.h>
 #endif
 
+enum {
+    RESIZED_WINDOW,
+    N_SIGNALS,
+};
+
+static int s_signals[N_SIGNALS] = {
+    0,
+};
+
 G_DEFINE_DYNAMIC_TYPE_EXTENDED(
     CogWlPlatform,
     cog_wl_platform,
@@ -211,7 +220,7 @@ cog_wl_platform_configure_geometry(CogWlPlatform *platform, int32_t width, int32
         platform->window.width = width;
         platform->window.height = height;
 
-        cog_wl_view_resize(platform->view);
+        g_signal_emit(platform, s_signals[RESIZED_WINDOW], 0);
     }
 }
 
@@ -2020,6 +2029,21 @@ cog_wl_platform_class_init(CogWlPlatformClass *klass)
     platform_class->setup = cog_wl_platform_setup;
     platform_class->init_web_view = cog_wl_platform_init_web_view;
     platform_class->create_im_context = cog_wl_platform_create_im_context;
+
+    /**
+     * CogWlPlatform::resized-window:
+     * @self: The platform.
+     * @user_data: User data.
+     *
+     * The `resized-window` signal is emitted when the window is resized.
+     *
+     * Handling this signal allows to react to changes in the geometry of
+     * the window.
+     *
+     * Returns: (void)
+     */
+    s_signals[RESIZED_WINDOW] =
+        g_signal_new("resized-window", COG_WL_PLATFORM_TYPE, G_SIGNAL_RUN_LAST, 0, NULL, NULL, NULL, G_TYPE_NONE, 0);
 }
 
 static void

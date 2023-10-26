@@ -17,6 +17,8 @@ G_BEGIN_DECLS
 
 typedef struct _CogWlView CogWlView;
 
+#define COG_WL_PLATFORM_TYPE cog_wl_platform_get_type()
+
 G_DECLARE_FINAL_TYPE(CogWlPlatform, cog_wl_platform, COG, WL_PLATFORM, CogPlatform)
 
 struct _CogWlPlatformClass {

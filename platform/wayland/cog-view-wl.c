@@ -37,6 +37,7 @@ static void                  cog_wl_view_dispose(GObject *);
 #if HAVE_FULLSCREEN_HANDLING
 static bool cog_wl_view_handle_dom_fullscreen_request(void *, bool);
 #endif
+static void cog_wl_view_resize(CogWlView *, CogWlPlatform *);
 
 static void cog_wl_view_shm_buffer_destroy(CogWlView *, struct shm_buffer *);
 
@@ -95,6 +96,7 @@ cog_wl_view_init(CogWlView *self)
     wl_list_init(&self->shm_buffer_list);
 
     g_signal_connect(self, "show-option-menu", G_CALLBACK(on_show_option_menu), NULL);
+    g_signal_connect_swapped(self->platform, "resized-window", G_CALLBACK(cog_wl_view_resize), self);
 }
 
 /*
@@ -280,13 +282,11 @@ cog_wl_view_request_frame(CogWlView *view)
     }
 }
 
-void
-cog_wl_view_resize(CogWlView *view)
+static void
+cog_wl_view_resize(CogWlView *view, CogWlPlatform *platform)
 {
-    g_assert(view->platform);
-    CogWlPlatform *platform = view->platform;
-    CogWlDisplay  *display = platform->display;
-    CogWlWindow   *window = &platform->window;
+    CogWlDisplay *display = platform->display;
+    CogWlWindow  *window = &platform->window;
 
     view->should_update_opaque_region = true;
 
