@@ -197,26 +197,25 @@ cog_wl_view_does_image_match_win_size(CogWlView *view)
 void
 cog_wl_view_enter_fullscreen(CogWlView *view)
 {
+    view->is_resizing_fullscreen = true;
     if (!cog_wl_view_does_image_match_win_size(view))
         return;
 
-    g_assert(view->platform);
-
-    CogWlDisplay *display = view->platform->display;
-    CogWlWindow  *window = &view->platform->window;
-
-    if (display->xdg_shell) {
-        xdg_toplevel_set_fullscreen(window->xdg_toplevel, NULL);
-    } else if (display->shell) {
-        wl_shell_surface_set_fullscreen(window->shell_surface, WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE, 0, NULL);
-    } else if (display->fshell == NULL) {
-        g_assert_not_reached();
-    }
-
-    window->is_resizing_fullscreen = false;
 #if HAVE_FULLSCREEN_HANDLING
-    if (window->was_fullscreen_requested_from_dom)
+    g_assert(view->platform);
+    if (view->platform->window.was_fullscreen_requested_from_dom)
         wpe_view_backend_dispatch_did_enter_fullscreen(cog_view_get_backend(COG_VIEW(view)));
+#endif
+
+    view->is_resizing_fullscreen = false;
+}
+
+void
+cog_wl_view_exit_fullscreen(CogWlView *view)
+{
+#if HAVE_FULLSCREEN_HANDLING
+    struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(view));
+    wpe_view_backend_dispatch_did_exit_fullscreen(backend);
 #endif
 }
 
@@ -329,7 +328,7 @@ cog_wl_view_update_surface_contents(CogWlView *view)
 
     wl_surface_commit(surface);
 
-    if (window->is_resizing_fullscreen)
+    if (view->is_resizing_fullscreen)
         cog_wl_view_enter_fullscreen(view);
 }
 

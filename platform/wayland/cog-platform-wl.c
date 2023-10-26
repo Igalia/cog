@@ -103,6 +103,11 @@ static struct {
     .configured = false,
 };
 
+static void
+noop()
+{
+}
+
 static gboolean
 wl_src_prepare(GSource *base, gint *timeout)
 {
@@ -229,6 +234,58 @@ cog_wl_platform_resize_window(CogWlPlatform *platform)
 
     g_debug("Resized EGL buffer to: (%" PRIi32 ", %" PRIi32 ") @%" PRIi32 "x", pixel_width, pixel_height,
             display->current_output->scale);
+}
+
+static void resize_to_largest_output(CogWlPlatform *);
+
+static void
+cog_wl_platform_enter_fullscreen(CogWlPlatform *platform)
+{
+    CogWlDisplay *display = platform->display;
+    CogWlWindow  *window = &platform->window;
+
+    // Resize window to the size of the screen.
+    window->width_before_fullscreen = window->width;
+    window->height_before_fullscreen = window->height;
+    resize_to_largest_output(platform);
+
+    if (display->xdg_shell) {
+        xdg_toplevel_set_fullscreen(window->xdg_toplevel, NULL);
+    } else if (display->shell) {
+        wl_shell_surface_set_fullscreen(window->shell_surface, WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE, 0, NULL);
+    } else if (display->fshell == NULL) {
+        g_assert_not_reached();
+    }
+
+    // Wait until a new exported image is reveived. See cog_wl_view_enter_fullscreen().
+    cog_wl_view_enter_fullscreen(platform->view);
+}
+
+static void
+cog_wl_platform_exit_fullscreen(CogWlPlatform *platform)
+{
+    CogWlDisplay *display = platform->display;
+    CogWlWindow  *window = &platform->window;
+
+    if (display->xdg_shell != NULL) {
+        xdg_toplevel_unset_fullscreen(window->xdg_toplevel);
+    } else if (display->fshell != NULL) {
+        noop();
+    } else if (display->shell != NULL) {
+        wl_shell_surface_set_toplevel(window->shell_surface);
+    } else {
+        g_assert_not_reached();
+    }
+
+    cog_wl_platform_configure_geometry(platform, window->width_before_fullscreen, window->height_before_fullscreen);
+    cog_wl_platform_resize_window(platform);
+
+#if HAVE_FULLSCREEN_HANDLING
+    if (window->was_fullscreen_requested_from_dom) {
+        cog_wl_view_exit_fullscreen(platform->view);
+    }
+    window->was_fullscreen_requested_from_dom = false;
+#endif
 }
 
 static void
@@ -371,11 +428,6 @@ resize_to_largest_output(CogWlPlatform *platform)
     }
 }
 
-static void
-noop()
-{
-}
-
 static CogWlOutput *
 find_output(CogWlDisplay *display, struct wl_output *output)
 {
@@ -453,44 +505,16 @@ output_handle_scale(void *data, struct wl_output *output, int32_t factor)
 bool
 cog_wl_platform_set_fullscreen(CogWlPlatform *platform, bool fullscreen)
 {
-    CogWlDisplay *display = platform->display;
-
-    if (platform->window.is_resizing_fullscreen || platform->window.is_fullscreen == fullscreen)
+    if (platform->window.is_fullscreen == fullscreen)
         return false;
 
     platform->window.is_fullscreen = fullscreen;
 
-    if (fullscreen) {
-        // Resize the view_backend to the size of the screen.
-        // Wait until a new exported image is reveived. See cog_wl_view_enter_fullscreen().
-        platform->window.is_resizing_fullscreen = true;
-        platform->window.width_before_fullscreen = platform->window.width;
-        platform->window.height_before_fullscreen = platform->window.height;
-        resize_to_largest_output(platform);
-        cog_wl_view_enter_fullscreen(platform->view);
-    } else {
-        if (display->xdg_shell != NULL) {
-            xdg_toplevel_unset_fullscreen(platform->window.xdg_toplevel);
-        } else if (display->fshell != NULL) {
-            noop();
-        } else if (display->shell != NULL) {
-            wl_shell_surface_set_toplevel(platform->window.shell_surface);
-        } else {
-            g_assert_not_reached();
-        }
-        cog_wl_platform_configure_geometry(platform, platform->window.width_before_fullscreen,
-                                           platform->window.height_before_fullscreen);
-        cog_wl_platform_resize_window(platform);
+    if (fullscreen)
+        cog_wl_platform_enter_fullscreen(platform);
+    else
+        cog_wl_platform_exit_fullscreen(platform);
 
-#if HAVE_FULLSCREEN_HANDLING
-        if (platform->window.was_fullscreen_requested_from_dom) {
-            struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(platform->view));
-            wpe_view_backend_dispatch_did_exit_fullscreen(backend);
-        }
-        platform->window.was_fullscreen_requested_from_dom = false;
-#endif
-    }
-    platform->view->should_update_opaque_region = true;
     return true;
 }
 
@@ -1693,23 +1717,10 @@ create_window(CogWlPlatform *platform, GError **error)
     const char *env_var;
     if ((env_var = g_getenv("COG_PLATFORM_WL_VIEW_FULLSCREEN")) && g_ascii_strtoll(env_var, NULL, 10) > 0) {
         platform->window.is_maximized = false;
-        platform->window.is_fullscreen = true;
-
-        if (display->xdg_shell != NULL) {
-            xdg_toplevel_set_fullscreen(platform->window.xdg_toplevel, NULL);
-        } else if (display->fshell != NULL) {
-            platform->window.should_resize_to_largest_output = true;
-            resize_to_largest_output(platform);
-        } else if (display->shell != NULL) {
-            wl_shell_surface_set_fullscreen(platform->window.shell_surface, WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE, 0,
-                                            NULL);
-        } else {
-            g_warning("No available shell capable of fullscreening.");
-            platform->window.is_fullscreen = false;
-        }
+        cog_wl_platform_set_fullscreen(platform, true);
     } else if ((env_var = g_getenv("COG_PLATFORM_WL_VIEW_MAXIMIZE")) && g_ascii_strtoll(env_var, NULL, 10) > 0) {
+        cog_wl_platform_set_fullscreen(platform, false);
         platform->window.is_maximized = true;
-        platform->window.is_fullscreen = false;
 
         if (display->xdg_shell != NULL) {
             xdg_toplevel_set_maximized(platform->window.xdg_toplevel);

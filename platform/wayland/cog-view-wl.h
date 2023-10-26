@@ -28,6 +28,8 @@ struct _CogWlView {
     struct wpe_view_backend_exportable_fdo *exportable;
     struct wpe_fdo_egl_exported_image      *image;
 
+    bool is_resizing_fullscreen;
+
     struct wl_callback *frame_callback;
 
     bool    should_update_opaque_region;
@@ -42,8 +44,9 @@ G_DECLARE_FINAL_TYPE(CogWlView, cog_wl_view, COG, WL_VIEW, CogView)
  * Method declarations.
  */
 
-void cog_wl_view_enter_fullscreen(CogWlView *);
-
 void cog_wl_view_register_type_exported(GTypeModule *type_module);
+
+void cog_wl_view_enter_fullscreen(CogWlView *);
+void cog_wl_view_exit_fullscreen(CogWlView *);
 
 G_END_DECLS
