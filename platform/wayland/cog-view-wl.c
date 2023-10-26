@@ -305,6 +305,27 @@ cog_wl_view_request_frame(CogWlView *view)
 }
 
 void
+cog_wl_view_resize(CogWlView *view)
+{
+    g_assert(view->platform);
+    CogWlPlatform *platform = view->platform;
+    CogWlDisplay  *display = platform->display;
+    CogWlWindow   *window = &platform->window;
+
+    view->should_update_opaque_region = true;
+
+    int32_t pixel_width = window->width * display->current_output->scale;
+    int32_t pixel_height = window->height * display->current_output->scale;
+
+    struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(view));
+    wpe_view_backend_dispatch_set_size(backend, window->width, window->height);
+    wpe_view_backend_dispatch_set_device_scale_factor(backend, display->current_output->scale);
+
+    g_debug("Resized EGL buffer to: (%" PRIi32 ", %" PRIi32 ") @%" PRIi32 "x", pixel_width, pixel_height,
+            display->current_output->scale);
+}
+
+void
 cog_wl_view_update_surface_contents(CogWlView *view)
 {
     g_assert(view);
