@@ -70,6 +70,16 @@
 #    include <wayland-cursor.h>
 #endif
 
+enum {
+    FULLSCREEN_ENTER,
+    FULLSCREEN_EXIT,
+    N_SIGNALS,
+};
+
+static int s_signals[N_SIGNALS] = {
+    0,
+};
+
 G_DEFINE_DYNAMIC_TYPE_EXTENDED(
     CogWlPlatform,
     cog_wl_platform,
@@ -258,7 +268,7 @@ cog_wl_platform_enter_fullscreen(CogWlPlatform *platform)
     }
 
     // Wait until a new exported image is reveived. See cog_wl_view_enter_fullscreen().
-    cog_wl_view_enter_fullscreen(platform->view);
+    g_signal_emit(platform, s_signals[FULLSCREEN_ENTER], 0);
 }
 
 static void
@@ -282,7 +292,7 @@ cog_wl_platform_exit_fullscreen(CogWlPlatform *platform)
 
 #if HAVE_FULLSCREEN_HANDLING
     if (window->was_fullscreen_requested_from_dom) {
-        cog_wl_view_exit_fullscreen(platform->view);
+        g_signal_emit(platform, s_signals[FULLSCREEN_EXIT], 0);
     }
     window->was_fullscreen_requested_from_dom = false;
 #endif
@@ -2057,6 +2067,38 @@ cog_wl_platform_class_init(CogWlPlatformClass *klass)
     platform_class->setup = cog_wl_platform_setup;
     platform_class->init_web_view = cog_wl_platform_init_web_view;
     platform_class->create_im_context = cog_wl_platform_create_im_context;
+
+    /**
+￼    * CogWlPlatform::fullscreen-enter:
+￼    * @self: The platform.
+￼    * @user_data: User data.
+￼    *
+￼    * The `fullscreen-enter` signal is emitted when the window enters the
+￼    * fullscreen mode.
+￼    *
+￼    * Handling this signal allows to react when the window enter the
+￼    * fullscreen mode.
+￼    *
+￼    * Returns: (void)
+￼    */
+    s_signals[FULLSCREEN_ENTER] =
+        g_signal_new("fullscreen-enter", COG_WL_PLATFORM_TYPE, G_SIGNAL_RUN_LAST, 0, NULL, NULL, NULL, G_TYPE_NONE, 0);
+
+    /**
+￼    * CogWlPlatform::fullscreen-exit:
+￼    * @self: The platform.
+￼    * @user_data: User data.
+￼    *
+￼    * The `fullscreen-exit` signal is emitted when the window exits the
+￼    * fullscreen mode.
+￼    *
+￼    * Handling this signal allows to react when the window exit the
+￼    * fullscreen mode.
+￼    *
+￼    * Returns: (void)
+￼    */
+    s_signals[FULLSCREEN_EXIT] =
+        g_signal_new("fullscreen-exit", COG_WL_PLATFORM_TYPE, G_SIGNAL_RUN_LAST, 0, NULL, NULL, NULL, G_TYPE_NONE, 0);
 }
 
 static void

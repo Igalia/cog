@@ -34,6 +34,8 @@ G_DEFINE_DYNAMIC_TYPE(CogWlView, cog_wl_view, COG_TYPE_VIEW)
 static void                  cog_wl_view_clear_buffers(CogWlView *);
 static WebKitWebViewBackend *cog_wl_view_create_backend(CogView *);
 static void                  cog_wl_view_dispose(GObject *);
+void                         cog_wl_view_enter_fullscreen(CogWlView *);
+void                         cog_wl_view_exit_fullscreen(CogWlView *);
 #if HAVE_FULLSCREEN_HANDLING
 static bool cog_wl_view_handle_dom_fullscreen_request(void *, bool);
 #endif
@@ -94,6 +96,8 @@ cog_wl_view_init(CogWlView *self)
     wl_list_init(&self->shm_buffer_list);
 
     g_signal_connect(self, "show-option-menu", G_CALLBACK(on_show_option_menu), NULL);
+    g_signal_connect_swapped(self->platform, "fullscreen-enter", G_CALLBACK(cog_wl_view_enter_fullscreen), self);
+    g_signal_connect_swapped(self->platform, "fullscreen-exit", G_CALLBACK(cog_wl_view_exit_fullscreen), self);
 }
 
 /*
