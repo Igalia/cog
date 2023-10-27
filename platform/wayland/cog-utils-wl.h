@@ -18,6 +18,8 @@
 #include <wayland-util.h>
 #include <xkbcommon/xkbcommon.h>
 
+#include "cog-popup-menu-wl.h"
+
 G_BEGIN_DECLS
 
 #define DEFAULT_HEIGHT 768
@@ -42,6 +44,7 @@ typedef struct _CogWlDisplay  CogWlDisplay;
 typedef struct _CogWlKeyboard CogWlKeyboard;
 typedef struct _CogWlOutput   CogWlOutput;
 typedef struct _CogWlPointer  CogWlPointer;
+typedef struct _CogWlPopup    CogWlPopup;
 typedef struct _CogWlSeat     CogWlSeat;
 typedef struct _CogWlTouch    CogWlTouch;
 typedef struct _CogWlWindow   CogWlWindow;
@@ -89,6 +92,24 @@ struct _CogWlPointer {
     uint32_t           button;
     uint32_t           state;
     uint32_t           serial;
+};
+
+struct _CogWlPopup {
+    struct wl_surface *wl_surface;
+
+    struct xdg_positioner *xdg_positioner;
+    struct xdg_surface    *xdg_surface;
+    struct xdg_popup      *xdg_popup;
+
+    struct wl_shell_surface *shell_surface;
+
+    uint32_t width;
+    uint32_t height;
+
+    CogPopupMenu     *popup_menu;
+    WebKitOptionMenu *option_menu;
+
+    bool configured;
 };
 
 struct _CogWlTouch {
@@ -256,6 +277,11 @@ struct _CogWlDisplay {
 void          cog_wl_display_add_seat(CogWlDisplay *, CogWlSeat *);
 CogWlDisplay *cog_wl_display_create(const char *name, GError **error);
 void          cog_wl_display_destroy(CogWlDisplay *self);
+
+CogWlPopup *cog_wl_popup_create(CogWlPlatform *, WebKitOptionMenu *);
+void        cog_wl_popup_destroy(CogWlPopup *);
+void        cog_wl_popup_display(CogWlPopup *);
+void        cog_wl_popup_update(CogWlPopup *);
 
 CogWlSeat *cog_wl_seat_create(struct wl_seat *, uint32_t);
 void       cog_wl_seat_destroy(CogWlSeat *);

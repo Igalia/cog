@@ -187,6 +187,175 @@ cog_wl_display_destroy(CogWlDisplay *display)
     g_slice_free(CogWlDisplay, display);
 }
 
+static void
+xdg_popup_on_configure(void *data, struct xdg_popup *xdg_popup, int32_t x, int32_t y, int32_t width, int32_t height)
+{
+}
+
+static void
+xdg_popup_on_popup_done(void *data, struct xdg_popup *xdg_popup)
+{
+    cog_wl_popup_destroy((CogWlPopup *) data);
+}
+
+static void
+shell_popup_surface_ping(void *data, struct wl_shell_surface *shell_surface, uint32_t serial)
+{
+    wl_shell_surface_pong(shell_surface, serial);
+}
+
+static void
+shell_popup_surface_configure(void                    *data,
+                              struct wl_shell_surface *shell_surface,
+                              uint32_t                 edges,
+                              int32_t                  width,
+                              int32_t                  height)
+{
+}
+
+static void
+shell_popup_surface_popup_done(void *data, struct wl_shell_surface *shell_surface)
+{
+}
+
+static const struct wl_shell_surface_listener shell_popup_surface_listener = {
+    .ping = shell_popup_surface_ping,
+    .configure = shell_popup_surface_configure,
+    .popup_done = shell_popup_surface_popup_done,
+};
+
+static void
+xdg_surface_on_configure(void *data, struct xdg_surface *surface, uint32_t serial)
+{
+    xdg_surface_ack_configure(surface, serial);
+
+    CogWlPopup *popup = data;
+
+    if (!popup)
+        return;
+
+    g_assert(popup->xdg_surface == surface);
+
+    if (!popup->configured) {
+        g_debug("%s: Configured @ %p", G_STRFUNC, popup);
+        popup->configured = true;
+        cog_wl_popup_display(popup);
+    }
+}
+
+CogWlPopup *
+cog_wl_popup_create(CogWlPlatform *platform, WebKitOptionMenu *option_menu)
+{
+    CogWlDisplay *display = platform->display;
+
+    CogWlPopup *popup = g_slice_new0(CogWlPopup);
+    g_debug("%s: Create @ %p", G_STRFUNC, popup);
+
+    popup->option_menu = option_menu;
+
+    popup->width = platform->window.width;
+    popup->height = cog_popup_menu_get_height_for_option_menu(option_menu);
+
+    popup->popup_menu =
+        cog_popup_menu_create(option_menu, display->shm, popup->width, popup->height, display->current_output->scale);
+
+    popup->wl_surface = wl_compositor_create_surface(display->compositor);
+    g_assert(popup->wl_surface);
+
+#ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
+    if (wl_surface_get_version(popup->wl_surface) >= WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION)
+        wl_surface_set_buffer_scale(popup->wl_surface, display->current_output->scale);
+#endif /* WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION */
+
+    if (display->xdg_shell != NULL) {
+        popup->xdg_positioner = xdg_wm_base_create_positioner(display->xdg_shell);
+        g_assert(popup->xdg_positioner);
+
+        xdg_positioner_set_size(popup->xdg_positioner, popup->width, popup->height);
+        xdg_positioner_set_anchor_rect(popup->xdg_positioner, 0, (platform->window.height - popup->height),
+                                       popup->width, popup->height);
+
+        popup->xdg_surface = xdg_wm_base_get_xdg_surface(display->xdg_shell, popup->wl_surface);
+        g_assert(popup->xdg_surface);
+
+        static const struct xdg_surface_listener xdg_surface_listener = {.configure = xdg_surface_on_configure};
+        xdg_surface_add_listener(popup->xdg_surface, &xdg_surface_listener, popup);
+        popup->xdg_popup =
+            xdg_surface_get_popup(popup->xdg_surface, platform->window.xdg_surface, popup->xdg_positioner);
+        g_assert(popup->xdg_popup);
+
+        static const struct xdg_popup_listener xdg_popup_listener = {
+            .configure = xdg_popup_on_configure,
+            .popup_done = xdg_popup_on_popup_done,
+        };
+        xdg_popup_grab(popup->xdg_popup, display->seat_default->seat, cog_wl_seat_get_serial(display->seat_default));
+        xdg_popup_add_listener(popup->xdg_popup, &xdg_popup_listener, popup);
+        wl_surface_commit(popup->wl_surface);
+    } else if (display->shell != NULL) {
+        popup->shell_surface = wl_shell_get_shell_surface(display->shell, popup->wl_surface);
+        g_assert(popup->shell_surface);
+
+        wl_shell_surface_add_listener(popup->shell_surface, &shell_popup_surface_listener, NULL);
+        wl_shell_surface_set_popup(popup->shell_surface, display->seat_default->seat,
+                                   cog_wl_seat_get_serial(display->seat_default), platform->window.wl_surface, 0,
+                                   (platform->window.height - popup->height), 0);
+
+        cog_wl_popup_display(popup);
+    }
+
+    return popup;
+}
+
+void
+cog_wl_popup_destroy(CogWlPopup *popup)
+{
+    g_debug("%s: Destroying @ %p", G_STRFUNC, popup);
+    g_assert(popup);
+
+    if (popup->option_menu != NULL)
+        webkit_option_menu_close(popup->option_menu);
+
+    g_clear_pointer(&popup->popup_menu, cog_popup_menu_destroy);
+    g_clear_object(&popup->option_menu);
+
+    g_clear_pointer(&popup->xdg_popup, xdg_popup_destroy);
+    g_clear_pointer(&popup->xdg_surface, xdg_surface_destroy);
+    g_clear_pointer(&popup->xdg_positioner, xdg_positioner_destroy);
+    g_clear_pointer(&popup->shell_surface, wl_shell_surface_destroy);
+    g_clear_pointer(&popup->wl_surface, wl_surface_destroy);
+
+    g_slice_free(CogWlPopup, popup);
+}
+
+void
+cog_wl_popup_display(CogWlPopup *popup)
+{
+    g_debug("%s: Displaying @ %p", G_STRFUNC, popup);
+    struct wl_buffer *buffer = cog_popup_menu_get_buffer(popup->popup_menu);
+    wl_surface_attach(popup->wl_surface, buffer, 0, 0);
+    wl_surface_damage(popup->wl_surface, 0, 0, INT32_MAX, INT32_MAX);
+    wl_surface_commit(popup->wl_surface);
+}
+
+void
+cog_wl_popup_update(CogWlPopup *popup)
+{
+    g_debug("%s: Update @ %p", G_STRFUNC, popup);
+    int  selected_index;
+    bool has_final_selection = cog_popup_menu_has_final_selection(popup->popup_menu, &selected_index);
+    if (has_final_selection) {
+        if (selected_index != -1)
+            webkit_option_menu_activate_item(popup->option_menu, selected_index);
+        cog_wl_popup_destroy(popup);
+        return;
+    }
+
+    struct wl_buffer *buffer = cog_popup_menu_get_buffer(popup->popup_menu);
+    wl_surface_attach(popup->wl_surface, buffer, 0, 0);
+    wl_surface_damage(popup->wl_surface, 0, 0, INT32_MAX, INT32_MAX);
+    wl_surface_commit(popup->wl_surface);
+}
+
 CogWlSeat *
 cog_wl_seat_create(struct wl_seat *wl_seat, uint32_t name)
 {
