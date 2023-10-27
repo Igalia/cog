@@ -274,12 +274,6 @@ cog_wl_view_on_buffer_release(void *data G_GNUC_UNUSED, struct wl_buffer *buffer
 }
 
 static void
-cog_wl_view_popup_create(CogWlView *view, WebKitOptionMenu *option_menu)
-{
-    cog_wl_platform_popup_create(view->platform, option_menu);
-}
-
-static void
 cog_wl_view_request_frame(CogWlView *view)
 {
     CogWlDisplay *display = view->platform->display;
@@ -511,7 +505,7 @@ on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
 static void
 on_show_option_menu(WebKitWebView *view, WebKitOptionMenu *menu, WebKitRectangle *rectangle, gpointer *data)
 {
-    cog_wl_view_popup_create(COG_WL_VIEW(view), g_object_ref(menu));
+    cog_wl_platform_popup_create(COG_WL_VIEW(view)->platform, g_object_ref(menu));
 }
 
 static void

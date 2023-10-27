@@ -26,6 +26,7 @@ struct _CogWlPlatformClass {
 struct _CogWlPlatform {
     CogPlatform   parent;
     CogWlDisplay *display;
+    CogWlPopup   *popup;
     CogWlView    *view;
     CogWlWindow   window;
 };
@@ -34,7 +35,21 @@ struct _CogWlPlatform {
  * Method declarations.
  */
 
-void cog_wl_platform_popup_create(CogWlPlatform *platform, WebKitOptionMenu *);
+/**
+ * CogWlPlatform::cog_wl_platform_popup_create
+ * @platform: Reference to the CogWlPlatform instance.
+ * @options: Reference to the WebKitOptionMenu.
+ *
+ * Creates the CogWlPopup and set this inside the @platform.
+ *
+ * This function will fail if it is called twice without a
+ * cog_wl_platform_popup_destroy() in between both calls.
+ *
+ * Returns: (void)
+ */
+void cog_wl_platform_popup_create(CogWlPlatform *, WebKitOptionMenu *);
+void cog_wl_platform_popup_destroy(CogWlPlatform *);
+void cog_wl_platform_popup_update(CogWlPlatform *);
 
 bool cog_wl_platform_set_fullscreen(CogWlPlatform *platform, bool fullscreen);
 
