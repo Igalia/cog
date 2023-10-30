@@ -452,6 +452,11 @@ output_handle_done(void *data, struct wl_output *output)
     if (!display->current_output) {
         g_debug("%s: Using %p as initial output", G_STRFUNC, output);
         display->current_output = metrics;
+
+        // Forces a View resize since the output changed so the device
+        // scale factor could be different and the scale of the exported
+        // image should be also updated.
+        cog_wl_view_resize(platform->view);
     }
 
     if (platform->window.should_resize_to_largest_output) {
