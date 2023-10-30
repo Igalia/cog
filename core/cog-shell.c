@@ -8,6 +8,7 @@
 #include "cog-shell.h"
 
 #include "cog-view.h"
+#include "cog-viewport.h"
 
 /**
  * CogShell:
@@ -29,7 +30,8 @@ typedef struct {
 
     WebKitSettings           *web_settings;
     WebKitWebContext         *web_context;
-    WebKitWebView            *web_view;
+    CogViewport              *viewport;
+
 #if !COG_USE_WPE2
     WebKitWebsiteDataManager *web_data_manager;
 #endif
@@ -52,6 +54,7 @@ enum {
     PROP_WEB_SETTINGS,
     PROP_WEB_CONTEXT,
     PROP_WEB_VIEW,
+    PROP_VIEWPORT,
     PROP_CONFIG_FILE,
     PROP_DEVICE_SCALE_FACTOR,
     PROP_AUTOMATED,
@@ -137,7 +140,8 @@ request_handler_map_entry_register (const char             *scheme,
 static WebKitWebView *
 cog_shell_create_web_view_for_automation(WebKitAutomationSession *session, CogShell *shell)
 {
-    return PRIV(shell)->web_view;
+    /* FIXME: Actually create a fresh web view. */
+    return cog_shell_get_web_view(shell);
 }
 
 static void
@@ -151,12 +155,6 @@ cog_shell_automation_started_callback(WebKitWebContext *context, WebKitAutomatio
 }
 
 static void
-cog_shell_web_view_close(WebKitWebView *view, CogShell *shell)
-{
-    g_object_unref(view);
-}
-
-static void
 cog_shell_startup_base(CogShell *shell)
 {
     CogShellPrivate *priv = PRIV(shell);
@@ -167,19 +165,23 @@ cog_shell_startup_base(CogShell *shell)
                               priv->web_context);
     }
 
-    g_signal_emit (shell, s_signals[CREATE_VIEW], 0, &priv->web_view);
-    g_object_notify_by_pspec (G_OBJECT (shell), s_properties[PROP_WEB_VIEW]);
+    g_autoptr(WebKitWebView) web_view = NULL;
+    g_signal_emit(shell, s_signals[CREATE_VIEW], 0, &web_view);
+
+    g_assert(COG_IS_VIEW(web_view));
 
     /*
      * The web context and settings being used by the web view must be
      * the same that were pre-created by shell.
      */
-    g_assert (webkit_web_view_get_settings (priv->web_view) == priv->web_settings);
-    g_assert (webkit_web_view_get_context (priv->web_view) == priv->web_context);
+    g_assert(webkit_web_view_get_settings(web_view) == priv->web_settings);
+    g_assert(webkit_web_view_get_context(web_view) == priv->web_context);
 
     webkit_web_context_set_automation_allowed(priv->web_context, priv->automated);
     g_signal_connect(priv->web_context, "automation-started", G_CALLBACK(cog_shell_automation_started_callback), shell);
-    g_signal_connect(priv->web_view, "close", G_CALLBACK(cog_shell_web_view_close), shell);
+    g_signal_connect_swapped(web_view, "close", G_CALLBACK(cog_viewport_remove), priv->viewport);
+
+    cog_viewport_add(priv->viewport, COG_VIEW(web_view));
 }
 
 static void
@@ -206,6 +208,9 @@ cog_shell_get_property (GObject    *object,
             break;
         case PROP_WEB_VIEW:
             g_value_set_object (value, cog_shell_get_web_view (shell));
+            break;
+        case PROP_VIEWPORT:
+            g_value_set_object(value, cog_shell_get_viewport(shell));
             break;
 #if COG_HAVE_MEM_PRESSURE
         case PROP_WEB_MEMORY_SETTINGS:
@@ -274,6 +279,14 @@ cog_shell_set_property (GObject      *object,
 }
 
 static void
+cog_shell_viewport_visible_view_changed(CogViewport *viewport G_GNUC_UNUSED,
+                                        GParamSpec *pspec     G_GNUC_UNUSED,
+                                        GObject              *shell)
+{
+    g_object_notify_by_pspec(shell, s_properties[PROP_WEB_VIEW]);
+}
+
+static void
 cog_shell_constructed(GObject *object)
 {
     G_OBJECT_CLASS(cog_shell_parent_class)->constructed(object);
@@ -306,6 +319,10 @@ cog_shell_constructed(GObject *object)
                                      "memory-pressure-settings", priv->web_mem_settings,
 #endif
                                      NULL);
+
+    priv->viewport = g_object_new(COG_TYPE_VIEWPORT, NULL);
+    g_signal_connect_object(priv->viewport, "notify::visible-view", G_CALLBACK(cog_shell_viewport_visible_view_changed),
+                            object, 0);
 }
 
 static void
@@ -313,7 +330,7 @@ cog_shell_dispose(GObject *object)
 {
     CogShellPrivate *priv = PRIV(object);
 
-    g_clear_object(&priv->web_view);
+    g_clear_object(&priv->viewport);
     g_clear_object(&priv->web_context);
     g_clear_object(&priv->web_settings);
 #if !COG_USE_WPE2
@@ -415,12 +432,21 @@ cog_shell_class_init (CogShellClass *klass)
      * The [class@WebKit.WebView] managed by this shell.
      */
     s_properties[PROP_WEB_VIEW] =
-        g_param_spec_object ("web-view",
-                             "Web View",
-                             "The WebKitWebView used by the shell",
-                             WEBKIT_TYPE_WEB_VIEW,
-                             G_PARAM_READABLE |
-                             G_PARAM_STATIC_STRINGS);
+        g_param_spec_object("web-view",
+                            "Web View",
+                            "The WebKitWebView used by the shell",
+                            WEBKIT_TYPE_WEB_VIEW,
+                            G_PARAM_READABLE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+
+    /**
+     * CogShell:viewport: (attributes org.gtk.Property.get=cog_shell_get_viewport) (getter get_viewport):
+     *
+     * The [class@Viewport] managed by this shell.
+     *
+     * Since: 0.20
+     */
+    s_properties[PROP_VIEWPORT] =
+        g_param_spec_object("viewport", NULL, NULL, COG_TYPE_VIEWPORT, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
     /**
      * CogShell:config-file: (attributes org.gtk.Property.get=cog_shell_get_config_file):
@@ -551,15 +577,15 @@ cog_shell_get_web_settings (CogShell *shell)
 /**
  * cog_shell_get_web_view:
  *
- * Obtains the [class@WebKit.WebView] for this shell.
+ * Obtains the visible [class@WebKit.WebView] for this shell.
  *
- * Returns: A web view.
+ * Returns: (nullable): A web view.
  */
 WebKitWebView*
 cog_shell_get_web_view (CogShell *shell)
 {
     g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
-    return PRIV (shell)->web_view;
+    return WEBKIT_WEB_VIEW(cog_viewport_get_visible_view(PRIV(shell)->viewport));
 }
 
 /**
@@ -675,4 +701,20 @@ cog_shell_shutdown (CogShell *shell)
     g_return_if_fail (COG_IS_SHELL (shell));
     CogShellClass *klass = COG_SHELL_GET_CLASS (shell);
     (*klass->shutdown) (shell);
+}
+
+/**
+ * cog_shell_get_viewport:
+ *
+ * Gets the viewport managed by the shell.
+ *
+ * Returns: (transfer none): A viewport.
+ *
+ * Since: 0.20
+ */
+CogViewport *
+cog_shell_get_viewport(CogShell *shell)
+{
+    g_return_val_if_fail(COG_IS_SHELL(shell), NULL);
+    return PRIV(shell)->viewport;
 }

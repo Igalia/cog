@@ -13,9 +13,11 @@
 
 #include "cog-export.h"
 #include "cog-request-handler.h"
-#include "cog-webkit-utils.h"
 
 G_BEGIN_DECLS
+
+typedef struct _CogViewport   CogViewport;
+typedef struct _WebKitWebView WebKitWebView;
 
 #define COG_TYPE_SHELL  (cog_shell_get_type ())
 
@@ -43,5 +45,6 @@ COG_API void cog_shell_set_request_handler(CogShell *shell, const char *scheme, 
 
 COG_API void cog_shell_startup(CogShell *shell);
 COG_API void cog_shell_shutdown(CogShell *shell);
+COG_API CogViewport *cog_shell_get_viewport(CogShell *shell);
 
 G_END_DECLS
