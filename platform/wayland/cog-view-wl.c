@@ -379,26 +379,38 @@ cog_wl_view_update_surface_contents(CogWlView *view)
         cog_wl_view_enter_fullscreen(view);
 }
 
-#if HAVE_SHM_EXPORTED_BUFFER
-static void
-on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_buffer)
+static bool
+validate_exported_geometry(CogWlView *view, uint32_t width, uint32_t height)
 {
-    CogWlView    *view = data;
-    CogWlWindow   window = view->platform->window;
     CogWlDisplay *display = view->platform->display;
-
-    struct wl_resource   *exported_resource = wpe_fdo_shm_exported_buffer_get_resource(exported_buffer);
-    struct wl_shm_buffer *exported_shm_buffer = wpe_fdo_shm_exported_buffer_get_shm_buffer(exported_buffer);
+    CogWlWindow   window = view->platform->window;
 
     const uint32_t surface_pixel_width = display->current_output->scale * window.width;
     const uint32_t surface_pixel_height = display->current_output->scale * window.height;
 
-    if (surface_pixel_width != wl_shm_buffer_get_width(exported_shm_buffer) ||
-        surface_pixel_height != wl_shm_buffer_get_height(exported_shm_buffer)) {
-        g_debug("Exported SHM buffer size %" PRIu32 "x%" PRIu32 ", does not match surface size %" PRIu32 "x%" PRIu32
+    if (surface_pixel_width != width || surface_pixel_height != height) {
+        g_debug("Image geometry %" PRIu32 "x%" PRIu32 ", does not match surface geometry %" PRIu32 "x%" PRIu32
                 ", skipping.",
-                wl_shm_buffer_get_width(exported_shm_buffer), wl_shm_buffer_get_width(exported_shm_buffer),
-                surface_pixel_width, surface_pixel_width);
+                width, height, surface_pixel_width, surface_pixel_height);
+        return false;
+    }
+
+    return true;
+}
+
+#if HAVE_SHM_EXPORTED_BUFFER
+static void
+on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_buffer)
+{
+    CogWlView  *view = data;
+    CogWlWindow window = view->platform->window;
+
+    struct wl_resource   *exported_resource = wpe_fdo_shm_exported_buffer_get_resource(exported_buffer);
+    struct wl_shm_buffer *exported_shm_buffer = wpe_fdo_shm_exported_buffer_get_shm_buffer(exported_buffer);
+
+    uint32_t image_width = wl_shm_buffer_get_width(exported_shm_buffer);
+    uint32_t image_height = wl_shm_buffer_get_height(exported_shm_buffer);
+    if (!validate_exported_geometry(view, image_width, image_height)) {
         wpe_view_backend_exportable_fdo_dispatch_frame_complete(view->exportable);
         wpe_view_backend_exportable_fdo_egl_dispatch_release_shm_exported_buffer(view->exportable, exported_buffer);
         return;
@@ -445,18 +457,11 @@ on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_bu
 static void
 on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 {
-    CogWlView  *self = data;
-    CogWlWindow window = self->platform->window;
+    CogWlView *self = data;
 
-    const uint32_t surface_pixel_width = self->scale_factor * window.width;
-    const uint32_t surface_pixel_height = self->scale_factor * window.height;
-
-    if (surface_pixel_width != wpe_fdo_egl_exported_image_get_width(image) ||
-        surface_pixel_height != wpe_fdo_egl_exported_image_get_height(image)) {
-        g_debug("Exported FDO EGL image size %" PRIu32 "x%" PRIu32 ", does not match surface size %" PRIu32 "x%" PRIu32
-                ", skipping.",
-                wpe_fdo_egl_exported_image_get_width(image), wpe_fdo_egl_exported_image_get_height(image),
-                surface_pixel_width, surface_pixel_width);
+    uint32_t image_width = wpe_fdo_egl_exported_image_get_width(image);
+    uint32_t image_height = wpe_fdo_egl_exported_image_get_height(image);
+    if (!validate_exported_geometry(self, image_width, image_height)) {
         wpe_view_backend_exportable_fdo_dispatch_frame_complete(self->exportable);
         wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image(self->exportable, image);
         return;
