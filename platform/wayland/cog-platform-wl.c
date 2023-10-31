@@ -192,22 +192,6 @@ static void destroy_popup(void);
 static void
 cog_wl_platform_configure_geometry(CogWlPlatform *platform, int32_t width, int32_t height)
 {
-    const char *env_var;
-    if (width == 0) {
-        env_var = g_getenv("COG_PLATFORM_WL_VIEW_WIDTH");
-        if (env_var != NULL)
-            width = (int32_t) g_ascii_strtod(env_var, NULL);
-        else
-            width = DEFAULT_WIDTH;
-    }
-    if (height == 0) {
-        env_var = g_getenv("COG_PLATFORM_WL_VIEW_HEIGHT");
-        if (env_var != NULL)
-            height = (int32_t) g_ascii_strtod(env_var, NULL);
-        else
-            height = DEFAULT_HEIGHT;
-    }
-
     if (platform->window.width != width || platform->window.height != height) {
         g_debug("Configuring new size: %" PRId32 "x%" PRId32, width, height);
         platform->window.width = width;
@@ -1993,13 +1977,42 @@ cog_wl_platform_class_finalize(CogWlPlatformClass *klass)
 {
 }
 
+static bool
+getenv_uint32(const char *env_var_name, uint32_t *result)
+{
+    const char *env_string = g_getenv(env_var_name);
+    if (!env_string)
+        return false;
+
+    char    *endptr = NULL;
+    uint64_t value = g_ascii_strtoull(env_string, &endptr, 0);
+
+    if (value == UINT64_MAX && errno == ERANGE)
+        return false;
+    if (value == 0 && errno == EINVAL)
+        return false;
+    if (value > UINT32_MAX)
+        return false;
+    if (*endptr != '\0')
+        return false;
+
+    *result = (uint32_t) value;
+    return true;
+}
+
 static void
 cog_wl_platform_init(CogWlPlatform *platform)
 {
-    platform->window.width = DEFAULT_WIDTH;
-    platform->window.height = DEFAULT_HEIGHT;
-    platform->window.width_before_fullscreen = DEFAULT_WIDTH;
-    platform->window.height_before_fullscreen = DEFAULT_HEIGHT;
+    if (!getenv_uint32("COG_PLATFORM_WL_VIEW_WIDTH", &platform->window.width) || platform->window.width == 0)
+        platform->window.width = DEFAULT_WIDTH;
+
+    if (!getenv_uint32("COG_PLATFORM_WL_VIEW_HEIGHT", &platform->window.height) || platform->window.height == 0)
+        platform->window.height = DEFAULT_HEIGHT;
+
+    g_debug("%s: Initial size is %" PRIu32 "x%" PRIu32, G_STRFUNC, platform->window.width, platform->window.height);
+
+    platform->window.width_before_fullscreen = platform->window.width;
+    platform->window.height_before_fullscreen = platform->window.height;
 }
 
 G_MODULE_EXPORT void
