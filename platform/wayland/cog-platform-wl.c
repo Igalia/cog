@@ -192,6 +192,9 @@ static void destroy_popup(void);
 static void
 cog_wl_platform_configure_geometry(CogWlPlatform *platform, int32_t width, int32_t height)
 {
+    g_return_if_fail(width > 0);
+    g_return_if_fail(height > 0);
+
     if (platform->window.width != width || platform->window.height != height) {
         g_debug("Configuring new size: %" PRId32 "x%" PRId32, width, height);
         platform->window.width = width;
@@ -336,9 +339,13 @@ xdg_toplevel_on_configure(void                *data,
 {
     CogWlPlatform *platform = data;
 
+    if (width == 0 || height == 0) {
+        g_debug("%s: Skipped toplevel configuration, size %" PRIi32 "x%" PRIi32, G_STRFUNC, width, height);
+        width = platform->window.width;
+        height = platform->window.height;
+    }
+    g_debug("%s: New toplevel configuration, size %" PRIu32 ", %" PRIu32, G_STRFUNC, width, height);
     cog_wl_platform_configure_geometry(platform, width, height);
-
-    g_debug("New XDG toplevel configuration: (%" PRIu32 ", %" PRIu32 ")", width, height);
 }
 
 static void
@@ -1657,9 +1664,8 @@ create_window(CogWlPlatform *platform, GError **error)
                                                 ZWP_FULLSCREEN_SHELL_V1_PRESENT_METHOD_DEFAULT,
                                                 NULL);
 
-        /* Configure the surface so that it respects the width and height
-         * environment variables */
-        cog_wl_platform_configure_geometry(platform, 0, 0);
+        /* The fullscreen shell needs an initial surface configuration. */
+        cog_wl_platform_configure_geometry(platform, platform->window.width, platform->window.height);
     } else if (display->shell != NULL) {
         platform->window.shell_surface = wl_shell_get_shell_surface(display->shell, platform->window.wl_surface);
         g_assert(platform->window.shell_surface);
@@ -1668,7 +1674,7 @@ create_window(CogWlPlatform *platform, GError **error)
         wl_shell_surface_set_toplevel(platform->window.shell_surface);
 
         /* wl_shell needs an initial surface configuration. */
-        cog_wl_platform_configure_geometry(platform, 0, 0);
+        cog_wl_platform_configure_geometry(platform, platform->window.width, platform->window.height);
     }
 
 #if COG_HAVE_LIBPORTAL
