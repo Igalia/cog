@@ -274,6 +274,23 @@ struct _CogWlDisplay {
     GSource *event_src;
 };
 
+/**
+ * CogWlPlatform::cog_wl_compositor_create_surface:
+ * @compositor: The Wayland compositor.
+ * @container: User data.
+ *
+ * Commonly used for adding reference to the container that has this surface.
+ * For example, for a surface on a CogWlWindow, the reference will point to
+ * the CogWlPlatform. The rationale behind this is to articulate an easy way
+ * for passing the container as contextual information associated to a
+ * wl_surface. This is interesting for avoiding the use of global
+ * references and, in a near future, will make easier the access to the
+ * object that groups the CogWlViews.
+ *
+ * returns: static struct wl_surface *
+ */
+struct wl_surface *cog_wl_compositor_create_surface(struct wl_compositor *compositor, void *container);
+
 void          cog_wl_display_add_seat(CogWlDisplay *, CogWlSeat *);
 CogWlDisplay *cog_wl_display_create(const char *name, GError **error);
 void          cog_wl_display_destroy(CogWlDisplay *self);
