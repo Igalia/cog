@@ -111,6 +111,14 @@ setup_wayland_event_source(GMainContext *main_context, struct wl_display *displa
     return &wl_source->source;
 }
 
+struct wl_surface *
+cog_wl_compositor_create_surface(struct wl_compositor *compositor, void *container)
+{
+    struct wl_surface *surface = wl_compositor_create_surface(compositor);
+    wl_surface_set_user_data(surface, container);
+    return surface;
+}
+
 void
 cog_wl_display_add_seat(CogWlDisplay *display, CogWlSeat *seat)
 {
@@ -282,7 +290,7 @@ cog_wl_popup_create(CogWlPlatform *platform, WebKitOptionMenu *option_menu)
     popup->popup_menu =
         cog_popup_menu_create(option_menu, display->shm, popup->width, popup->height, display->current_output->scale);
 
-    popup->wl_surface = wl_compositor_create_surface(display->compositor);
+    popup->wl_surface = cog_wl_compositor_create_surface(display->compositor, platform);
     g_assert(popup->wl_surface);
 
 #ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
