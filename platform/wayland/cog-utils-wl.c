@@ -195,7 +195,14 @@ xdg_popup_on_configure(void *data, struct xdg_popup *xdg_popup, int32_t x, int32
 static void
 xdg_popup_on_popup_done(void *data, struct xdg_popup *xdg_popup)
 {
-    cog_wl_popup_destroy((CogWlPopup *) data);
+    CogWlPopup    *popup = data;
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+
+    // Reset the reference in the Platform if the destroyed popup is the same
+    if (platform->popup == popup)
+        platform->popup = NULL;
+
+    cog_wl_popup_destroy(popup);
 }
 
 static void
