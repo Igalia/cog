@@ -97,7 +97,7 @@ cog_wl_platform_configure_geometry(CogWlPlatform *platform, int32_t width, int32
         platform->window.width = width;
         platform->window.height = height;
 
-        cog_wl_view_resize(platform->view);
+        cog_viewport_foreach(platform->viewport, (GFunc) cog_wl_view_resize, NULL);
     }
 }
 
@@ -106,6 +106,11 @@ static void resize_to_largest_output(CogWlPlatform *);
 static void
 cog_wl_platform_enter_fullscreen(CogWlPlatform *platform)
 {
+    if (!cog_viewport_get_n_views(platform->viewport)) {
+        g_debug("%s: No views in viewport, will not fullscreen.", G_STRFUNC);
+        return;
+    }
+
     CogWlDisplay *display = platform->display;
     CogWlWindow  *window = &platform->window;
 
@@ -122,13 +127,17 @@ cog_wl_platform_enter_fullscreen(CogWlPlatform *platform)
         g_assert_not_reached();
     }
 
+    // XXX: Do we need to set all views as fullscreened?
     // Wait until a new exported image is reveived. See cog_wl_view_enter_fullscreen().
-    cog_wl_view_enter_fullscreen(platform->view);
+    cog_wl_view_enter_fullscreen(COG_WL_VIEW(cog_viewport_get_visible_view(platform->viewport)));
 }
 
 static void
 cog_wl_platform_exit_fullscreen(CogWlPlatform *platform)
 {
+    // The surface was not fullscreened if there were no views.
+    g_assert(cog_viewport_get_n_views(platform->viewport) > 0);
+
     CogWlDisplay *display = platform->display;
     CogWlWindow  *window = &platform->window;
 
@@ -146,7 +155,7 @@ cog_wl_platform_exit_fullscreen(CogWlPlatform *platform)
 
 #if HAVE_FULLSCREEN_HANDLING
     if (window->was_fullscreen_requested_from_dom) {
-        cog_wl_view_exit_fullscreen(platform->view);
+        cog_wl_view_exit_fullscreen(COG_WL_VIEW(cog_viewport_get_visible_view(platform->viewport)));
     }
     window->was_fullscreen_requested_from_dom = false;
 #endif
@@ -294,7 +303,7 @@ output_handle_done(void *data, struct wl_output *output)
         // Forces a View resize since the output changed so the device
         // scale factor could be different and the scale of the exported
         // image should be also updated.
-        cog_wl_view_resize(platform->view);
+        cog_viewport_foreach(platform->viewport, (GFunc) cog_wl_view_resize, NULL);
     }
 
     if (platform->window.should_resize_to_largest_output) {
@@ -349,26 +358,32 @@ surface_on_enter(void *data, struct wl_surface *surface, struct wl_output *outpu
     CogWlPlatform *platform = data;
     CogWlDisplay  *display = platform->display;
 
-    struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(platform->view));
-
     if (display->current_output->output != output) {
         g_debug("%s: Surface %p output changed %p -> %p", G_STRFUNC, surface, display->current_output->output, output);
         display->current_output = find_output(platform->display, output);
         g_assert(display->current_output);
     }
 
+    uint32_t output_scale = 0;
 #ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
     if (wl_surface_get_version(surface) >= WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION) {
         wl_surface_set_buffer_scale(surface, display->current_output->scale);
-        wpe_view_backend_dispatch_set_device_scale_factor(backend, display->current_output->scale);
+        output_scale = display->current_output->scale;
     } else {
         g_debug("%s: Surface %p uses old protocol version, cannot set scale factor", G_STRFUNC, surface);
     }
 #endif /* WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION */
 
+    for (unsigned i = 0; i < cog_viewport_get_n_views(platform->viewport); i++) {
+        struct wpe_view_backend *backend = cog_view_get_backend(cog_viewport_get_nth_view(platform->viewport, i));
+
 #if HAVE_REFRESH_RATE_HANDLING
-    wpe_view_backend_set_target_refresh_rate(backend, display->current_output->refresh);
+        wpe_view_backend_set_target_refresh_rate(backend, display->current_output->refresh);
 #endif /* HAVE_REFRESH_RATE_HANDLING */
+
+        if (output_scale)
+            wpe_view_backend_dispatch_set_device_scale_factor(backend, display->current_output->scale);
+    }
 }
 
 static const struct wl_surface_listener surface_listener = {
@@ -515,9 +530,9 @@ pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixe
                                             seat->pointer.button,
                                             seat->pointer.state};
 
-    CogWlPlatform           *platform = (CogWlPlatform *) cog_platform_get_default();
-    struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(platform->view));
-    wpe_view_backend_dispatch_pointer_event(backend, &event);
+    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get_default())->viewport);
+    if (view)
+        wpe_view_backend_dispatch_pointer_event(cog_view_get_backend(view), &event);
 }
 
 static void
@@ -573,8 +588,9 @@ pointer_on_button(void              *data,
         }
     }
 
-    struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(platform->view));
-    wpe_view_backend_dispatch_pointer_event(backend, &event);
+    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get_default())->viewport);
+    if (view)
+        wpe_view_backend_dispatch_pointer_event(cog_view_get_backend(view), &event);
 }
 
 static void
@@ -596,9 +612,9 @@ dispatch_axis_event(CogWlSeat *seat)
     event.x_axis = wl_fixed_to_double(seat->axis.x_delta) * display->current_output->scale;
     event.y_axis = -wl_fixed_to_double(seat->axis.y_delta) * display->current_output->scale;
 
-    CogWlPlatform           *platform = (CogWlPlatform *) cog_platform_get_default();
-    struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(platform->view));
-    wpe_view_backend_dispatch_axis_event(backend, &event.base);
+    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get_default())->viewport);
+    if (view)
+        wpe_view_backend_dispatch_axis_event(cog_view_get_backend(view), &event.base);
 
     seat->axis.has_delta = false;
     seat->axis.time = 0;
@@ -745,19 +761,20 @@ static void
 handle_key_event(CogWlSeat *seat, uint32_t key, uint32_t state, uint32_t time)
 {
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+    CogView       *view = cog_viewport_get_visible_view(platform->viewport);
 
-    if (seat->xkb.state == NULL)
+    if (!view || seat->xkb.state == NULL)
         return;
 
     uint32_t keysym = xkb_state_key_get_one_sym(seat->xkb.state, key);
     uint32_t unicode = xkb_state_key_get_utf32(seat->xkb.state, key);
 
     /* TODO: Move as much as possible from fullscreen handling to common code. */
-    if (cog_view_get_use_key_bindings(COG_VIEW(platform->view)) && state == WL_KEYBOARD_KEY_STATE_PRESSED &&
-        seat->xkb.modifiers == 0 && unicode == 0 && keysym == XKB_KEY_F11) {
+    if (cog_view_get_use_key_bindings(view) && state == WL_KEYBOARD_KEY_STATE_PRESSED && seat->xkb.modifiers == 0 &&
+        unicode == 0 && keysym == XKB_KEY_F11) {
 #if HAVE_FULLSCREEN_HANDLING
         if (platform->window.is_fullscreen && platform->window.was_fullscreen_requested_from_dom) {
-            struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(platform->view));
+            struct wpe_view_backend *backend = cog_view_get_backend(view);
             wpe_view_backend_dispatch_request_exit_fullscreen(backend);
             return;
         }
@@ -774,7 +791,7 @@ handle_key_event(CogWlSeat *seat, uint32_t key, uint32_t state, uint32_t time)
 
     struct wpe_input_keyboard_event event = {time, keysym, key, state == true, seat->xkb.modifiers};
 
-    cog_view_handle_key_event(COG_VIEW(platform->view), &event);
+    cog_view_handle_key_event(view, &event);
 }
 
 static gboolean
@@ -956,8 +973,9 @@ touch_on_down(void              *data,
 
     struct wpe_input_touch_event event = {seat->touch.points, 10, raw_event.type, raw_event.id, raw_event.time};
 
-    struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(platform->view));
-    wpe_view_backend_dispatch_touch_event(backend, &event);
+    CogView *view = cog_viewport_get_visible_view(platform->viewport);
+    if (view)
+        wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
 }
 
 static void
@@ -999,8 +1017,9 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
 
     struct wpe_input_touch_event event = {seat->touch.points, 10, raw_event.type, raw_event.id, raw_event.time};
 
-    struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(platform->view));
-    wpe_view_backend_dispatch_touch_event(backend, &event);
+    CogView *view = cog_viewport_get_visible_view(platform->viewport);
+    if (view)
+        wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
 
     memset(&seat->touch.points[id], 0x00, sizeof(struct wpe_input_touch_event_raw));
 }
@@ -1031,9 +1050,9 @@ touch_on_motion(void *data, struct wl_touch *touch, uint32_t time, int32_t id, w
 
     struct wpe_input_touch_event event = {seat->touch.points, 10, raw_event.type, raw_event.id, raw_event.time};
 
-    CogWlPlatform           *platform = (CogWlPlatform *) cog_platform_get_default();
-    struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(platform->view));
-    wpe_view_backend_dispatch_touch_event(backend, &event);
+    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get_default())->viewport);
+    if (view)
+        wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
 }
 
 static void
@@ -1560,15 +1579,43 @@ static struct wpe_view_backend *
 gamepad_provider_get_view_backend_for_gamepad(void *provider G_GNUC_UNUSED, void *gamepad G_GNUC_UNUSED)
 {
     CogWlPlatform *platform = COG_WL_PLATFORM(cog_platform_get_default());
-    CogWlView     *view = platform->view;
+
+    CogWlView *view = (CogWlView *) cog_viewport_get_visible_view(platform->viewport);
     g_assert(view);
     return wpe_view_backend_exportable_fdo_get_view_backend(view->exportable);
+}
+
+static void
+cog_wl_platform_on_notify_visible_view(CogWlPlatform *self)
+{
+    CogWlView *view = (CogWlView *) cog_viewport_get_visible_view(self->viewport);
+    g_debug("%s: Visible view %p.", G_STRFUNC, view);
+
+    if (!view)
+        return;
+
+    /*
+     * TODO: Once we support multiple viewports, a view may be visible
+     *       without having focus. At that point the input events will
+     *       need to go to the *focused* view instead.
+     *
+     *       For now add the flag and assume that visible == focused.
+     */
+    wpe_view_backend_add_activity_state(cog_view_get_backend((CogView *) view), wpe_view_activity_state_focused);
+
+    if (!view->image)
+        return g_debug("%s: No image to show, skipping update.", G_STRFUNC);
+
+    cog_wl_view_update_surface_contents(view);
 }
 
 static gboolean
 cog_wl_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, const char *params, GError **error)
 {
     g_return_val_if_fail(COG_IS_SHELL(shell), FALSE);
+
+    CogWlPlatform *self = COG_WL_PLATFORM(platform);
+    self->viewport = cog_shell_get_viewport(shell);
 
     if (!wpe_loader_init("libWPEBackend-fdo-1.0.so")) {
         g_set_error_literal(error,
@@ -1602,6 +1649,9 @@ cog_wl_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, cons
 
     cog_gamepad_setup(gamepad_provider_get_view_backend_for_gamepad);
 
+    g_signal_connect_object(self->viewport, "notify::visible-view", G_CALLBACK(cog_wl_platform_on_notify_visible_view),
+                            self, G_CONNECT_AFTER | G_CONNECT_SWAPPED);
+
     return TRUE;
 }
 
@@ -1609,23 +1659,6 @@ static void
 cog_wl_platform_finalize(GObject *object)
 {
     CogWlPlatform *platform = COG_WL_PLATFORM(object);
-
-    /* free WPE view data */
-    if (platform->view->frame_callback != NULL)
-        wl_callback_destroy(platform->view->frame_callback);
-    if (platform->view->image != NULL) {
-        wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image(platform->view->exportable,
-                                                                            platform->view->image);
-    }
-
-    /* @FIXME: check why this segfaults
-    wpe_view_backend_destroy (wpe_view_data.backend);
-    */
-
-    /* free WPE host data */
-    /* @FIXME: check why this segfaults
-    wpe_view_backend_exportable_wl_destroy (wpe_host_data.exportable);
-    */
 
     cog_wl_text_input_clear(platform);
     if (platform->popup)
