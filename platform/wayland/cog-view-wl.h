@@ -23,8 +23,6 @@ typedef struct _CogWlPlatform CogWlPlatform;
 struct _CogWlView {
     CogView parent;
 
-    CogWlPlatform *platform;
-
     struct wpe_view_backend_exportable_fdo *exportable;
     struct wpe_fdo_egl_exported_image      *image;
 
@@ -44,9 +42,9 @@ G_DECLARE_FINAL_TYPE(CogWlView, cog_wl_view, COG, WL_VIEW, CogView)
  * Method declarations.
  */
 
+void cog_wl_view_update_surface_contents(CogWlView *);
 void cog_wl_view_enter_fullscreen(CogWlView *);
 void cog_wl_view_exit_fullscreen(CogWlView *);
-
 void cog_wl_view_resize(CogWlView *);
 
 void cog_wl_view_register_type_exported(GTypeModule *type_module);
