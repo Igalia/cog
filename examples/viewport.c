@@ -37,10 +37,11 @@ main(int argc, char *argv[])
     cog_modules_add_directory(g_getenv("COG_MODULEDIR") ?: COG_MODULEDIR);
 
     g_autoptr(GError)      error = NULL;
-    g_autoptr(CogShell)    shell = cog_shell_new(g_get_prgname(), FALSE);
-    g_autoptr(CogPlatform) platform = cog_platform_configure(NULL, NULL, "COG", shell, &error);
+    g_autoptr(CogPlatform) platform = cog_platform_create(NULL, "COG", &error);
     if (!platform)
         g_error("Cannot configure platform: %s", error->message);
+    g_autoptr(CogShell) shell = cog_shell_new(g_get_prgname(), FALSE);
+    cog_platform_configure(NULL, "COG", shell, &error);
 
     g_autoptr(GMainLoop) loop = g_main_loop_new(NULL, FALSE);
 

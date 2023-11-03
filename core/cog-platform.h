@@ -71,7 +71,8 @@ COG_API
 WebKitInputMethodContext *cog_platform_create_im_context (CogPlatform   *platform);
 
 COG_API CogPlatform *
-cog_platform_configure(const char *name, const char *params, const char *env_prefix, CogShell *shell, GError **error);
+cog_platform_configure(const char *params, const char *env_prefix, CogShell *shell, GError **error);
+COG_API CogPlatform *cog_platform_create(const char *name, const char *env_prefix, GError **error);
 
 G_END_DECLS
 

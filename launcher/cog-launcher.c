@@ -237,11 +237,9 @@ cog_launcher_create_view(CogLauncher *self, CogShell *shell)
         webkit_web_context_set_cache_model(web_context, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
     }
 
-    g_autoptr(GError) error = NULL;
-    CogPlatform      *platform =
-        cog_platform_configure(s_options.platform_name, s_options.platform_params, "COG", shell, &error);
+    CogPlatform *platform = cog_platform_get_default();
     if (!platform)
-        g_error("Cannot instantiate a platform: %s", error->message);
+        g_error("Cannot find a platform available");
 
 #if HAVE_WEBKIT_AUTOPLAY
     WebKitWebsitePolicies *website_policies =
@@ -331,6 +329,10 @@ cog_launcher_startup(GApplication *application)
     g_application_hold(application);
 
     CogLauncher *self = COG_LAUNCHER(application);
+
+    g_autoptr(GError) error = NULL;
+    CogPlatform      *platform = cog_platform_create(s_options.platform_name, "COG", &error);
+
     self->shell = g_object_new(
         COG_TYPE_SHELL, "name", g_get_prgname(), "automated", self->automated, "web-settings", self->web_settings,
 #if !COG_USE_WPE2
@@ -340,6 +342,10 @@ cog_launcher_startup(GApplication *application)
         "web-memory-settings", self->web_mem_settings, "network-memory-settings", self->net_mem_settings,
 #endif /* COG_HAVE_MEM_PRESSURE */
         NULL);
+
+    if (platform != cog_platform_configure(s_options.platform_params, "COG", self->shell, &error))
+        g_error("Cannot configure the platform: %s", error->message);
+
     g_signal_connect_swapped(self->shell, "create-view", G_CALLBACK(cog_launcher_create_view), self);
     g_signal_connect(self->shell, "notify::web-view", G_CALLBACK(on_notify_web_view), self);
 
