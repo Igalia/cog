@@ -1357,7 +1357,6 @@ init_wayland(CogWlPlatform *platform, GError **error)
 static void
 clear_wayland(CogWlPlatform *platform)
 {
-    CogWlDisplay *display = platform->display;
     cog_wl_display_destroy(platform->display);
 }
 
