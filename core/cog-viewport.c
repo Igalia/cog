@@ -6,6 +6,7 @@
 
 #include "cog-viewport.h"
 
+#include "cog-platform.h"
 #include "cog-view.h"
 
 /**
@@ -27,6 +28,10 @@
  * visible view among the ones associated with the viewport, which
  * can be manipulated with [id@cog_viewport_set_visible_view] and
  * inspected with [id@cog_viewport_get_visible_view].
+ *
+ * Optionally, platform plug-in implementations can provide their own
+ * viewport class implementation by overriding
+ * the [func@CogPlatform.get_viewport_type] method.
  *
  * Since: 0.20
  */
@@ -60,6 +65,24 @@ G_DEFINE_TYPE_WITH_PRIVATE(CogViewport, cog_viewport, G_TYPE_OBJECT)
 
 #define PRIV(obj) ((CogViewportPrivate *) cog_viewport_get_instance_private((CogViewport *) obj))
 
+static void *
+_cog_viewport_get_impl_type_init(GType *type)
+{
+    *type = COG_TYPE_VIEWPORT;
+
+    CogPlatform *platform = cog_platform_get_default();
+    if (platform) {
+        CogPlatformClass *platform_class = COG_PLATFORM_GET_CLASS(platform);
+        if (platform_class->get_viewport_type) {
+            GType viewport_type = (*platform_class->get_viewport_type)();
+            *type = viewport_type;
+        }
+    }
+
+    g_debug("%s: using %s", G_STRFUNC, g_type_name(*type));
+    return NULL;
+}
+
 static void
 cog_viewport_set_property(GObject *object, unsigned prop_id, const GValue *value, GParamSpec *pspec)
 {
@@ -84,6 +107,52 @@ cog_viewport_get_property(GObject *object, unsigned prop_id, GValue *value, GPar
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
     }
+}
+
+/**
+ * cog_viewport_get_impl_type:
+ *
+ * Get the type of the viewport implementation in use.
+ *
+ * This function always returns a valid type. If the active
+ * [class@CogPlatform] does not provide a custom viewport type, the default
+ * built-in type included as part of the Cog core library is returned.
+ *
+ * When creating viewports, this function must be used to retrieve the
+ * type to use, e.g.:
+ *
+ * ```c
+ * CogViewport *view = g_object_new(cog_viewport_get_impl_type(), NULL);
+ * ```
+ *
+ * In most cases it should be possible to use the convenience function
+ * [ctor@Viewport.new], which uses this function internally.
+ *
+ * Returns: Type of the view implementation in use.
+ */
+GType
+cog_viewport_get_impl_type(void)
+{
+    static GType viewport_type;
+    static GOnce once = G_ONCE_INIT;
+
+    g_once(&once, (GThreadFunc) _cog_viewport_get_impl_type_init, &viewport_type);
+
+    return viewport_type;
+}
+
+/**
+ * cog_viewport_new: (constructor)
+ *
+ * Creates a new instance of a viewport implementation and sets its properties.
+ *
+ * Returns: (transfer full): A new web view.
+ */
+CogViewport *
+cog_viewport_new()
+{
+    void *viewport = g_object_new(cog_viewport_get_impl_type(), NULL);
+    return viewport;
 }
 
 static void
