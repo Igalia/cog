@@ -50,6 +50,7 @@ struct _CogPlatformClass {
     WebKitInputMethodContext *(*create_im_context)(CogPlatform *);
 
     GType (*get_view_type)(void);
+    GType (*get_viewport_type)(void);
 };
 
 COG_API void         cog_init(const char *platform_name, const char *module_path);
