@@ -39,6 +39,7 @@
 #include "cog-im-context-wl-v1.h"
 #include "cog-im-context-wl.h"
 #include "cog-platform-wl.h"
+#include "cog-viewport-wl.h"
 #if COG_HAVE_LIBPORTAL
 #    include "cog-xdp-parent-wl.h"
 #endif /* COG_HAVE_LIBPORTAL */
@@ -1715,6 +1716,7 @@ cog_wl_platform_class_init(CogWlPlatformClass *klass)
     CogPlatformClass *platform_class = COG_PLATFORM_CLASS(klass);
     platform_class->is_supported = cog_wl_platform_is_supported;
     platform_class->get_view_type = cog_wl_view_get_type;
+    platform_class->get_viewport_type = cog_wl_viewport_get_type;
     platform_class->setup = cog_wl_platform_setup;
     platform_class->create_im_context = cog_wl_platform_create_im_context;
 }
@@ -1768,6 +1770,7 @@ g_io_cogplatform_wl_load(GIOModule *module)
     GTypeModule *type_module = G_TYPE_MODULE(module);
     cog_wl_platform_register_type(type_module);
     cog_wl_view_register_type_exported(type_module);
+    cog_wl_viewport_register_type_exported(type_module);
 }
 
 G_MODULE_EXPORT void
