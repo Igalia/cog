@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Shell.set_request_handler</title>
+  <title>Cog.Viewport.add</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta priority="og:title" content="Cog.Shell.set_request_handler"/>
-  <meta priority="og:description" content="Reference for Cog.Shell.set_request_handler"/>
-  <meta name="twitter:title" content="Cog.Shell.set_request_handler"/>
-  <meta name="twitter:description" content="Reference for Cog.Shell.set_request_handler"/>
+  <meta priority="og:title" content="Cog.Viewport.add"/>
+  <meta priority="og:description" content="Reference for Cog.Viewport.add"/>
+  <meta name="twitter:title" content="Cog.Viewport.add"/>
+  <meta name="twitter:description" content="Reference for Cog.Viewport.add"/>
 
 
   
@@ -82,34 +82,28 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <div class="section">
   <h5>Type</h5>
   <div class="links">
-    <a href="class.Shell.html">Shell</a>
+    <a href="class.Viewport.html">Viewport</a>
   </div>
 </div>
 <div class="section">
   <h5>Methods</h5>
   <div class="links">
   
-    <a class="method" href="method.Shell.get_config_file.html">get_config_file</a>
+    <a class="method current" href="method.Viewport.add.html">add</a>
   
-    <a class="method" href="method.Shell.get_device_scale_factor.html">get_device_scale_factor</a>
+    <a class="method" href="method.Viewport.contains.html">contains</a>
   
-    <a class="method" href="method.Shell.get_name.html">get_name</a>
+    <a class="method" href="method.Viewport.foreach.html">foreach</a>
   
-    <a class="method" href="method.Shell.get_viewport.html">get_viewport</a>
+    <a class="method" href="method.Viewport.get_n_views.html">get_n_views</a>
   
-    <a class="method" href="method.Shell.get_web_context.html">get_web_context</a>
+    <a class="method" href="method.Viewport.get_nth_view.html">get_nth_view</a>
   
-    <a class="method" href="method.Shell.get_web_settings.html">get_web_settings</a>
+    <a class="method" href="method.Viewport.get_visible_view.html">get_visible_view</a>
   
-    <a class="method" href="method.Shell.get_web_view.html">get_web_view</a>
+    <a class="method" href="method.Viewport.remove.html">remove</a>
   
-    <a class="method" href="method.Shell.is_automated.html">is_automated</a>
-  
-    <a class="method current" href="method.Shell.set_request_handler.html">set_request_handler</a>
-  
-    <a class="method" href="method.Shell.shutdown.html">shutdown</a>
-  
-    <a class="method" href="method.Shell.startup.html">startup</a>
+    <a class="method" href="method.Viewport.set_visible_view.html">set_visible_view</a>
   
   </div>
 </div>
@@ -122,7 +116,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <section id="main" class="content">
   <header>
     <h3>Method</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Shell.html">Shell</a><span class="sep"></span>set_request_handler</h1>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Viewport.html">Viewport</a><span class="sep"></span>add</h1>
   </header>
 
   <section>
@@ -131,16 +125,15 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Declaration
         <a class="anchor" href="#declaration"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.h#L44">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-viewport.h#L32">[src]</a>
         
       </h4>
 
       <div class="docblock c-decl">
         <pre><code><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"></span>
-<span class="n">cog_shell_set_request_handler</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="n">CogShell</span><span class="o">*</span><span class="w"> </span><span class="n">shell</span><span class="p">,</span><span class="w"></span>
-<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">scheme</span><span class="p">,</span><span class="w"></span>
-<span class="w">  </span><span class="n">CogRequestHandler</span><span class="o">*</span><span class="w"> </span><span class="n">handler</span><span class="w"></span>
+<span class="n">cog_viewport_add</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogViewport</span><span class="o">*</span><span class="w"> </span><span class="n">self</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogView</span><span class="o">*</span><span class="w"> </span><span class="n">view</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
 </code></pre>
@@ -152,12 +145,13 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a class="anchor" href="#description"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.c#L636">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-viewport.c#L175">[src]</a>
         
       </h4>
 
       <div class="docblock">
-        <p>Installs a handler for a custom <span class="caps">URI</span>&nbsp;scheme.</p>
+        <p>Adds a view to a&nbsp;viewport.</p>
+<p>The next available index will be assigned to the&nbsp;view.</p>
       </div>
 
       <div class="docblock">
@@ -185,30 +179,12 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="arguments">
           
           <tr class="arg-name">
-            <td><code>scheme</code></td>
-            <td><code>const char*</code></td>
+            <td><code>view</code></td>
+            <td><a href="class.View.html"><code>CogView</code></a></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td><p>Name of the custom <span class="caps">URI</span>&nbsp;scheme.</p></td>
-          </tr>
-          
-          
-          
-          
-          
-          
-          
-          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
-          <tr><td>&nbsp;</td><td>The value is a NUL terminated UTF-8 string.</td></tr>
-          
-          <tr class="arg-name">
-            <td><code>handler</code></td>
-            <td><a href="iface.RequestHandler.html"><code>CogRequestHandler</code></a></td>
-          </tr>
-          <tr class="arg-description">
-            <td>&nbsp;</td>
-            <td><p>Handler for the custom <span class="caps">URI</span>&nbsp;scheme.</p></td>
+            <td><p>The view to&nbsp;add.</p></td>
           </tr>
           
           

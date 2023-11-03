@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Shell::create-view</title>
+  <title>Cog.Viewport.get_visible_view</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.Shell::create-view"/>
-  <meta property="og:description" content="Reference for signal Cog.Shell::create-view"/>
-  <meta name="twitter:title" content="Cog.Shell::create-view"/>
-  <meta name="twitter:description" content="Reference for signal Cog.Shell::create-view"/>
+  <meta priority="og:title" content="Cog.Viewport.get_visible_view"/>
+  <meta priority="og:description" content="Reference for Cog.Viewport.get_visible_view"/>
+  <meta name="twitter:title" content="Cog.Viewport.get_visible_view"/>
+  <meta name="twitter:description" content="Reference for Cog.Viewport.get_visible_view"/>
 
 
   
@@ -82,14 +82,28 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <div class="section">
   <h5>Type</h5>
   <div class="links">
-    <a href="class.Shell.html">Shell</a>
+    <a href="class.Viewport.html">Viewport</a>
   </div>
 </div>
 <div class="section">
-  <h5>Signals</h5>
+  <h5>Methods</h5>
   <div class="links">
   
-    <a class="signal current" href="signal.Shell.create-view.html">create-view</a>
+    <a class="method" href="method.Viewport.add.html">add</a>
+  
+    <a class="method" href="method.Viewport.contains.html">contains</a>
+  
+    <a class="method" href="method.Viewport.foreach.html">foreach</a>
+  
+    <a class="method" href="method.Viewport.get_n_views.html">get_n_views</a>
+  
+    <a class="method" href="method.Viewport.get_nth_view.html">get_nth_view</a>
+  
+    <a class="method current" href="method.Viewport.get_visible_view.html">get_visible_view</a>
+  
+    <a class="method" href="method.Viewport.remove.html">remove</a>
+  
+    <a class="method" href="method.Viewport.set_visible_view.html">set_visible_view</a>
   
   </div>
 </div>
@@ -101,22 +115,24 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Signal</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Shell.html">Shell</a>::create-view</h1>
+    <h3>Method</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Viewport.html">Viewport</a><span class="sep"></span>get_visible_view</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 id="declaration">
+      <h4 style="display:flex;" id="declaration">
         Declaration
-        <a href="#declaration" class="anchor"></a>
+        <a class="anchor" href="#declaration"></a>
+        
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-viewport.h#L38">[src]</a>
+        
       </h4>
 
-      <div class="docblock">
+      <div class="docblock c-decl">
         <pre><code><div class="highlight"><pre><span></span><span class="n">CogView</span><span class="o">*</span><span class="w"></span>
-<span class="n">create_view</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="n">CogShell</span><span class="o">*</span><span class="w"> </span><span class="n">self</span><span class="p">,</span><span class="w"></span>
-<span class="w">  </span><span class="n">gpointer</span><span class="w"> </span><span class="n">user_data</span><span class="w"></span>
+<span class="n">cog_viewport_get_visible_view</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogViewport</span><span class="o">*</span><span class="w"> </span><span class="n">self</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
 </code></pre>
@@ -124,27 +140,22 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     <div class="description toggle-wrapper">
-      <h4 id="description" style="display:flex;">
+      <h4 style="display:flex;" id="description">
         Description
-        <a href="#description" class="anchor"></a>
+        <a class="anchor" href="#description"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.c#L360">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-viewport.c#L338">[src]</a>
         
       </h4>
 
       <div class="docblock">
-        <p>The <code>create-view</code> signal is emitted when the shell needs to create
-a&nbsp;WebKit.WebView.</p>
-<p>Handling this signal allows to customize how the web view is
-configured. Note that the web view returned by a signal handler
-<strong>must</strong> use the settings and context returned by
-<a href="method.Shell.get_web_settings.html"><code>cog_shell_get_web_settings()</code></a> and <a href="method.Shell.get_web_context.html"><code>cog_shell_get_web_context()</code></a>.</p>
+        <p>Gets the visible&nbsp;view.</p>
+<p>Note that there is no visible view when none is contained in the viewport.
+In this case <code>NULL</code> is&nbsp;returned.</p>
       </div>
 
       <div class="docblock">
         <table>
-          <tr><td>Default handler:</td><td> <p>The default handler is called after the handlers added via <code>g_signal_connect()</code>.</p></td></tr>
-          
           
           
           
@@ -154,6 +165,14 @@ configured. Note that the web view returned by a signal handler
         </table>
       </div>
 
+      
+      <div class="docblock">
+        <table>
+        
+          <tr><td>Gets property</td><td><a href="property.Viewport.visible-view.html"><code>Cog.Viewport:visible-view</code></a></td></tr>
+        
+        </table>
+      </div>
       
     </div>
 
@@ -174,13 +193,12 @@ configured. Note that the web view returned by a signal handler
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td><p>A new web view that will be used
-  by the&nbsp;shell.</p></td>
+            <td><p>Visible view, or <code>NULL</code>.</p></td>
           </tr>
           
           
           
-          <tr><td>&nbsp;</td><td title="transfer: full">The caller of the function takes ownership of the data, and is responsible for freeing it.</td></tr>
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the instance.</td></tr>
           <tr><td>&nbsp;</td><td>The return value can be <code>NULL</code>.</td></tr>
           
         </table>

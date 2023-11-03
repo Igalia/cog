@@ -110,6 +110,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
     <a class="method" href="method.Shell.get_name.html">get_name</a>
   
+    <a class="method" href="method.Shell.get_viewport.html">get_viewport</a>
+  
     <a class="method" href="method.Shell.get_web_context.html">get_web_context</a>
   
     <a class="method" href="method.Shell.get_web_settings.html">get_web_settings</a>
@@ -142,6 +144,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     <a class="property" href="property.Shell.name.html">name</a>
   
     <a class="property" href="property.Shell.network-memory-settings.html">network-memory-settings</a>
+  
+    <a class="property" href="property.Shell.viewport.html">viewport</a>
   
     <a class="property" href="property.Shell.web-context.html">web-context</a>
   
@@ -204,7 +208,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           Description
           <a href="#description" class="anchor"></a>
           
-          <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.c#L12">[src]</a>
+          <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.c#L13">[src]</a>
           
         </h4>
 
@@ -316,6 +320,14 @@ signal to customize the web&nbsp;view.</p>
         </div>
       
         <div class="">
+          <h6><a href="method.Shell.get_viewport.html">cog_shell_get_viewport</a></h6>
+          <div class="docblock">
+            <p>Gets the viewport managed by the&nbsp;shell.</p>
+          </div>
+          <div class="docblock"><p>Available since: 0.20</p></div>
+        </div>
+      
+        <div class="">
           <h6><a href="method.Shell.get_web_context.html">cog_shell_get_web_context</a></h6>
           <div class="docblock">
             <p>Obtains the WebKit.WebContext for this&nbsp;shell.</p>
@@ -334,7 +346,7 @@ signal to customize the web&nbsp;view.</p>
         <div class="">
           <h6><a href="method.Shell.get_web_view.html">cog_shell_get_web_view</a></h6>
           <div class="docblock">
-            <p>Obtains the WebKit.WebView for this&nbsp;shell.</p>
+            <p>Obtains the visible WebKit.WebView for this&nbsp;shell.</p>
           </div>
           
         </div>
@@ -452,6 +464,16 @@ additional options to <a href="overview.html">platform modules</a>.</p>
           </div>
 
           
+        </div>
+      
+        <div class="">
+          <h6><a href="property.Shell.viewport.html">Cog.Shell:viewport</a></h6>
+
+          <div class="docblock">
+            <p>The <code>CogViewport</code> managed by this&nbsp;shell.</p>
+          </div>
+
+          <div class="docblock"><p>Available since: 0.20</p></div>
         </div>
       
         <div class="">

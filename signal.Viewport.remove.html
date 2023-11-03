@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Shell::create-view</title>
+  <title>Cog.Viewport::remove</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.Shell::create-view"/>
-  <meta property="og:description" content="Reference for signal Cog.Shell::create-view"/>
-  <meta name="twitter:title" content="Cog.Shell::create-view"/>
-  <meta name="twitter:description" content="Reference for signal Cog.Shell::create-view"/>
+  <meta property="og:title" content="Cog.Viewport::remove"/>
+  <meta property="og:description" content="Reference for signal Cog.Viewport::remove"/>
+  <meta name="twitter:title" content="Cog.Viewport::remove"/>
+  <meta name="twitter:description" content="Reference for signal Cog.Viewport::remove"/>
 
 
   
@@ -82,14 +82,16 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <div class="section">
   <h5>Type</h5>
   <div class="links">
-    <a href="class.Shell.html">Shell</a>
+    <a href="class.Viewport.html">Viewport</a>
   </div>
 </div>
 <div class="section">
   <h5>Signals</h5>
   <div class="links">
   
-    <a class="signal current" href="signal.Shell.create-view.html">create-view</a>
+    <a class="signal" href="signal.Viewport.add.html">add</a>
+  
+    <a class="signal current" href="signal.Viewport.remove.html">remove</a>
   
   </div>
 </div>
@@ -102,7 +104,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <section id="main" class="content">
   <header>
     <h3>Signal</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Shell.html">Shell</a>::create-view</h1>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Viewport.html">Viewport</a>::remove</h1>
   </header>
 
   <section>
@@ -113,9 +115,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       </h4>
 
       <div class="docblock">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">CogView</span><span class="o">*</span><span class="w"></span>
-<span class="n">create_view</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="n">CogShell</span><span class="o">*</span><span class="w"> </span><span class="n">self</span><span class="p">,</span><span class="w"></span>
+        <pre><code><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"></span>
+<span class="n">remove</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogViewport</span><span class="o">*</span><span class="w"> </span><span class="n">self</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogView</span><span class="o">*</span><span class="w"> </span><span class="n">view</span><span class="p">,</span><span class="w"></span>
 <span class="w">  </span><span class="n">gpointer</span><span class="w"> </span><span class="n">user_data</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
@@ -128,22 +131,17 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.c#L360">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-viewport.c#L136">[src]</a>
         
       </h4>
 
       <div class="docblock">
-        <p>The <code>create-view</code> signal is emitted when the shell needs to create
-a&nbsp;WebKit.WebView.</p>
-<p>Handling this signal allows to customize how the web view is
-configured. Note that the web view returned by a signal handler
-<strong>must</strong> use the settings and context returned by
-<a href="method.Shell.get_web_settings.html"><code>cog_shell_get_web_settings()</code></a> and <a href="method.Shell.get_web_context.html"><code>cog_shell_get_web_context()</code></a>.</p>
+        <p>Emitted after a view has been removed from the&nbsp;viewport.</p>
       </div>
 
       <div class="docblock">
         <table>
-          <tr><td>Default handler:</td><td> <p>The default handler is called after the handlers added via <code>g_signal_connect()</code>.</p></td></tr>
+          <tr><td>Default handler:</td><td> <p>The default handler is called before the handlers added via <code>g_signal_connect()</code>.</p></td></tr>
           
           
           
@@ -158,34 +156,39 @@ configured. Note that the web view returned by a signal handler
     </div>
 
     
-
-    
-    <div class="return-value toggle-wrapper">
-      <h4 id="return-value">
-        Return value
-        <a href="#return-value" class="anchor"></a>
+    <div class="parameters toggle-wrapper">
+      <h4 id="parameters">
+        Parameters
+        <a href="#parameters" class="anchor"></a>
       </h4>
 
       <div class="docblock">
-        <table class="returns">
+        <table class="arguments">
+          
           <tr class="arg-name">
-            <td>Returns:</td>
+            <td><code>view</code></td>
             <td><a href="class.View.html"><code>CogView</code></a></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td><p>A new web view that will be used
-  by the&nbsp;shell.</p></td>
+            <td><p>The view that was removed from the&nbsp;viewport.</p></td>
           </tr>
           
           
           
-          <tr><td>&nbsp;</td><td title="transfer: full">The caller of the function takes ownership of the data, and is responsible for freeing it.</td></tr>
-          <tr><td>&nbsp;</td><td>The return value can be <code>NULL</code>.</td></tr>
+          
+          
+          
+          
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
+          
+          
           
         </table>
       </div>
     </div>
+    
+
     
 
   </section>
