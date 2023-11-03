@@ -320,7 +320,7 @@ cog_shell_constructed(GObject *object)
 #endif
                                      NULL);
 
-    priv->viewport = g_object_new(COG_TYPE_VIEWPORT, NULL);
+    priv->viewport = cog_viewport_new();
     g_signal_connect_object(priv->viewport, "notify::visible-view", G_CALLBACK(cog_shell_viewport_visible_view_changed),
                             object, 0);
 }

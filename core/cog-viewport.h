@@ -29,6 +29,14 @@ struct _CogViewportClass {
     void *_padding[8];
 };
 
+#define COG_TYPE_VIEWPORT_IMPL (cog_viewport_get_impl_type())
+
+COG_API
+GType cog_viewport_get_impl_type(void);
+
+COG_API
+CogViewport *cog_viewport_new(void);
+
 COG_API void     cog_viewport_add(CogViewport *self, CogView *view);
 COG_API void     cog_viewport_remove(CogViewport *self, CogView *view);
 COG_API gboolean cog_viewport_contains(CogViewport *self, CogView *view);
