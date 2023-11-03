@@ -262,8 +262,8 @@ struct _CogWlDisplay {
     struct wl_surface      *cursor_surface;
 #endif /* COG_USE_WAYLAND_CURSOR */
 
-    CogWlOutput  metrics[16];
-    CogWlOutput *current_output;
+    CogWlOutput   *current_output;
+    struct wl_list outputs; /* wl_list<CogWlOutput> */
 
     struct zwp_text_input_manager_v3 *text_input_manager;
     struct zwp_text_input_manager_v1 *text_input_manager_v1;

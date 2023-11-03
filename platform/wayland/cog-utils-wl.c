@@ -134,6 +134,7 @@ cog_wl_display_create(const char *name, GError **error)
     display->display = wl_display;
 
     wl_list_init(&display->seats);
+    wl_list_init(&display->outputs);
 
     if (!display->event_src) {
         display->event_src = setup_wayland_event_source(g_main_context_get_thread_default(), display->display);
