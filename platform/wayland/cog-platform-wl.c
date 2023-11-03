@@ -234,15 +234,15 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 static void
 resize_to_largest_output(CogWlPlatform *platform)
 {
-    CogWlDisplay *display = platform->display;
-
     /* Find the largest output and resize the surface to match */
     int32_t width = 0;
     int32_t height = 0;
-    for (int i = 0; i < G_N_ELEMENTS(display->metrics); i++) {
-        if (display->metrics[i].output && display->metrics[i].width * display->metrics[i].height >= width * height) {
-            width = display->metrics[i].width;
-            height = display->metrics[i].height;
+
+    CogWlOutput *output;
+    wl_list_for_each(output, &platform->display->outputs, link) {
+        if (output->width * output->height >= width * height) {
+            width = output->width;
+            height = output->height;
         }
     }
     cog_wl_platform_configure_geometry(platform, width, height);
@@ -251,31 +251,23 @@ resize_to_largest_output(CogWlPlatform *platform)
 static CogWlOutput *
 find_output(CogWlDisplay *display, struct wl_output *output)
 {
-    for (int i = 0; i < G_N_ELEMENTS(display->metrics); i++) {
-        if (display->metrics[i].output == output) {
-            return &display->metrics[i];
-        }
+    CogWlOutput *item;
+    wl_list_for_each(item, &display->outputs, link) {
+        if (item->output == output)
+            return item;
     }
-    g_warning("Unknown output %p\n", output);
+
+    g_assert_not_reached();
     return NULL;
 }
 
 static void
 output_handle_mode(void *data, struct wl_output *output, uint32_t flags, int32_t width, int32_t height, int32_t refresh)
 {
-    CogWlPlatform *platform = data;
-
-    CogWlOutput *metrics = find_output(platform->display, output);
-    if (!metrics) {
-        return;
-    }
-
-    if (flags & WL_OUTPUT_MODE_CURRENT) {
-        metrics->width = width;
-        metrics->height = height;
-        metrics->refresh = refresh;
-        g_info("Output %p is %" PRId32 "x%" PRId32 " @ %.2fHz", output, width, height, refresh / 1000.f);
-    }
+    CogWlOutput *metrics = find_output(((CogWlPlatform *) data)->display, output);
+    metrics->width = width;
+    metrics->height = height;
+    metrics->refresh = refresh;
 }
 
 static void
@@ -296,6 +288,9 @@ output_handle_done(void *data, struct wl_output *output)
         metrics->scale = 1;
     }
 
+    g_info("Output %p is %" PRId32 "x%" PRId32 "-%" PRIi32 "x @ %.2fHz", output, metrics->width, metrics->height,
+           metrics->scale, metrics->refresh / 1000.f);
+
     if (!display->current_output) {
         g_debug("%s: Using %p as initial output", G_STRFUNC, output);
         display->current_output = metrics;
@@ -313,17 +308,9 @@ output_handle_done(void *data, struct wl_output *output)
 
 #ifdef WL_OUTPUT_SCALE_SINCE_VERSION
 static void
-output_handle_scale(void *data, struct wl_output *output, int32_t factor)
+output_handle_scale(void *data, struct wl_output *output, int32_t scale)
 {
-    CogWlPlatform *platform = data;
-
-    CogWlOutput *metrics = find_output(platform->display, output);
-    if (!metrics) {
-        return;
-    }
-
-    metrics->scale = factor;
-    g_info("Got scale factor %i for output %p", factor, output);
+    find_output(((CogWlPlatform *) data)->display, output)->scale = scale;
 }
 #endif /* WL_OUTPUT_SCALE_SINCE_VERSION */
 
@@ -361,17 +348,14 @@ surface_on_enter(void *data, struct wl_surface *surface, struct wl_output *outpu
     if (display->current_output->output != output) {
         g_debug("%s: Surface %p output changed %p -> %p", G_STRFUNC, surface, display->current_output->output, output);
         display->current_output = find_output(platform->display, output);
-        g_assert(display->current_output);
     }
 
-    uint32_t output_scale = 0;
 #ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
-    if (wl_surface_get_version(surface) >= WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION) {
+    const bool can_set_surface_scale = wl_surface_get_version(surface) >= WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION;
+    if (can_set_surface_scale)
         wl_surface_set_buffer_scale(surface, display->current_output->scale);
-        output_scale = display->current_output->scale;
-    } else {
+    else
         g_debug("%s: Surface %p uses old protocol version, cannot set scale factor", G_STRFUNC, surface);
-    }
 #endif /* WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION */
 
     for (unsigned i = 0; i < cog_viewport_get_n_views(platform->viewport); i++) {
@@ -381,8 +365,10 @@ surface_on_enter(void *data, struct wl_surface *surface, struct wl_output *outpu
         wpe_view_backend_set_target_refresh_rate(backend, display->current_output->refresh);
 #endif /* HAVE_REFRESH_RATE_HANDLING */
 
-        if (output_scale)
+#ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
+        if (can_set_surface_scale)
             wpe_view_backend_dispatch_set_device_scale_factor(backend, display->current_output->scale);
+#endif /* WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION */
     }
 }
 
@@ -442,20 +428,13 @@ registry_on_global(void *data, struct wl_registry *registry, uint32_t name, cons
 #endif /* COG_ENABLE_WESTON_CONTENT_PROTECTION */
     } else if (strcmp(interface, wl_output_interface.name) == 0) {
         /* Version 2 introduced the wl_output_listener::scale. */
-        struct wl_output *output = wl_registry_bind(registry, name, &wl_output_interface, MIN(2, version));
-        wl_output_add_listener(output, &output_listener, platform);
-        bool inserted = false;
-        for (int i = 0; i < G_N_ELEMENTS(display->metrics); i++) {
-            if (display->metrics[i].output == NULL) {
-                display->metrics[i].output = output;
-                display->metrics[i].name = name;
-                inserted = true;
-                break;
-            }
-        }
-        if (!inserted) {
-            g_warning("Exceeded %" G_GSIZE_FORMAT " connected outputs(!)", G_N_ELEMENTS(display->metrics));
-        }
+        CogWlOutput *item = g_new0(CogWlOutput, 1);
+        item->output = wl_registry_bind(registry, name, &wl_output_interface, MIN(2, version));
+        item->name = name;
+        item->scale = 1;
+        wl_list_init(&item->link);
+        wl_list_insert(&platform->display->outputs, &item->link);
+        wl_output_add_listener(item->output, &output_listener, platform);
     } else if (strcmp(interface, zwp_text_input_manager_v3_interface.name) == 0) {
         display->text_input_manager = wl_registry_bind(registry, name, &zwp_text_input_manager_v3_interface, 1);
     } else if (strcmp(interface, zwp_text_input_manager_v1_interface.name) == 0) {
@@ -1132,14 +1111,21 @@ static void
 registry_on_global_remove(void *data, struct wl_registry *registry, uint32_t name)
 {
     CogWlPlatform *platform = data;
-    CogWlDisplay  *display = platform->display;
 
-    for (int i = 0; i < G_N_ELEMENTS(display->metrics); i++) {
-        if (display->metrics[i].name == name) {
-            display->metrics[i].output = NULL;
-            display->metrics[i].name = 0;
-            g_debug("Removed output %i\n", name);
-            break;
+    CogWlOutput *output, *tmp_output;
+    wl_list_for_each_safe(output, tmp_output, &platform->display->outputs, link) {
+        if (output->name == name) {
+            g_debug("%s: output #%" PRIi32 " @ %p removed.", G_STRFUNC, output->name, output->output);
+            g_clear_pointer(&output->output, wl_output_release);
+            wl_list_remove(&output->link);
+            if (platform->display->current_output == output) {
+                platform->display->current_output =
+                    wl_list_empty(&platform->display->outputs)
+                        ? NULL
+                        : wl_container_of(platform->display->outputs.next, output, link);
+            }
+            g_clear_pointer(&output, g_free);
+            return;
         }
     }
 
