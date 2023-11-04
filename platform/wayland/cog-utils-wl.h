@@ -277,6 +277,7 @@ struct _CogWlDisplay {
 void          cog_wl_display_add_seat(CogWlDisplay *, CogWlSeat *);
 CogWlDisplay *cog_wl_display_create(const char *name, GError **error);
 void          cog_wl_display_destroy(CogWlDisplay *self);
+CogWlOutput  *cog_wl_display_find_output(CogWlDisplay *, struct wl_output *);
 
 CogWlPopup *cog_wl_popup_create(CogWlPlatform *, WebKitOptionMenu *);
 void        cog_wl_popup_destroy(CogWlPopup *);

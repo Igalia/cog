@@ -28,7 +28,6 @@ struct _CogWlPlatform {
     CogWlDisplay *display;
     CogWlPopup   *popup;
     CogViewport  *viewport; // TODO: Support multiple viewports.
-    CogWlWindow   window;
 };
 
 /*
@@ -50,7 +49,5 @@ struct _CogWlPlatform {
 void cog_wl_platform_popup_create(CogWlPlatform *, WebKitOptionMenu *);
 void cog_wl_platform_popup_destroy(CogWlPlatform *);
 void cog_wl_platform_popup_update(CogWlPlatform *);
-
-bool cog_wl_platform_set_fullscreen(CogWlPlatform *platform, bool fullscreen);
 
 G_END_DECLS
