@@ -288,7 +288,7 @@ cog_wl_popup_create(CogWlPlatform *platform, WebKitOptionMenu *option_menu)
     popup->popup_menu =
         cog_popup_menu_create(option_menu, display->shm, popup->width, popup->height, display->current_output->scale);
 
-    popup->wl_surface = cog_wl_compositor_create_surface(display->compositor, platform);
+    popup->wl_surface = cog_wl_compositor_create_surface(display->compositor, viewport);
     g_assert(popup->wl_surface);
 
 #ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
