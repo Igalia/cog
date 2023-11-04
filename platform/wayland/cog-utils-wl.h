@@ -51,6 +51,7 @@ typedef struct _CogWlWindow   CogWlWindow;
 typedef struct _CogWlXkb      CogWlXkb;
 
 typedef struct _CogWlPlatform CogWlPlatform;
+typedef struct _CogWlViewport CogWlViewport;
 
 struct _CogWlAxis {
     bool       has_delta;
@@ -299,7 +300,7 @@ CogWlDisplay *cog_wl_display_create(const char *name, GError **error);
 void          cog_wl_display_destroy(CogWlDisplay *self);
 CogWlOutput  *cog_wl_display_find_output(CogWlDisplay *, struct wl_output *);
 
-CogWlPopup *cog_wl_popup_create(CogWlPlatform *, WebKitOptionMenu *);
+CogWlPopup *cog_wl_popup_create(CogWlViewport *, WebKitOptionMenu *);
 void        cog_wl_popup_destroy(CogWlPopup *);
 void        cog_wl_popup_display(CogWlPopup *);
 void        cog_wl_popup_update(CogWlPopup *);
