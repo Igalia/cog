@@ -277,7 +277,7 @@ cog_wl_popup_create(CogWlPlatform *platform, WebKitOptionMenu *option_menu)
     popup->option_menu = option_menu;
 
     popup->width = viewport->window.width;
-    popup->height = cog_popup_menu_get_height_for_option_menu(option_menu) ;
+    popup->height = cog_popup_menu_get_height_for_option_menu(option_menu);
 
     popup->popup_menu =
         cog_popup_menu_create(option_menu, display->shm, popup->width, popup->height, display->current_output->scale);
