@@ -35,6 +35,7 @@
 #include "cog-im-context-wl.h"
 #include "cog-utils-wl.h"
 #include "cog-view-wl.h"
+#include "cog-viewport-wl.h"
 #if COG_HAVE_LIBPORTAL
 #    include "cog-xdp-parent-wl.h"
 #endif /* COG_HAVE_LIBPORTAL */
@@ -177,7 +178,8 @@ static WebKitWebViewBackend *
 cog_wl_view_create_backend(CogView *view)
 {
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
-    CogWlView *self = COG_WL_VIEW(view);
+    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
+    CogWlView     *self = COG_WL_VIEW(view);
 
     static const struct wpe_view_backend_exportable_fdo_egl_client client = {
         .export_fdo_egl_image = on_export_wl_egl_image,
@@ -187,7 +189,7 @@ cog_wl_view_create_backend(CogView *view)
     };
 
     self->exportable =
-        wpe_view_backend_exportable_fdo_egl_create(&client, self, platform->window.width, platform->window.height);
+        wpe_view_backend_exportable_fdo_egl_create(&client, self, viewport->window.width, viewport->window.height);
 
     /* init WPE view backend */
     struct wpe_view_backend *view_backend = wpe_view_backend_exportable_fdo_get_view_backend(self->exportable);
@@ -213,8 +215,9 @@ bool
 cog_wl_view_does_image_match_win_size(CogWlView *view)
 {
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
-    return view->image && wpe_fdo_egl_exported_image_get_width(view->image) == platform->window.width &&
-           wpe_fdo_egl_exported_image_get_height(view->image) == platform->window.height;
+    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
+    return view->image && wpe_fdo_egl_exported_image_get_width(view->image) == viewport->window.width &&
+           wpe_fdo_egl_exported_image_get_height(view->image) == viewport->window.height;
 }
 
 void
@@ -226,7 +229,8 @@ cog_wl_view_enter_fullscreen(CogWlView *view)
 
 #if HAVE_FULLSCREEN_HANDLING
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
-    if (platform->window.was_fullscreen_requested_from_dom)
+    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
+    if (viewport->window.was_fullscreen_requested_from_dom)
         wpe_view_backend_dispatch_did_enter_fullscreen(cog_view_get_backend(COG_VIEW(view)));
 #endif
 
@@ -247,10 +251,11 @@ static bool
 cog_wl_view_handle_dom_fullscreen_request(void *data, bool fullscreen)
 {
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
 
-    platform->window.was_fullscreen_requested_from_dom = true;
-    if (fullscreen != platform->window.is_fullscreen)
-        return cog_wl_platform_set_fullscreen(platform, fullscreen);
+    viewport->window.was_fullscreen_requested_from_dom = true;
+    if (fullscreen != viewport->window.is_fullscreen)
+        return cog_wl_viewport_set_fullscreen(viewport, fullscreen);
 
     // Handle situations where DOM fullscreen requests are mixed with system fullscreen commands (e.g F11)
     struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(data));
@@ -273,10 +278,11 @@ static void
 cog_wl_view_request_frame(CogWlView *view)
 {
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
 
     if (!view->frame_callback) {
         static const struct wl_callback_listener listener = {.done = on_wl_surface_frame};
-        view->frame_callback = wl_surface_frame(platform->window.wl_surface);
+        view->frame_callback = wl_surface_frame(viewport->window.wl_surface);
         wl_callback_add_listener(view->frame_callback, &listener, view);
     }
 
@@ -286,7 +292,7 @@ cog_wl_view_request_frame(CogWlView *view)
             .presented = presentation_feedback_on_presented,
             .discarded = presentation_feedback_on_discarded};
         struct wp_presentation_feedback *presentation_feedback =
-            wp_presentation_feedback(platform->display->presentation, platform->window.wl_surface);
+            wp_presentation_feedback(platform->display->presentation, viewport->window.wl_surface);
         wp_presentation_feedback_add_listener(presentation_feedback, &presentation_feedback_listener, NULL);
     }
 }
@@ -295,14 +301,15 @@ void
 cog_wl_view_resize(CogWlView *view)
 {
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
 
     view->should_update_opaque_region = true;
 
-    int32_t pixel_width = platform->window.width * platform->display->current_output->scale;
-    int32_t pixel_height = platform->window.height * platform->display->current_output->scale;
+    int32_t pixel_width = viewport->window.width * platform->display->current_output->scale;
+    int32_t pixel_height = viewport->window.height * platform->display->current_output->scale;
 
     struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(view));
-    wpe_view_backend_dispatch_set_size(backend, platform->window.width, platform->window.height);
+    wpe_view_backend_dispatch_set_size(backend, viewport->window.width, viewport->window.height);
     wpe_view_backend_dispatch_set_device_scale_factor(backend, platform->display->current_output->scale);
 
     g_debug("Resized EGL buffer to: (%" PRIi32 ", %" PRIi32 ") @%" PRIi32 "x", pixel_width, pixel_height,
@@ -313,13 +320,14 @@ void
 cog_wl_view_update_surface_contents(CogWlView *view)
 {
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
     g_assert(view);
 
-    struct wl_surface *surface = platform->window.wl_surface;
+    struct wl_surface *surface = viewport->window.wl_surface;
     g_assert(surface);
 
-    const uint32_t surface_pixel_width = platform->display->current_output->scale * platform->window.width;
-    const uint32_t surface_pixel_height = platform->display->current_output->scale * platform->window.height;
+    const uint32_t surface_pixel_width = platform->display->current_output->scale * viewport->window.width;
+    const uint32_t surface_pixel_height = platform->display->current_output->scale * viewport->window.height;
 
     if (view->should_update_opaque_region) {
         view->should_update_opaque_region = false;
@@ -327,9 +335,9 @@ cog_wl_view_update_surface_contents(CogWlView *view)
         WebKitColor bg_color;
         webkit_web_view_get_background_color(WEBKIT_WEB_VIEW(view), &bg_color);
 
-        if (platform->window.is_fullscreen || !cog_wl_view_background_has_alpha(COG_WL_VIEW(view))) {
+        if (viewport->window.is_fullscreen || !cog_wl_view_background_has_alpha(COG_WL_VIEW(view))) {
             struct wl_region *region = wl_compositor_create_region(platform->display->compositor);
-            wl_region_add(region, 0, 0, platform->window.width, platform->window.height);
+            wl_region_add(region, 0, 0, viewport->window.width, viewport->window.height);
             wl_surface_set_opaque_region(surface, region);
             wl_region_destroy(region);
         } else {
@@ -366,9 +374,10 @@ static bool
 validate_exported_geometry(uint32_t width, uint32_t height)
 {
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
 
-    const uint32_t surface_pixel_width = platform->display->current_output->scale * platform->window.width;
-    const uint32_t surface_pixel_height = platform->display->current_output->scale * platform->window.height;
+    const uint32_t surface_pixel_width = platform->display->current_output->scale * viewport->window.width;
+    const uint32_t surface_pixel_height = platform->display->current_output->scale * viewport->window.height;
 
     if (surface_pixel_width != width || surface_pixel_height != height) {
         g_debug("Image geometry %" PRIu32 "x%" PRIu32 ", does not match surface geometry %" PRIu32 "x%" PRIu32
@@ -385,6 +394,7 @@ static void
 on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_buffer)
 {
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
     CogWlView     *view = data;
 
     struct wl_resource   *exported_resource = wpe_fdo_shm_exported_buffer_get_resource(exported_buffer);
@@ -402,9 +412,9 @@ on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_bu
     if (!buffer) {
         int32_t width;
         int32_t height;
-        if (platform->window.is_fullscreen) {
-            width = platform->window.width;
-            height = platform->window.height;
+        if (viewport->window.is_fullscreen) {
+            width = viewport->window.width;
+            height = viewport->window.height;
         } else {
             width = wl_shm_buffer_get_width(exported_shm_buffer);
             height = wl_shm_buffer_get_height(exported_shm_buffer);
@@ -431,10 +441,10 @@ on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_bu
 
     const int32_t state = wpe_view_backend_get_activity_state(cog_view_get_backend((CogView *) view));
     if (state & wpe_view_activity_state_visible) {
-        wl_surface_attach(platform->window.wl_surface, buffer->buffer, 0, 0);
-        wl_surface_damage(platform->window.wl_surface, 0, 0, INT32_MAX, INT32_MAX);
+        wl_surface_attach(viewport->window.wl_surface, buffer->buffer, 0, 0);
+        wl_surface_damage(viewport->window.wl_surface, 0, 0, INT32_MAX, INT32_MAX);
         cog_wl_view_request_frame(view);
-        wl_surface_commit(platform->window.wl_surface);
+        wl_surface_commit(viewport->window.wl_surface);
     }
 }
 #endif
@@ -484,10 +494,11 @@ static void
 on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
 {
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
 
     g_autoptr(XdpParent) xdp_parent = NULL;
-    if (platform->window.xdp_parent_wl_data.zxdg_exporter && platform->window.xdp_parent_wl_data.wl_surface) {
-        xdp_parent = xdp_parent_new_wl(&platform->window.xdp_parent_wl_data);
+    if (viewport->window.xdp_parent_wl_data.zxdg_exporter && viewport->window.xdp_parent_wl_data.wl_surface) {
+        xdp_parent = xdp_parent_new_wl(&viewport->window.xdp_parent_wl_data);
     }
 
     run_file_chooser(view, request, xdp_parent);
