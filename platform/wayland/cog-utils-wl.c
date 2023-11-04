@@ -23,6 +23,7 @@
 #include "cog-im-context-wl.h"
 #include "cog-platform-wl.h"
 #include "cog-utils-wl.h"
+#include "cog-viewport-wl.h"
 
 #include "fullscreen-shell-unstable-v1-client.h"
 #include "text-input-unstable-v1-client.h"
@@ -188,6 +189,19 @@ cog_wl_display_destroy(CogWlDisplay *display)
     g_slice_free(CogWlDisplay, display);
 }
 
+CogWlOutput *
+cog_wl_display_find_output(CogWlDisplay *display, struct wl_output *output)
+{
+    CogWlOutput *item;
+    wl_list_for_each(item, &display->outputs, link) {
+        if (item->output == output)
+            return item;
+    }
+
+    g_assert_not_reached();
+    return NULL;
+}
+
 static void
 xdg_popup_on_configure(void *data, struct xdg_popup *xdg_popup, int32_t x, int32_t y, int32_t width, int32_t height)
 {
@@ -254,15 +268,16 @@ xdg_surface_on_configure(void *data, struct xdg_surface *surface, uint32_t seria
 CogWlPopup *
 cog_wl_popup_create(CogWlPlatform *platform, WebKitOptionMenu *option_menu)
 {
-    CogWlDisplay *display = platform->display;
+    CogWlDisplay  *display = platform->display;
+    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
 
     CogWlPopup *popup = g_slice_new0(CogWlPopup);
     g_debug("%s: Create @ %p", G_STRFUNC, popup);
 
     popup->option_menu = option_menu;
 
-    popup->width = platform->window.width;
-    popup->height = cog_popup_menu_get_height_for_option_menu(option_menu);
+    popup->width = viewport->window.width;
+    popup->height = cog_popup_menu_get_height_for_option_menu(option_menu) ;
 
     popup->popup_menu =
         cog_popup_menu_create(option_menu, display->shm, popup->width, popup->height, display->current_output->scale);
@@ -280,7 +295,7 @@ cog_wl_popup_create(CogWlPlatform *platform, WebKitOptionMenu *option_menu)
         g_assert(popup->xdg_positioner);
 
         xdg_positioner_set_size(popup->xdg_positioner, popup->width, popup->height);
-        xdg_positioner_set_anchor_rect(popup->xdg_positioner, 0, (platform->window.height - popup->height),
+        xdg_positioner_set_anchor_rect(popup->xdg_positioner, 0, (viewport->window.height - popup->height),
                                        popup->width, popup->height);
 
         popup->xdg_surface = xdg_wm_base_get_xdg_surface(display->xdg_shell, popup->wl_surface);
@@ -289,7 +304,7 @@ cog_wl_popup_create(CogWlPlatform *platform, WebKitOptionMenu *option_menu)
         static const struct xdg_surface_listener xdg_surface_listener = {.configure = xdg_surface_on_configure};
         xdg_surface_add_listener(popup->xdg_surface, &xdg_surface_listener, popup);
         popup->xdg_popup =
-            xdg_surface_get_popup(popup->xdg_surface, platform->window.xdg_surface, popup->xdg_positioner);
+            xdg_surface_get_popup(popup->xdg_surface, viewport->window.xdg_surface, popup->xdg_positioner);
         g_assert(popup->xdg_popup);
 
         static const struct xdg_popup_listener xdg_popup_listener = {
@@ -305,8 +320,8 @@ cog_wl_popup_create(CogWlPlatform *platform, WebKitOptionMenu *option_menu)
 
         wl_shell_surface_add_listener(popup->shell_surface, &shell_popup_surface_listener, NULL);
         wl_shell_surface_set_popup(popup->shell_surface, display->seat_default->seat,
-                                   cog_wl_seat_get_serial(display->seat_default), platform->window.wl_surface, 0,
-                                   (platform->window.height - popup->height), 0);
+                                   cog_wl_seat_get_serial(display->seat_default), viewport->window.wl_surface, 0,
+                                   (viewport->window.height - popup->height), 0);
 
         cog_wl_popup_display(popup);
     }
@@ -470,7 +485,8 @@ cog_wl_text_input_clear(CogWlPlatform *platform)
 void
 cog_wl_text_input_set(CogWlPlatform *platform, CogWlSeat *seat)
 {
-    CogWlDisplay *display = platform->display;
+    CogWlDisplay  *display = platform->display;
+    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
     if (display->text_input_manager != NULL) {
         struct zwp_text_input_v3 *text_input =
             zwp_text_input_manager_v3_get_text_input(display->text_input_manager, seat->seat);
@@ -478,6 +494,6 @@ cog_wl_text_input_set(CogWlPlatform *platform, CogWlSeat *seat)
     } else if (display->text_input_manager_v1 != NULL) {
         struct zwp_text_input_v1 *text_input =
             zwp_text_input_manager_v1_create_text_input(display->text_input_manager_v1);
-        cog_im_context_wl_v1_set_text_input(text_input, seat->seat, platform->window.wl_surface);
+        cog_im_context_wl_v1_set_text_input(text_input, seat->seat, viewport->window.wl_surface);
     }
 }
