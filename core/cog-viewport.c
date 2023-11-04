@@ -7,6 +7,7 @@
 #include "cog-viewport.h"
 
 #include "cog-platform.h"
+#include "cog-view-private.h"
 #include "cog-view.h"
 
 /**
@@ -258,6 +259,8 @@ cog_viewport_add(CogViewport *self, CogView *view)
     CogViewportPrivate *priv = PRIV(self);
     g_return_if_fail(!g_ptr_array_find(priv->views, view, NULL));
 
+    cog_view_set_viewport(view, self);
+
     g_ptr_array_add(priv->views, g_object_ref(view));
     g_signal_emit(self, s_signals[ADD], 0, view);
 
@@ -303,6 +306,8 @@ cog_viewport_remove(CogViewport *self, CogView *view)
         g_warning("Attempted to remove view %p, which was not in viewport %p.", view, self);
         return;
     }
+
+    cog_view_set_viewport(view, NULL);
 
     g_object_ref(view);
     g_ptr_array_remove_index(priv->views, index);
