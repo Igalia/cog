@@ -173,12 +173,15 @@ struct _CogWlSeat {
 
     CogWlKeyboard       keyboard;
     struct wl_keyboard *keyboard_obj;
+    void               *keyboard_target; /* Current target of keyboard events. */
 
     CogWlPointer       pointer;
     struct wl_pointer *pointer_obj;
+    void              *pointer_target; /* Current target of pointer events. */
 
     CogWlTouch       touch;
     struct wl_touch *touch_obj;
+    void            *touch_target; /* Current target of touch events. */
 
     CogWlXkb xkb;
 

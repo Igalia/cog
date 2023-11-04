@@ -249,6 +249,10 @@ pointer_on_enter(void              *data,
 
     seat->display->seat_default = seat;
 
+    CogWlViewport *viewport = wl_surface_get_user_data(
+        surface); // Viewport is attached the context of the wl_surface. Check cog_wl_viewport_create_window();
+
+    seat->pointer_target = viewport;
     seat->pointer.serial = serial;
     seat->pointer.surface = surface;
 
@@ -267,6 +271,7 @@ pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct
         return;
     }
 
+    seat->pointer_target = NULL;
     seat->pointer.serial = serial;
     seat->pointer.surface = NULL;
 }
@@ -292,7 +297,10 @@ pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixe
                                             seat->pointer.button,
                                             seat->pointer.state};
 
-    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get())->viewport);
+    g_assert(seat->pointer_target);
+    CogWlViewport *viewport = COG_WL_VIEWPORT(seat->pointer_target);
+    CogView       *view = cog_viewport_get_visible_view((CogViewport *) viewport);
+
     if (view)
         wpe_view_backend_dispatch_pointer_event(cog_view_get_backend(view), &event);
 }
@@ -350,7 +358,9 @@ pointer_on_button(void              *data,
         }
     }
 
-    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get())->viewport);
+    CogWlViewport *viewport = COG_WL_VIEWPORT(seat->pointer_target);
+    CogView       *view = cog_viewport_get_visible_view((CogViewport *) viewport);
+
     if (view)
         wpe_view_backend_dispatch_pointer_event(cog_view_get_backend(view), &event);
 }
@@ -374,7 +384,11 @@ dispatch_axis_event(CogWlSeat *seat)
     event.x_axis = wl_fixed_to_double(seat->axis.x_delta) * display->current_output->scale;
     event.y_axis = -wl_fixed_to_double(seat->axis.y_delta) * display->current_output->scale;
 
-    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get())->viewport);
+    g_assert(seat->pointer_target);
+
+    CogWlViewport *viewport = COG_WL_VIEWPORT(seat->pointer_target);
+    CogView       *view = cog_viewport_get_visible_view((CogViewport *) viewport);
+
     if (view)
         wpe_view_backend_dispatch_axis_event(cog_view_get_backend(view), &event.base);
 
@@ -503,6 +517,11 @@ keyboard_on_enter(void               *data,
     }
 
     seat->display->seat_default = seat;
+
+    CogWlViewport *viewport = wl_surface_get_user_data(
+        surface); // Viewport is attached the context of the wl_surface. Check cog_wl_viewport_create_window();
+
+    seat->keyboard_target = viewport;
     seat->keyboard.serial = serial;
 }
 
@@ -516,14 +535,16 @@ keyboard_on_leave(void *data, struct wl_keyboard *wl_keyboard, uint32_t serial, 
         return;
     }
 
+    seat->keyboard_target = NULL;
     seat->keyboard.serial = serial;
 }
 
 static void
 handle_key_event(CogWlSeat *seat, uint32_t key, uint32_t state, uint32_t time)
 {
-    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
-    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
+    g_assert(seat->keyboard_target);
+
+    CogWlViewport *viewport = COG_WL_VIEWPORT(seat->keyboard_target);
     CogView       *view = cog_viewport_get_visible_view(COG_VIEWPORT(viewport));
 
     if (!view || seat->xkb.state == NULL)
@@ -706,6 +727,9 @@ touch_on_down(void              *data,
 
     seat->display->seat_default = seat;
 
+    CogWlViewport *viewport = wl_surface_get_user_data(
+        surface); // Viewport is attached the context of the wl_surface. Check cog_wl_viewport_create_window();
+    seat->touch_target = viewport;
     seat->touch.serial = serial;
     seat->touch.surface = surface;
 
@@ -736,7 +760,7 @@ touch_on_down(void              *data,
 
     struct wpe_input_touch_event event = {seat->touch.points, 10, raw_event.type, raw_event.id, raw_event.time};
 
-    CogView *view = cog_viewport_get_visible_view(platform->viewport);
+    CogView *view = cog_viewport_get_visible_view((CogViewport *) viewport);
     if (view)
         wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
 }
@@ -751,7 +775,11 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
         return;
     }
 
+    g_assert(seat->touch_target);
+    CogWlViewport *viewport = COG_WL_VIEWPORT(seat->touch_target);
+
     struct wl_surface *target_surface = seat->touch.surface;
+    seat->touch_target = NULL;
     seat->touch.serial = serial;
     seat->touch.surface = NULL;
 
@@ -780,7 +808,7 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
 
     struct wpe_input_touch_event event = {seat->touch.points, 10, raw_event.type, raw_event.id, raw_event.time};
 
-    CogView *view = cog_viewport_get_visible_view(platform->viewport);
+    CogView *view = cog_viewport_get_visible_view((CogViewport *) viewport);
     if (view)
         wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
 
@@ -813,7 +841,8 @@ touch_on_motion(void *data, struct wl_touch *touch, uint32_t time, int32_t id, w
 
     struct wpe_input_touch_event event = {seat->touch.points, 10, raw_event.type, raw_event.id, raw_event.time};
 
-    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get())->viewport);
+    CogWlViewport *viewport = COG_WL_VIEWPORT(seat->touch_target);
+    CogView       *view = cog_viewport_get_visible_view((CogViewport *) viewport);
     if (view)
         wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
 }
@@ -1015,7 +1044,7 @@ on_video_plane_display_dmabuf_receiver_handle_dmabuf(void                       
     if (!surf) {
         surf = g_slice_new0(struct video_surface);
         surf->wl_subsurface = NULL;
-        surf->wl_surface = wl_compositor_create_surface(display->compositor);
+        surf->wl_surface = cog_wl_compositor_create_surface(display->compositor, viewport);
 
 #    if COG_ENABLE_WESTON_CONTENT_PROTECTION
         if (display->protection) {

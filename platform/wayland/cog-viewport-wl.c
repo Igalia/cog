@@ -247,7 +247,7 @@ cog_wl_viewport_create_window(CogWlViewport *viewport, GError **error)
     CogWlPlatform *platform = COG_WL_PLATFORM(cog_platform_get());
     CogWlDisplay  *display = platform->display;
 
-    viewport->window.wl_surface = wl_compositor_create_surface(display->compositor);
+    viewport->window.wl_surface = cog_wl_compositor_create_surface(display->compositor, viewport);
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     viewport->window.video_surfaces = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, destroy_video_surface);
