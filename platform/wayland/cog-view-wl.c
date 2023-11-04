@@ -522,8 +522,11 @@ on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
 static void
 on_show_option_menu(WebKitWebView *view, WebKitOptionMenu *menu, WebKitRectangle *rectangle, gpointer *data)
 {
-    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
-    cog_wl_platform_popup_create(platform, g_object_ref(menu));
+    g_autoptr(CogWlViewport) viewport = COG_WL_VIEWPORT(cog_view_get_viewport((CogView *) view));
+    if (!viewport)
+        return;
+
+    cog_wl_platform_popup_create(viewport, g_object_ref(menu));
 }
 
 static void
