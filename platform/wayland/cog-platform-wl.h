@@ -46,8 +46,8 @@ struct _CogWlPlatform {
  *
  * Returns: (void)
  */
-void cog_wl_platform_popup_create(CogWlPlatform *, WebKitOptionMenu *);
-void cog_wl_platform_popup_destroy(CogWlPlatform *);
-void cog_wl_platform_popup_update(CogWlPlatform *);
+void cog_wl_platform_popup_create(CogWlViewport *, WebKitOptionMenu *);
+void cog_wl_platform_popup_destroy(void);
+void cog_wl_platform_popup_update(void);
 
 G_END_DECLS
