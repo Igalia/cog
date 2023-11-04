@@ -371,11 +371,11 @@ pointer_on_button(void              *data,
             cog_popup_menu_handle_event(
                 popup->popup_menu, !!state ? COG_POPUP_MENU_EVENT_STATE_PRESSED : COG_POPUP_MENU_EVENT_STATE_RELEASED,
                 event.x, event.y);
-            cog_wl_platform_popup_update(platform);
+            cog_wl_platform_popup_update();
             return;
         } else {
             if (!!state)
-                cog_wl_platform_popup_destroy(platform);
+                cog_wl_platform_popup_destroy();
         }
     }
 
@@ -773,10 +773,10 @@ touch_on_down(void              *data,
         if (seat->touch.surface == popup->wl_surface) {
             cog_popup_menu_handle_event(popup->popup_menu, COG_POPUP_MENU_EVENT_STATE_PRESSED, raw_event.x,
                                         raw_event.y);
-            cog_wl_platform_popup_update(platform);
+            cog_wl_platform_popup_update();
             return;
         } else
-            cog_wl_platform_popup_destroy(platform);
+            cog_wl_platform_popup_destroy();
     }
 
     struct wpe_input_touch_event event = {seat->touch.points, 10, raw_event.type, raw_event.id, raw_event.time};
@@ -818,7 +818,7 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
         if (target_surface == popup->wl_surface) {
             cog_popup_menu_handle_event(popup->popup_menu, COG_POPUP_MENU_EVENT_STATE_RELEASED, raw_event.x,
                                         raw_event.y);
-            cog_wl_platform_popup_update(platform);
+            cog_wl_platform_popup_update();
 
             memset(&seat->touch.points[id], 0x00, sizeof(struct wpe_input_touch_event_raw));
             return;
@@ -1365,7 +1365,7 @@ cog_wl_platform_finalize(GObject *object)
 
     cog_wl_text_input_clear(platform);
     if (platform->popup)
-        cog_wl_platform_popup_destroy(platform);
+        cog_wl_platform_popup_destroy();
     clear_egl(platform->display);
     clear_wayland(platform);
 
@@ -1387,24 +1387,29 @@ cog_wl_platform_create_im_context(CogPlatform *platform)
 }
 
 void
-cog_wl_platform_popup_create(CogWlPlatform *platform, WebKitOptionMenu *option_menu)
+cog_wl_platform_popup_create(CogWlViewport *viewport, WebKitOptionMenu *option_menu)
 {
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
     g_assert(!platform->popup);
 
-    CogWlPopup *popup = cog_wl_popup_create(platform, option_menu);
+    CogWlPopup *popup = cog_wl_popup_create(viewport, option_menu);
     platform->popup = popup;
 }
 
 void
-cog_wl_platform_popup_destroy(CogWlPlatform *platform)
+cog_wl_platform_popup_destroy()
 {
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+
     g_assert(platform->popup);
     g_clear_pointer(&platform->popup, cog_wl_popup_destroy);
 }
 
 void
-cog_wl_platform_popup_update(CogWlPlatform *platform)
+cog_wl_platform_popup_update()
 {
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+
     g_assert(platform->popup);
     cog_wl_popup_update(platform->popup);
 }
