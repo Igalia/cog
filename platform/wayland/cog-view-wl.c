@@ -302,7 +302,6 @@ cog_wl_view_resize(CogWlView *view)
 {
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
-
     view->should_update_opaque_region = true;
 
     int32_t pixel_width = viewport->window.width * platform->display->current_output->scale;
