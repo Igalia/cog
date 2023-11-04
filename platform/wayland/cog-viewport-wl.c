@@ -19,6 +19,7 @@
 G_DEFINE_DYNAMIC_TYPE(CogWlViewport, cog_wl_viewport, COG_TYPE_VIEWPORT)
 
 static void cog_wl_viewport_dispose(GObject *);
+static void cog_wl_viewport_on_add(CogWlViewport *, CogView *);
 static void destroy_window(CogWlViewport *);
 static void noop();
 
@@ -202,6 +203,8 @@ cog_wl_viewport_init(CogWlViewport *viewport)
 
     viewport->window.width_before_fullscreen = viewport->window.width;
     viewport->window.height_before_fullscreen = viewport->window.height;
+
+    g_signal_connect(COG_VIEWPORT(viewport), "add", G_CALLBACK(cog_wl_viewport_on_add), NULL);
 }
 
 /*
@@ -381,6 +384,12 @@ cog_wl_viewport_exit_fullscreen(CogWlViewport *viewport)
     }
     window->was_fullscreen_requested_from_dom = false;
 #endif
+}
+
+static void
+cog_wl_viewport_on_add(CogWlViewport *viewport G_GNUC_UNUSED, CogView *view)
+{
+    cog_wl_view_resize((CogWlView *) view);
 }
 
 void
