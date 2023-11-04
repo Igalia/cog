@@ -11,6 +11,7 @@
 #    error "Do not include this header directly, use <cog.h> instead"
 #endif
 
+#include "cog-viewport.h"
 #include "cog-webkit-utils.h"
 
 G_BEGIN_DECLS
@@ -43,12 +44,15 @@ COG_API
 struct wpe_view_backend *cog_view_get_backend(CogView *view);
 
 COG_API
-void                     cog_view_handle_key_event(CogView *self, const struct wpe_input_keyboard_event *event);
+void cog_view_handle_key_event(CogView *self, const struct wpe_input_keyboard_event *event);
 
 COG_API
-void                     cog_view_set_use_key_bindings(CogView *self, gboolean enable);
+void cog_view_set_use_key_bindings(CogView *self, gboolean enable);
 
 COG_API
-gboolean                 cog_view_get_use_key_bindings(CogView *self);
+gboolean cog_view_get_use_key_bindings(CogView *self);
+
+COG_API
+CogViewport *cog_view_get_viewport(CogView *self);
 
 G_END_DECLS
