@@ -988,10 +988,8 @@ create_failed(void *data, struct zwp_linux_buffer_params_v1 *params)
     buffer->buffer = NULL;
 }
 
-static const struct zwp_linux_buffer_params_v1_listener params_listener = {
-	.created = create_succeeded,
-	.failed = create_failed
-};
+static const struct zwp_linux_buffer_params_v1_listener params_listener = {.created = create_succeeded,
+                                                                           .failed = create_failed};
 
 static void
 on_video_plane_display_dmabuf_receiver_handle_dmabuf(void                                         *data,
