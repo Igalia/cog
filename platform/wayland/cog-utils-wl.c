@@ -274,10 +274,10 @@ xdg_surface_on_configure(void *data, struct xdg_surface *surface, uint32_t seria
 }
 
 CogWlPopup *
-cog_wl_popup_create(CogWlPlatform *platform, WebKitOptionMenu *option_menu)
+cog_wl_popup_create(CogWlViewport *viewport, WebKitOptionMenu *option_menu)
 {
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     CogWlDisplay  *display = platform->display;
-    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
 
     CogWlPopup *popup = g_slice_new0(CogWlPopup);
     g_debug("%s: Create @ %p", G_STRFUNC, popup);
