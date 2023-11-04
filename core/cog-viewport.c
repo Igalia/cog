@@ -166,6 +166,9 @@ cog_viewport_dispose(GObject *object)
 static void
 cog_viewport_finalize(GObject *object)
 {
+    // Unset the reference to this viewport in the attached views.
+    cog_viewport_foreach((CogViewport *) object, (GFunc) cog_view_set_viewport, NULL);
+
     g_ptr_array_free(PRIV(object)->views, TRUE);
 
     G_OBJECT_CLASS(cog_viewport_parent_class)->finalize(object);
@@ -259,6 +262,8 @@ cog_viewport_add(CogViewport *self, CogView *view)
     CogViewportPrivate *priv = PRIV(self);
     g_return_if_fail(!g_ptr_array_find(priv->views, view, NULL));
 
+    cog_view_set_viewport(view, self);
+
     g_ptr_array_add(priv->views, g_object_ref(view));
     g_signal_emit(self, s_signals[ADD], 0, view);
 
@@ -304,6 +309,8 @@ cog_viewport_remove(CogViewport *self, CogView *view)
         g_warning("Attempted to remove view %p, which was not in viewport %p.", view, self);
         return;
     }
+
+    cog_view_set_viewport(view, NULL);
 
     g_object_ref(view);
     g_ptr_array_remove_index(priv->views, index);

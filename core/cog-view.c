@@ -26,6 +26,8 @@
 
 typedef struct {
     gboolean use_key_bindings;
+
+    CogViewport *viewport;
 } CogViewPrivate;
 
 G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE(CogView, cog_view, WEBKIT_TYPE_WEB_VIEW)
@@ -37,6 +39,7 @@ struct _CogCoreViewClass {
 enum {
     PROP_0,
     PROP_USE_KEY_BINDINGS,
+    PROP_VIEWPORT,
     N_PROPERTIES,
 };
 
@@ -74,6 +77,9 @@ cog_view_set_property(GObject *object, unsigned prop_id, const GValue *value, GP
     case PROP_USE_KEY_BINDINGS:
         cog_view_set_use_key_bindings(self, g_value_get_boolean(value));
         break;
+    case PROP_VIEWPORT:
+        cog_view_set_viewport(self, g_value_get_object(value));
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
     }
@@ -86,6 +92,9 @@ cog_view_get_property(GObject *object, unsigned prop_id, GValue *value, GParamSp
     switch (prop_id) {
     case PROP_USE_KEY_BINDINGS:
         g_value_set_boolean(value, cog_view_get_use_key_bindings(self));
+        break;
+    case PROP_VIEWPORT:
+        g_value_set_object(value, cog_view_get_viewport(self));
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -110,6 +119,16 @@ cog_view_class_init(CogViewClass *klass)
     s_properties[PROP_USE_KEY_BINDINGS] =
         g_param_spec_boolean("use-key-bindings", NULL, NULL, TRUE,
                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+
+    /**
+     * CogView:viewport: (default-value null)
+     *
+     * Viewport where the CogView belongs.
+     *
+     * Since: 0.20
+     */
+    s_properties[PROP_VIEWPORT] =
+        g_param_spec_object("viewport", NULL, NULL, G_TYPE_OBJECT, G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
 
     g_object_class_install_properties(object_class, N_PROPERTIES, s_properties);
 }
@@ -379,6 +398,33 @@ cog_view_set_use_key_bindings(CogView *self, gboolean enable)
 }
 
 /**
+ * cog_view_set_viewport: (set-property viewport)
+ * @self: A view.
+ * @viewport: The viewport where the View belongs.
+ *
+ * Since: 0.20
+ */
+void
+cog_view_set_viewport(CogView *self, CogViewport *viewport)
+{
+    g_return_if_fail(COG_IS_VIEW(self));
+
+    CogViewPrivate *priv = cog_view_get_instance_private(self);
+
+    if (priv->viewport != viewport) {
+        // If the new value is different from the old one, unreference the old value and set the new one.
+        if (viewport)
+            g_object_ref(viewport);
+        if (priv->viewport)
+            g_object_unref(priv->viewport);
+    }
+
+    priv->viewport = viewport;
+
+    g_object_notify_by_pspec(G_OBJECT(self), s_properties[PROP_VIEWPORT]);
+}
+
+/**
  * cog_view_get_use_key_bindings: (get-property use-key-bindings)
  * @self: A view.
  *
@@ -395,4 +441,23 @@ cog_view_get_use_key_bindings(CogView *self)
 
     CogViewPrivate *priv = cog_view_get_instance_private(COG_VIEW(self));
     return priv->use_key_bindings;
+}
+
+/**
+ * cog_view_get_viewport: (get-property viewport)
+ * @self: A view.
+ *
+ * Gets viewport where the view is attached.
+ *
+ * Returns: The viewport what the view belongs.
+ *
+ * Since: 0.20
+ */
+CogViewport *
+cog_view_get_viewport(CogView *self)
+{
+    g_return_val_if_fail(COG_IS_VIEW(self), NULL);
+
+    CogViewPrivate *priv = cog_view_get_instance_private(self);
+    return priv->viewport;
 }
