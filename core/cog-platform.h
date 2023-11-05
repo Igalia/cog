@@ -20,6 +20,8 @@ G_BEGIN_DECLS
 
 #define COG_PLATFORM_ERROR (cog_platform_error_quark())
 
+typedef struct _CogViewport CogViewport;
+
 typedef enum {
     COG_PLATFORM_ERROR_NO_MODULE,
 } CogPlatformError;
@@ -47,7 +49,7 @@ struct _CogPlatformClass {
     gboolean (*setup)(CogPlatform *, CogShell *shell, const char *params, GError **);
     WebKitWebViewBackend *(*get_view_backend)(CogPlatform *, WebKitWebView *related_view, GError **);
     void (*init_web_view)(CogPlatform *, WebKitWebView *);
-    WebKitInputMethodContext *(*create_im_context)(CogPlatform *);
+    WebKitInputMethodContext *(*create_im_context)(CogViewport *);
 
     GType (*get_view_type)(void);
     GType (*get_viewport_type)(void);
@@ -65,11 +67,10 @@ WebKitWebViewBackend     *cog_platform_get_view_backend  (CogPlatform   *platfor
                                                           GError       **error);
 
 COG_API
-void                      cog_platform_init_web_view     (CogPlatform   *platform,
-                                                          WebKitWebView *view);
+void cog_platform_init_web_view(CogPlatform *platform, WebKitWebView *view);
 
 COG_API
-WebKitInputMethodContext *cog_platform_create_im_context (CogPlatform   *platform);
+WebKitInputMethodContext *cog_platform_create_im_context(CogViewport *viewport);
 
 COG_API CogPlatform *
 cog_platform_configure(const char *params, const char *env_prefix, CogShell *shell, GError **error);

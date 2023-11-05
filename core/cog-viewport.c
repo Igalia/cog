@@ -270,6 +270,9 @@ cog_viewport_add(CogViewport *self, CogView *view)
     struct wpe_view_backend *backend = cog_view_get_backend(view);
     wpe_view_backend_add_activity_state(backend, wpe_view_activity_state_in_window);
 
+    g_autoptr(WebKitInputMethodContext) im_context = cog_platform_create_im_context(self);
+    webkit_web_view_set_input_method_context(WEBKIT_WEB_VIEW(view), im_context);
+
     if (!priv->visible_view) {
         g_debug("%s<%p>: adding view %p as visible", G_STRFUNC, self, view);
         cog_viewport_set_visible_view_internal(self, priv, view);
@@ -309,6 +312,8 @@ cog_viewport_remove(CogViewport *self, CogView *view)
         g_warning("Attempted to remove view %p, which was not in viewport %p.", view, self);
         return;
     }
+
+    webkit_web_view_set_input_method_context(WEBKIT_WEB_VIEW(view), NULL);
 
     cog_view_set_viewport(view, NULL);
 
