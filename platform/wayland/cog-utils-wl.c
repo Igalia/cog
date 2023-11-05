@@ -343,6 +343,11 @@ cog_wl_popup_destroy(CogWlPopup *popup)
     g_debug("%s: Destroying @ %p", G_STRFUNC, popup);
     g_assert(popup);
 
+    // Reset the reference in the Platform if the destroyed popup is the same
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
+    if (platform->popup == popup)
+        platform->popup = NULL;
+
     if (popup->option_menu != NULL)
         webkit_option_menu_close(popup->option_menu);
 
