@@ -28,9 +28,9 @@ typedef struct {
     GHashTable *request_handlers; /* (string, RequestHandlerMapEntry) */
     gboolean    automated;
 
-    WebKitSettings           *web_settings;
-    WebKitWebContext         *web_context;
-    CogViewport              *viewport;
+    WebKitSettings   *web_settings;
+    WebKitWebContext *web_context;
+    GHashTable       *viewports; /* (CogViewportKey, CogViewport) */
 
 #if !COG_USE_WPE2
     WebKitWebsiteDataManager *web_data_manager;
@@ -68,9 +68,9 @@ enum {
 
 static GParamSpec *s_properties[N_PROPERTIES] = { NULL, };
 
-
 enum {
     CREATE_VIEW,
+    CREATE_VIEWPORT,
     STARTUP,
     SHUTDOWN,
     N_SIGNALS,
@@ -179,9 +179,10 @@ cog_shell_startup_base(CogShell *shell)
 
     webkit_web_context_set_automation_allowed(priv->web_context, priv->automated);
     g_signal_connect(priv->web_context, "automation-started", G_CALLBACK(cog_shell_automation_started_callback), shell);
-    g_signal_connect_swapped(web_view, "close", G_CALLBACK(cog_viewport_remove), priv->viewport);
+    CogViewport *viewport = cog_shell_get_viewport(shell);
+    g_assert(viewport);
 
-    cog_viewport_add(priv->viewport, COG_VIEW(web_view));
+    cog_viewport_add(viewport, COG_VIEW(web_view));
 }
 
 static void
@@ -274,7 +275,7 @@ cog_shell_set_property (GObject      *object,
 #endif
             break;
         default:
-            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+            G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         }
 }
 
@@ -283,6 +284,9 @@ cog_shell_viewport_visible_view_changed(CogViewport *viewport G_GNUC_UNUSED,
                                         GParamSpec *pspec     G_GNUC_UNUSED,
                                         GObject              *shell)
 {
+    g_assert(COG_IS_SHELL(shell));
+    g_assert(COG_IS_VIEWPORT(viewport));
+
     g_object_notify_by_pspec(shell, s_properties[PROP_WEB_VIEW]);
 }
 
@@ -320,9 +324,7 @@ cog_shell_constructed(GObject *object)
 #endif
                                      NULL);
 
-    priv->viewport = cog_viewport_new();
-    g_signal_connect_object(priv->viewport, "notify::visible-view", G_CALLBACK(cog_shell_viewport_visible_view_changed),
-                            object, 0);
+    priv->viewports = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, g_object_unref);
 }
 
 static void
@@ -330,22 +332,22 @@ cog_shell_dispose(GObject *object)
 {
     CogShellPrivate *priv = PRIV(object);
 
-    g_clear_object(&priv->viewport);
     g_clear_object(&priv->web_context);
     g_clear_object(&priv->web_settings);
 #if !COG_USE_WPE2
     g_clear_object(&priv->web_data_manager);
 #endif
 
-    g_clear_pointer (&priv->request_handlers, g_hash_table_unref);
-    g_clear_pointer (&priv->name, g_free);
-    g_clear_pointer (&priv->config_file, g_key_file_unref);
+    g_clear_pointer(&priv->viewports, g_hash_table_unref);
+    g_clear_pointer(&priv->request_handlers, g_hash_table_unref);
+    g_clear_pointer(&priv->name, g_free);
+    g_clear_pointer(&priv->config_file, g_key_file_unref);
 
-    G_OBJECT_CLASS (cog_shell_parent_class)->dispose (object);
+    G_OBJECT_CLASS(cog_shell_parent_class)->dispose(object);
 }
 
 static void
-cog_shell_class_init (CogShellClass *klass)
+cog_shell_class_init(CogShellClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
     object_class->dispose = cog_shell_dispose;
@@ -382,6 +384,23 @@ cog_shell_class_init (CogShellClass *klass)
                                           NULL,
                                           COG_TYPE_VIEW,
                                           0);
+
+    /**
+     * CogShell::create-viewport:
+     * @self: The shell creating the new CogViewport.
+     * @viewport: The created new viewport.
+     * @user_data: User data.
+     *
+     * The `create-viewport` signal is emitted when the shell creates a new a
+     * new CogViewport.
+     *
+     * Handling this signal allows to customize the actions required to be
+     * done during the creation of a new viewport.
+     *
+     * Returns: (void).
+     */
+    s_signals[CREATE_VIEWPORT] = g_signal_new("create-viewport", COG_TYPE_SHELL, G_SIGNAL_RUN_FIRST, 0, NULL, NULL,
+                                              NULL, G_TYPE_NONE, 1, COG_TYPE_VIEWPORT);
 
     /**
      * CogShell:name: (attributes org.gtk.Property.get=cog_shell_get_name):
@@ -581,11 +600,12 @@ cog_shell_get_web_settings (CogShell *shell)
  *
  * Returns: (nullable): A web view.
  */
-WebKitWebView*
-cog_shell_get_web_view (CogShell *shell)
+WebKitWebView *
+cog_shell_get_web_view(CogShell *shell)
 {
-    g_return_val_if_fail (COG_IS_SHELL (shell), NULL);
-    return WEBKIT_WEB_VIEW(cog_viewport_get_visible_view(PRIV(shell)->viewport));
+    g_return_val_if_fail(COG_IS_SHELL(shell), NULL);
+    CogViewport *viewport = cog_shell_get_viewport(shell);
+    return WEBKIT_WEB_VIEW(cog_viewport_get_visible_view(viewport));
 }
 
 /**
@@ -706,7 +726,7 @@ cog_shell_shutdown (CogShell *shell)
 /**
  * cog_shell_get_viewport:
  *
- * Gets the viewport managed by the shell.
+ * Gets the default viewport managed by the shell.
  *
  * Returns: (transfer none): A viewport.
  *
@@ -715,6 +735,47 @@ cog_shell_shutdown (CogShell *shell)
 CogViewport *
 cog_shell_get_viewport(CogShell *shell)
 {
+    CogViewport *viewport = cog_shell_viewport_lookup(shell, COG_VIEWPORT_DEFAULT);
+
+    // Create and add the default viewport if this doesn't exist already
+    if (!viewport)
+        return cog_shell_viewport_new(shell, COG_VIEWPORT_DEFAULT);
+
+    return viewport;
+}
+
+GHashTable *
+cog_shell_get_viewports(CogShell *shell)
+{
     g_return_val_if_fail(COG_IS_SHELL(shell), NULL);
-    return PRIV(shell)->viewport;
+    return PRIV(shell)->viewports;
+}
+
+CogViewport *
+cog_shell_viewport_lookup(CogShell *shell, CogViewportKey key)
+{
+    g_return_val_if_fail(COG_IS_SHELL(shell), NULL);
+    return g_hash_table_lookup(PRIV(shell)->viewports, key);
+}
+
+CogViewport *
+cog_shell_viewport_new(CogShell *shell, CogViewportKey key)
+{
+    g_return_val_if_fail(COG_IS_SHELL(shell), NULL);
+    CogViewport *viewport = cog_viewport_new();
+    g_hash_table_insert(PRIV(shell)->viewports, key, viewport);
+
+    g_signal_connect_object(viewport, "notify::visible-view", G_CALLBACK(cog_shell_viewport_visible_view_changed),
+                            shell, 0);
+
+    g_signal_emit(shell, s_signals[CREATE_VIEWPORT], 0, viewport);
+
+    return viewport;
+}
+
+gboolean
+cog_shell_viewport_remove(CogShell *shell, CogViewportKey key)
+{
+    g_return_val_if_fail(COG_IS_SHELL(shell), false);
+    return g_hash_table_remove(PRIV(shell)->viewports, key);
 }
