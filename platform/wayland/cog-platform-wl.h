@@ -27,7 +27,7 @@ struct _CogWlPlatform {
     CogPlatform   parent;
     CogWlDisplay *display;
     CogWlPopup   *popup;
-    CogViewport  *viewport; // TODO: Support multiple viewports.
+    GPtrArray    *viewports;
 };
 
 /*
