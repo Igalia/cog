@@ -1405,7 +1405,10 @@ void
 cog_wl_platform_popup_create(CogWlViewport *viewport, WebKitOptionMenu *option_menu)
 {
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
-    g_assert(!platform->popup);
+
+    // Destroy the still alive previous popup
+    if (platform->popup)
+        cog_wl_platform_popup_destroy();
 
     CogWlPopup *popup = cog_wl_popup_create(viewport, option_menu);
     platform->popup = popup;
