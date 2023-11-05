@@ -483,8 +483,10 @@ cog_wl_seat_set_cursor(CogWlSeat *seat, WebKitHitTestResult *hit_test)
 #endif /* COG_USE_WAYLAND_CURSOR */
 
 void
-cog_wl_text_input_clear(CogWlPlatform *platform)
+cog_wl_text_input_clear(void)
 {
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
+
     CogWlDisplay *display = platform->display;
     cog_im_context_wl_set_text_input(NULL);
     g_clear_pointer(&display->text_input_manager, zwp_text_input_manager_v3_destroy);
@@ -493,10 +495,11 @@ cog_wl_text_input_clear(CogWlPlatform *platform)
 }
 
 void
-cog_wl_text_input_set(CogWlPlatform *platform, CogWlSeat *seat)
+cog_wl_text_input_set(CogWlViewport *viewport, CogWlSeat *seat)
 {
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     CogWlDisplay  *display = platform->display;
-    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
+
     if (display->text_input_manager != NULL) {
         struct zwp_text_input_v3 *text_input =
             zwp_text_input_manager_v3_get_text_input(display->text_input_manager, seat->seat);
