@@ -315,6 +315,19 @@ cog_launcher_create_view(CogLauncher *self, CogShell *shell)
     return g_steal_pointer(&web_view);
 }
 
+/**
+ * cog_launcher_startup:
+ *
+ * Creates and initializes the Shell using the concrete Platform. This
+ * startup process must to follow a specific order:
+ *
+ * 1. Create the Platform
+ * 2. Create the Shell
+ * 3. Configure the platform using the created Shell
+ * 4. Shell startup
+ *
+ * Returns: (void).
+ */
 static void
 cog_launcher_startup(GApplication *application)
 {
@@ -328,9 +341,11 @@ cog_launcher_startup(GApplication *application)
 
     CogLauncher *self = COG_LAUNCHER(application);
 
+    // Step 1. Create the platform
     g_autoptr(GError) error = NULL;
     CogPlatform      *platform = cog_platform_create(s_options.platform_name, "COG", &error);
 
+    // Step 2. Create the shell
     self->shell = g_object_new(
         COG_TYPE_SHELL, "name", g_get_prgname(), "automated", self->automated, "web-settings", self->web_settings,
 #if !COG_USE_WPE2
@@ -341,6 +356,7 @@ cog_launcher_startup(GApplication *application)
 #endif /* COG_HAVE_MEM_PRESSURE */
         NULL);
 
+    // Step 3. Configure the platform using the created shell
     if (platform != cog_platform_configure(s_options.platform_params, "COG", self->shell, &error))
         g_error("Cannot configure the platform: %s", error->message);
 
@@ -361,6 +377,7 @@ cog_launcher_startup(GApplication *application)
 
     g_object_set(self->shell, "device-scale-factor", s_options.device_scale_factor, NULL);
 
+    // Step 4. Shell startup
     cog_shell_startup(self->shell);
 
     if (s_options.handler_map) {
