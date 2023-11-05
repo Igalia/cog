@@ -273,8 +273,6 @@ cog_launcher_create_view(CogLauncher *self, CogShell *shell)
     g_signal_connect(web_view, "create", G_CALLBACK(on_web_view_create), NULL);
 
     cog_platform_init_web_view(platform, web_view);
-    g_autoptr(WebKitInputMethodContext) im_context = cog_platform_create_im_context(platform);
-    webkit_web_view_set_input_method_context(web_view, im_context);
 
     if (s_options.background_color != NULL) {
         WebKitColor color;
