@@ -193,13 +193,14 @@ cog_platform_init_web_view (CogPlatform   *platform,
 }
 
 WebKitInputMethodContext *
-cog_platform_create_im_context(CogPlatform *platform)
+cog_platform_create_im_context(CogViewport *viewport)
 {
+    CogPlatform *platform = cog_platform_get();
     g_return_val_if_fail(COG_IS_PLATFORM(platform), NULL);
 
     CogPlatformClass *klass = COG_PLATFORM_GET_CLASS(platform);
     if (klass->create_im_context)
-        return klass->create_im_context(platform);
+        return klass->create_im_context(viewport);
 
     return NULL;
 }
