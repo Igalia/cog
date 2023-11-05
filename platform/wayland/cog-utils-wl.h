@@ -50,7 +50,6 @@ typedef struct _CogWlTouch    CogWlTouch;
 typedef struct _CogWlWindow   CogWlWindow;
 typedef struct _CogWlXkb      CogWlXkb;
 
-typedef struct _CogWlPlatform CogWlPlatform;
 typedef struct _CogWlViewport CogWlViewport;
 
 struct _CogWlAxis {
@@ -310,7 +309,7 @@ void       cog_wl_seat_destroy(CogWlSeat *);
 void       cog_wl_seat_set_cursor(CogWlSeat *, enum cursor_type);
 uint32_t   cog_wl_seat_get_serial(CogWlSeat *);
 
-void cog_wl_text_input_clear(CogWlPlatform *);
-void cog_wl_text_input_set(CogWlPlatform *, CogWlSeat *);
+void cog_wl_text_input_clear(void);
+void cog_wl_text_input_set(CogWlViewport *, CogWlSeat *);
 
 G_END_DECLS

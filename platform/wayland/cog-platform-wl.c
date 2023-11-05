@@ -1349,7 +1349,7 @@ cog_wl_platform_finalize(GObject *object)
 {
     CogWlPlatform *platform = COG_WL_PLATFORM(object);
 
-    cog_wl_text_input_clear(platform);
+    cog_wl_text_input_clear();
     if (platform->popup)
         cog_wl_platform_popup_destroy();
     clear_egl(platform->display);
@@ -1359,12 +1359,14 @@ cog_wl_platform_finalize(GObject *object)
 }
 
 static WebKitInputMethodContext *
-cog_wl_platform_create_im_context(CogPlatform *platform)
+cog_wl_platform_create_im_context(CogViewport *viewport)
 {
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     g_assert(COG_WL_PLATFORM(platform)->display->seat_default);
-    cog_wl_text_input_set(COG_WL_PLATFORM(platform), COG_WL_PLATFORM(platform)->display->seat_default);
-    CogWlDisplay *display = COG_WL_PLATFORM(platform)->display;
 
+    cog_wl_text_input_set(COG_WL_VIEWPORT(viewport), COG_WL_PLATFORM(platform)->display->seat_default);
+
+    CogWlDisplay *display = COG_WL_PLATFORM(platform)->display;
     if (display->text_input_manager)
         return cog_im_context_wl_new();
     if (display->text_input_manager_v1)
