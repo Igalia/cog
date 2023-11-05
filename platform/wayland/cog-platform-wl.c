@@ -107,10 +107,22 @@ output_handle_mode(void *data, struct wl_output *output, uint32_t flags, int32_t
 }
 
 static void
+foreach_viewport_output_handle_done(const char *scheme, CogViewport *viewport, void *user_data G_GNUC_UNUSED)
+{
+    // Forces a View resize since the output changed so the device
+    // scale factor could be different and the scale of the exported
+    // image should be also updated.
+    cog_viewport_foreach(viewport, (GFunc) cog_wl_view_resize, NULL);
+
+    if (COG_WL_VIEWPORT(viewport)->window.should_resize_to_largest_output) {
+        cog_wl_viewport_resize_to_largest_output(COG_WL_VIEWPORT(viewport));
+    }
+}
+
+static void
 output_handle_done(void *data, struct wl_output *output)
 {
     CogWlPlatform *platform = data;
-    CogWlViewport *viewport = COG_WL_VIEWPORT(platform->viewport);
     CogWlDisplay  *display = platform->display;
 
     CogWlOutput *metrics = cog_wl_display_find_output(platform->display, output);
@@ -131,16 +143,9 @@ output_handle_done(void *data, struct wl_output *output)
     if (!display->current_output) {
         g_debug("%s: Using %p as initial output", G_STRFUNC, output);
         display->current_output = metrics;
-
-        // Forces a View resize since the output changed so the device
-        // scale factor could be different and the scale of the exported
-        // image should be also updated.
-        cog_viewport_foreach(platform->viewport, (GFunc) cog_wl_view_resize, NULL);
     }
 
-    if (viewport->window.should_resize_to_largest_output) {
-        cog_wl_viewport_resize_to_largest_output(viewport);
-    }
+    g_hash_table_foreach(platform->viewports, (GHFunc) foreach_viewport_output_handle_done, NULL);
 }
 
 #ifdef WL_OUTPUT_SCALE_SINCE_VERSION
@@ -1269,15 +1274,23 @@ gamepad_provider_get_view_backend_for_gamepad(void *provider G_GNUC_UNUSED, void
 {
     CogWlPlatform *platform = COG_WL_PLATFORM(cog_platform_get());
 
-    CogWlView *view = (CogWlView *) cog_viewport_get_visible_view(platform->viewport);
+    g_assert(platform->viewports);
+    CogViewport *viewport = g_hash_table_lookup(platform->viewports, COG_VIEWPORT_DEFAULT);
+    g_assert(viewport);
+    CogWlView *view = (CogWlView *) cog_viewport_get_visible_view(viewport);
     g_assert(view);
     return wpe_view_backend_exportable_fdo_get_view_backend(view->exportable);
 }
 
 static void
-cog_wl_platform_on_notify_visible_view(CogWlPlatform *self)
+cog_wl_platform_on_notify_visible_view(CogWlPlatform *self, GParamSpec *pspec G_GNUC_UNUSED, CogViewport *viewport)
 {
-    CogWlView *view = (CogWlView *) cog_viewport_get_visible_view(self->viewport);
+    g_assert(viewport);
+
+    g_assert(COG_IS_PLATFORM(self));
+    g_assert(COG_IS_VIEWPORT(viewport));
+
+    CogWlView *view = (CogWlView *) cog_viewport_get_visible_view(viewport);
     g_debug("%s: Visible view %p.", G_STRFUNC, view);
 
     if (!view)
@@ -1298,13 +1311,23 @@ cog_wl_platform_on_notify_visible_view(CogWlPlatform *self)
     cog_wl_view_update_surface_contents(view);
 }
 
+static void
+cog_wl_platform_on_create_viewport(CogWlPlatform *platform, CogViewport *viewport, CogShell *shell)
+{
+    g_assert(COG_IS_VIEWPORT(viewport));
+    cog_wl_viewport_create_window(COG_WL_VIEWPORT(viewport), NULL);
+
+    g_debug("%s: Attach cog_wl_platform_on_create_viewport - notify::visible-view  viewport %p.", G_STRFUNC, viewport);
+    g_signal_connect_object(viewport, "notify::visible-view", G_CALLBACK(cog_wl_platform_on_notify_visible_view),
+                            platform, G_CONNECT_AFTER | G_CONNECT_SWAPPED);
+}
+
 static gboolean
-cog_wl_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, const char *params, GError **error)
+cog_wl_platform_setup(CogPlatform *platform, CogShell *shell, const char *params, GError **error)
 {
     g_return_val_if_fail(COG_IS_SHELL(shell), FALSE);
 
     CogWlPlatform *self = COG_WL_PLATFORM(platform);
-    self->viewport = cog_shell_get_viewport(shell);
 
     if (!wpe_loader_init("libWPEBackend-fdo-1.0.so")) {
         g_set_error_literal(error,
@@ -1323,24 +1346,19 @@ cog_wl_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, cons
         return FALSE;
     }
 
-    if (!cog_wl_viewport_create_window(COG_WL_VIEWPORT(self->viewport), error)) {
-        clear_egl(display);
-        clear_wayland(COG_WL_PLATFORM(platform));
-        return FALSE;
-    }
-
     /* init WPE host data */
     wpe_fdo_initialize_for_egl_display(display->egl_display);
+
+    /* get a reference to the hashmap with viewports added to the shell */
+    self->viewports = cog_shell_get_viewports(shell);
+
+    g_signal_connect_swapped(shell, "create-viewport", G_CALLBACK(cog_wl_platform_on_create_viewport), self);
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     wpe_video_plane_display_dmabuf_register_receiver(&video_plane_display_dmabuf_receiver, platform);
 #endif
 
     cog_gamepad_setup(gamepad_provider_get_view_backend_for_gamepad);
-
-    g_signal_connect_object(self->viewport, "notify::visible-view", G_CALLBACK(cog_wl_platform_on_notify_visible_view),
-                            self, G_CONNECT_AFTER | G_CONNECT_SWAPPED);
-
     return TRUE;
 }
 
