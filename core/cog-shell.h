@@ -16,10 +16,14 @@
 
 G_BEGIN_DECLS
 
+#define COG_VIEWPORT_DEFAULT GUINT_TO_POINTER(0)
+
 typedef struct _CogViewport   CogViewport;
 typedef struct _WebKitWebView WebKitWebView;
 
-#define COG_TYPE_SHELL  (cog_shell_get_type ())
+typedef gpointer CogViewportKey;
+
+#define COG_TYPE_SHELL (cog_shell_get_type())
 
 COG_API
 G_DECLARE_DERIVABLE_TYPE(CogShell, cog_shell, COG, SHELL, GObject)
@@ -43,8 +47,13 @@ COG_API gdouble           cog_shell_get_device_scale_factor(CogShell *shell);
 COG_API gboolean          cog_shell_is_automated(CogShell *shell);
 COG_API void cog_shell_set_request_handler(CogShell *shell, const char *scheme, CogRequestHandler *handler);
 
-COG_API void cog_shell_startup(CogShell *shell);
-COG_API void cog_shell_shutdown(CogShell *shell);
+COG_API void         cog_shell_startup(CogShell *shell);
+COG_API void         cog_shell_shutdown(CogShell *shell);
 COG_API CogViewport *cog_shell_get_viewport(CogShell *shell);
+COG_API GHashTable  *cog_shell_get_viewports(CogShell *shell);
+
+COG_API CogViewport *cog_shell_viewport_lookup(CogShell *, CogViewportKey);
+COG_API CogViewport *cog_shell_viewport_new(CogShell *shell, CogViewportKey);
+COG_API gboolean     cog_shell_viewport_remove(CogShell *shell, CogViewportKey);
 
 G_END_DECLS
