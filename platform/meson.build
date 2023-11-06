@@ -1,7 +1,7 @@
 wpebackend_fdo_dep = dependency('wpebackend-fdo-1.0', version: '>=1.8.0')
 
 # Check whether any of the chosen platform plug-ins needs the common library.
-foreach platform_plugin_name : ['drm', 'x11', 'gtk4']
+foreach platform_plugin_name : ['drm', 'x11', 'gtk4', 'wayland']
     if platform_plugins.contains(platform_plugin_name)
         subdir('common')
         break
