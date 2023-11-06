@@ -125,9 +125,19 @@ cog_platform_init_web_view (CogPlatform   *platform,
     CogPlatformClass *klass = COG_PLATFORM_GET_CLASS(platform);
     if (klass->init_web_view) {
         if (klass->get_view_type) {
+#if GLIB_CHECK_VERSION(2, 63, 1)
             g_warning_once("%s: class %s defines both .get_view_type and .init_web_view, "
                            "the latter should be removed.",
                            G_STRFUNC, G_OBJECT_CLASS_NAME(platform));
+#else
+            static bool warned = false;
+            if (!warned) {
+                warned = true;
+                g_warning("%s: class %s defines both .get_view_type and .init_web_view, "
+                          "the latter should be removed.",
+                          G_STRFUNC, G_OBJECT_CLASS_NAME(platform));
+            }
+#endif
             return;
         }
 
