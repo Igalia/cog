@@ -55,4 +55,7 @@ gboolean cog_view_get_use_key_bindings(CogView *self);
 COG_API
 CogViewport *cog_view_get_viewport(CogView *self);
 
+COG_API
+gboolean cog_view_is_visible(CogView *self);
+
 G_END_DECLS
