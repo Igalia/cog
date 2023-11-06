@@ -454,3 +454,23 @@ cog_view_get_viewport(CogView *self)
     g_return_val_if_fail(COG_IS_VIEW(self), NULL);
     return g_weak_ref_get(&((CogViewPrivate *) cog_view_get_instance_private(self))->viewport);
 }
+
+/**
+ * cog_view_is_visible:
+ * @self: A view.
+ *
+ * Gets whether the view is visible in a viewport.
+ *
+ * Returns: True if the view is visible in its viewport and false in any
+ * other case.
+ *
+ * Since: 0.20
+ */
+gboolean
+cog_view_is_visible(CogView *self)
+{
+    g_return_val_if_fail(COG_IS_VIEW(self), false);
+
+    g_autoptr(CogViewport) viewport = cog_view_get_viewport(self);
+    return viewport && self == cog_viewport_get_visible_view(viewport);
+}
