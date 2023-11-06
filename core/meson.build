@@ -23,6 +23,7 @@ cogcore_config_h = configure_file(
 
 cogcore_headers = files(
     'cog.h',
+    'cog-export.h',
     'cog-request-handler.h',
     'cog-directory-files-handler.h',
     'cog-host-routes-handler.h',
