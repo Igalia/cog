@@ -461,3 +461,28 @@ cog_view_get_viewport(CogView *self)
     CogViewPrivate *priv = cog_view_get_instance_private(self);
     return priv->viewport;
 }
+
+/**
+ * cog_view_is_visible:
+ * @self: A view.
+ *
+ * Gets if the view is visible inside of the viewport where the view
+ * is attached.
+ *
+ * Returns: True if the view is visible in its viewport and false in any
+ * other case.
+ *
+ * Since: 0.20
+ */
+gboolean
+cog_view_is_visible(CogView *self)
+{
+    g_return_val_if_fail(COG_IS_VIEW(self), false);
+
+    CogViewPrivate *priv = cog_view_get_instance_private(self);
+    CogViewport    *viewport = priv->viewport;
+    g_return_val_if_fail(viewport != NULL, false);
+
+    CogView *visible_view = cog_viewport_get_visible_view(viewport);
+    return self == visible_view;
+}
