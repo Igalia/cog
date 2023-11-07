@@ -245,6 +245,11 @@ pointer_on_enter(void              *data,
                  wl_fixed_t         fixed_x,
                  wl_fixed_t         fixed_y)
 {
+    if (!surface) {
+        g_warning("%s: Not surface associated.", G_STRFUNC);
+        return;
+    }
+
     CogWlSeat *seat = data;
 
     if (pointer != seat->pointer_obj) {
@@ -514,6 +519,11 @@ keyboard_on_enter(void               *data,
                   struct wl_surface  *surface,
                   struct wl_array    *keys)
 {
+    if (!surface) {
+        g_warning("%s: Not surface associated.", G_STRFUNC);
+        return;
+    }
+
     CogWlSeat *seat = data;
 
     if (wl_keyboard != seat->keyboard_obj) {
@@ -722,6 +732,11 @@ touch_on_down(void              *data,
               wl_fixed_t         x,
               wl_fixed_t         y)
 {
+    if (!surface) {
+        g_warning("%s: Not surface associated.", G_STRFUNC);
+        return;
+    }
+
     CogWlSeat    *seat = data;
     CogWlDisplay *display = seat->display;
 
