@@ -58,4 +58,7 @@ CogViewport *cog_view_get_viewport(CogView *self);
 COG_API
 gboolean cog_view_is_visible(CogView *self);
 
+COG_API
+gboolean cog_view_set_visible(CogView *self);
+
 G_END_DECLS

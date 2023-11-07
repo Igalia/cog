@@ -474,3 +474,28 @@ cog_view_is_visible(CogView *self)
     g_autoptr(CogViewport) viewport = cog_view_get_viewport(self);
     return viewport && self == cog_viewport_get_visible_view(viewport);
 }
+
+/**
+ * cog_view_set_visible:
+ * @self: A view.
+ *
+ * Set the view as visible in its viewport.
+ *
+ * Returns: %TRUE if the view was set as visible, or %FALSE if the view
+ *    does is not attached to a viewport.
+ *
+ * Since: 0.20
+ */
+gboolean
+cog_view_set_visible(CogView *self)
+{
+    g_assert(COG_IS_VIEW(self));
+
+    g_autoptr(CogViewport) viewport = cog_view_get_viewport(self);
+    if (!viewport)
+        return FALSE;
+
+    cog_viewport_set_visible_view(viewport, self);
+
+    return TRUE;
+}
