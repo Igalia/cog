@@ -240,6 +240,10 @@ pointer_on_enter(void              *data,
                  wl_fixed_t         fixed_x,
                  wl_fixed_t         fixed_y)
 {
+    // We might be reading pending events after destroying the surface.
+    if (!surface)
+        return;
+
     CogWlSeat *seat = data;
 
     if (pointer != seat->pointer_obj) {
@@ -509,6 +513,10 @@ keyboard_on_enter(void               *data,
                   struct wl_surface  *surface,
                   struct wl_array    *keys)
 {
+    // We might be reading pending events after destroying the surface.
+    if (!surface)
+        return;
+
     CogWlSeat *seat = data;
 
     if (wl_keyboard != seat->keyboard_obj) {
@@ -717,6 +725,10 @@ touch_on_down(void              *data,
               wl_fixed_t         x,
               wl_fixed_t         y)
 {
+    // We might be reading pending events after destroying the surface.
+    if (!surface)
+        return;
+
     CogWlSeat    *seat = data;
     CogWlDisplay *display = seat->display;
 
