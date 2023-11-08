@@ -1,3 +1,7 @@
+with_wayland_ivi_shell = (with_wayland_platform
+    and get_option('wayland_ivi_shell')
+)
+
 with_wayland_weston_direct_display = (with_wayland_platform
     and get_option('wayland_weston_direct_display')
 )
@@ -17,11 +21,19 @@ wayland_platform_dependencies = [
 ]
 wayland_platform_c_args = [
     '-DG_LOG_DOMAIN="Cog-Wayland"',
+    '-DCOG_ENABLE_IVI_SHELL=@0@'.format(with_wayland_ivi_shell.to_int()),
     '-DCOG_ENABLE_WESTON_DIRECT_DISPLAY=@0@'.format(with_wayland_weston_direct_display.to_int()),
     '-DCOG_ENABLE_WESTON_CONTENT_PROTECTION=@0@'.format(with_wayland_weston_content_protection.to_int()),
 ]
 
+wayland_platform_stable_protocols = ['presentation-time', 'xdg-shell']
+
+if with_wayland_ivi_shell
+    wayland_platform_stable_protocols += ['ivi-application']
+endif
+
 wayland_platform_weston_protocols = []
+
 if with_wayland_weston_direct_display
     wayland_platform_weston_protocols += ['weston-direct-display']
     if with_wayland_weston_content_protection
@@ -30,10 +42,7 @@ if with_wayland_weston_direct_display
 endif
 
 wayland_platform_protocols = {
-    'stable': [
-        'presentation-time',
-        'xdg-shell',
-    ],
+    'stable': wayland_platform_stable_protocols,
     'unstable': [
         ['fullscreen-shell', 1],
         ['linux-dmabuf', 1],

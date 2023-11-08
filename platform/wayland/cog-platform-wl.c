@@ -190,6 +190,10 @@ registry_on_global(void *data, struct wl_registry *registry, uint32_t name, cons
     if (strcmp(interface, wl_compositor_interface.name) == 0) {
         /* Version 3 introduced wl_surface_set_buffer_scale() */
         display->compositor = wl_registry_bind(registry, name, &wl_compositor_interface, MIN(3, version));
+#if COG_ENABLE_IVI_SHELL
+    } else if (strcmp(interface, ivi_application_interface.name) == 0) {
+        display->ivi_application = wl_registry_bind(registry, name, &ivi_application_interface, version);
+#endif /* COG_ENABLE_IVI_SHELL */
     } else if (strcmp(interface, wl_subcompositor_interface.name) == 0) {
         display->subcompositor = wl_registry_bind(registry, name, &wl_subcompositor_interface, 1);
     } else if (strcmp(interface, wl_shell_interface.name) == 0) {
@@ -1170,6 +1174,10 @@ init_wayland(CogWlPlatform *platform, GError **error)
 #endif /* COG_USE_WAYLAND_CURSOR */
 
     g_assert(display->xdg_shell != NULL || display->shell != NULL || display->fshell != NULL);
+
+#ifdef COG_ENABLE_IVI_SHELL
+    g_assert(display->ivi_application);
+#endif /* COG_ENABLE_IVI_SHELL */
 
     return TRUE;
 }

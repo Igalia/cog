@@ -156,6 +156,10 @@ cog_wl_display_destroy(CogWlDisplay *display)
 {
     g_clear_pointer(&display->event_src, g_source_destroy);
 
+#ifdef COG_ENABLE_IVI_SHELL
+    if (display->ivi_application != NULL)
+        ivi_application_destroy(display->ivi_application);
+#endif /* COG_ENABLE_IVI_SHELL */
     if (display->xdg_shell != NULL)
         xdg_wm_base_destroy(display->xdg_shell);
     if (display->fshell != NULL)
