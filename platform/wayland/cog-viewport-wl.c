@@ -23,6 +23,45 @@ static void cog_wl_viewport_on_add(CogWlViewport *, CogView *);
 static void destroy_window(CogWlViewport *);
 static void noop();
 
+#if COG_ENABLE_IVI_SHELL
+enum {
+    COG_WL_VIEWPORT_PROP_0,
+    COG_WL_VIEWPORT_PROP_WINDOW_ID,
+    COG_WL_VIEWPORT_N_PROPERTIES,
+};
+
+static GParamSpec *s_viewport_properties[COG_WL_VIEWPORT_N_PROPERTIES] = {
+    NULL,
+};
+
+static void
+cog_wl_viewport_get_property(GObject *object, unsigned prop_id, GValue *value, GParamSpec *pspec)
+{
+    CogWlViewport *self = COG_WL_VIEWPORT(object);
+    switch (prop_id) {
+    case COG_WL_VIEWPORT_PROP_WINDOW_ID:
+        g_value_set_uint(value, self->window_id);
+        break;
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+    }
+}
+
+static void
+cog_wl_viewport_set_property(GObject *object, unsigned prop_id, const GValue *value, GParamSpec *pspec)
+{
+    CogWlViewport *self = COG_WL_VIEWPORT(object);
+    switch (prop_id) {
+    case COG_WL_VIEWPORT_PROP_WINDOW_ID:
+        self->window_id = g_value_get_uint(value);
+        cog_wl_viewport_set_id(self, self->window_id);
+        break;
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+    }
+}
+#endif /* COG_ENABLE_IVI_SHELL */
+
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
 static void
 destroy_video_surface(gpointer data)
@@ -41,6 +80,9 @@ destroy_video_surface(gpointer data)
 static void
 destroy_window(CogWlViewport *viewport)
 {
+#if COG_ENABLE_IVI_SHELL
+    g_clear_pointer(&viewport->window.ivi_surface, ivi_surface_destroy);
+#endif /* COG_ENABLE_IVI_SHELL */
     g_clear_pointer(&viewport->window.xdg_toplevel, xdg_toplevel_destroy);
     g_clear_pointer(&viewport->window.xdg_surface, xdg_surface_destroy);
     g_clear_pointer(&viewport->window.shell_surface, wl_shell_surface_destroy);
@@ -187,6 +229,16 @@ cog_wl_viewport_class_init(CogWlViewportClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS(klass);
     object_class->dispose = cog_wl_viewport_dispose;
+#if COG_ENABLE_IVI_SHELL
+    object_class->get_property = cog_wl_viewport_get_property;
+    object_class->set_property = cog_wl_viewport_set_property;
+
+    s_viewport_properties[COG_WL_VIEWPORT_PROP_WINDOW_ID] =
+        g_param_spec_uint("window-id", "Window identifier", "Window identifier for the view", 0, UINT32_MAX, 0,
+                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+    g_object_class_install_properties(object_class, COG_WL_VIEWPORT_N_PROPERTIES, s_viewport_properties);
+#endif /* COG_ENABLE_IVI_SHELL */
 }
 
 static void
@@ -258,7 +310,15 @@ cog_wl_viewport_create_window(CogWlViewport *viewport, GError **error)
 
     wl_surface_add_listener(viewport->window.wl_surface, &surface_listener, viewport);
 
+#if COG_ENABLE_IVI_SHELL
+    if (display->ivi_application) {
+        /* Do nothing, .ivi_surface is created when setting an ID. */
+        // cog_wl_viewport_configure_geometry(viewport, 200, 200);
+        // wl_surface_commit(viewport->window.wl_surface);
+    } else if (display->xdg_shell != NULL) {
+#else
     if (display->xdg_shell != NULL) {
+#endif /* COG_ENABLE_IVI_SHELL */
         viewport->window.xdg_surface = xdg_wm_base_get_xdg_surface(display->xdg_shell, viewport->window.wl_surface);
         g_assert(viewport->window.xdg_surface);
 
@@ -425,6 +485,82 @@ cog_wl_viewport_set_fullscreen(CogWlViewport *viewport, bool fullscreen)
 
     return true;
 }
+
+#if COG_ENABLE_IVI_SHELL
+static void
+cog_wl_viewport_ivi_surface_on_configure(void                       *data,
+                                         struct ivi_surface *surface G_GNUC_UNUSED,
+                                         int32_t                     width,
+                                         int32_t                     height)
+{
+    g_assert(COG_IS_VIEWPORT(data));
+    CogWlViewport *viewport = data;
+    g_assert(viewport->window.ivi_surface == surface);
+
+    cog_wl_viewport_configure_geometry(viewport, width, height);
+
+    g_debug("New ivi_surface configuration: (%" PRIi32 ", %" PRIi32 ")", width, height);
+}
+
+void
+cog_wl_viewport_set_id(CogWlViewport *viewport, uint32_t id)
+{
+    g_return_if_fail(viewport);
+
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
+    CogWlDisplay  *display = platform->display;
+
+    if (display->ivi_application) {
+        if (viewport->window.surface_id == id)
+            return;
+
+        g_clear_pointer(&viewport->window.ivi_surface, ivi_surface_destroy);
+        viewport->window.surface_id = id;
+
+        /*
+         * For the invalid identifier, do not re-create the ivi_surface and
+         * return early i.e. disable assigning a role to the Wayland surface.
+         */
+        if (viewport->window.surface_id == 0)
+            return;
+
+        viewport->window.ivi_surface = ivi_application_surface_create(display->ivi_application,
+                                                                      viewport->window.surface_id,
+                                                                      viewport->window.wl_surface);
+        static const struct ivi_surface_listener listener = {
+            .configure = cog_wl_viewport_ivi_surface_on_configure,
+        };
+        ivi_surface_add_listener(viewport->window.ivi_surface, &listener, viewport);
+        g_debug("New ivi_surface id for Viewport <%p>: %" PRIi32 "", viewport, id);
+
+        return;
+    }
+
+    static bool warned = false;
+    if (!warned) {
+        warned = true;
+        g_warning("No available shell capable of using window identifiers.");
+    }
+}
+
+uint32_t
+cog_wl_viewport_get_id(const CogWlViewport *viewport)
+{
+    g_return_val_if_fail(viewport, 0);
+
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
+    CogWlDisplay  *display = platform->display;
+    if (display->ivi_application)
+        return viewport->window.surface_id;
+
+    static bool warned = false;
+    if (!warned) {
+        warned = true;
+        g_warning("No available shell capable of using window identifiers.");
+    }
+    return 0;
+}
+#endif /* COG_ENABLE_IVI_SHELL */
 
 /*
  * CogWlViewport register type method.
