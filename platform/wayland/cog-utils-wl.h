@@ -11,6 +11,10 @@
 #include "../../core/cog.h"
 #include "../common/cog-cursors.h"
 
+#if COG_ENABLE_IVI_SHELL
+#    include "ivi-application-client.h"
+#endif /* COG_ENABLE_IVI_SHELL */
+
 #if COG_HAVE_LIBPORTAL
 #    include "cog-xdp-parent-wl.h"
 #endif
@@ -134,6 +138,11 @@ struct _CogWlWindow {
     struct xdp_parent_wl_data xdp_parent_wl_data;
 #endif /* COG_HAVE_LIBPORTAL */
 
+#if COG_ENABLE_IVI_SHELL
+    struct ivi_surface *ivi_surface;
+    uint32_t            surface_id;
+#endif /* COG_ENABLE_IVI_SHELL */
+
     uint32_t width;
     uint32_t height;
     uint32_t width_before_fullscreen;
@@ -248,6 +257,10 @@ struct _CogWlDisplay {
     struct xdg_wm_base             *xdg_shell;
     struct zwp_fullscreen_shell_v1 *fshell;
     struct wl_shell                *shell;
+
+#if COG_ENABLE_IVI_SHELL
+    struct ivi_application *ivi_application;
+#endif /* COG_ENABLE_IVI_SHELL */
 
     CogWlSeat     *seat_default;
     struct wl_list seats; /* wl_list<CogWlSeat> */
