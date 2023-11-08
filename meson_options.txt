@@ -40,6 +40,12 @@ option(
 
 # Wayland platform-specific features
 option(
+    'wayland_ivi_shell',
+    type: 'boolean',
+    value: false,
+    description: 'Build IVI shell support in the Wayland platform plug-in'
+)
+option(
     'wayland_weston_direct_display',
     type: 'boolean',
     value: false,
