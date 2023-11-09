@@ -237,11 +237,12 @@ cog_launcher_create_view(CogLauncher *self, CogShell *shell)
         webkit_web_context_set_cache_model(web_context, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
     }
 
+    CogPlatform *platform = cog_platform_get();
+
     g_autoptr(GError) error = NULL;
-    CogPlatform      *platform =
-        cog_platform_configure(s_options.platform_name, s_options.platform_params, "COG", shell, &error);
-    if (!platform)
-        g_error("Cannot instantiate a platform: %s", error->message);
+    if (!cog_platform_setup(platform, shell, s_options.platform_params ?: (g_getenv("COG_PLATFORM_PARAMS") ?: ""),
+                            &error))
+        g_error("Cannot configure platform: %s", error->message);
 
 #if HAVE_WEBKIT_AUTOPLAY
     WebKitWebsitePolicies *website_policies =
@@ -329,6 +330,8 @@ cog_launcher_startup(GApplication *application)
      * prevent GApplication from shutting down immediately after startup.
      */
     g_application_hold(application);
+
+    cog_init(s_options.platform_name, NULL);
 
     CogLauncher *self = COG_LAUNCHER(application);
     self->shell = g_object_new(
@@ -434,8 +437,6 @@ cog_launcher_dispose(GObject *object)
     g_clear_pointer(&launcher->web_mem_settings, webkit_memory_pressure_settings_free);
     g_clear_pointer(&launcher->net_mem_settings, webkit_memory_pressure_settings_free);
 #endif /* COG_HAVE_MEM_PRESSURE */
-
-    g_object_unref(cog_platform_get_default());
 
     G_OBJECT_CLASS(cog_launcher_parent_class)->dispose(object);
 }

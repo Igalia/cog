@@ -530,7 +530,7 @@ pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixe
                                             seat->pointer.button,
                                             seat->pointer.state};
 
-    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get_default())->viewport);
+    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get())->viewport);
     if (view)
         wpe_view_backend_dispatch_pointer_event(cog_view_get_backend(view), &event);
 }
@@ -551,7 +551,7 @@ pointer_on_button(void              *data,
         return;
     }
 
-    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
 
     seat->pointer.serial = serial;
 
@@ -588,7 +588,7 @@ pointer_on_button(void              *data,
         }
     }
 
-    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get_default())->viewport);
+    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get())->viewport);
     if (view)
         wpe_view_backend_dispatch_pointer_event(cog_view_get_backend(view), &event);
 }
@@ -612,7 +612,7 @@ dispatch_axis_event(CogWlSeat *seat)
     event.x_axis = wl_fixed_to_double(seat->axis.x_delta) * display->current_output->scale;
     event.y_axis = -wl_fixed_to_double(seat->axis.y_delta) * display->current_output->scale;
 
-    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get_default())->viewport);
+    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get())->viewport);
     if (view)
         wpe_view_backend_dispatch_axis_event(cog_view_get_backend(view), &event.base);
 
@@ -760,7 +760,7 @@ keyboard_on_leave(void *data, struct wl_keyboard *wl_keyboard, uint32_t serial, 
 static void
 handle_key_event(CogWlSeat *seat, uint32_t key, uint32_t state, uint32_t time)
 {
-    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     CogView       *view = cog_viewport_get_visible_view(platform->viewport);
 
     if (!view || seat->xkb.state == NULL)
@@ -959,7 +959,7 @@ touch_on_down(void              *data,
 
     memcpy(&seat->touch.points[id], &raw_event, sizeof(struct wpe_input_touch_event_raw));
 
-    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     CogWlPopup    *popup = platform->popup;
     if (popup && popup->wl_surface) {
         if (seat->touch.surface == popup->wl_surface) {
@@ -999,7 +999,7 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
         wpe_input_touch_event_type_up, time, id, seat->touch.points[id].x, seat->touch.points[id].y,
     };
 
-    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     CogWlPopup    *popup = platform->popup;
 
     if (popup && popup->wl_surface) {
@@ -1050,7 +1050,7 @@ touch_on_motion(void *data, struct wl_touch *touch, uint32_t time, int32_t id, w
 
     struct wpe_input_touch_event event = {seat->touch.points, 10, raw_event.type, raw_event.id, raw_event.time};
 
-    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get_default())->viewport);
+    CogView *view = cog_viewport_get_visible_view(((CogWlPlatform *) cog_platform_get())->viewport);
     if (view)
         wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
 }
@@ -1578,7 +1578,7 @@ destroy_window(CogWlPlatform *platform)
 static struct wpe_view_backend *
 gamepad_provider_get_view_backend_for_gamepad(void *provider G_GNUC_UNUSED, void *gamepad G_GNUC_UNUSED)
 {
-    CogWlPlatform *platform = COG_WL_PLATFORM(cog_platform_get_default());
+    CogWlPlatform *platform = COG_WL_PLATFORM(cog_platform_get());
 
     CogWlView *view = (CogWlView *) cog_viewport_get_visible_view(platform->viewport);
     g_assert(view);
