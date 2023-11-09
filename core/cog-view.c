@@ -146,7 +146,7 @@ _cog_view_get_impl_type_init(GType *type)
 {
     *type = cog_core_view_get_type();
 
-    CogPlatform *platform = cog_platform_get_default();
+    CogPlatform *platform = cog_platform_get();
     if (platform) {
         CogPlatformClass *platform_class = COG_PLATFORM_GET_CLASS(platform);
         if (platform_class->get_view_type) {
@@ -216,7 +216,7 @@ cog_core_view_create_backend(CogView *view G_GNUC_UNUSED)
 {
     g_autoptr(GError) error = NULL;
 
-    WebKitWebViewBackend *backend = cog_platform_get_view_backend(cog_platform_get_default(), NULL, &error);
+    WebKitWebViewBackend *backend = cog_platform_get_view_backend(cog_platform_get(), NULL, &error);
     if (!backend)
         g_error("%s: Could not create view backend, %s", G_STRFUNC, error->message);
 

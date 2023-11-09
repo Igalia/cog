@@ -34,12 +34,12 @@ main(int argc, char *argv[])
     }
 
     g_set_prgname("view-stack");
-    cog_modules_add_directory(g_getenv("COG_MODULEDIR"));
 
-    g_autoptr(GError)      error = NULL;
-    g_autoptr(CogShell)    shell = cog_shell_new(g_get_prgname(), FALSE);
-    g_autoptr(CogPlatform) platform = cog_platform_configure(NULL, NULL, "COG", shell, &error);
-    if (!platform)
+    g_autoptr(CogShell) shell = cog_shell_new(g_get_prgname(), FALSE);
+    g_autoptr(GError)   error = NULL;
+
+    CogPlatform *platform = cog_platform_get();
+    if (!cog_platform_setup(platform, shell, g_getenv("COG_PLATFORM_PARAMS") ?: "", &error))
         g_error("Cannot configure platform: %s", error->message);
 
     g_autoptr(GMainLoop) loop = g_main_loop_new(NULL, FALSE);

@@ -52,9 +52,8 @@ struct _CogPlatformClass {
     GType (*get_view_type)(void);
 };
 
-COG_API void         cog_platform_set_default(CogPlatform *);
-COG_API CogPlatform *cog_platform_get_default(void);
-COG_API CogPlatform *cog_platform_new(const char *name, GError **);
+COG_API void         cog_init(const char *platform_name, const char *module_path);
+COG_API CogPlatform *cog_platform_get(void);
 
 COG_API gboolean cog_platform_setup(CogPlatform *platform, CogShell *shell, const char *params, GError **error);
 
@@ -69,9 +68,6 @@ void                      cog_platform_init_web_view     (CogPlatform   *platfor
 
 COG_API
 WebKitInputMethodContext *cog_platform_create_im_context (CogPlatform   *platform);
-
-COG_API CogPlatform *
-cog_platform_configure(const char *name, const char *params, const char *env_prefix, CogShell *shell, GError **error);
 
 G_END_DECLS
 

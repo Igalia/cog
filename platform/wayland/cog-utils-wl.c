@@ -197,7 +197,7 @@ static void
 xdg_popup_on_popup_done(void *data, struct xdg_popup *xdg_popup)
 {
     CogWlPopup    *popup = data;
-    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get_default();
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
 
     // Reset the reference in the Platform if the destroyed popup is the same
     if (platform->popup == popup)
