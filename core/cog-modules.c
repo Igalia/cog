@@ -162,6 +162,12 @@ cog_modules_foreach(GIOExtensionPoint *extension_point, void (*callback)(GIOExte
  *
  * Scans a directory for loadable modules and registers them with the
  * extension points they implement.
+ *
+ * Note that in versions 0.20 and newer this function will skip modules
+ * with the same file base name as the ones previously scanned. If two
+ * directories contain a module with the same file base name, the one
+ * scanned first will be the one used. In particular, this means that
+ * calling this function with the same path more than once is allowed.
  */
 void
 cog_modules_add_directory(const char *directory_path)
@@ -173,8 +179,12 @@ cog_modules_add_directory(const char *directory_path)
     G_LOCK_DEFINE_STATIC(module_scan);
     G_LOCK(module_scan);
 
+    static GIOModuleScope *scope = NULL;
+    if (!scope)
+        scope = g_io_module_scope_new(G_IO_MODULE_SCOPE_BLOCK_DUPLICATES);
+
     g_debug("%s: Scanning '%s'", G_STRFUNC, directory_path);
-    g_io_modules_scan_all_in_directory(directory_path);
+    g_io_modules_scan_all_in_directory_with_scope(directory_path, scope);
 
     G_UNLOCK(module_scan);
 }
