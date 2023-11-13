@@ -117,17 +117,37 @@ cog_platform_get(void)
     return platform_singleton;
 }
 
+/**
+ * cog_platform_setup:
+ * @platform: Platform instance.
+ * @shell: The shell being configured.
+ * @params: (nullable): String with parameters for the platform plug-in.
+ * @error: (nullable): Location where to store an error on failure.
+ *
+ * Configure the platform plug-in module.
+ *
+ * If the @params string is %NULL or empty, the value of the
+ * `COG_PLATFORM_PARAMS` environment variable will be used, if defined.
+ * Each platform module may have its own syntax for the parameters string,
+ * but typically they accept a list of comma-separated `variable=value`
+ * assignments.
+ *
+ * The documentation for each platform plug-in details the available
+ * parameters and deviations of the parameter string syntax, if applicable.
+ *
+ * Returns: Whether the platform was configured successfully.
+ */
 gboolean
-cog_platform_setup (CogPlatform *platform,
-                    CogShell    *shell,
-                    const char  *params,
-                    GError     **error)
+cog_platform_setup(CogPlatform *platform, CogShell *shell, const char *params, GError **error)
 {
     g_return_val_if_fail(COG_IS_PLATFORM(platform), FALSE);
     g_return_val_if_fail(COG_IS_SHELL(shell), FALSE);
 
     if (G_IS_INITABLE(platform) && !g_initable_init(G_INITABLE(platform), NULL /* cancellable */, error))
         return FALSE;
+
+    if (!params || params[0] == '\0')
+        params = g_getenv("COG_PLATFORM_PARAMS") ?: "";
 
     return COG_PLATFORM_GET_CLASS(platform)->setup(platform, shell, params, error);
 }
