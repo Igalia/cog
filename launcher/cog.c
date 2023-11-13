@@ -22,7 +22,7 @@ int
 main(int argc, char *argv[])
 {
     g_set_application_name("Cog");
-    cog_modules_add_directory(g_getenv("COG_MODULEDIR") ?: COG_MODULEDIR);
+    cog_modules_add_directory(g_getenv("COG_MODULEDIR"));
 
     g_info("%s:", COG_MODULES_PLATFORM_EXTENSION_POINT);
     cog_modules_foreach(COG_MODULES_PLATFORM, print_module_info, NULL);
