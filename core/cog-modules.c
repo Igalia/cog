@@ -6,6 +6,8 @@
  */
 
 #include "cog-modules.h"
+
+#include "cog-config.h"
 #include "cog-fallback-platform.h"
 
 struct ExtensionPoints {
@@ -104,6 +106,7 @@ cog_modules_get_preferred(GIOExtensionPoint *extension_point, const char *prefer
     g_return_val_if_fail(extension_point != NULL, G_TYPE_INVALID);
 
     ensure_builtin_types();
+    cog_modules_add_directory(NULL);
 
     if (extension_point == COG_MODULES_PLATFORM && g_strcmp0(preferred_module, "fdo") == 0) {
         g_warning("Platform module name 'fdo' is deprecated, please use 'wl' instead.");
@@ -148,6 +151,7 @@ cog_modules_foreach(GIOExtensionPoint *extension_point, void (*callback)(GIOExte
     g_return_if_fail(callback != NULL);
 
     ensure_builtin_types();
+    cog_modules_add_directory(NULL);
 
     GList *item = g_list_first(g_io_extension_point_get_extensions(extension_point));
     while (item) {
@@ -158,10 +162,17 @@ cog_modules_foreach(GIOExtensionPoint *extension_point, void (*callback)(GIOExte
 
 /**
  * cog_modules_add_directory:
- * @directory_path: Directory to scan for loadable modules.
+ * @directory_path: (nullable): Directory to scan for loadable modules.
  *
  * Scans a directory for loadable modules and registers them with the
  * extension points they implement.
+ *
+ * Since version 0.20 the @directory_path parameter may be %NULL, which
+ * results in the default module directory chosen at build time to be
+ * scanned. Normally this function does not need to be done manually,
+ * because the default module directory will be scanned automatically
+ * the first time [id@cog_modules_get_preferred] or [id@cog_modules_foreach]
+ * is used.
  *
  * Note that in versions 0.20 and newer this function will skip modules
  * with the same file base name as the ones previously scanned. If two
@@ -172,7 +183,8 @@ cog_modules_foreach(GIOExtensionPoint *extension_point, void (*callback)(GIOExte
 void
 cog_modules_add_directory(const char *directory_path)
 {
-    g_return_if_fail(directory_path != NULL);
+    if (!directory_path)
+        directory_path = COG_MODULEDIR;
 
     ensure_extension_points();
 
@@ -183,8 +195,18 @@ cog_modules_add_directory(const char *directory_path)
     if (!scope)
         scope = g_io_module_scope_new(G_IO_MODULE_SCOPE_BLOCK_DUPLICATES);
 
+    static gboolean default_path_added = FALSE;
+    if (!strcmp(COG_MODULEDIR, directory_path)) {
+        if (default_path_added) {
+            g_debug("%s: Default path already added, skipping.", G_STRFUNC);
+            goto out; // Ensure that the the lock is released.
+        }
+        default_path_added = TRUE;
+    }
+
     g_debug("%s: Scanning '%s'", G_STRFUNC, directory_path);
     g_io_modules_scan_all_in_directory_with_scope(directory_path, scope);
 
+out:
     G_UNLOCK(module_scan);
 }

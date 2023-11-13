@@ -34,7 +34,7 @@ main(int argc, char *argv[])
     }
 
     g_set_prgname("view-stack");
-    cog_modules_add_directory(g_getenv("COG_MODULEDIR") ?: COG_MODULEDIR);
+    cog_modules_add_directory(g_getenv("COG_MODULEDIR"));
 
     g_autoptr(GError)      error = NULL;
     g_autoptr(CogShell)    shell = cog_shell_new(g_get_prgname(), FALSE);
