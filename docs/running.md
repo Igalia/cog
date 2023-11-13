@@ -20,3 +20,10 @@ environment variables.
 :  This variable can be set to the name of the platform plug-in module to
    use and prevent automatically determining which one to use.
    See [id@cog_init] for more information.
+
+`COG_PLATFORM_PARAMS`
+:  This variable may contain setup parameters for the chosen platform plug-in
+   module. The parameters supported by each platform may be found in their
+   respective documentation pages. The format of the parameters string is
+   typically (but not always) a comma-separated list of `variable=value`
+   assignments. See [id@cog_platform_setup] for more information.

@@ -240,8 +240,7 @@ cog_launcher_create_view(CogLauncher *self, CogShell *shell)
     CogPlatform *platform = cog_platform_get();
 
     g_autoptr(GError) error = NULL;
-    if (!cog_platform_setup(platform, shell, s_options.platform_params ?: (g_getenv("COG_PLATFORM_PARAMS") ?: ""),
-                            &error))
+    if (!cog_platform_setup(platform, shell, s_options.platform_params, &error))
         g_error("Cannot configure platform: %s", error->message);
 
 #if HAVE_WEBKIT_AUTOPLAY

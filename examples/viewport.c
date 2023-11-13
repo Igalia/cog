@@ -39,7 +39,7 @@ main(int argc, char *argv[])
     g_autoptr(GError)   error = NULL;
 
     CogPlatform *platform = cog_platform_get();
-    if (!cog_platform_setup(platform, shell, g_getenv("COG_PLATFORM_PARAMS") ?: "", &error))
+    if (!cog_platform_setup(platform, shell, NULL, &error))
         g_error("Cannot configure platform: %s", error->message);
 
     g_autoptr(GMainLoop) loop = g_main_loop_new(NULL, FALSE);
