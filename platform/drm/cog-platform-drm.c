@@ -1223,9 +1223,28 @@ clear_input(CogDrmPlatform *platform)
     g_clear_pointer (&input_data.udev, udev_unref);
 }
 
+static void
+update_logical_input_size(CogGLRendererRotation rotation)
+{
+    switch (rotation) {
+    case COG_GL_RENDERER_ROTATION_0:
+    case COG_GL_RENDERER_ROTATION_180:
+        input_data.input_width = drm_data.mode->hdisplay;
+        input_data.input_height = drm_data.mode->vdisplay;
+        break;
+    case COG_GL_RENDERER_ROTATION_90:
+    case COG_GL_RENDERER_ROTATION_270:
+        input_data.input_width = drm_data.mode->vdisplay;
+        input_data.input_height = drm_data.mode->hdisplay;
+        break;
+    }
+}
+
 static gboolean
 init_input(CogDrmPlatform *platform)
 {
+    update_logical_input_size(platform->rotation);
+
     static struct libinput_interface interface = {
         .open_restricted = input_interface_open_restricted,
         .close_restricted = input_interface_close_restricted,
@@ -1242,14 +1261,6 @@ init_input(CogDrmPlatform *platform)
     int ret = libinput_udev_assign_seat (input_data.libinput, "seat0");
     if (ret)
         return FALSE;
-
-    input_data.input_width = drm_data.mode->hdisplay;
-    input_data.input_height = drm_data.mode->vdisplay;
-
-    if (platform->rotation == COG_GL_RENDERER_ROTATION_90 || platform->rotation == COG_GL_RENDERER_ROTATION_270){
-        input_data.input_width = drm_data.mode->vdisplay;
-        input_data.input_height = drm_data.mode->hdisplay;
-    }
 
     for (int i = 0; i < G_N_ELEMENTS (input_data.touch_points); ++i) {
         struct wpe_input_touch_event_raw *touch_point = &input_data.touch_points[i];
@@ -1552,9 +1563,9 @@ cog_drm_platform_set_property(GObject *object, unsigned prop_id, const GValue *v
             return;
 
         if (!self->renderer) {
-            self->rotation = rotation;
+            update_logical_input_size(self->rotation = rotation);
         } else if (cog_drm_renderer_set_rotation(self->renderer, rotation)) {
-            self->rotation = rotation;
+            update_logical_input_size(self->rotation = rotation);
             if (self->rotatable_input_devices)
                 g_list_foreach(self->rotatable_input_devices, (GFunc) input_configure_device, self);
         } else {
