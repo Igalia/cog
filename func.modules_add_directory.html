@@ -124,13 +124,24 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-modules.c#L159">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-modules.c#L163">[src]</a>
         
       </h4>
 
       <div class="docblock">
         <p>Scans a directory for loadable modules and registers them with the
 extension points they&nbsp;implement.</p>
+<p>Since version 0.20 the <code>directory_path</code> parameter may be <code>NULL</code>, which
+results in the default module directory chosen at build time to be
+scanned. Normally this function does not need to be done manually,
+because the default module directory will be scanned automatically
+the first time <a href="func.modules_get_preferred.html"><code>cog_modules_get_preferred()</code></a> or <a href="func.modules_foreach.html"><code>cog_modules_foreach()</code></a>
+is&nbsp;used.</p>
+<p>Note that in versions 0.20 and newer this function will skip modules
+with the same file base name as the ones previously scanned. If two
+directories contain a module with the same file base name, the one
+scanned first will be the one used. In particular, this means that
+calling this function with the same path more than once is&nbsp;allowed.</p>
       </div>
 
       <div class="docblock">
@@ -166,7 +177,7 @@ extension points they&nbsp;implement.</p>
             <td><p>Directory to scan for loadable&nbsp;modules.</p></td>
           </tr>
           
-          
+          <tr><td>&nbsp;</td><td>The argument can be <code>NULL</code>.</td></tr>
           
           
           
