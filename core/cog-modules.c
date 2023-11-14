@@ -183,26 +183,74 @@ cog_modules_foreach(GIOExtensionPoint *extension_point, void (*callback)(GIOExte
 void
 cog_modules_add_directory(const char *directory_path)
 {
-    if (!directory_path)
-        directory_path = COG_MODULEDIR;
+    g_autoptr(GFile) path_file = NULL;
 
+    /*
+     * 1. If a path was assed, validate that it is a directory,
+     *    and produce and API usage warning otherwise.
+     */
+    if (directory_path) {
+        path_file = g_file_new_for_path(directory_path);
+        GFileType path_type = g_file_query_file_type(path_file, G_FILE_QUERY_INFO_NONE, NULL);
+        g_return_if_fail(path_type == G_FILE_TYPE_DIRECTORY);
+        directory_path = g_file_peek_path(path_file);
+    }
+
+    // The ensure_extension_points() function has its own GOnce lock,
+    // it does *NOT* need to run guarded by the "module_scan" lock.
     ensure_extension_points();
 
     G_LOCK_DEFINE_STATIC(module_scan);
     G_LOCK(module_scan);
 
+    /*
+     * 2. The "default" path is either the value of the COG_MODULEDIR
+     *    environment variable, or the compiled-in default path. If any
+     *    of them has already been scanned, bail out early.
+     */
+    static gboolean default_path_added = FALSE;
+    if (default_path_added) {
+        g_debug("%s: Default path already added, skipping.", G_STRFUNC);
+        goto out; // Ensure that the the lock is released.
+    }
+
+    /*
+     * 3. For a NULL path, try using the COG_MODULEDIR environment variable,
+     *    or fall back to the compiled-in module path if undefined/invalid.
+     */
+    if (directory_path) {
+        // If the passed path matches the built-in default, mark it as added.
+        default_path_added = !strcmp(COG_MODULEDIR, directory_path);
+    } else {
+        g_assert(!path_file);
+
+        directory_path = COG_MODULEDIR;
+        default_path_added = TRUE;
+
+        // Replace the path with the one from the environment variable,
+        // if it actually points to a valid directory.
+        static gboolean env_path_checked = FALSE;
+        if (!env_path_checked) {
+            env_path_checked = TRUE;
+            const char *env_value = g_getenv("COG_MODULEDIR");
+            if (env_value) {
+                path_file = g_file_new_for_path(env_value);
+                if (g_file_query_file_type(path_file, G_FILE_QUERY_INFO_NONE, NULL) == G_FILE_TYPE_DIRECTORY) {
+                    directory_path = g_file_peek_path(path_file);
+                } else {
+                    g_warning("Path '%s' is not a directory.", env_value);
+                }
+            }
+        }
+    }
+
+    /*
+     * 4. At this point, "directory_path" contains the path to scan.
+     *    Create a scope if needed to avoid loading duplicate plug-ins.
+     */
     static GIOModuleScope *scope = NULL;
     if (!scope)
         scope = g_io_module_scope_new(G_IO_MODULE_SCOPE_BLOCK_DUPLICATES);
-
-    static gboolean default_path_added = FALSE;
-    if (!strcmp(COG_MODULEDIR, directory_path)) {
-        if (default_path_added) {
-            g_debug("%s: Default path already added, skipping.", G_STRFUNC);
-            goto out; // Ensure that the the lock is released.
-        }
-        default_path_added = TRUE;
-    }
 
     g_debug("%s: Scanning '%s'", G_STRFUNC, directory_path);
     g_io_modules_scan_all_in_directory_with_scope(directory_path, scope);

@@ -90,7 +90,7 @@ cog_platform_ensure_singleton(const char *name)
 void
 cog_init(const char *platform_name, const char *module_path)
 {
-    cog_modules_add_directory(module_path ?: g_getenv("COG_MODULEDIR"));
+    cog_modules_add_directory(module_path);
     gboolean already_initialized = cog_platform_ensure_singleton(platform_name ?: g_getenv("COG_PLATFORM_NAME"));
     g_return_if_fail(!already_initialized);
 }
