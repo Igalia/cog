@@ -103,6 +103,7 @@ setup_wayland_event_source(GMainContext *main_context, struct wl_display *displa
     wl_source->pfd.revents = 0;
     g_source_add_poll(&wl_source->source, &wl_source->pfd);
 
+    g_source_set_priority(&wl_source->source, G_PRIORITY_HIGH + 30);
     g_source_set_can_recurse(&wl_source->source, TRUE);
     g_source_attach(&wl_source->source, g_main_context_get_thread_default());
 
