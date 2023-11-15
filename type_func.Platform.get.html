@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Platform.get_default</title>
+  <title>Cog.Platform.get</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.Platform.get_default"/>
-  <meta property="og:description" content="Reference for Cog.Platform.get_default"/>
-  <meta name="twitter:title" content="Cog.Platform.get_default"/>
-  <meta name="twitter:description" content="Reference for Cog.Platform.get_default"/>
+  <meta property="og:title" content="Cog.Platform.get"/>
+  <meta property="og:description" content="Reference for Cog.Platform.get"/>
+  <meta name="twitter:title" content="Cog.Platform.get"/>
+  <meta name="twitter:description" content="Reference for Cog.Platform.get"/>
 
 
   
@@ -91,7 +91,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
     <a class="method" href="type_func.Platform.egl_error_quark.html">egl_error_quark</a>
   
-    <a class="method current" href="type_func.Platform.get_default.html">get_default</a>
+    <a class="method current" href="type_func.Platform.get.html">get</a>
   
     <a class="method" href="type_func.Platform.wpe_error_quark.html">wpe_error_quark</a>
   
@@ -106,7 +106,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <section id="main" class="content">
   <header>
     <h3>Function</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a><span class="sep"></span>get_default</h1>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a><span class="sep"></span>get</h1>
   </header>
 
   <section>
@@ -121,7 +121,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
       <div class="docblock">
         <pre><code><div class="highlight"><pre><span></span><span class="n">CogPlatform</span><span class="o">*</span><span class="w"></span>
-<span class="n">cog_platform_get_default</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="n">cog_platform_get</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
 <span class="w">  </span><span class="kt">void</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
@@ -134,15 +134,23 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-platform.c#L98">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Gets the platform&nbsp;instance.</p>
+<p>The platform module instance is a singleton. The instance will be created
+if needed, but <a href="func.init.html"><code>cog_init()</code></a> can be used to control at which point it shall
+be created and which particular module to&nbsp;use.</p>
+<p>This function is&nbsp;thread-safe.</p>
       </div>
 
       <div class="docblock">
         <table>
           
+          
+          <tr><td>Available since:</td><td>0.20</td></tr>
           
           
         </table>
@@ -168,7 +176,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>The platform&nbsp;instance.</p></td>
           </tr>
           
           

@@ -1,0 +1,134 @@
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!--
+SPDX-FileCopyrightText: 2021 GNOME Foundation
+
+SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Cog &ndash; 0.0: Running Cog Applications</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta charset="utf-8" />
+
+  
+  <meta property="og:type" content="website"/>
+
+  
+  <meta property="og:image:width" content="256"/>
+  <meta property="og:image:height" content="256"/>
+  <meta property="og:image:secure_url" content="cog.png"/>
+  <meta property="og:image:alt" content="Cog-0.0"/>
+  
+
+  
+  <meta property="og:title" content="Cog: Running Cog Applications"/>
+  <meta property="og:description" content="Reference for Cog-0.0: Running Cog Applications"/>
+  <meta name="twitter:title" content="Cog: Running Cog Applications"/>
+  <meta name="twitter:description" content="Reference for Cog-0.0: Running Cog Applications"/>
+
+
+  
+  <meta name="twitter:card" content="summary"/>
+
+  
+  
+  
+  
+
+  <link rel="stylesheet" href="style.css" type="text/css" />
+
+  
+
+  
+  
+  <script src="fzy.js"></script>
+  <script src="search.js"></script>
+  
+  <script src="main.js"></script>
+</head>
+
+<body>
+  <div id="body-wrapper" tabindex="-1">
+
+    <nav class="sidebar devhelp-hidden">
+      
+      <div class="section">
+        <img src="cog.png" class="logo"/>
+      </div>
+      
+      
+      <div class="search section">
+        <form id="search-form" autocomplete="off">
+          <input id="search-input" type="text" name="do-not-autocomplete" placeholder="Click, or press 's' to search" autocomplete="off"/>
+        </form>
+      </div>
+      
+      <div class="section namespace">
+        <h3><a href="index.html">Cog</a></h3>
+        <p>API Version: 0.0</p>
+        
+        <p>Library Version: 0.17.1</p>
+        
+      </div>
+      
+      
+    </nav>
+    
+    <button id="btn-to-top" class="hidden"><span class="up-arrow"></span></button>
+
+    
+<section id="main" class="content">
+  <section>
+    <div class="docblock">
+    <h1 id="running-cog-applications">Running Cog Applications<a class="md-anchor" href="#running-cog-applications" title="Permanent link"></a></h1>
+<h2 id="environment-variables">Environment Variables<a class="md-anchor" href="#environment-variables" title="Permanent link"></a></h2>
+<p>The runtime behaviour of the Cog core library can be influenced by a number of
+environment&nbsp;variables.</p>
+<dl>
+<dt><code>COG_MODULEDIR</code></dt>
+<dd>Allows to specify a non-default location where to search for platform
+   plug-in modules. The default location is under <code>&lt;libdir&gt;/cog/modules</code>
+   unless a custom location was specified during configuration when
+   building. See <a href="func.modules_add_directory.html"><code>cog_modules_add_directory()</code></a> and <a href="func.init.html"><code>cog_init()</code></a> for
+   more&nbsp;information.</dd>
+<dt><code>COG_PLATFORM_NAME</code></dt>
+<dd>This variable can be set to the name of the platform plug-in module to
+   use and prevent automatically determining which one to use.
+   See <a href="func.init.html"><code>cog_init()</code></a> for more&nbsp;information.</dd>
+</dl>
+    </div>
+  </section>
+</section>
+
+
+    
+<div id="toc" class="toc">
+  <nav aria-labelledby="toc-title">
+    <p id="toc-title">Content</p>
+    <ul class="toc-list">
+      
+        
+        <li class="toc-list-item"><a href="#environment-variables"><span class="link-text">Environment Variables</span></a></li>
+        
+      
+    </ul>
+  </nav>
+</div>
+
+
+    <section id="search" class="content hidden"></section>
+
+    <footer>
+    
+    </footer>
+  </div>
+</body>
+</html>

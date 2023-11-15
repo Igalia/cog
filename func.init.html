@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Platform.new</title>
+  <title>Cog.init</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.Platform.new"/>
-  <meta property="og:description" content="Reference for Cog.Platform.new"/>
-  <meta name="twitter:title" content="Cog.Platform.new"/>
-  <meta name="twitter:description" content="Reference for Cog.Platform.new"/>
+  <meta property="og:title" content="Cog.init"/>
+  <meta property="og:description" content="Reference for Cog.init"/>
+  <meta name="twitter:title" content="Cog.init"/>
+  <meta name="twitter:description" content="Reference for Cog.init"/>
 
 
   
@@ -79,22 +79,14 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         
       </div>
       
+
 <div class="section">
-  <h5>Type</h5>
+  <h5>Functions</h5>
   <div class="links">
-    <a href="class.Platform.html">Platform</a>
-  </div>
-</div>
-<div class="section">
-  <h5>Constructors</h5>
-  <div class="links">
-  
-    <a class="method" href="ctor.Platform.configure.html">configure</a>
-  
-    <a class="method current" href="ctor.Platform.new.html">new</a>
   
   </div>
 </div>
+
 
     </nav>
     
@@ -103,8 +95,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Constructor</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a><span class="sep"></span>new</h1>
+    <h3>Function </h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span>init</h1>
   </header>
 
   <section>
@@ -113,15 +105,15 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Declaration
         <a href="#declaration" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-platform.h#L57">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-platform.h#L55">[src]</a>
         
       </h4>
 
       <div class="docblock">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">CogPlatform</span><span class="o">*</span><span class="w"></span>
-<span class="n">cog_platform_new</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"></span>
-<span class="w">  </span><span class="n">GError</span><span class="o">**</span><span class="w"> </span><span class="n">error</span><span class="w"></span>
+        <pre><code><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"></span>
+<span class="n">cog_init</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">platform_name</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">module_path</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
 </code></pre>
@@ -133,14 +125,34 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-platform.c#L61">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Initialize the library, optionally indicating&nbsp;options.</p>
+<p>This function ensures the creation of the single <a href="class.Platform.html"><code>CogPlatform</code></a>
+instance, and optionally allows indicating which platform module to use
+and from which directory to load&nbsp;modules.</p>
+<p>If the <code>platform_name</code> passed is <code>NULL</code>, the value of the
+<code>COG_PLATFORM_NAME</code> environment variable will be used. If the environment
+variable is undefined, the most suitable platform module will be determined&nbsp;automatically.</p>
+<p>If the <code>module_path</code> passed is <code>NULL</code>, the value of the <code>COG_MODULEDIR</code>
+environment variable will be used. If the environment variable is
+undefined, the default module path chosen at build time will be&nbsp;used.</p>
+<p>Note that it is <strong>not required</strong> to use this function. It is possible
+to use <a href="method.Platform.get.html"><code>cog_platform_get()</code></a> if the default behaviour of using the
+environment variables (if defined) and automatic detection as fallback
+with the default module path is&nbsp;acceptable.</p>
+<p>This function is&nbsp;thread-safe.</p>
       </div>
 
       <div class="docblock">
         <table>
+          
+          
+          <tr><td>Available since:</td><td>0.20</td></tr>
+          
           
           
           
@@ -162,15 +174,33 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="arguments">
           
           <tr class="arg-name">
-            <td><code>name</code></td>
+            <td><code>platform_name</code></td>
             <td><code>const char*</code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>The name of the platform module to&nbsp;use.</p></td>
           </tr>
           
+          <tr><td>&nbsp;</td><td>The argument can be <code>NULL</code>.</td></tr>
           
+          
+          
+          
+          
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
+          <tr><td>&nbsp;</td><td>The value is a NUL terminated UTF-8 string.</td></tr>
+          
+          <tr class="arg-name">
+            <td><code>module_path</code></td>
+            <td><code>const char*</code></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td><p>The directory to scan for&nbsp;modules.</p></td>
+          </tr>
+          
+          <tr><td>&nbsp;</td><td>The argument can be <code>NULL</code>.</td></tr>
           
           
           
@@ -180,46 +210,11 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <tr><td>&nbsp;</td><td>The value is a NUL terminated UTF-8 string.</td></tr>
           
           
-          <tr class="arg-name">
-            <td><code>error</code></td>
-            <td><code>GError **</code></td>
-          </tr>
-          <tr class="arg-description">
-            <td>&nbsp;</td>
-            <td>The return location for a <code>GError*</code>, or <code>NULL</code>.</td>
-          </tr>
-          
         </table>
       </div>
     </div>
     
 
-    
-    <div class="return-value toggle-wrapper">
-      <h4 id="return-value">
-        Return value
-        <a href="#return-value" class="anchor"></a>
-      </h4>
-
-      <div class="docblock">
-        <table class="returns">
-          <tr class="arg-name">
-            <td>Returns:</td>
-            <td><a href="class.Platform.html"><code>CogPlatform</code></a></td>
-          </tr>
-          <tr class="arg-description">
-            <td>&nbsp;</td>
-            <td>No description available.</td>
-          </tr>
-          
-          
-          
-          <tr><td>&nbsp;</td><td title="transfer: full">The caller of the function takes ownership of the data, and is responsible for freeing it.</td></tr>
-          
-          
-        </table>
-      </div>
-    </div>
     
   </section>
 </section>
