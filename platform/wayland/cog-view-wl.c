@@ -112,7 +112,9 @@ cog_wl_view_init(CogWlView *self)
 
     wl_list_init(&self->shm_buffer_list);
 
+#if COG_USE_WAYLAND_CURSOR
     g_signal_connect(self, "mouse-target-changed", G_CALLBACK(on_mouse_target_changed), NULL);
+#endif /* COG_USE_WAYLAND_CURSOR */
 #if COG_HAVE_LIBPORTAL
     g_signal_connect(self, "run-file-chooser", G_CALLBACK(on_run_file_chooser), NULL);
 #endif /* COG_HAVE_LIBPORTAL */
@@ -471,10 +473,10 @@ on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
         cog_wl_view_update_surface_contents(self);
 }
 
+#ifdef COG_USE_WAYLAND_CURSOR
 static void
 on_mouse_target_changed(WebKitWebView *view, WebKitHitTestResult *hitTestResult, guint mouseModifiers)
 {
-#ifdef COG_USE_WAYLAND_CURSOR
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     if (webkit_hit_test_result_context_is_link(hitTestResult)) {
         cog_wl_seat_set_cursor(platform->display->seat_default, CURSOR_HAND);
@@ -485,8 +487,8 @@ on_mouse_target_changed(WebKitWebView *view, WebKitHitTestResult *hitTestResult,
     } else {
         cog_wl_seat_set_cursor(platform->display->seat_default, CURSOR_LEFT_PTR);
     }
-#endif /* COG_USE_WAYLAND_CURSOR */
 }
+#endif /* COG_USE_WAYLAND_CURSOR */
 
 #if COG_HAVE_LIBPORTAL
 static void
