@@ -813,7 +813,15 @@ touch_on_down(void              *data,
 static void
 touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, int32_t id)
 {
+    if (data == NULL || touch == NULL) {
+        return;
+    }
+
     CogWlSeat *seat = data;
+
+    if (seat->touch_target == NULL || seat->touch.surface == NULL) {
+        return;
+    }
 
     if (touch != seat->touch_obj) {
         g_critical("%s: Got touch %p, expected %p.", G_STRFUNC, touch, seat->touch_obj);
@@ -863,8 +871,16 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
 static void
 touch_on_motion(void *data, struct wl_touch *touch, uint32_t time, int32_t id, wl_fixed_t x, wl_fixed_t y)
 {
+    if (data == NULL || touch == NULL) {
+        return;
+    }
+
     CogWlSeat    *seat = data;
     CogWlDisplay *display = seat->display;
+
+    if (seat->touch_target == NULL || seat->touch.surface == NULL) {
+        return;
+    }
 
     if (touch != seat->touch_obj) {
         g_critical("%s: Got touch %p, expected %p.", G_STRFUNC, touch, seat->touch_obj);
