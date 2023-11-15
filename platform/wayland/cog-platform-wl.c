@@ -273,7 +273,16 @@ pointer_on_enter(void              *data,
 static void
 pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface)
 {
+    if (data == NULL || pointer == NULL) {
+        return;
+    }
+
     CogWlSeat *seat = data;
+
+    if (seat->pointer_target == NULL || seat->pointer.surface == NULL) {
+        return;
+    }
+
 
     if (pointer != seat->pointer_obj) {
         g_critical("%s: Got pointer %p, expected %p.", G_STRFUNC, pointer, seat->pointer_obj);
@@ -288,7 +297,16 @@ pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct
 static void
 pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t fixed_x, wl_fixed_t fixed_y)
 {
-    CogWlSeat    *seat = data;
+    if (data == NULL || pointer == NULL) {
+        return;
+    }
+
+    CogWlSeat *seat = data;
+
+    if (seat->pointer_target == NULL || seat->pointer.surface == NULL) {
+        return;
+    }
+
     CogWlDisplay *display = seat->display;
 
     if (pointer != seat->pointer_obj) {
@@ -785,7 +803,15 @@ touch_on_down(void              *data,
 static void
 touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, int32_t id)
 {
+    if (data == NULL || touch == NULL) {
+        return;
+    }
+
     CogWlSeat *seat = data;
+
+    if (seat->touch_target == NULL || seat->touch.surface == NULL) {
+        return;
+    }
 
     if (touch != seat->touch_obj) {
         g_critical("%s: Got touch %p, expected %p.", G_STRFUNC, touch, seat->touch_obj);
@@ -835,8 +861,16 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
 static void
 touch_on_motion(void *data, struct wl_touch *touch, uint32_t time, int32_t id, wl_fixed_t x, wl_fixed_t y)
 {
+    if (data == NULL || touch == NULL) {
+        return;
+    }
+
     CogWlSeat    *seat = data;
     CogWlDisplay *display = seat->display;
+
+    if (seat->touch_target == NULL || seat->touch.surface == NULL) {
+        return;
+    }
 
     if (touch != seat->touch_obj) {
         g_critical("%s: Got touch %p, expected %p.", G_STRFUNC, touch, seat->touch_obj);
