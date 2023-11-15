@@ -68,9 +68,7 @@ static void presentation_feedback_on_sync_output(void *, struct wp_presentation_
 static void on_export_shm_buffer(void *, struct wpe_fdo_shm_exported_buffer *);
 #endif
 static void on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image);
-#if COG_USE_WAYLAND_CURSOR
 static void on_mouse_target_changed(WebKitWebView *, WebKitHitTestResult *hitTestResult, guint mouseModifiers);
-#endif
 #if COG_HAVE_LIBPORTAL
 static void on_run_file_chooser(WebKitWebView *, WebKitFileChooserRequest *);
 #endif
