@@ -1,3 +1,14 @@
+==========================
+0.18.1 - November 15, 2023
+==========================
+
+- core: Avoid leaking web views due to CogShell holding one reference
+  too much on them.
+- drm: Fix touch region dimensions when the output is rotated by 90 or
+  270 degrees.
+- meson: Fix configuration error when only the Wayland platform plug-in
+  is selected.
+
 =====================
 0.18.0 - May 20, 2023
 =====================
