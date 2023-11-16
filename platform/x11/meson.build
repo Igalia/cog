@@ -6,7 +6,7 @@ endif
 x11_platform_plugin = shared_module('cogplatform-x11',
     'cog-platform-x11.c',
     x11_platform_sources,
-    c_args: ['-DG_LOG_DOMAIN="Cog-X11"'],
+    c_args: platform_c_args + ['-DG_LOG_DOMAIN="Cog-X11"'],
     dependencies: [
         wpebackend_fdo_dep,
         cogplatformcommon_dep,
