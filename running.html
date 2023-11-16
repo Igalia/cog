@@ -103,6 +103,12 @@ environment&nbsp;variables.</p>
 <dd>This variable can be set to the name of the platform plug-in module to
    use and prevent automatically determining which one to use.
    See <a href="func.init.html"><code>cog_init()</code></a> for more&nbsp;information.</dd>
+<dt><code>COG_PLATFORM_PARAMS</code></dt>
+<dd>This variable may contain setup parameters for the chosen platform plug-in
+   module. The parameters supported by each platform may be found in their
+   respective documentation pages. The format of the parameters string is
+   typically (but not always) a comma-separated list of <code>variable=value</code>
+   assignments. See <a href="method.Platform.setup.html"><code>cog_platform_setup()</code></a> for more&nbsp;information.</dd>
 </dl>
     </div>
   </section>

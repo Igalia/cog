@@ -139,10 +139,19 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a class="anchor" href="#description"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-platform.c#L120">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Configure the platform plug-in&nbsp;module.</p>
+<p>If the <code>params</code> string is <code>NULL</code> or empty, the value of the
+<code>COG_PLATFORM_PARAMS</code> environment variable will be used, if defined.
+Each platform module may have its own syntax for the parameters string,
+but typically they accept a list of comma-separated <code>variable=value</code>
+assignments.</p>
+<p>The documentation for each platform plug-in details the available
+parameters and deviations of the parameter string syntax, if&nbsp;applicable.</p>
       </div>
 
       <div class="docblock">
@@ -175,7 +184,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>The shell being&nbsp;configured.</p></td>
           </tr>
           
           
@@ -193,10 +202,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>String with parameters for the platform&nbsp;plug-in.</p></td>
           </tr>
           
-          
+          <tr><td>&nbsp;</td><td>The argument can be <code>NULL</code>.</td></tr>
           
           
           
@@ -235,7 +244,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>Whether the platform was configured&nbsp;successfully.</p></td>
           </tr>
           
           
