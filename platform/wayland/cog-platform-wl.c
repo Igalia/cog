@@ -274,7 +274,16 @@ pointer_on_enter(void              *data,
 static void
 pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface)
 {
+    if (data == NULL || pointer == NULL) {
+        return;
+    }
+
     CogWlSeat *seat = data;
+
+    if (seat->pointer_target == NULL || seat->pointer.surface == NULL) {
+        return;
+    }
+
 
     if (pointer != seat->pointer_obj) {
         g_critical("%s: Got pointer %p, expected %p.", G_STRFUNC, pointer, seat->pointer_obj);
@@ -289,7 +298,16 @@ pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct
 static void
 pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t fixed_x, wl_fixed_t fixed_y)
 {
-    CogWlSeat    *seat = data;
+    if (data == NULL || pointer == NULL) {
+        return;
+    }
+
+    CogWlSeat *seat = data;
+
+    if (seat->pointer_target == NULL || seat->pointer.surface == NULL) {
+        return;
+    }
+
     CogWlDisplay *display = seat->display;
 
     if (pointer != seat->pointer_obj) {
