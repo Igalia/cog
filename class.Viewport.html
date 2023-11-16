@@ -87,7 +87,25 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 </div>
 
 
+<div class="section">
+  <h5>Constructors</h5>
+  <div class="links">
+  
+    <a class="ctor" href="ctor.Viewport.new.html">new</a>
+  
+  </div>
+</div>
 
+
+
+<div class="section">
+  <h5>Functions</h5>
+  <div class="links">
+  
+    <a class="func" href="type_func.Viewport.get_impl_type.html">get_impl_type</a>
+  
+  </div>
+</div>
 
 
 
@@ -162,7 +180,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           Description
           <a href="#description" class="anchor"></a>
           
-          <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-viewport.c#L11">[src]</a>
+          <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-viewport.c#L12">[src]</a>
           
         </h4>
 
@@ -184,6 +202,9 @@ method is provided as&nbsp;well.</p>
 visible view among the ones associated with the viewport, which
 can be manipulated with <a href="method.Viewport.set_visible_view.html"><code>cog_viewport_set_visible_view()</code></a> and
 inspected with <a href="method.Viewport.get_visible_view.html"><code>cog_viewport_get_visible_view()</code></a>.</p>
+<p>Optionally, platform plug-in implementations can provide their own
+viewport class implementation by overriding
+the CogPlatform.get_viewport_type&nbsp;method.</p>
         </div>
 
         <div class="docblock">
@@ -226,7 +247,49 @@ inspected with <a href="method.Viewport.get_visible_view.html"><code>cog_viewpor
     
 
     
+    <div class="toggle-wrapper constructors">
+      <h4 id="constructors">
+        Constructors
+        <a href="#constructors" class="anchor"></a>
+      </h4>
 
+      <div class="docblock">
+      
+        <div class="">
+          <h6><a href="ctor.Viewport.new.html">cog_viewport_new</a></h6>
+
+          <div class="docblock">
+            <p>Creates a new instance of a viewport implementation and sets its&nbsp;properties.</p>
+          </div>
+
+          
+        </div>
+      
+      </div>
+    </div>
+    
+
+    
+    <div class="toggle-wrapper methods">
+      <h4 id="type-functions">
+        Functions
+        <a href="#type-functions" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+      
+      <div class="">
+        <h6><a href="type_func.Viewport.get_impl_type.html">cog_viewport_get_impl_type</a></h6>
+
+        <div class="docblock">
+          <p>Get the type of the viewport implementation in&nbsp;use.</p>
+        </div>
+
+        
+      </div>
+      
+      </div>
+    </div>
     
 
     
@@ -470,8 +533,12 @@ its value set through g_object_set_property(), g_object_set(), et&nbsp;al.</p>
       
       
       
+<li class="toc-list-item"><a href="#constructors"><span class="link-text">Constructors</span></a></li>
+
 
       
+<li class="toc-list-item"><a href="#type-functions"><span class="link-text">Functions</span></a></li>
+
 
       
 <li class="toc-list-item"><a href="#methods"><span class="link-text">Methods</span></a></li>
