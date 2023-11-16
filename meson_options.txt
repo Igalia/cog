@@ -30,6 +30,14 @@ option(
     description: 'WPE WebKit API to target (1.0 = soup2, 1.1/2.0 = soup3)'
 )
 
+# Features supported in more than one platform
+option(
+    'libportal',
+    type: 'feature',
+    value: 'enabled',
+    description: 'Use libportal to provide file picker dialogs'
+)
+
 # Wayland platform-specific features
 option(
     'wayland_weston_direct_display',

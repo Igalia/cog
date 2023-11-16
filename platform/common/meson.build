@@ -1,11 +1,11 @@
 cogplatformcommon_dependencies = [
     cogcore_dep,
-    libportal_dep,
     dependency('epoxy'),
 ]
 
 cogplatformcommon_sources = []
 if libportal_dep.found()
+    cogplatformcommon_dependencies += [libportal_dep]
     cogplatformcommon_sources += ['cog-file-chooser.c']
 endif
 

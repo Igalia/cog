@@ -70,13 +70,6 @@ if plugin_path == ''
     plugin_path = join_paths(get_option('prefix'), get_option('libdir'), 'cog', 'modules')
 endif
 
-platform_plugins = get_option('platforms')
-with_drm_platform = platform_plugins.contains('drm')
-with_headless_platform = platform_plugins.contains('headless')
-with_wayland_platform = platform_plugins.contains('wayland')
-with_gtk4_platform = platform_plugins.contains('gtk4')
-with_x11_platform = platform_plugins.contains('x11')
-
 with_programs = get_option('programs')
 
 cog_launcher_appid = get_option('cog_appid')
@@ -152,13 +145,9 @@ endif
 
 wpe_dep = dependency('wpe-1.0')
 manette_dep = dependency('manette-0.2', version: '>=0.2.4', required: false)
-libportal_dep = dependency('libportal', required: false)
 
 subdir('core')
-
-if platform_plugins.length() > 0
-    subdir('platform')
-endif
+subdir('platform')
 
 if get_option('documentation')
     subdir('docs')

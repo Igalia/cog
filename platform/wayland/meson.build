@@ -1,9 +1,7 @@
-with_wayland_weston_direct_display = (with_wayland_platform
-    and get_option('wayland_weston_direct_display')
-)
-with_wayland_weston_content_protection = (with_wayland_platform
-    and with_wayland_weston_direct_display
-    and get_option('wayland_weston_content_protection')
+with_wayland_weston_direct_display = get_option('wayland_weston_direct_display')
+with_wayland_weston_content_protection = (
+    with_wayland_weston_direct_display and
+    get_option('wayland_weston_content_protection')
 )
 
 wayland_platform_dependencies = [
@@ -15,7 +13,7 @@ wayland_platform_dependencies = [
     dependency('wayland-client'),
     dependency('wayland-egl', required: false),
 ]
-wayland_platform_c_args = [
+wayland_platform_c_args = platform_c_args + [
     '-DG_LOG_DOMAIN="Cog-Wayland"',
     '-DCOG_ENABLE_WESTON_DIRECT_DISPLAY=@0@'.format(with_wayland_weston_direct_display.to_int()),
     '-DCOG_ENABLE_WESTON_CONTENT_PROTECTION=@0@'.format(with_wayland_weston_content_protection.to_int()),

@@ -11,7 +11,6 @@ cog_config.set('COG_DEFAULT_APPID', cog_launcher_appid)
 cog_config.set('COG_DEFAULT_HOME_URI', cog_launcher_home_uri)
 cog_config.set10('HAVE_WEBKIT_MEM_PRESSURE_API',
     wpewebkit_dep.version().version_compare('>=2.34.0'))
-cog_config.set10('HAVE_LIBPORTAL', libportal_dep.found())
 cog_config.set10('ENABLE_GAMEPAD_MANETTE', gamepad_manette)
 
 cogcore_config_h = configure_file(
