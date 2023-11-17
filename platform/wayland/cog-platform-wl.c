@@ -289,9 +289,9 @@ pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct
         return;
     }
 
-    seat->pointer_target = NULL;
-    seat->pointer.serial = serial;
-    seat->pointer.surface = NULL;
+    // seat->pointer_target = NULL;
+    // seat->pointer.serial = serial;
+    // seat->pointer.surface = NULL;
 }
 
 static void
@@ -566,8 +566,8 @@ keyboard_on_leave(void *data, struct wl_keyboard *wl_keyboard, uint32_t serial, 
         return;
     }
 
-    seat->keyboard_target = NULL;
-    seat->keyboard.serial = serial;
+    // seat->keyboard_target = NULL;
+    // seat->keyboard.serial = serial;
 }
 
 static void
@@ -822,9 +822,9 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
     CogWlViewport *viewport = COG_WL_VIEWPORT(seat->touch_target);
 
     struct wl_surface *target_surface = seat->touch.surface;
-    seat->touch_target = NULL;
-    seat->touch.serial = serial;
-    seat->touch.surface = NULL;
+    // seat->touch_target = NULL;
+    // seat->touch.serial = serial;
+    // seat->touch.surface = NULL;
 
     if (id < 0 || id >= 10)
         return;
