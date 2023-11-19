@@ -237,7 +237,10 @@ cog_viewport_set_visible_view_internal(CogViewport *self, CogViewportPrivate *pr
 
     if (priv->visible_view) {
         struct wpe_view_backend *backend = cog_view_get_backend(priv->visible_view);
+        fprintf(stderr, "XXXXX %s: JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ Visible view %p.\n", G_STRFUNC, view);
         wpe_view_backend_add_activity_state(backend, wpe_view_activity_state_visible);
+        // wpe_view_backend_add_activity_state(backend, wpe_view_activity_state_in_window);
+        // wpe_view_backend_add_activity_state(backend, wpe_view_activity_state_focused);
     }
 }
 
@@ -259,6 +262,7 @@ cog_viewport_add(CogViewport *self, CogView *view)
     CogViewportPrivate *priv = PRIV(self);
     g_return_if_fail(!g_ptr_array_find(priv->views, view, NULL));
 
+    fprintf(stderr, "XXX XXX cog_viewport_add: cog_view_set_viewport - view: %p - self(viewport): %p\n", view, self);
     cog_view_set_viewport(view, self);
 
     g_ptr_array_add(priv->views, g_object_ref(view));
@@ -314,6 +318,7 @@ cog_viewport_remove(CogViewport *self, CogView *view)
 
     webkit_web_view_set_input_method_context(WEBKIT_WEB_VIEW(view), NULL);
 
+    fprintf(stderr, "XXX XXX cog_viewport_remove: cog_view_set_viewport - view: %p - self(viewport): %p\n", view, NULL);
     cog_view_set_viewport(view, NULL);
 
     g_object_ref(view);
@@ -454,6 +459,7 @@ cog_viewport_get_visible_view(CogViewport *self)
 void
 cog_viewport_set_visible_view(CogViewport *self, CogView *view)
 {
+    fprintf(stderr, "XXX XXX cog_viewport_set_visible_view: viewport: %p - view: %p\n", self, view);
     g_return_if_fail(COG_IS_VIEWPORT(self));
     g_return_if_fail(COG_IS_VIEW(view));
     g_return_if_fail(cog_viewport_contains(self, view));
