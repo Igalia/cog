@@ -182,6 +182,7 @@ cog_wl_view_create_backend(CogView *view)
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     CogWlView     *self = COG_WL_VIEW(view);
 
+    fprintf(stderr, "XXX XXX ZZZZ cog_wl_view_create_backend view: %p - platform: %p\n", view, platform);
     static const struct wpe_view_backend_exportable_fdo_egl_client client = {
         .export_fdo_egl_image = on_export_wl_egl_image,
 #if HAVE_SHM_EXPORTED_BUFFER
@@ -189,14 +190,21 @@ cog_wl_view_create_backend(CogView *view)
 #endif
     };
 
+    fprintf(stderr, "XXX XXX ZZZZ cog_wl_view_create_backend 3 \n");
     self->exportable = wpe_view_backend_exportable_fdo_egl_create(&client, self, DEFAULT_WIDTH, DEFAULT_HEIGHT);
+    fprintf(stderr, "XXX XXX ZZZZ cog_wl_view_create_backend 3 - self->exportable: %p \n", self->exportable);
 
     /* init WPE view backend */
     struct wpe_view_backend *view_backend = wpe_view_backend_exportable_fdo_get_view_backend(self->exportable);
+    fprintf(stderr, "XXX XXX ZZZZ FIRST FIRST cog_wl_view_create_backend view_backend: %p\n", view_backend);
     g_assert(view_backend);
+    // webkit_web_view_load_uri(WEBKIT_WEB_VIEW(view), "http://wpewebkit.org");
 
     if (platform->display->text_input_manager_v1)
+    {
+        fprintf(stderr, "XXX COG WL VIEWS - cog_im_context_wl_v1_set_view_backend  \n");
         cog_im_context_wl_v1_set_view_backend(view_backend);
+    }
 
     WebKitWebViewBackend *wk_view_backend =
         webkit_web_view_backend_new(view_backend,
@@ -275,6 +283,7 @@ cog_wl_view_on_buffer_release(void *data G_GNUC_UNUSED, struct wl_buffer *buffer
 static void
 cog_wl_view_request_frame(CogWlView *view)
 {
+    fprintf(stderr, "XXX COG VIEW - cog_wl_view_request_frame\n");
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     CogWlViewport *viewport = COG_WL_VIEWPORT(cog_view_get_viewport((CogView *) view));
 
@@ -298,22 +307,27 @@ cog_wl_view_request_frame(CogWlView *view)
 void
 cog_wl_view_resize(CogWlView *view)
 {
+    fprintf(stderr, "XXX COG VIEW - cog_wl_view_resize 1 of 3 \n");
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     g_assert(platform);
 
     if (!platform->display || !platform->display->current_output)
         return;
 
+    fprintf(stderr, "XXX COG VIEW - cog_wl_view_resize 2 of 3 \n");
     CogWlViewport *viewport = COG_WL_VIEWPORT(cog_view_get_viewport((CogView *) view));
     view->should_update_opaque_region = true;
 
     int32_t pixel_width = viewport->window.width * platform->display->current_output->scale;
     int32_t pixel_height = viewport->window.height * platform->display->current_output->scale;
 
+    fprintf(stderr, "XXX COG VIEW - cog_wl_view_resize 2bis of 3 \n");
     struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(view));
+    fprintf(stderr, "XXX COG VIEW - cog_wl_view_resize 2bis of 3: viewport: %p - backend %p \n", viewport, backend);
     wpe_view_backend_dispatch_set_size(backend, viewport->window.width, viewport->window.height);
     wpe_view_backend_dispatch_set_device_scale_factor(backend, platform->display->current_output->scale);
 
+    fprintf(stderr, "XXX COG VIEW - cog_wl_view_resize 3 of 3 \n");
     g_debug("Resized EGL buffer to: (%" PRIi32 ", %" PRIi32 ") @%" PRIi32 "x", pixel_width, pixel_height,
             platform->display->current_output->scale);
 }
@@ -321,6 +335,7 @@ cog_wl_view_resize(CogWlView *view)
 void
 cog_wl_view_update_surface_contents(CogWlView *view)
 {
+    fprintf(stderr, "XXX COG VIEW - cog_wl_view_update_surface_contents \n");
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     CogWlViewport *viewport = COG_WL_VIEWPORT(cog_view_get_viewport((CogView *) view));
     g_assert(view);
@@ -366,6 +381,7 @@ cog_wl_view_update_surface_contents(CogWlView *view)
 
     cog_wl_view_request_frame(view);
 
+    fprintf(stderr, "XXX COG VIEW - wl_surface_commit\n");
     wl_surface_commit(surface);
 
     if (view->is_resizing_fullscreen)
@@ -394,6 +410,7 @@ validate_exported_geometry(CogWlViewport *viewport, uint32_t width, uint32_t hei
 static void
 on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_buffer)
 {
+    fprintf(stderr, "XXX COG VIEW - on_export_shm_buffer\n");
     CogWlView     *view = data;
     CogWlViewport *viewport = COG_WL_VIEWPORT(cog_view_get_viewport((CogView *) view));
 
@@ -452,12 +469,15 @@ on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_bu
 static void
 on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
 {
+    fprintf(stderr, "XXX COG VIEW - on_export_wl_egl_image\n");
     CogWlView     *self = data;
     CogWlViewport *viewport = COG_WL_VIEWPORT(cog_view_get_viewport((CogView *) self));
 
     uint32_t image_width = wpe_fdo_egl_exported_image_get_width(image);
     uint32_t image_height = wpe_fdo_egl_exported_image_get_height(image);
+    fprintf(stderr, "%s: XXXXXXXXXX GGGGGGGGGGGGGGGGGGGGGGGGGG COG WL VIEW: %p wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image ?", G_STRFUNC, self);
     if (!validate_exported_geometry(viewport, image_width, image_height)) {
+        fprintf(stderr, "%s: XXXXXXXXXX GGGGGGGGGGGGGGGGGGGGGGGGGG COG WL VIEW: %p wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image ", G_STRFUNC, self);
         wpe_view_backend_exportable_fdo_dispatch_frame_complete(self->exportable);
         wpe_view_backend_exportable_fdo_egl_dispatch_release_exported_image(self->exportable, image);
         return;
@@ -516,6 +536,7 @@ on_show_option_menu(WebKitWebView *view, WebKitOptionMenu *menu, WebKitRectangle
 static void
 on_wl_surface_frame(void *data, struct wl_callback *callback, uint32_t time)
 {
+    fprintf(stderr, "XXX COG VIEW - on_wl_surface_frame\n");
     CogWlView *view = data;
 
     if (view->frame_callback) {
@@ -523,6 +544,7 @@ on_wl_surface_frame(void *data, struct wl_callback *callback, uint32_t time)
         g_clear_pointer(&view->frame_callback, wl_callback_destroy);
     }
 
+    fprintf(stderr, "%s: XXXXXXXXXX GGGGGGGGGGGGGGGGGGGGGGGGGG COG WL VIEW: %p wpe_view_backend_exportable_fdo_dispatch_frame_complete ", G_STRFUNC, view);
     wpe_view_backend_exportable_fdo_dispatch_frame_complete(view->exportable);
 }
 

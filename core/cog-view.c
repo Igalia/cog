@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <stdio.h>
 #include "cog-view.h"
 #include "cog-platform.h"
 
@@ -78,6 +79,7 @@ cog_view_set_property(GObject *object, unsigned prop_id, const GValue *value, GP
         cog_view_set_use_key_bindings(self, g_value_get_boolean(value));
         break;
     case PROP_VIEWPORT:
+        fprintf(stderr, "XXX XXX PROP_VIEWPORT view: %p - value: %p\n", self, g_value_get_object(value));
         cog_view_set_viewport(self, g_value_get_object(value));
         break;
     default:
@@ -410,8 +412,11 @@ cog_view_set_viewport(CogView *self, CogViewport *viewport)
     g_return_if_fail(COG_IS_VIEW(self));
 
     CogViewPrivate *priv = cog_view_get_instance_private(self);
+    fprintf(stderr, "XXX XXX cog_view_set_viewport - priv: %p\n", priv);
+    fprintf(stderr, "XXX XXX cog_view_set_viewport - viewport: %p\n", viewport);
 
     if (priv->viewport != viewport) {
+        fprintf(stderr, "XXX XXX cog_view_set_viewport - ?? priv->viewport %p != viewport %p\n", priv->viewport, viewport);
         // If the new value is different from the old one, unreference the old value and set the new one.
         if (viewport)
             g_object_ref(viewport);
@@ -420,6 +425,7 @@ cog_view_set_viewport(CogView *self, CogViewport *viewport)
     }
 
     priv->viewport = viewport;
+    fprintf(stderr, "XXX XXX cog_view_set_viewport - priv->viewport: %p\n", priv->viewport);
 
     g_object_notify_by_pspec(G_OBJECT(self), s_properties[PROP_VIEWPORT]);
 }
@@ -506,6 +512,7 @@ cog_view_set_visible(CogView *self)
 
     CogViewPrivate *priv = cog_view_get_instance_private(self);
     CogViewport    *viewport = priv->viewport;
+    fprintf(stderr, "XXX XXX cog_view_set_visible: viewport: %p - view: %p\n", viewport, self);
     g_return_val_if_fail(viewport != NULL, false);
 
     cog_viewport_set_visible_view(viewport, self);

@@ -118,11 +118,11 @@ foreach kind, proto_list : wayland_platform_protocols
     endforeach
 endforeach
 
-wayland_cursor_dep = dependency('wayland-cursor', required: false)
-if wayland_cursor_dep.found()
-    wayland_platform_dependencies += [wayland_cursor_dep]
-    wayland_platform_c_args += ['-DCOG_USE_WAYLAND_CURSOR=1']
-endif
+# wayland_cursor_dep = dependency('wayland-cursor', required: false)
+# if wayland_cursor_dep.found()
+#     wayland_platform_dependencies += [wayland_cursor_dep]
+#     wayland_platform_c_args += ['-DCOG_USE_WAYLAND_CURSOR=1']
+# endif
 
 if libportal_dep.found()
     wayland_platform_sources += ['cog-xdp-parent-wl.c']

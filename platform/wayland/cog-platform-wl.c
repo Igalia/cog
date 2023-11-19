@@ -9,6 +9,7 @@
 #include "../../core/cog.h"
 
 #include <glib-object.h>
+#include <stdio.h>
 #include <glib.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -249,6 +250,7 @@ pointer_on_enter(void              *data,
                  wl_fixed_t         fixed_x,
                  wl_fixed_t         fixed_y)
 {
+    fprintf(stderr, "XXX COG PLATFORM - pointer_on_enter\n");
     if (!surface) {
         g_warning("%s: Not surface associated.", G_STRFUNC);
         return;
@@ -278,6 +280,8 @@ pointer_on_enter(void              *data,
 static void
 pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface)
 {
+    fprintf(stderr, "XXX COG PLATFORM - pointer_on_leave\n");
+
     if (data == NULL || pointer == NULL) {
         return;
     }
@@ -302,6 +306,8 @@ pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct
 static void
 pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t fixed_x, wl_fixed_t fixed_y)
 {
+    fprintf(stderr, "XXX COG PLATFORM - pointer_on_motion\n");
+
     if (data == NULL || pointer == NULL) {
         return;
     }
@@ -345,6 +351,8 @@ pointer_on_button(void              *data,
                   uint32_t           button,
                   uint32_t           state)
 {
+    fprintf(stderr, "XXX COG PLATFORM - pointer_on_button\n");
+
     CogWlSeat    *seat = data;
     CogWlDisplay *display = seat->display;
 
@@ -400,6 +408,8 @@ pointer_on_button(void              *data,
 static void
 dispatch_axis_event(CogWlSeat *seat)
 {
+    fprintf(stderr, "XXX COG PLATFORM - dispatch_axis_event\n");
+
     CogWlDisplay *display = seat->display;
 
     if (!seat->axis.has_delta)
@@ -451,6 +461,7 @@ enum {
 static void
 pointer_on_axis(void *data, struct wl_pointer *pointer, uint32_t time, uint32_t axis, wl_fixed_t value)
 {
+    fprintf(stderr, "XXX COG PLATFORM - pointer_on_axis\n");
     CogWlSeat *seat = data;
 
     if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
@@ -637,6 +648,7 @@ keyboard_on_key(void               *data,
                 uint32_t            key,
                 uint32_t            state)
 {
+    fprintf(stderr, "XXX COG PLATFORM - pointer_on_axis\n");
     CogWlSeat *seat = data;
 
     if (wl_keyboard != seat->keyboard_obj) {
@@ -688,6 +700,7 @@ keyboard_on_modifiers(void               *data,
                       uint32_t            mods_locked,
                       uint32_t            group)
 {
+    fprintf(stderr, "XXX COG PLATFORM - keyboard_on_modifiers\n");
     CogWlSeat *seat = data;
 
     if (wl_keyboard != seat->keyboard_obj) {
@@ -754,6 +767,8 @@ touch_on_down(void              *data,
               wl_fixed_t         x,
               wl_fixed_t         y)
 {
+    fprintf(stderr, "XXX COG PLATFORM - touch_on_down\n");
+
     if (!surface) {
         g_warning("%s: Not surface associated.", G_STRFUNC);
         return;
@@ -810,6 +825,7 @@ touch_on_down(void              *data,
 static void
 touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, int32_t id)
 {
+    fprintf(stderr, "XXX COG PLATFORM - touch_on_up\n");
     if (data == NULL || touch == NULL) {
         return;
     }
@@ -868,6 +884,7 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
 static void
 touch_on_motion(void *data, struct wl_touch *touch, uint32_t time, int32_t id, wl_fixed_t x, wl_fixed_t y)
 {
+    fprintf(stderr, "XXX COG PLATFORM - touch_on_motion\n");
     if (data == NULL || touch == NULL) {
         return;
     }
@@ -927,6 +944,7 @@ static const struct wl_touch_listener touch_listener = {
 static void
 seat_on_capabilities(void *data, struct wl_seat *wl_seat, uint32_t capabilities)
 {
+    fprintf(stderr, "XXX COG PLATFORM - seat_on_capabilities\n");
     g_debug("Enumerating seat capabilities:");
 
     CogWlSeat *seat = data;
@@ -1342,12 +1360,17 @@ gamepad_provider_get_view_backend_for_gamepad(void *provider G_GNUC_UNUSED, void
 static void
 cog_wl_platform_on_notify_visible_view(CogWlPlatform *self, GParamSpec *pspec G_GNUC_UNUSED, CogViewport *viewport)
 {
+    fprintf(stderr, "XXX COG PLATFORM - cog_wl_platform_on_notify_visible_view BEGIN\n");
     g_assert(viewport);
 
     g_assert(COG_IS_PLATFORM(self));
     g_assert(COG_IS_VIEWPORT(viewport));
 
     CogWlView *view = (CogWlView *) cog_viewport_get_visible_view(viewport);
+    // fprintf(stderr, "%s: XXX COG PLATFORM Visible view %p. Forcing wpe_view_backend_exportable_fdo_dispatch_frame_complete if not NULL \n", G_STRFUNC, view);
+    // if (view) {
+    //     wpe_view_backend_exportable_fdo_dispatch_frame_complete(view->exportable);
+    // }
     g_debug("%s: Visible view %p.", G_STRFUNC, view);
 
     if (!view)
@@ -1363,14 +1386,18 @@ cog_wl_platform_on_notify_visible_view(CogWlPlatform *self, GParamSpec *pspec G_
     wpe_view_backend_add_activity_state(cog_view_get_backend((CogView *) view), wpe_view_activity_state_focused);
 
     if (!view->image)
+    {
+        fprintf(stderr, "XXX COG PLATFORM - cog_wl_platform_on_notify_visible_view - No image to show, skipping update - END\n");
         return g_debug("%s: No image to show, skipping update.", G_STRFUNC);
-
+    }
     cog_wl_view_update_surface_contents(view);
+    fprintf(stderr, "XXX COG PLATFORM - cog_wl_platform_on_notify_visible_view END\n");
 }
 
 static void
 cog_wl_platform_on_create_viewport(CogWlPlatform *platform, CogViewport *viewport, CogShell *shell)
 {
+    fprintf(stderr, "XXX COG PLATFORM - cog_wl_platform_on_create_viewport\n");
     g_assert(COG_IS_VIEWPORT(viewport));
     cog_wl_viewport_create_window(COG_WL_VIEWPORT(viewport), NULL);
 
@@ -1416,6 +1443,7 @@ cog_wl_platform_setup(CogPlatform *platform, CogShell *shell, const char *params
 #endif
 
     cog_gamepad_setup(gamepad_provider_get_view_backend_for_gamepad);
+    fprintf(stderr, "XXX COG PLATFORM - cog_wl_platform_setup\n");
     return TRUE;
 }
 
