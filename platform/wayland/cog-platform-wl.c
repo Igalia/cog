@@ -275,6 +275,7 @@ pointer_on_enter(void              *data,
 #ifdef COG_USE_WAYLAND_CURSOR
     cog_wl_seat_set_cursor(seat, CURSOR_LEFT_PTR);
 #endif /* COG_USE_WAYLAND_CURSOR */
+    fprintf(stderr, "XXX COG PLATFORM - pointer_on_enter - end\n");
 }
 
 static void
@@ -292,7 +293,6 @@ pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct
         return;
     }
 
-
     if (pointer != seat->pointer_obj) {
         g_critical("%s: Got pointer %p, expected %p.", G_STRFUNC, pointer, seat->pointer_obj);
         return;
@@ -301,6 +301,8 @@ pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct
     // seat->pointer_target = NULL;
     // seat->pointer.serial = serial;
     // seat->pointer.surface = NULL;
+
+    fprintf(stderr, "XXX COG PLATFORM - pointer_on_leave - end\n");
 }
 
 static void
@@ -341,6 +343,8 @@ pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixe
 
     if (view)
         wpe_view_backend_dispatch_pointer_event(cog_view_get_backend(view), &event);
+
+    fprintf(stderr, "XXX COG PLATFORM - pointer_on_motion - end - view<%p>\n", view);
 }
 
 static void
@@ -403,6 +407,8 @@ pointer_on_button(void              *data,
 
     if (view)
         wpe_view_backend_dispatch_pointer_event(cog_view_get_backend(view), &event);
+
+    fprintf(stderr, "XXX COG PLATFORM - pointer_on_button - end - view<%p>\n", view);
 }
 
 static void
@@ -437,6 +443,7 @@ dispatch_axis_event(CogWlSeat *seat)
     seat->axis.has_delta = false;
     seat->axis.time = 0;
     seat->axis.x_delta = seat->axis.y_delta = 0;
+    fprintf(stderr, "XXX COG PLATFORM - dispatch_axis_event - end - view<%p>\n",  view);
 }
 
 static inline bool
@@ -478,6 +485,8 @@ pointer_on_axis(void *data, struct wl_pointer *pointer, uint32_t time, uint32_t 
 
     if (!pointer_uses_frame_event(pointer))
         dispatch_axis_event(seat);
+
+    fprintf(stderr, "XXX COG PLATFORM - pointer_on_axis - end\n");
 }
 
 #ifdef WL_POINTER_FRAME_SINCE_VERSION
@@ -648,7 +657,7 @@ keyboard_on_key(void               *data,
                 uint32_t            key,
                 uint32_t            state)
 {
-    fprintf(stderr, "XXX COG PLATFORM - pointer_on_axis\n");
+    fprintf(stderr, "XXX COG PLATFORM - keyboard_on_key\n");
     CogWlSeat *seat = data;
 
     if (wl_keyboard != seat->keyboard_obj) {
@@ -689,6 +698,7 @@ keyboard_on_key(void               *data,
         seat->keyboard.repeat_data.event_source =
             g_timeout_add(seat->keyboard.repeat_info.delay, (GSourceFunc) repeat_delay_timeout, seat);
     }
+    fprintf(stderr, "XXX COG PLATFORM - keyboard_on_key - end\n");
 }
 
 static void
@@ -726,6 +736,7 @@ keyboard_on_modifiers(void               *data,
     if (xkb_state_mod_index_is_active(seat->xkb.state, seat->xkb.indexes.shift, component)) {
         seat->xkb.modifiers |= wpe_input_keyboard_modifier_shift;
     }
+    fprintf(stderr, "XXX COG PLATFORM - keyboard_on_modifiers - end\n");
 }
 
 static void
@@ -820,6 +831,8 @@ touch_on_down(void              *data,
     CogView *view = cog_viewport_get_visible_view((CogViewport *) viewport);
     if (view)
         wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
+
+    fprintf(stderr, "XXX COG PLATFORM - touch_on_down - end - view<%p>\n", view);
 }
 
 static void
@@ -879,6 +892,7 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
         wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
 
     memset(&seat->touch.points[id], 0x00, sizeof(struct wpe_input_touch_event_raw));
+    fprintf(stderr, "XXX COG PLATFORM - touch_on_down - end - view<%p>\n",  view);
 }
 
 static void
@@ -920,6 +934,7 @@ touch_on_motion(void *data, struct wl_touch *touch, uint32_t time, int32_t id, w
     CogView       *view = cog_viewport_get_visible_view((CogViewport *) viewport);
     if (view)
         wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
+    fprintf(stderr, "XXX COG PLATFORM - touch_on_motion - end - view<%p>\n", view);
 }
 
 static void
