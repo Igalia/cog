@@ -892,7 +892,7 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
         wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
 
     memset(&seat->touch.points[id], 0x00, sizeof(struct wpe_input_touch_event_raw));
-    fprintf(stderr, "XXX COG PLATFORM - touch_on_down - end - view<%p>\n",  view);
+    fprintf(stderr, "XXX COG PLATFORM - touch_on_up - end - view<%p>\n",  view);
 }
 
 static void
