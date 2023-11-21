@@ -1382,10 +1382,10 @@ cog_wl_platform_on_notify_visible_view(CogWlPlatform *self, GParamSpec *pspec G_
     g_assert(COG_IS_VIEWPORT(viewport));
 
     CogWlView *view = (CogWlView *) cog_viewport_get_visible_view(viewport);
-    // fprintf(stderr, "%s: XXX COG PLATFORM Visible view %p. Forcing wpe_view_backend_exportable_fdo_dispatch_frame_complete if not NULL \n", G_STRFUNC, view);
-    // if (view) {
-    //     wpe_view_backend_exportable_fdo_dispatch_frame_complete(view->exportable);
-    // }
+    fprintf(stderr, "%s: XXX COG PLATFORM Visible view %p. Forcing wpe_view_backend_exportable_fdo_dispatch_frame_complete if not NULL \n", G_STRFUNC, view);
+    if (view) {
+        wpe_view_backend_exportable_fdo_dispatch_frame_complete(view->exportable);
+    }
     g_debug("%s: Visible view %p.", G_STRFUNC, view);
 
     if (!view)
