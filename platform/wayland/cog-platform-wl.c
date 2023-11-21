@@ -932,6 +932,14 @@ touch_on_motion(void *data, struct wl_touch *touch, uint32_t time, int32_t id, w
 
     CogWlViewport *viewport = COG_WL_VIEWPORT(seat->touch_target);
     CogView       *view = cog_viewport_get_visible_view((CogViewport *) viewport);
+    if (view) {
+        const int32_t state = wpe_view_backend_get_activity_state(cog_view_get_backend((CogView *) view));
+        fprintf(stderr, "XXX COG_WL_PLATFORM - touch_on_motion - view state: state & wpe_view_activity_state_visible = %d\n", state & wpe_view_activity_state_visible);
+        fprintf(stderr, "XXX COG_WL_PLATFORM - touch_on_motion - view state: state & wpe_view_activity_state_focused = %d\n", state & wpe_view_activity_state_focused);
+        fprintf(stderr, "XXX COG_WL_PLATFORM - touch_on_motion - view state: state & wpe_view_activity_state_in_window = %d\n", state & wpe_view_activity_state_in_window);
+    }
+    if (view)
+        wpe_view_backend_add_activity_state(cog_view_get_backend((CogView *) view), wpe_view_activity_state_focused);
     if (view)
         wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
     fprintf(stderr, "XXX COG PLATFORM - touch_on_motion - end - view<%p>\n", view);
