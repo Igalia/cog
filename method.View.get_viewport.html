@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Viewport::remove</title>
+  <title>Cog.View.get_viewport</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.Viewport::remove"/>
-  <meta property="og:description" content="Reference for signal Cog.Viewport::remove"/>
-  <meta name="twitter:title" content="Cog.Viewport::remove"/>
-  <meta name="twitter:description" content="Reference for signal Cog.Viewport::remove"/>
+  <meta priority="og:title" content="Cog.View.get_viewport"/>
+  <meta priority="og:description" content="Reference for Cog.View.get_viewport"/>
+  <meta name="twitter:title" content="Cog.View.get_viewport"/>
+  <meta name="twitter:description" content="Reference for Cog.View.get_viewport"/>
 
 
   
@@ -82,16 +82,22 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <div class="section">
   <h5>Type</h5>
   <div class="links">
-    <a href="class.Viewport.html">Viewport</a>
+    <a href="class.View.html">View</a>
   </div>
 </div>
 <div class="section">
-  <h5>Signals</h5>
+  <h5>Methods</h5>
   <div class="links">
   
-    <a class="signal" href="signal.Viewport.add.html">add</a>
+    <a class="method" href="method.View.get_backend.html">get_backend</a>
   
-    <a class="signal current" href="signal.Viewport.remove.html">remove</a>
+    <a class="method" href="method.View.get_use_key_bindings.html">get_use_key_bindings</a>
+  
+    <a class="method current" href="method.View.get_viewport.html">get_viewport</a>
+  
+    <a class="method" href="method.View.handle_key_event.html">handle_key_event</a>
+  
+    <a class="method" href="method.View.set_use_key_bindings.html">set_use_key_bindings</a>
   
   </div>
 </div>
@@ -103,23 +109,24 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Signal</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Viewport.html">Viewport</a>::remove</h1>
+    <h3>Method</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.View.html">View</a><span class="sep"></span>get_viewport</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 id="declaration">
+      <h4 style="display:flex;" id="declaration">
         Declaration
-        <a href="#declaration" class="anchor"></a>
+        <a class="anchor" href="#declaration"></a>
+        
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.h#L56">[src]</a>
+        
       </h4>
 
-      <div class="docblock">
-        <pre><code><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"></span>
-<span class="n">remove</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="n">CogViewport</span><span class="o">*</span><span class="w"> </span><span class="n">self</span><span class="p">,</span><span class="w"></span>
-<span class="w">  </span><span class="n">CogView</span><span class="o">*</span><span class="w"> </span><span class="n">view</span><span class="p">,</span><span class="w"></span>
-<span class="w">  </span><span class="n">gpointer</span><span class="w"> </span><span class="n">user_data</span><span class="w"></span>
+      <div class="docblock c-decl">
+        <pre><code><div class="highlight"><pre><span></span><span class="n">CogViewport</span><span class="o">*</span><span class="w"></span>
+<span class="n">cog_view_get_viewport</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogView</span><span class="o">*</span><span class="w"> </span><span class="n">self</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
 </code></pre>
@@ -127,23 +134,23 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     <div class="description toggle-wrapper">
-      <h4 id="description" style="display:flex;">
+      <h4 style="display:flex;" id="description">
         Description
-        <a href="#description" class="anchor"></a>
+        <a class="anchor" href="#description"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-viewport.c#L205">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.c#L441">[src]</a>
         
       </h4>
 
       <div class="docblock">
-        <p>Emitted after a view has been removed from the&nbsp;viewport.</p>
+        <p>Gets viewport where the view is&nbsp;attached.</p>
       </div>
 
       <div class="docblock">
         <table>
-          <tr><td>Default handler:</td><td> <p>The default handler is called before the handlers added via <code>g_signal_connect()</code>.</p></td></tr>
           
           
+          <tr><td>Available since:</td><td>0.20</td></tr>
           
           
           
@@ -156,39 +163,33 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     
-    <div class="parameters toggle-wrapper">
-      <h4 id="parameters">
-        Parameters
-        <a href="#parameters" class="anchor"></a>
+
+    
+    <div class="return-value toggle-wrapper">
+      <h4 id="return-value">
+        Return value
+        <a href="#return-value" class="anchor"></a>
       </h4>
 
       <div class="docblock">
-        <table class="arguments">
-          
+        <table class="returns">
           <tr class="arg-name">
-            <td><code>view</code></td>
-            <td><a href="class.View.html"><code>CogView</code></a></td>
+            <td>Returns:</td>
+            <td><a href="class.Viewport.html"><code>CogViewport</code></a></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td><p>The view that was removed from the&nbsp;viewport.</p></td>
+            <td><p>The viewport what the view&nbsp;belongs.</p></td>
           </tr>
           
           
           
-          
-          
-          
-          
-          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
-          
-          
+          <tr><td>&nbsp;</td><td title="transfer: full">The caller of the method takes ownership of the data, and is responsible for freeing it.</td></tr>
+          <tr><td>&nbsp;</td><td>The return value can be <code>NULL</code>.</td></tr>
           
         </table>
       </div>
     </div>
-    
-
     
 
   </section>
