@@ -11,7 +11,7 @@
 #include <wpe/fdo-egl.h>
 #include <wpe/fdo.h>
 
-#include "../common/cursors.h"
+#include "../common/cog-cursors.h"
 #include "../common/egl-proc-address.h"
 
 #include <EGL/egl.h>
@@ -489,13 +489,13 @@ on_mouse_target_changed(WebKitWebView *view, WebKitHitTestResult *hitTestResult,
 #ifdef COG_USE_WAYLAND_CURSOR
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     if (webkit_hit_test_result_context_is_link(hitTestResult)) {
-        cog_wl_seat_set_cursor(platform->display->seat_default, CURSOR_HAND);
+        cog_wl_seat_set_cursor(platform->display->seat_default, COG_CURSOR_TYPE_HAND);
     } else if (webkit_hit_test_result_context_is_editable(hitTestResult)) {
-        cog_wl_seat_set_cursor(platform->display->seat_default, CURSOR_TEXT);
+        cog_wl_seat_set_cursor(platform->display->seat_default, COG_CURSOR_TYPE_TEXT);
     } else if (webkit_hit_test_result_context_is_selection(hitTestResult)) {
-        cog_wl_seat_set_cursor(platform->display->seat_default, CURSOR_TEXT);
+        cog_wl_seat_set_cursor(platform->display->seat_default, COG_CURSOR_TYPE_TEXT);
     } else {
-        cog_wl_seat_set_cursor(platform->display->seat_default, CURSOR_LEFT_PTR);
+        cog_wl_seat_set_cursor(platform->display->seat_default, COG_CURSOR_TYPE_DEFAULT);
     }
 #endif /* COG_USE_WAYLAND_CURSOR */
 }

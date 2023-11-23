@@ -18,8 +18,8 @@
 #if COG_HAVE_LIBPORTAL
 #    include "../common/cog-file-chooser.h"
 #endif /* COG_HAVE_LIBPORTAL */
+#include "../common/cog-cursors.h"
 #include "../common/cog-gl-utils.h"
-#include "../common/cursors.h"
 #include "cog-gtk-settings-dialog.h"
 
 #define DEFAULT_WIDTH 1280
@@ -753,15 +753,15 @@ on_back_forward_changed(WebKitBackForwardList* back_forward_list,
         webkit_web_view_can_go_forward(win->web_view));
 }
 static void
-set_cursor(enum cursor_type type)
+set_cursor(CogCursorType type)
 {
     g_autoptr(GdkCursor) cursor = NULL;
-    for (int i = 0; !cursor && i < G_N_ELEMENTS(cursor_names[type]) && cursor_names[type][i]; i++) {
-        cursor = gdk_cursor_new_from_name(cursor_names[type][i], NULL);
-    }
+    CogCursorNames       cursor_names = cog_cursors_get_names(type);
+    for (unsigned i = 0; !cursor && cursor_names[i]; i++)
+        cursor = gdk_cursor_new_from_name(cursor_names[i], NULL);
 
     if (!cursor) {
-        g_warning("Could not get %s cursor", cursor_names[type][0]);
+        g_warning("Could not get %s cursor", cursor_names[0]);
         return;
     }
 
@@ -772,13 +772,13 @@ static void
 on_mouse_target_changed(WebKitWebView *view, WebKitHitTestResult *hitTestResult, guint mouseModifiers)
 {
     if (webkit_hit_test_result_context_is_link(hitTestResult)) {
-        set_cursor(CURSOR_HAND);
+        set_cursor(COG_CURSOR_TYPE_HAND);
     } else if (webkit_hit_test_result_context_is_editable(hitTestResult)) {
-        set_cursor(CURSOR_TEXT);
+        set_cursor(COG_CURSOR_TYPE_TEXT);
     } else if (webkit_hit_test_result_context_is_selection(hitTestResult)) {
-        set_cursor(CURSOR_TEXT);
+        set_cursor(COG_CURSOR_TYPE_TEXT);
     } else {
-        set_cursor(CURSOR_LEFT_PTR);
+        set_cursor(COG_CURSOR_TYPE_DEFAULT);
     }
 }
 

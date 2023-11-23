@@ -32,7 +32,7 @@
 #include <xkbcommon/xkbcommon-compose.h>
 #include <xkbcommon/xkbcommon.h>
 
-#include "../common/cursors.h"
+#include "../common/cog-cursors.h"
 #include "../common/egl-proc-address.h"
 #include "os-compatibility.h"
 
@@ -257,7 +257,7 @@ pointer_on_enter(void              *data,
     seat->pointer.surface = surface;
 
 #ifdef COG_USE_WAYLAND_CURSOR
-    cog_wl_seat_set_cursor(seat, CURSOR_LEFT_PTR);
+    cog_wl_seat_set_cursor(seat, COG_CURSOR_TYPE_DEFAULT);
 #endif /* COG_USE_WAYLAND_CURSOR */
 }
 

@@ -9,6 +9,7 @@
 #pragma once
 
 #include "../../core/cog.h"
+#include "../common/cog-cursors.h"
 
 #if COG_HAVE_LIBPORTAL
 #    include "cog-xdp-parent-wl.h"
@@ -307,7 +308,7 @@ void        cog_wl_popup_update(CogWlPopup *);
 
 CogWlSeat *cog_wl_seat_create(struct wl_seat *, uint32_t);
 void       cog_wl_seat_destroy(CogWlSeat *);
-void       cog_wl_seat_set_cursor(CogWlSeat *, enum cursor_type);
+void       cog_wl_seat_set_cursor(CogWlSeat *, CogCursorType);
 uint32_t   cog_wl_seat_get_serial(CogWlSeat *);
 
 void cog_wl_text_input_clear(CogWlPlatform *);

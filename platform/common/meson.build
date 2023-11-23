@@ -11,6 +11,7 @@ endif
 
 cogplatformcommon_lib = static_library('cogplatformcommon',
     'cog-gl-utils.c',
+    'cog-cursors.c',
     cogplatformcommon_sources,
     dependencies: cogplatformcommon_dependencies,
     build_by_default: false,

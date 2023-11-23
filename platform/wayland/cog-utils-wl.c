@@ -17,7 +17,7 @@
 #include <xkbcommon/xkbcommon-compose.h>
 #include <xkbcommon/xkbcommon.h>
 
-#include "../common/cursors.h"
+#include "../common/cog-cursors.h"
 
 #include "cog-im-context-wl-v1.h"
 #include "cog-im-context-wl.h"
@@ -446,7 +446,7 @@ cog_wl_seat_get_serial(CogWlSeat *seat)
 
 #ifdef COG_USE_WAYLAND_CURSOR
 void
-cog_wl_seat_set_cursor(CogWlSeat *seat, enum cursor_type type)
+cog_wl_seat_set_cursor(CogWlSeat *seat, CogCursorType cursor_type)
 {
     CogWlDisplay *display = seat->display;
 
@@ -454,12 +454,12 @@ cog_wl_seat_set_cursor(CogWlSeat *seat, enum cursor_type type)
         return;
 
     struct wl_cursor *cursor = NULL;
-    for (int i = 0; !cursor && i < G_N_ELEMENTS(cursor_names[type]) && cursor_names[type][i]; i++) {
-        cursor = wl_cursor_theme_get_cursor(display->cursor_theme, cursor_names[type][i]);
-    }
+    CogCursorNames    cursor_names = cog_cursors_get_names(cursor_type);
+    for (int i = 0; !cursor && cursor_names[i]; i++)
+        cursor = wl_cursor_theme_get_cursor(display->cursor_theme, cursor_names[i]);
 
     if (!cursor) {
-        g_warning("Could not get %s cursor", cursor_names[type][0]);
+        g_warning("Could not get %s cursor", cursor_names[0]);
         return;
     }
 
