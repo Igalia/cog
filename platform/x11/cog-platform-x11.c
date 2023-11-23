@@ -905,12 +905,13 @@ on_mouse_target_changed(WebKitWebView *view, WebKitHitTestResult *hitTestResult,
     for (unsigned i = 0; cursor == XCB_CURSOR_NONE && cursor_names[i]; i++)
         cursor = xcb_cursor_load_cursor(ctx, cursor_names[i]);
 
-    if (cursor == XCB_CURSOR_NONE) {
+    if (cursor != XCB_CURSOR_NONE) {
+        xcb_change_window_attributes(s_display->xcb.connection, s_window->xcb.window, XCB_CW_CURSOR, &cursor);
+        xcb_free_cursor(s_display->xcb.connection, cursor);
+    } else {
         g_warning("Could not load %s cursor", cursor_names[0]);
     }
 
-    xcb_change_window_attributes(s_display->xcb.connection, s_window->xcb.window, XCB_CW_CURSOR, &cursor);
-    xcb_free_cursor(s_display->xcb.connection, cursor);
     xcb_cursor_context_free(ctx);
 }
 
