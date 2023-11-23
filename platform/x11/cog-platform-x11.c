@@ -23,8 +23,8 @@
 #if COG_HAVE_LIBPORTAL
 #    include "../common/cog-file-chooser.h"
 #endif /* COG_HAVE_LIBPORTAL */
+#include "../common/cog-cursors.h"
 #include "../common/cog-gl-utils.h"
-#include "../common/cursors.h"
 #include "../common/egl-proc-address.h"
 #if COG_HAVE_LIBPORTAL
 #    include "cog-xdp-parent-x11.h"
@@ -891,7 +891,7 @@ on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
 #endif /* COG_HAVE_LIBPORTAL */
 
 static void
-set_cursor(enum cursor_type type)
+set_cursor(CogCursorType cursor_type)
 {
     xcb_cursor_context_t *ctx;
     if (xcb_cursor_context_new(s_display->xcb.connection, s_display->xcb.screen, &ctx) < 0) {
@@ -900,12 +900,12 @@ set_cursor(enum cursor_type type)
     }
 
     xcb_cursor_t cursor = XCB_CURSOR_NONE;
-    for (int i = 0; cursor == XCB_CURSOR_NONE && i < G_N_ELEMENTS(cursor_names[type]) && cursor_names[type][i]; i++) {
-        cursor = xcb_cursor_load_cursor(ctx, cursor_names[type][i]);
-    }
+    CogCursorNames cursor_names = cog_cursors_get_names(cursor_type);
+    for (unsigned i = 0; cursor == XCB_CURSOR_NONE && cursor_names[i]; i++)
+        cursor = xcb_cursor_load_cursor(ctx, cursor_names[i]);
 
     if (cursor == XCB_CURSOR_NONE) {
-        g_warning("Could not load %s cursor", cursor_names[type][0]);
+        g_warning("Could not load %s cursor", cursor_names[0]);
     }
 
     xcb_change_window_attributes(s_display->xcb.connection, s_window->xcb.window, XCB_CW_CURSOR, &cursor);
@@ -917,13 +917,13 @@ static void
 on_mouse_target_changed(WebKitWebView *view, WebKitHitTestResult *hitTestResult, guint mouseModifiers)
 {
     if (webkit_hit_test_result_context_is_link(hitTestResult)) {
-        set_cursor(CURSOR_HAND);
+        set_cursor(COG_CURSOR_TYPE_HAND);
     } else if (webkit_hit_test_result_context_is_editable(hitTestResult)) {
-        set_cursor(CURSOR_TEXT);
+        set_cursor(COG_CURSOR_TYPE_TEXT);
     } else if (webkit_hit_test_result_context_is_selection(hitTestResult)) {
-        set_cursor(CURSOR_TEXT);
+        set_cursor(COG_CURSOR_TYPE_TEXT);
     } else {
-        set_cursor(CURSOR_LEFT_PTR);
+        set_cursor(COG_CURSOR_TYPE_DEFAULT);
     }
 }
 
