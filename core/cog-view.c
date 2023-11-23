@@ -125,8 +125,8 @@ cog_view_class_init(CogViewClass *klass)
      *
      * Since: 0.20
      */
-    s_properties[PROP_VIEWPORT] = g_param_spec_object("viewport", NULL, NULL, G_TYPE_OBJECT,
-                                                      G_PARAM_READABLE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS);
+    s_properties[PROP_VIEWPORT] =
+        g_param_spec_object("viewport", NULL, NULL, G_TYPE_OBJECT, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
     g_object_class_install_properties(object_class, N_PROPERTIES, s_properties);
 }
