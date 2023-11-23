@@ -257,7 +257,7 @@ pointer_on_enter(void              *data,
     seat->pointer.surface = surface;
 
 #ifdef COG_USE_WAYLAND_CURSOR
-    cog_wl_seat_set_cursor(seat, COG_CURSOR_TYPE_DEFAULT);
+    cog_wl_seat_set_cursor(seat, NULL);
 #endif /* COG_USE_WAYLAND_CURSOR */
 }
 

@@ -891,7 +891,7 @@ on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
 #endif /* COG_HAVE_LIBPORTAL */
 
 static void
-set_cursor(CogCursorType cursor_type)
+on_mouse_target_changed(WebKitWebView *view, WebKitHitTestResult *hitTestResult, guint mouseModifiers)
 {
     xcb_cursor_context_t *ctx;
     if (xcb_cursor_context_new(s_display->xcb.connection, s_display->xcb.screen, &ctx) < 0) {
@@ -899,8 +899,9 @@ set_cursor(CogCursorType cursor_type)
         return;
     }
 
+    CogCursorNames cursor_names = cog_cursors_get_names_for_hit_test(hitTestResult);
+
     xcb_cursor_t cursor = XCB_CURSOR_NONE;
-    CogCursorNames cursor_names = cog_cursors_get_names(cursor_type);
     for (unsigned i = 0; cursor == XCB_CURSOR_NONE && cursor_names[i]; i++)
         cursor = xcb_cursor_load_cursor(ctx, cursor_names[i]);
 
@@ -911,20 +912,6 @@ set_cursor(CogCursorType cursor_type)
     xcb_change_window_attributes(s_display->xcb.connection, s_window->xcb.window, XCB_CW_CURSOR, &cursor);
     xcb_free_cursor(s_display->xcb.connection, cursor);
     xcb_cursor_context_free(ctx);
-}
-
-static void
-on_mouse_target_changed(WebKitWebView *view, WebKitHitTestResult *hitTestResult, guint mouseModifiers)
-{
-    if (webkit_hit_test_result_context_is_link(hitTestResult)) {
-        set_cursor(COG_CURSOR_TYPE_HAND);
-    } else if (webkit_hit_test_result_context_is_editable(hitTestResult)) {
-        set_cursor(COG_CURSOR_TYPE_TEXT);
-    } else if (webkit_hit_test_result_context_is_selection(hitTestResult)) {
-        set_cursor(COG_CURSOR_TYPE_TEXT);
-    } else {
-        set_cursor(COG_CURSOR_TYPE_DEFAULT);
-    }
 }
 
 static void

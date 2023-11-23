@@ -488,15 +488,7 @@ on_mouse_target_changed(WebKitWebView *view, WebKitHitTestResult *hitTestResult,
 {
 #ifdef COG_USE_WAYLAND_CURSOR
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
-    if (webkit_hit_test_result_context_is_link(hitTestResult)) {
-        cog_wl_seat_set_cursor(platform->display->seat_default, COG_CURSOR_TYPE_HAND);
-    } else if (webkit_hit_test_result_context_is_editable(hitTestResult)) {
-        cog_wl_seat_set_cursor(platform->display->seat_default, COG_CURSOR_TYPE_TEXT);
-    } else if (webkit_hit_test_result_context_is_selection(hitTestResult)) {
-        cog_wl_seat_set_cursor(platform->display->seat_default, COG_CURSOR_TYPE_TEXT);
-    } else {
-        cog_wl_seat_set_cursor(platform->display->seat_default, COG_CURSOR_TYPE_DEFAULT);
-    }
+    cog_wl_seat_set_cursor(platform->display->seat_default, hitTestResult);
 #endif /* COG_USE_WAYLAND_CURSOR */
 }
 

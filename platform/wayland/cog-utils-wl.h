@@ -308,7 +308,7 @@ void        cog_wl_popup_update(CogWlPopup *);
 
 CogWlSeat *cog_wl_seat_create(struct wl_seat *, uint32_t);
 void       cog_wl_seat_destroy(CogWlSeat *);
-void       cog_wl_seat_set_cursor(CogWlSeat *, CogCursorType);
+void       cog_wl_seat_set_cursor(CogWlSeat *, WebKitHitTestResult *);
 uint32_t   cog_wl_seat_get_serial(CogWlSeat *);
 
 void cog_wl_text_input_clear(CogWlPlatform *);

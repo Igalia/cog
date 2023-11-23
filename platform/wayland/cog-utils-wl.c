@@ -446,15 +446,17 @@ cog_wl_seat_get_serial(CogWlSeat *seat)
 
 #ifdef COG_USE_WAYLAND_CURSOR
 void
-cog_wl_seat_set_cursor(CogWlSeat *seat, CogCursorType cursor_type)
+cog_wl_seat_set_cursor(CogWlSeat *seat, WebKitHitTestResult *hit_test)
 {
     CogWlDisplay *display = seat->display;
 
     if (!display->cursor_theme || !display->cursor_surface)
         return;
 
+    CogCursorNames cursor_names =
+        hit_test ? cog_cursors_get_names_for_hit_test(hit_test) : cog_cursors_get_names(COG_CURSOR_TYPE_DEFAULT);
+
     struct wl_cursor *cursor = NULL;
-    CogCursorNames    cursor_names = cog_cursors_get_names(cursor_type);
     for (int i = 0; !cursor && cursor_names[i]; i++)
         cursor = wl_cursor_theme_get_cursor(display->cursor_theme, cursor_names[i]);
 
