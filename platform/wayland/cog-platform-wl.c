@@ -797,6 +797,12 @@ touch_on_down(void              *data,
     struct wpe_input_touch_event event = {seat->touch.points, 10, raw_event.type, raw_event.id, raw_event.time};
 
     CogView *view = cog_viewport_get_visible_view((CogViewport *) viewport);
+
+    // XXX: Force a frame complete.
+    if (view) {
+        wpe_view_backend_exportable_fdo_dispatch_frame_complete(((CogWlView *) view)->exportable);
+    }
+
     if (view)
         wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
 }
