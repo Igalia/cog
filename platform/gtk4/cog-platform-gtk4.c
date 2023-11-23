@@ -752,11 +752,13 @@ on_back_forward_changed(WebKitBackForwardList* back_forward_list,
     gtk_widget_set_sensitive(win->forward_button,
         webkit_web_view_can_go_forward(win->web_view));
 }
+
 static void
-set_cursor(CogCursorType type)
+on_mouse_target_changed(WebKitWebView *view, WebKitHitTestResult *hitTestResult, guint mouseModifiers)
 {
+    CogCursorNames cursor_names = cog_cursors_get_names_for_hit_test(hitTestResult);
+
     g_autoptr(GdkCursor) cursor = NULL;
-    CogCursorNames       cursor_names = cog_cursors_get_names(type);
     for (unsigned i = 0; !cursor && cursor_names[i]; i++)
         cursor = gdk_cursor_new_from_name(cursor_names[i], NULL);
 
@@ -766,20 +768,6 @@ set_cursor(CogCursorType type)
     }
 
     gtk_widget_set_cursor(win.gtk_window, cursor);
-}
-
-static void
-on_mouse_target_changed(WebKitWebView *view, WebKitHitTestResult *hitTestResult, guint mouseModifiers)
-{
-    if (webkit_hit_test_result_context_is_link(hitTestResult)) {
-        set_cursor(COG_CURSOR_TYPE_HAND);
-    } else if (webkit_hit_test_result_context_is_editable(hitTestResult)) {
-        set_cursor(COG_CURSOR_TYPE_TEXT);
-    } else if (webkit_hit_test_result_context_is_selection(hitTestResult)) {
-        set_cursor(COG_CURSOR_TYPE_TEXT);
-    } else {
-        set_cursor(COG_CURSOR_TYPE_DEFAULT);
-    }
 }
 
 #if COG_HAVE_LIBPORTAL
