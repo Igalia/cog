@@ -86,16 +86,16 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   </div>
 </div>
 <div class="section">
-  <h5>Virtual methods</h5>
+  <h5>Functions</h5>
   <div class="links">
   
-    <a class="method current" href="vfunc.Platform.create_im_context.html">create_im_context</a>
+    <a class="method current" href="type_func.Platform.create_im_context.html">create_im_context</a>
   
-    <a class="method" href="vfunc.Platform.get_view_backend.html">get_view_backend</a>
+    <a class="method" href="type_func.Platform.egl_error_quark.html">egl_error_quark</a>
   
-    <a class="method" href="vfunc.Platform.init_web_view.html">init_web_view</a>
+    <a class="method" href="type_func.Platform.get.html">get</a>
   
-    <a class="method" href="vfunc.Platform.setup.html">setup</a>
+    <a class="method" href="type_func.Platform.wpe_error_quark.html">wpe_error_quark</a>
   
   </div>
 </div>
@@ -107,24 +107,24 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Virtual Method</h3>
+    <h3>Function</h3>
     <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a><span class="sep"></span>create_im_context</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 id="declaration">
+      <h4 id="declaration" style="display:flex;">
         Declaration
         <a href="#declaration" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-platform.h#L50">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-platform.h#L72">[src]</a>
         
       </h4>
 
-      <div class="docblock c-decl">
+      <div class="docblock">
         <pre><code><div class="highlight"><pre><span></span><span class="n">WebKitInputMethodContext</span><span class="o">*</span><span class="w"></span>
-<span class="n">create_im_context</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="n">CogPlatform</span><span class="o">*</span><span class="w"> </span><span class="n">arg0</span><span class="w"></span>
+<span class="n">cog_platform_create_im_context</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogViewport</span><span class="o">*</span><span class="w"> </span><span class="n">viewport</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
 </code></pre>
@@ -132,7 +132,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     <div class="description toggle-wrapper">
-      <h4 id="description">
+      <h4 id="description" style="display:flex;">
         Description
         <a href="#description" class="anchor"></a>
         
@@ -153,6 +153,38 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       
     </div>
 
+    
+    <div class="parameters toggle-wrapper">
+      <h4 id="parameters">
+        Parameters
+        <a href="#parameters" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+        <table class="arguments">
+          
+          <tr class="arg-name">
+            <td><code>viewport</code></td>
+            <td><a href="class.Viewport.html"><code>CogViewport</code></a></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td>No description available.</td>
+          </tr>
+          
+          
+          
+          
+          
+          
+          
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
+          
+          
+          
+        </table>
+      </div>
+    </div>
     
 
     
@@ -182,7 +214,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       </div>
     </div>
     
-
   </section>
 </section>
 

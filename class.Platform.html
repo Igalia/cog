@@ -93,6 +93,8 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <h5>Functions</h5>
   <div class="links">
   
+    <a class="func" href="type_func.Platform.create_im_context.html">create_im_context</a>
+  
     <a class="func" href="type_func.Platform.egl_error_quark.html">egl_error_quark</a>
   
     <a class="func" href="type_func.Platform.get.html">get</a>
@@ -107,8 +109,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <div class="section">
   <h5>Instance methods</h5>
   <div class="links">
-  
-    <a class="method" href="method.Platform.create_im_context.html">create_im_context</a>
   
     <a class="method" href="method.Platform.get_view_backend.html">get_view_backend</a>
   
@@ -130,8 +130,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <div class="section">
   <h5>Virtual methods</h5>
   <div class="links">
-  
-    <a class="method" href="vfunc.Platform.create_im_context.html">create_im_context</a>
   
     <a class="method" href="vfunc.Platform.get_view_backend.html">get_view_backend</a>
   
@@ -221,6 +219,16 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       <div class="docblock">
       
       <div class="">
+        <h6><a href="type_func.Platform.create_im_context.html">cog_platform_create_im_context</a></h6>
+
+        <div class="docblock">
+          No description available.
+        </div>
+
+        
+      </div>
+      
+      <div class="">
         <h6><a href="type_func.Platform.egl_error_quark.html">cog_platform_egl_error_quark</a></h6>
 
         <div class="docblock">
@@ -262,14 +270,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       </h4>
 
       <div class="docblock">
-      
-        <div class="">
-          <h6><a href="method.Platform.create_im_context.html">cog_platform_create_im_context</a></h6>
-          <div class="docblock">
-            No description available.
-          </div>
-          
-        </div>
       
         <div class="">
           <h6><a href="method.Platform.get_view_backend.html">cog_platform_get_view_backend</a></h6>
@@ -376,7 +376,7 @@ void
     WebKitWebView* arg1
   );
   WebKitInputMethodContext* (* create_im_context) (
-    CogPlatform* arg0
+    CogViewport* arg0
   );
   GType (* get_view_type) (
 void
@@ -456,7 +456,7 @@ void
         <tr>
           <td style="vertical-align:top"><code>create_im_context</code></td>
           <td style="vertical-align:top"><pre><code>WebKitInputMethodContext* (* create_im_context) (
-    CogPlatform* arg0
+    CogViewport* arg0
   )</code></pre></td>
         </tr>
         <tr>
@@ -500,16 +500,6 @@ void
       </h4>
 
       <div class="docblock">
-      
-      <div class="">
-        <h6 id="vfunc-create_im_context"><a href="vfunc.Platform.create_im_context.html">Cog.PlatformClass.create_im_context</a></h6>
-
-        <div class="docblock">
-          No description available.
-        </div>
-
-          
-      </div>
       
       <div class="">
         <h6 id="vfunc-get_view_backend"><a href="vfunc.Platform.get_view_backend.html">Cog.PlatformClass.get_view_backend</a></h6>
