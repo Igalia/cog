@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include <stdio.h>
 #include <errno.h>
 
 #include "../../core/cog.h"
@@ -273,7 +272,6 @@ cog_wl_viewport_dispose(GObject *object)
 {
     destroy_window(COG_WL_VIEWPORT(object));
 
-    fprintf(stderr, "XXX COG VIEWPORT - cog_wl_viewport_dispose : viewport: %p\n", object);
     G_OBJECT_CLASS(cog_wl_viewport_parent_class)->dispose(object);
 }
 
@@ -305,7 +303,6 @@ cog_wl_viewport_create_window(CogWlViewport *viewport, GError **error)
     CogWlDisplay  *display = platform->display;
 
     viewport->window.wl_surface = cog_wl_compositor_create_surface(display->compositor, viewport);
-    fprintf(stderr, "XXX COG VIEWPORT - cog_wl_viewport_create_window platform: %p viewport: %p wl_surface: %p\n", platform, viewport, viewport->window.wl_surface);
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     viewport->window.video_surfaces = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, destroy_video_surface);
@@ -451,12 +448,6 @@ cog_wl_viewport_exit_fullscreen(CogWlViewport *viewport)
 static void
 cog_wl_viewport_on_add(CogWlViewport *viewport G_GNUC_UNUSED, CogView *view)
 {
-    struct wpe_view_backend *backend = cog_view_get_backend(view);
-    fprintf(stderr, "XXXXX %s: JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ Visible view 2 view: %p backend: %p.", G_STRFUNC, view, backend);
-    // wpe_view_backend_add_activity_state(backend, wpe_view_activity_state_visible);
-    // // wpe_view_backend_add_activity_state(backend, wpe_view_activity_state_in_window);
-    // wpe_view_backend_add_activity_state(backend, wpe_view_activity_state_focused);
-
     cog_wl_view_resize((CogWlView *) view);
 }
 

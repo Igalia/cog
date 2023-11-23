@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include <stdio.h>
 #include "cog-view.h"
 #include "cog-platform.h"
 #include "cog-view-private.h"
@@ -413,8 +412,6 @@ cog_view_set_viewport(CogView *self, CogViewport *viewport)
     g_return_if_fail(COG_IS_VIEW(self));
 
     CogViewPrivate *priv = cog_view_get_instance_private(self);
-    fprintf(stderr, "XXX XXX cog_view_set_viewport - priv: %p\n", priv);
-    fprintf(stderr, "XXX XXX cog_view_set_viewport - viewport: %p\n", viewport);
 
     // Sets a reference to the viewport
     g_weak_ref_set(&priv->viewport, viewport);

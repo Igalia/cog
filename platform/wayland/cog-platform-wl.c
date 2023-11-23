@@ -9,7 +9,6 @@
 #include "../../core/cog.h"
 
 #include <glib-object.h>
-#include <stdio.h>
 #include <glib.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -250,8 +249,6 @@ pointer_on_enter(void              *data,
                  wl_fixed_t         fixed_x,
                  wl_fixed_t         fixed_y)
 {
-    fprintf(stderr, "XXX COG PLATFORM - pointer_on_enter\n");
-
     // We might be reading pending events after destroying the surface.
     if (!surface)
         return;
@@ -275,14 +272,11 @@ pointer_on_enter(void              *data,
 #ifdef COG_USE_WAYLAND_CURSOR
     cog_wl_seat_set_cursor(seat, NULL);
 #endif /* COG_USE_WAYLAND_CURSOR */
-    fprintf(stderr, "XXX COG PLATFORM - pointer_on_enter - end\n");
 }
 
 static void
 pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface)
 {
-    fprintf(stderr, "XXX COG PLATFORM - pointer_on_leave\n");
-
     if (data == NULL || pointer == NULL) {
         return;
     }
@@ -293,6 +287,7 @@ pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct
         return;
     }
 
+
     if (pointer != seat->pointer_obj) {
         g_critical("%s: Got pointer %p, expected %p.", G_STRFUNC, pointer, seat->pointer_obj);
         return;
@@ -301,15 +296,11 @@ pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct
     // seat->pointer_target = NULL;
     // seat->pointer.serial = serial;
     // seat->pointer.surface = NULL;
-
-    fprintf(stderr, "XXX COG PLATFORM - pointer_on_leave - end\n");
 }
 
 static void
 pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t fixed_x, wl_fixed_t fixed_y)
 {
-    fprintf(stderr, "XXX COG PLATFORM - pointer_on_motion\n");
-
     if (data == NULL || pointer == NULL) {
         return;
     }
@@ -343,8 +334,6 @@ pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixe
 
     if (view)
         wpe_view_backend_dispatch_pointer_event(cog_view_get_backend(view), &event);
-
-    fprintf(stderr, "XXX COG PLATFORM - pointer_on_motion - end - view<%p>\n", view);
 }
 
 static void
@@ -355,8 +344,6 @@ pointer_on_button(void              *data,
                   uint32_t           button,
                   uint32_t           state)
 {
-    fprintf(stderr, "XXX COG PLATFORM - pointer_on_button\n");
-
     CogWlSeat    *seat = data;
     CogWlDisplay *display = seat->display;
 
@@ -407,15 +394,11 @@ pointer_on_button(void              *data,
 
     if (view)
         wpe_view_backend_dispatch_pointer_event(cog_view_get_backend(view), &event);
-
-    fprintf(stderr, "XXX COG PLATFORM - pointer_on_button - end - view<%p>\n", view);
 }
 
 static void
 dispatch_axis_event(CogWlSeat *seat)
 {
-    fprintf(stderr, "XXX COG PLATFORM - dispatch_axis_event\n");
-
     CogWlDisplay *display = seat->display;
 
     if (!seat->axis.has_delta)
@@ -443,7 +426,6 @@ dispatch_axis_event(CogWlSeat *seat)
     seat->axis.has_delta = false;
     seat->axis.time = 0;
     seat->axis.x_delta = seat->axis.y_delta = 0;
-    fprintf(stderr, "XXX COG PLATFORM - dispatch_axis_event - end - view<%p>\n",  view);
 }
 
 static inline bool
@@ -468,7 +450,6 @@ enum {
 static void
 pointer_on_axis(void *data, struct wl_pointer *pointer, uint32_t time, uint32_t axis, wl_fixed_t value)
 {
-    fprintf(stderr, "XXX COG PLATFORM - pointer_on_axis\n");
     CogWlSeat *seat = data;
 
     if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
@@ -485,8 +466,6 @@ pointer_on_axis(void *data, struct wl_pointer *pointer, uint32_t time, uint32_t 
 
     if (!pointer_uses_frame_event(pointer))
         dispatch_axis_event(seat);
-
-    fprintf(stderr, "XXX COG PLATFORM - pointer_on_axis - end\n");
 }
 
 #ifdef WL_POINTER_FRAME_SINCE_VERSION
@@ -656,7 +635,6 @@ keyboard_on_key(void               *data,
                 uint32_t            key,
                 uint32_t            state)
 {
-    fprintf(stderr, "XXX COG PLATFORM - keyboard_on_key\n");
     CogWlSeat *seat = data;
 
     if (wl_keyboard != seat->keyboard_obj) {
@@ -697,7 +675,6 @@ keyboard_on_key(void               *data,
         seat->keyboard.repeat_data.event_source =
             g_timeout_add(seat->keyboard.repeat_info.delay, (GSourceFunc) repeat_delay_timeout, seat);
     }
-    fprintf(stderr, "XXX COG PLATFORM - keyboard_on_key - end\n");
 }
 
 static void
@@ -709,7 +686,6 @@ keyboard_on_modifiers(void               *data,
                       uint32_t            mods_locked,
                       uint32_t            group)
 {
-    fprintf(stderr, "XXX COG PLATFORM - keyboard_on_modifiers\n");
     CogWlSeat *seat = data;
 
     if (wl_keyboard != seat->keyboard_obj) {
@@ -735,7 +711,6 @@ keyboard_on_modifiers(void               *data,
     if (xkb_state_mod_index_is_active(seat->xkb.state, seat->xkb.indexes.shift, component)) {
         seat->xkb.modifiers |= wpe_input_keyboard_modifier_shift;
     }
-    fprintf(stderr, "XXX COG PLATFORM - keyboard_on_modifiers - end\n");
 }
 
 static void
@@ -777,8 +752,6 @@ touch_on_down(void              *data,
               wl_fixed_t         x,
               wl_fixed_t         y)
 {
-    fprintf(stderr, "XXX COG PLATFORM - touch_on_down\n");
-
     // We might be reading pending events after destroying the surface.
     if (!surface)
         return;
@@ -835,14 +808,11 @@ touch_on_down(void              *data,
 
     if (view)
         wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
-
-    fprintf(stderr, "XXX COG PLATFORM - touch_on_down - end - view<%p>\n", view);
 }
 
 static void
 touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, int32_t id)
 {
-    fprintf(stderr, "XXX COG PLATFORM - touch_on_up\n");
     if (data == NULL || touch == NULL) {
         return;
     }
@@ -896,13 +866,11 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
         wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
 
     memset(&seat->touch.points[id], 0x00, sizeof(struct wpe_input_touch_event_raw));
-    fprintf(stderr, "XXX COG PLATFORM - touch_on_up - end - view<%p>\n",  view);
 }
 
 static void
 touch_on_motion(void *data, struct wl_touch *touch, uint32_t time, int32_t id, wl_fixed_t x, wl_fixed_t y)
 {
-    fprintf(stderr, "XXX COG PLATFORM - touch_on_motion\n");
     if (data == NULL || touch == NULL) {
         return;
     }
@@ -936,20 +904,8 @@ touch_on_motion(void *data, struct wl_touch *touch, uint32_t time, int32_t id, w
 
     CogWlViewport *viewport = COG_WL_VIEWPORT(seat->touch_target);
     CogView       *view = cog_viewport_get_visible_view((CogViewport *) viewport);
-    if (view) {
-        const int32_t state = wpe_view_backend_get_activity_state(cog_view_get_backend((CogView *) view));
-        fprintf(stderr, "XXX COG_WL_PLATFORM - touch_on_motion - view state: state & wpe_view_activity_state_visible = %d\n", state & wpe_view_activity_state_visible);
-        fprintf(stderr, "XXX COG_WL_PLATFORM - touch_on_motion - view state: state & wpe_view_activity_state_focused = %d\n", state & wpe_view_activity_state_focused);
-        fprintf(stderr, "XXX COG_WL_PLATFORM - touch_on_motion - view state: state & wpe_view_activity_state_in_window = %d\n", state & wpe_view_activity_state_in_window);
-    }
-    // if (view) {
-    //     wpe_view_backend_add_activity_state(cog_view_get_backend((CogView *) view), wpe_view_activity_state_visible);
-    //     wpe_view_backend_add_activity_state(cog_view_get_backend((CogView *) view), wpe_view_activity_state_focused);
-    //     wpe_view_backend_add_activity_state(cog_view_get_backend((CogView *) view), wpe_view_activity_state_in_window);
-    // }
     if (view)
         wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
-    fprintf(stderr, "XXX COG PLATFORM - touch_on_motion - end - view<%p>\n", view);
 }
 
 static void
@@ -974,7 +930,6 @@ static const struct wl_touch_listener touch_listener = {
 static void
 seat_on_capabilities(void *data, struct wl_seat *wl_seat, uint32_t capabilities)
 {
-    fprintf(stderr, "XXX COG PLATFORM - seat_on_capabilities\n");
     g_debug("Enumerating seat capabilities:");
 
     CogWlSeat *seat = data;
@@ -1390,17 +1345,12 @@ gamepad_provider_get_view_backend_for_gamepad(void *provider G_GNUC_UNUSED, void
 static void
 cog_wl_platform_on_notify_visible_view(CogWlPlatform *self, GParamSpec *pspec G_GNUC_UNUSED, CogViewport *viewport)
 {
-    fprintf(stderr, "XXX COG PLATFORM - cog_wl_platform_on_notify_visible_view BEGIN\n");
     g_assert(viewport);
 
     g_assert(COG_IS_PLATFORM(self));
     g_assert(COG_IS_VIEWPORT(viewport));
 
     CogWlView *view = (CogWlView *) cog_viewport_get_visible_view(viewport);
-    // fprintf(stderr, "%s: XXX COG PLATFORM Visible view %p. Forcing wpe_view_backend_exportable_fdo_dispatch_frame_complete if not NULL \n", G_STRFUNC, view);
-    // if (view) {
-    //     wpe_view_backend_exportable_fdo_dispatch_frame_complete(view->exportable);
-    // }
     g_debug("%s: Visible view %p.", G_STRFUNC, view);
 
     if (!view)
@@ -1416,18 +1366,14 @@ cog_wl_platform_on_notify_visible_view(CogWlPlatform *self, GParamSpec *pspec G_
     wpe_view_backend_add_activity_state(cog_view_get_backend((CogView *) view), wpe_view_activity_state_focused);
 
     if (!view->image)
-    {
-        fprintf(stderr, "XXX COG PLATFORM - cog_wl_platform_on_notify_visible_view - No image to show, skipping update - END\n");
         return g_debug("%s: No image to show, skipping update.", G_STRFUNC);
-    }
+
     cog_wl_view_update_surface_contents(view);
-    fprintf(stderr, "XXX COG PLATFORM - cog_wl_platform_on_notify_visible_view END\n");
 }
 
 static void
 cog_wl_platform_on_create_viewport(CogWlPlatform *platform, CogViewport *viewport, CogShell *shell)
 {
-    fprintf(stderr, "XXX COG PLATFORM - cog_wl_platform_on_create_viewport\n");
     g_assert(COG_IS_VIEWPORT(viewport));
     cog_wl_viewport_create_window(COG_WL_VIEWPORT(viewport), NULL);
 
@@ -1473,7 +1419,6 @@ cog_wl_platform_setup(CogPlatform *platform, CogShell *shell, const char *params
 #endif
 
     cog_gamepad_setup(gamepad_provider_get_view_backend_for_gamepad);
-    fprintf(stderr, "XXX COG PLATFORM - cog_wl_platform_setup\n");
     return TRUE;
 }
 
