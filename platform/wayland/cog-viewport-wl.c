@@ -408,7 +408,8 @@ cog_wl_viewport_resize_to_largest_output(CogWlViewport *viewport)
             height = output->height;
         }
     }
-    cog_wl_viewport_configure_geometry(viewport, width, height);
+    if (width > 0 && height > 0)
+        cog_wl_viewport_configure_geometry(viewport, width, height);
 }
 
 bool
