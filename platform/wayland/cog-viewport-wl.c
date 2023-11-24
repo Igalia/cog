@@ -328,11 +328,6 @@ cog_wl_viewport_create_window(CogWlViewport *viewport, GError **error)
 static void
 cog_wl_viewport_enter_fullscreen(CogWlViewport *viewport)
 {
-    if (!cog_viewport_get_n_views(COG_VIEWPORT(viewport))) {
-        g_debug("%s: No views in viewport, will not fullscreen.", G_STRFUNC);
-        return;
-    }
-
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     CogWlDisplay  *display = platform->display;
     CogWlWindow   *window = &viewport->window;
@@ -340,7 +335,6 @@ cog_wl_viewport_enter_fullscreen(CogWlViewport *viewport)
     // Resize window to the size of the screen.
     window->width_before_fullscreen = window->width;
     window->height_before_fullscreen = window->height;
-    cog_wl_viewport_resize_to_largest_output(viewport);
 
     if (display->xdg_shell) {
         xdg_toplevel_set_fullscreen(window->xdg_toplevel, NULL);
@@ -350,8 +344,15 @@ cog_wl_viewport_enter_fullscreen(CogWlViewport *viewport)
         g_assert_not_reached();
     }
 
+    cog_wl_viewport_resize_to_largest_output(viewport);
+
+    if (!cog_viewport_get_n_views(COG_VIEWPORT(viewport))) {
+        g_debug("%s: No views in viewport, will not fullscreen.", G_STRFUNC);
+        return;
+    }
+
     // XXX: Do we need to set all views as fullscreened?
-    // Wait until a new exported image is reveived. See cog_wl_view_enter_fullscreen().
+    // Wait until a new exported image is received. See cog_wl_view_enter_fullscreen().
     cog_wl_view_enter_fullscreen(COG_WL_VIEW(cog_viewport_get_visible_view(COG_VIEWPORT(viewport))));
 }
 
