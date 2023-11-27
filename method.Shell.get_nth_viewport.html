@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Shell.get_device_scale_factor</title>
+  <title>Cog.Shell.get_nth_viewport</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta priority="og:title" content="Cog.Shell.get_device_scale_factor"/>
-  <meta priority="og:description" content="Reference for Cog.Shell.get_device_scale_factor"/>
-  <meta name="twitter:title" content="Cog.Shell.get_device_scale_factor"/>
-  <meta name="twitter:description" content="Reference for Cog.Shell.get_device_scale_factor"/>
+  <meta priority="og:title" content="Cog.Shell.get_nth_viewport"/>
+  <meta priority="og:description" content="Reference for Cog.Shell.get_nth_viewport"/>
+  <meta name="twitter:title" content="Cog.Shell.get_nth_viewport"/>
+  <meta name="twitter:description" content="Reference for Cog.Shell.get_nth_viewport"/>
 
 
   
@@ -93,13 +93,13 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
     <a class="method" href="method.Shell.get_config_file.html">get_config_file</a>
   
-    <a class="method current" href="method.Shell.get_device_scale_factor.html">get_device_scale_factor</a>
+    <a class="method" href="method.Shell.get_device_scale_factor.html">get_device_scale_factor</a>
   
     <a class="method" href="method.Shell.get_n_viewports.html">get_n_viewports</a>
   
     <a class="method" href="method.Shell.get_name.html">get_name</a>
   
-    <a class="method" href="method.Shell.get_nth_viewport.html">get_nth_viewport</a>
+    <a class="method current" href="method.Shell.get_nth_viewport.html">get_nth_viewport</a>
   
     <a class="method" href="method.Shell.get_viewport.html">get_viewport</a>
   
@@ -132,7 +132,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <section id="main" class="content">
   <header>
     <h3>Method</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Shell.html">Shell</a><span class="sep"></span>get_device_scale_factor</h1>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Shell.html">Shell</a><span class="sep"></span>get_nth_viewport</h1>
   </header>
 
   <section>
@@ -141,14 +141,15 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Declaration
         <a class="anchor" href="#declaration"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.h#L44">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.h#L57">[src]</a>
         
       </h4>
 
       <div class="docblock c-decl">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">gdouble</span><span class="w"></span>
-<span class="n">cog_shell_get_device_scale_factor</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="n">CogShell</span><span class="o">*</span><span class="w"> </span><span class="n">shell</span><span class="w"></span>
+        <pre><code><div class="highlight"><pre><span></span><span class="n">CogViewport</span><span class="o">*</span><span class="w"></span>
+<span class="n">cog_shell_get_nth_viewport</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogShell</span><span class="o">*</span><span class="w"> </span><span class="n">shell</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">gsize</span><span class="w"> </span><span class="n">index</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
 </code></pre>
@@ -160,10 +161,18 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a class="anchor" href="#description"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.c#L830">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Gets a viewport from the shell given its&nbsp;index.</p>
+<p>This is typically used along <a href="method.Shell.get_n_viewports.html"><code>cog_shell_get_n_viewports()</code></a> to iterate
+over the&nbsp;viewports:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">CogShell</span><span class="w"> </span><span class="o">*</span><span class="n">shell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_shell</span><span class="p">();</span><span class="w"></span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">gsize</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">cog_shell_get_n_viewports</span><span class="p">(</span><span class="n">shell</span><span class="p">);</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"></span>
+<span class="w">    </span><span class="n">handle_viewport</span><span class="p">(</span><span class="n">cog_shell_get_nth_viewport</span><span class="p">(</span><span class="n">shell</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">));</span><span class="w"></span>
+</code></pre></div>
       </div>
 
       <div class="docblock">
@@ -177,17 +186,41 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         </table>
       </div>
 
-      
-      <div class="docblock">
-        <table>
-        
-          <tr><td>Gets property</td><td><a href="property.Shell.device-scale-factor.html"><code>Cog.Shell:device-scale-factor</code></a></td></tr>
-        
-        </table>
-      </div>
       
     </div>
 
+    
+    <div class="parameters toggle-wrapper">
+      <h4 id="parameters">
+        Parameters
+        <a href="#parameters" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+        <table class="arguments">
+          
+          <tr class="arg-name">
+            <td><code>index</code></td>
+            <td><code>gsize</code></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td><p>Index of the viewport to&nbsp;get.</p></td>
+          </tr>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </table>
+      </div>
+    </div>
     
 
     
@@ -201,16 +234,16 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="returns">
           <tr class="arg-name">
             <td>Returns:</td>
-            <td><code>gdouble</code></td>
+            <td><a href="class.Viewport.html"><code>CogViewport</code></a></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>Viewport at the given <code>index</code>.</p></td>
           </tr>
           
           
           
-          
+          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the instance.</td></tr>
           
           
         </table>

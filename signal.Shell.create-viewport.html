@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Shell.new</title>
+  <title>Cog.Shell::create-viewport</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.Shell.new"/>
-  <meta property="og:description" content="Reference for Cog.Shell.new"/>
-  <meta name="twitter:title" content="Cog.Shell.new"/>
-  <meta name="twitter:description" content="Reference for Cog.Shell.new"/>
+  <meta property="og:title" content="Cog.Shell::create-viewport"/>
+  <meta property="og:description" content="Reference for signal Cog.Shell::create-viewport"/>
+  <meta name="twitter:title" content="Cog.Shell::create-viewport"/>
+  <meta name="twitter:description" content="Reference for signal Cog.Shell::create-viewport"/>
 
 
   
@@ -86,10 +86,12 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   </div>
 </div>
 <div class="section">
-  <h5>Constructors</h5>
+  <h5>Signals</h5>
   <div class="links">
   
-    <a class="method current" href="ctor.Shell.new.html">new</a>
+    <a class="signal" href="signal.Shell.create-view.html">create-view</a>
+  
+    <a class="signal current" href="signal.Shell.create-viewport.html">create-viewport</a>
   
   </div>
 </div>
@@ -101,25 +103,23 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Constructor</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Shell.html">Shell</a><span class="sep"></span>new</h1>
+    <h3>Signal</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Shell.html">Shell</a>::create-viewport</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 id="declaration" style="display:flex;">
+      <h4 id="declaration">
         Declaration
         <a href="#declaration" class="anchor"></a>
-        
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.h#L38">[src]</a>
-        
       </h4>
 
       <div class="docblock">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">CogShell</span><span class="o">*</span><span class="w"></span>
-<span class="n">cog_shell_new</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"></span>
-<span class="w">  </span><span class="n">gboolean</span><span class="w"> </span><span class="n">automated</span><span class="w"></span>
+        <pre><code><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"></span>
+<span class="n">create_viewport</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogShell</span><span class="o">*</span><span class="w"> </span><span class="n">self</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogViewport</span><span class="o">*</span><span class="w"> </span><span class="n">viewport</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">gpointer</span><span class="w"> </span><span class="n">user_data</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
 </code></pre>
@@ -131,16 +131,23 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.c#L554">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.c#L389">[src]</a>
         
       </h4>
 
       <div class="docblock">
-        <p>Creates a new&nbsp;shell.</p>
+        <p>The <code>create-viewport</code> signal is emitted when the shell creates a new a
+new&nbsp;CogViewport.</p>
+<p>Handling this signal allows to customize the actions required to be
+done during the creation of a new&nbsp;viewport.</p>
       </div>
 
       <div class="docblock">
         <table>
+          <tr><td>Default handler:</td><td> <p>The default handler is called before the handlers added via <code>g_signal_connect()</code>.</p></td></tr>
+          
+          
+          
           
           
           
@@ -162,12 +169,12 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="arguments">
           
           <tr class="arg-name">
-            <td><code>name</code></td>
-            <td><code>const char*</code></td>
+            <td><code>viewport</code></td>
+            <td><a href="class.Viewport.html"><code>CogViewport</code></a></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td><p>Name of the&nbsp;shell.</p></td>
+            <td><p>The created new&nbsp;viewport.</p></td>
           </tr>
           
           
@@ -177,24 +184,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           
           
           <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the caller of the function.</td></tr>
-          <tr><td>&nbsp;</td><td>The value is a NUL terminated UTF-8 string.</td></tr>
-          
-          <tr class="arg-name">
-            <td><code>automated</code></td>
-            <td><code>gboolean</code></td>
-          </tr>
-          <tr class="arg-description">
-            <td>&nbsp;</td>
-            <td><p>Whether this shell is controlled by&nbsp;automation.</p></td>
-          </tr>
-          
-          
-          
-          
-          
-          
-          
-          
           
           
           
@@ -204,32 +193,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 
     
-    <div class="return-value toggle-wrapper">
-      <h4 id="return-value">
-        Return value
-        <a href="#return-value" class="anchor"></a>
-      </h4>
 
-      <div class="docblock">
-        <table class="returns">
-          <tr class="arg-name">
-            <td>Returns:</td>
-            <td><a href="class.Shell.html"><code>CogShell</code></a></td>
-          </tr>
-          <tr class="arg-description">
-            <td>&nbsp;</td>
-            <td><p>A new shell&nbsp;instance.</p></td>
-          </tr>
-          
-          
-          
-          <tr><td>&nbsp;</td><td title="transfer: full">The caller of the function takes ownership of the data, and is responsible for freeing it.</td></tr>
-          
-          
-        </table>
-      </div>
-    </div>
-    
   </section>
 </section>
 
