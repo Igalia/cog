@@ -18,6 +18,11 @@
 #include <X11/Xlib.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_cursor.h>
+
+#ifdef COG_X11_USE_XCB_KEYSYMS
+#    include <xcb/xcb_keysyms.h>
+#endif /* COG_X11_USE_XCB_KEYSYMS */
+
 #include <xkbcommon/xkbcommon-x11.h>
 
 #if COG_HAVE_LIBPORTAL
@@ -93,6 +98,10 @@ struct CogX11Display {
         xkb_mod_mask_t      num_lock;
         xkb_mod_mask_t      caps_lock;
     } xkb;
+
+#ifdef COG_X11_USE_XCB_KEYSYMS
+    xcb_key_symbols_t *xcb_keysyms;
+#endif /* COG_X11_USE_XCB_KEYSYMS */
 
     struct {
         PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display;
@@ -212,35 +221,84 @@ xcb_update_xkb_modifiers(uint32_t event_state)
     return wpe_modifiers;
 }
 
+#if COG_X11_USE_XCB_KEYSYMS
+/*
+ * Convert XCB modifiers to WPE modifiers
+ *
+ *   - wpe constants from <wpe/input.h>,
+ *   - XCB constants from <xcb/xproto.h>
+ *
+ * Far from ideal implementation, but it avoids the need to link
+ * with xcb-keysyms (which is not often packaged by linux distributions)
+ * or requiring the X11/XKB extension (which is not always available, e.g.
+ * in VNC).
+*/
+static uint32_t
+xcb_state_to_wpe_modifiers(uint16_t xcb_state)
+{
+    uint32_t out = 0;
+
+    /* SHIFT, CONTROL, ALT/META keys */
+    if (xcb_state & XCB_MOD_MASK_SHIFT)
+        out |= wpe_input_keyboard_modifier_shift;
+
+    if (xcb_state & XCB_MOD_MASK_CONTROL)
+        out |= wpe_input_keyboard_modifier_control;
+
+    if (xcb_state & XCB_MOD_MASK_1)
+        out |= wpe_input_keyboard_modifier_alt;
+
+    /* Mouse buttons */
+    if (xcb_state & XCB_BUTTON_MASK_1)
+        out |= wpe_input_pointer_modifier_button1;
+
+    if (xcb_state & XCB_BUTTON_MASK_2)
+        out |= wpe_input_pointer_modifier_button2;
+
+    if (xcb_state & XCB_BUTTON_MASK_3)
+        out |= wpe_input_pointer_modifier_button3;
+
+    if (xcb_state & XCB_BUTTON_MASK_4)
+        out |= wpe_input_pointer_modifier_button4;
+
+    return out;
+}
+#endif /* COG_X11_USE_XCB_KEYSYMS */
+
+static void
+key_event_fill(struct wpe_input_keyboard_event *wpe_event, xcb_key_press_event_t *event)
+{
+    wpe_event->time = event->time;
+    wpe_event->hardware_key_code = event->detail;
+
+    if (s_display->xkb.device_id >= 0 && s_display->xkb.state) {
+        wpe_event->modifiers = xcb_update_xkb_modifiers(event->state);
+        wpe_event->key_code = xkb_state_key_get_one_sym(s_display->xkb.state, event->detail);
+        return;
+    }
+
+#if COG_X11_USE_XCB_KEYSYMS
+    if (s_display->xcb_keysyms) {
+        wpe_event->modifiers = xcb_state_to_wpe_modifiers(event->state);
+        wpe_event->key_code = xcb_key_symbols_get_keysym(s_display->xcb_keysyms, event->detail, 0);
+        return;
+    }
+#endif /* COG_X11_USE_XCB_KEYSYMS */
+}
+
 static void
 xcb_handle_key_press(CogView *view, xcb_key_press_event_t *event)
 {
-    uint32_t modifiers = xcb_update_xkb_modifiers(event->state);
-    uint32_t keysym = xkb_state_key_get_one_sym(s_display->xkb.state, event->detail);
-
-    struct wpe_input_keyboard_event input_event = {
-        .time = event->time,
-        .key_code = keysym,
-        .hardware_key_code = event->detail,
-        .pressed = true,
-        .modifiers = modifiers,
-    };
+    struct wpe_input_keyboard_event input_event = {.pressed = true};
+    key_event_fill(&input_event, event);
     cog_view_handle_key_event(view, &input_event);
 }
 
 static void
 xcb_handle_key_release(CogView *view, xcb_key_press_event_t *event)
 {
-    uint32_t modifiers = xcb_update_xkb_modifiers(event->state);
-    uint32_t keysym = xkb_state_key_get_one_sym(s_display->xkb.state, event->detail);
-
-    struct wpe_input_keyboard_event input_event = {
-        .time = event->time,
-        .key_code = keysym,
-        .hardware_key_code = event->detail,
-        .pressed = false,
-        .modifiers = modifiers,
-    };
+    struct wpe_input_keyboard_event input_event = {.pressed = false};
+    key_event_fill(&input_event, event);
     cog_view_handle_key_event(view, &input_event);
 }
 
@@ -607,17 +665,12 @@ clear_xcb (void)
 static gboolean
 init_xkb (void)
 {
-    s_display->xkb.device_id = xkb_x11_get_core_keyboard_device_id (s_display->xcb.connection);
-    if (s_display->xkb.device_id == -1)
-        return FALSE;
-
-    s_display->xkb.context = xkb_context_new (0);
-    if (!s_display->xkb.context)
-        return FALSE;
-
-    s_display->xkb.keymap = xkb_x11_keymap_new_from_device (s_display->xkb.context, s_display->xcb.connection, s_display->xkb.device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
-    if (!s_display->xkb.keymap)
-        return FALSE;
+    if (((s_display->xkb.device_id = xkb_x11_get_core_keyboard_device_id(s_display->xcb.connection)) == -1) ||
+        !(s_display->xkb.context = xkb_context_new(0)) ||
+        !(s_display->xkb.keymap =
+              xkb_x11_keymap_new_from_device(s_display->xkb.context, s_display->xcb.connection,
+                                             s_display->xkb.device_id, XKB_KEYMAP_COMPILE_NO_FLAGS)))
+        goto no_xkb_cleanup;
 
     s_display->xkb.shift = 1 << xkb_keymap_mod_get_index(s_display->xkb.keymap, "Shift");
     s_display->xkb.control = 1 << xkb_keymap_mod_get_index(s_display->xkb.keymap, "Control");
@@ -625,16 +678,48 @@ init_xkb (void)
     s_display->xkb.caps_lock = 1 << xkb_keymap_mod_get_index(s_display->xkb.keymap, "Lock");
     s_display->xkb.num_lock = 1 << xkb_keymap_mod_get_index(s_display->xkb.keymap, "NumLock");
 
-    s_display->xkb.state =
-        xkb_x11_state_new_from_device(s_display->xkb.keymap, s_display->xcb.connection, s_display->xkb.device_id);
-    if (!s_display->xkb.state)
-        return FALSE;
+    if (!(s_display->xkb.state = xkb_x11_state_new_from_device(s_display->xkb.keymap, s_display->xcb.connection,
+                                                               s_display->xkb.device_id)))
+        goto no_xkb_cleanup;
 
     return TRUE;
+
+no_xkb_cleanup:
+    g_clear_pointer(&s_display->xkb.keymap, xkb_keymap_unref);
+    g_clear_pointer(&s_display->xkb.context, xkb_context_unref);
+    s_display->xkb.device_id = -1;
+    return FALSE;
+}
+
+static gboolean
+init_keyboard(GError **error)
+{
+    g_autoptr(GString) tried_impl = NULL;
+
+    if (init_xkb()) {
+        g_debug("%s: Using XKB", G_STRFUNC);
+        return TRUE;
+    }
+
+#ifdef COG_X11_USE_XCB_KEYSYMS
+    tried_impl = tried_impl ? g_string_append(tried_impl, ", XCB-Keysyms") : g_string_new("XCB-Keysyms");
+
+    if ((s_display->xcb_keysyms = xcb_key_symbols_alloc(s_display->xcb.connection))) {
+        g_debug("%s: Using XCB-Keysyms", G_STRFUNC);
+        return TRUE;
+    }
+#endif /* COG_X11_USE_XCB_KEYSYMS */
+
+    g_set_error(error,
+                COG_PLATFORM_WPE_ERROR,
+                COG_PLATFORM_WPE_ERROR_INIT,
+                "Could not initialize keyboard, tried %s",
+                tried_impl ? tried_impl->str : "no implementations");
+    return FALSE;
 }
 
 static void
-clear_xkb (void)
+clear_keyboard(void)
 {
     if (s_display->xkb.state)
         xkb_state_unref (s_display->xkb.state);
@@ -642,6 +727,10 @@ clear_xkb (void)
         xkb_keymap_unref (s_display->xkb.keymap);
     if (s_display->xkb.context)
         xkb_context_unref (s_display->xkb.context);
+
+#ifdef COG_X11_USE_XCB_KEYSYMS
+    g_clear_pointer(&s_display->xcb_keysyms, xcb_key_symbols_free);
+#endif /* COG_X11_USE_XCB_KEYSYMS */
 }
 
 static gboolean
@@ -798,12 +887,9 @@ cog_x11_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, con
         return FALSE;
     }
 
-    if (!init_xkb ()) {
-        g_set_error_literal (error,
-                             COG_PLATFORM_WPE_ERROR,
-                             COG_PLATFORM_WPE_ERROR_INIT,
-                             "Failed to initialize XKB");
-        return FALSE;
+    if (!init_keyboard(error)) {
+        g_warning("Running without proper keyboard support: %s", (*error)->message);
+        g_clear_error(error);
     }
 
     if (!init_egl ()) {
@@ -842,9 +928,9 @@ cog_x11_platform_finalize(GObject *object)
 {
     clear_glib ();
     cog_gl_renderer_finalize(&s_display->gl_render);
-    clear_egl ();
-    clear_xkb ();
-    clear_xcb ();
+    clear_egl();
+    clear_keyboard();
+    clear_xcb();
 
     g_clear_pointer (&s_window, free);
     g_clear_pointer (&s_display, free);
