@@ -52,6 +52,15 @@ option(
     description: 'Build content-protection support in the Wayland platform plug-in'
 )
 
+# X11 platform-specifig features
+option(
+    'x11_keyboard',
+    type: 'array',
+    value: ['xkb'],
+    choices: ['xkb', 'xcb-keysyms'],
+    description: 'Keyboard handler (xkb recommended)',
+)
+
 # Additional cog/cogctl options
 option(
     'cog_appid',

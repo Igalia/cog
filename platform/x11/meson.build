@@ -16,11 +16,20 @@ x11_platform_dependencies = [
     dependency('xcb-cursor'),
 ]
 
-xcb_keysyms_dep = dependency('xcb-keysyms', required: false)
-if xcb_keysyms_dep.found()
-    x11_platform_dependencies += [xcb_keysyms_dep]
-    x11_platform_c_args += ['-DCOG_X11_USE_XCB_KEYSYMS']
+x11_platform_keyboard = get_option('x11_keyboard')
+if x11_platform_keyboard.length() == 0
+    warning('No X11 keyboard support chosen, keyboard input will NOT work')
 endif
+
+x11_platform_keyboard_dep_names = {
+    'xkb': 'xkbcommon-x11',
+    'xcb-keysyms': 'xcb-keysyms',
+}
+
+foreach item : x11_platform_keyboard
+    x11_platform_dependencies += [dependency(x11_platform_keyboard_dep_names[item])]
+    x11_platform_c_args += ['-DCOG_X11_USE_@0@=1'.format(item.underscorify().to_upper())]
+endforeach
 
 x11_platform_plugin = shared_module('cogplatform-x11',
     'cog-platform-x11.c',
