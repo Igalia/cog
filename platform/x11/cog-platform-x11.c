@@ -23,7 +23,9 @@
 #    include <xcb/xcb_keysyms.h>
 #endif /* COG_X11_USE_XCB_KEYSYMS */
 
-#include <xkbcommon/xkbcommon-x11.h>
+#ifdef COG_X11_USE_XKB
+#    include <xkbcommon/xkbcommon-x11.h>
+#endif
 
 #if COG_HAVE_LIBPORTAL
 #    include "../common/cog-file-chooser.h"
@@ -87,6 +89,7 @@ struct CogX11Display {
         GSource *source;
     } xcb;
 
+#ifdef COG_X11_USE_XKB
     struct {
         int32_t             device_id;
         struct xkb_context *context;
@@ -98,6 +101,7 @@ struct CogX11Display {
         xkb_mod_mask_t      num_lock;
         xkb_mod_mask_t      caps_lock;
     } xkb;
+#endif /* COG_X11_USE_XKB */
 
 #ifdef COG_X11_USE_XCB_KEYSYMS
     xcb_key_symbols_t *xcb_keysyms;
@@ -194,6 +198,7 @@ xcb_paint_image (struct wpe_fdo_egl_exported_image *image)
     eglSwapBuffers(s_display->egl.display, s_window->egl.surface);
 }
 
+#ifdef COG_X11_USE_XKB
 static uint32_t
 xcb_update_xkb_modifiers(uint32_t event_state)
 {
@@ -220,6 +225,7 @@ xcb_update_xkb_modifiers(uint32_t event_state)
     xkb_state_update_mask(s_display->xkb.state, depressed_mods, 0, locked_mods, 0, 0, 0);
     return wpe_modifiers;
 }
+#endif /* COG_X11_USE_XKB */
 
 #if COG_X11_USE_XCB_KEYSYMS
 /*
@@ -271,11 +277,13 @@ key_event_fill(struct wpe_input_keyboard_event *wpe_event, xcb_key_press_event_t
     wpe_event->time = event->time;
     wpe_event->hardware_key_code = event->detail;
 
+#if COG_X11_USE_XKB
     if (s_display->xkb.device_id >= 0 && s_display->xkb.state) {
         wpe_event->modifiers = xcb_update_xkb_modifiers(event->state);
         wpe_event->key_code = xkb_state_key_get_one_sym(s_display->xkb.state, event->detail);
         return;
     }
+#endif /* COG_X11_USE_XKB */
 
 #if COG_X11_USE_XCB_KEYSYMS
     if (s_display->xcb_keysyms) {
@@ -662,6 +670,7 @@ clear_xcb (void)
         XCloseDisplay (s_display->display);
 }
 
+#ifdef COG_X11_USE_XKB
 static gboolean
 init_xkb (void)
 {
@@ -690,16 +699,20 @@ no_xkb_cleanup:
     s_display->xkb.device_id = -1;
     return FALSE;
 }
+#endif /* COG_X11_USE_XKB */
 
 static gboolean
 init_keyboard(GError **error)
 {
     g_autoptr(GString) tried_impl = NULL;
 
+#ifdef COG_X11_USE_XKB
+    tried_impl = g_string_new("XKB");
     if (init_xkb()) {
         g_debug("%s: Using XKB", G_STRFUNC);
         return TRUE;
     }
+#endif /* COG_X11_USE_XKB */
 
 #ifdef COG_X11_USE_XCB_KEYSYMS
     tried_impl = tried_impl ? g_string_append(tried_impl, ", XCB-Keysyms") : g_string_new("XCB-Keysyms");
@@ -721,12 +734,11 @@ init_keyboard(GError **error)
 static void
 clear_keyboard(void)
 {
-    if (s_display->xkb.state)
-        xkb_state_unref (s_display->xkb.state);
-    if (s_display->xkb.keymap)
-        xkb_keymap_unref (s_display->xkb.keymap);
-    if (s_display->xkb.context)
-        xkb_context_unref (s_display->xkb.context);
+#ifdef COG_X11_USE_XKB
+    g_clear_pointer(&s_display->xkb.state, xkb_state_unref);
+    g_clear_pointer(&s_display->xkb.keymap, xkb_keymap_unref);
+    g_clear_pointer(&s_display->xkb.context, xkb_context_unref);
+#endif /* COG_X11_USE_XKB */
 
 #ifdef COG_X11_USE_XCB_KEYSYMS
     g_clear_pointer(&s_display->xcb_keysyms, xcb_key_symbols_free);
