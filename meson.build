@@ -1,5 +1,5 @@
 project('cog', 'c',
-    meson_version: '>=0.53.2',
+    meson_version: '>=0.55',
     default_options: [
         'buildtype=debugoptimized',
         'b_ndebug=if-release',
