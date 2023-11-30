@@ -20,7 +20,11 @@
 #include <xcb/xcb_cursor.h>
 
 #ifdef COG_X11_USE_XCB_KEYSYMS
-#    include <xcb/xcb_keysyms.h>
+#    if __has_include(<xcb/xcb_keysyms.h>)
+#        include <xcb/xcb_keysyms.h>
+#    else
+#        include <xcb_keysyms.h>
+#    endif
 #endif /* COG_X11_USE_XCB_KEYSYMS */
 
 #ifdef COG_X11_USE_XKB
