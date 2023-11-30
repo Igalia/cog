@@ -1,3 +1,54 @@
+==========================
+0.19.1 - November 30, 2023
+==========================
+
+- Support multiple web views, using the new CogView and CogViewport APIs.
+  Each viewport may display one from a set of web views, and using many
+  viewports is supported as well. Typically platform plug-ins map a
+  viewport to some kind of "window" that can be displayed on screen.
+  Most of the changes in this release are related to this new feature.
+- launcher: Add command line flag to disable the built-in key bindings.
+- launcher: Add command line flag to control media auto-play behaviour.
+- launcher: Handle GApplication activation to avoid a warning.
+- core: Move most of the key binding handling from the Wayland platform
+  into CogView, making it common code for all platforms.
+- core: Moved platform plug-in selection logic into the library, along
+  with an always-built "fallback" implementation, which simplifies API
+  usage.
+- core: Avoid leaking web views due to CogShell holding one reference
+  too much on them.
+- core: The library now takes advantage of symbol visibility, and only
+  the public symbols marked with the COG_API macro will be available for
+  linking from the shared library.
+- core: Avoid loading the same platform plug-in more than once.
+- core: Automatically scan the default module path without needing
+  programs to call cog_modules_add_directory() by themselves.
+- core: Remove the cog_platform_configure() function, in favor of
+  an new cog_init() function which is optional to call, and reorganized
+  setup code to make API usage simpler.
+- meson: Fix configuration error when only the Wayland platform plug-in
+  is selected.
+- drm: Fix touch region dimensions when the output is rotated by 90
+  or 270 degrees.
+- drm: Fix crash on iMX.6 (and possibly others) by improving how the
+  CRTC and encoder combination is chosen.
+- x11: Add support for using the xcb-keysyms library for handling key
+  input events when the XKB extension is unavailable, either because
+  its usage was disabled at build time, or the extension is missing at
+  runtime.
+- wl: Add support for Weston protocols version 13.
+- wl: Fix blurry rendering in some compositors.
+- wl: Add a check for memfd_create() to avoid the need to have write
+  permission in XDG_RUNTIME_DIR, which is the case in some systems.
+- wl: Set the opaque region also for non-fullscreen surfaces, resulting
+  in a small performance improvement in some cases.
+- wl: Add support for multiple seats.
+- wl: Remove limit of 16 maximum outputs.
+- gtk4, x11, wl: Add support for file choosers using the XDG Desktop
+  Portal through libportal.
+- gtk4, x11, wl: Add support for changing mouse cursors when hovering
+  links (hand) and text (I-beam).
+
 =======================
 0.17.1 - March 11, 2023
 =======================
