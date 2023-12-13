@@ -1,4 +1,13 @@
 ==========================
+0.18.2 - December 13, 2023
+==========================
+
+- drm: Fix crash on iMX.6 (and possibly others) by improving how the CRTC
+  and encoder combination is chosen.
+- wl: Add support for Weston protocols version 13.
+- launcher: Handle GApplication activation to avoid a warning.
+
+==========================
 0.18.1 - November 15, 2023
 ==========================
 
