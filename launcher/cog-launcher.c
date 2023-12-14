@@ -1006,18 +1006,81 @@ cog_launcher_add_web_permissions_option_entries(CogLauncher *launcher)
     g_application_add_option_group(G_APPLICATION(launcher), g_steal_pointer(&option_group));
 }
 
+#if WEBKIT_CHECK_VERSION(2, 42, 0)
+static WebKitFeature *
+find_feature(WebKitFeatureList *features, const char *identifier)
+{
+    for (gsize i = 0; i < webkit_feature_list_get_length(features); i++) {
+        WebKitFeature *feature = webkit_feature_list_get(features, i);
+        if (!g_ascii_strcasecmp(identifier, webkit_feature_get_identifier(feature)))
+            return feature;
+    }
+    return NULL;
+}
+
+static gboolean
+cog_features_option_callback(const gchar *option, const gchar *value, WebKitSettings *web_settings, GError **error)
+{
+    g_autoptr(WebKitFeatureList) features = webkit_settings_get_all_features();
+
+    if (!strcmp(value, "help")) {
+        g_print("Multiple feature names may be specified separated by commas. No prefix or '+' enable\n"
+                "features, prefixes '-' and '!' disable features. Names are case-insensitive. Example:\n"
+                "\n    %s --features='!DirPseudo,+WebAnimationsCustomEffects,webgl'\n\n"
+                "Available features (+/- = enabled/disabled by default):\n\n",
+                g_get_prgname());
+        g_autoptr(GEnumClass) statusEnum = g_type_class_ref(WEBKIT_TYPE_FEATURE_STATUS);
+        for (gsize i = 0; i < webkit_feature_list_get_length(features); i++) {
+            WebKitFeature *feature = webkit_feature_list_get(features, i);
+            g_print("  %c %s (%s)",
+                    webkit_feature_get_default_value(feature) ? '+' : '-',
+                    webkit_feature_get_identifier(feature),
+                    g_enum_get_value(statusEnum, webkit_feature_get_status(feature))->value_nick);
+            if (webkit_feature_get_name(feature))
+                g_print(": %s", webkit_feature_get_name(feature));
+            g_print("\n");
+        }
+        exit(EXIT_SUCCESS);
+    }
+
+    g_auto(GStrv) items = g_strsplit(value, ",", -1);
+    for (gsize i = 0; items[i]; i++) {
+        char    *item = g_strchomp(items[i]);
+        gboolean enabled = TRUE;
+        switch (item[0]) {
+        case '!':
+        case '-':
+            enabled = FALSE;
+            G_GNUC_FALLTHROUGH;
+        case '+':
+            item++;
+            G_GNUC_FALLTHROUGH;
+        default:
+            break;
+        }
+
+        if (item[0] == '\0') {
+            g_set_error_literal(error, G_OPTION_ERROR, G_OPTION_ERROR_FAILED, "Empty feature name specified");
+            return FALSE;
+        }
+
+        WebKitFeature *feature = find_feature(features, item);
+        if (!feature) {
+            g_set_error(error, G_OPTION_ERROR, G_OPTION_ERROR_FAILED, "Feature '%s' is not available", item);
+            return FALSE;
+        }
+
+        webkit_settings_set_feature_enabled(web_settings, feature, enabled);
+    }
+
+    return TRUE;
+}
+#endif /* WEBKIT_CHECK_VERSION */
+
 static void
 cog_launcher_add_web_settings_option_entries(CogLauncher *launcher)
 {
     g_return_if_fail(COG_IS_LAUNCHER(launcher));
-
-    g_autofree GOptionEntry *option_entries = cog_option_entries_from_class(G_OBJECT_GET_CLASS(launcher->web_settings));
-
-    if (!option_entries) {
-        g_critical("Could not deduce option entries for WebKitSettings."
-                   " This should not happen, continuing but YMMV.");
-        return;
-    }
 
     g_autoptr(GOptionGroup) option_group = g_option_group_new(
         "websettings",
@@ -1031,7 +1094,31 @@ cog_launcher_add_web_settings_option_entries(CogLauncher *launcher)
         "Show WebKitSettings options",
         launcher->web_settings,
         NULL);
-    g_option_group_add_entries(option_group, option_entries);
+
+    g_autofree GOptionEntry *option_entries = cog_option_entries_from_class(G_OBJECT_GET_CLASS(launcher->web_settings));
+    if (option_entries) {
+        g_option_group_add_entries(option_group, option_entries);
+    } else {
+        g_critical("Could not deduce option entries for WebKitSettings."
+                   " This should not happen, continuing but YMMV.");
+    }
+
+#if WEBKIT_CHECK_VERSION(2, 42, 0)
+    static const GOptionEntry features_entries[] = {
+        {
+            .short_name = 'F',
+            .long_name = "features",
+            .description = "Enable or disable WebKit features (hint: pass 'help' for a list)",
+            .arg = G_OPTION_ARG_CALLBACK,
+            .arg_data = cog_features_option_callback,
+            .arg_description = "FEATURE-LIST",
+        },
+        {
+            NULL,
+        }};
+    g_option_group_add_entries(option_group, features_entries);
+#endif /* WEBKIT_CHECK_VERSION */
+
     g_application_add_option_group(G_APPLICATION(launcher), g_steal_pointer(&option_group));
 }
 
