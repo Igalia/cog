@@ -33,7 +33,8 @@ main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    g_set_prgname("view-stacks");
+    g_set_prgname("viewports");
+    cog_init(NULL, NULL);
 
     g_autoptr(CogShell) shell = cog_shell_new(NULL, FALSE);
     g_autoptr(GError)   error = NULL;
