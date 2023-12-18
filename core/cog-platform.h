@@ -1,5 +1,6 @@
 /*
  * cog-platform.h
+ * Copyright (C) 2019-2023 Igalia S.L.
  * Copyright (C) 2018 Adrian Perez <aperez@igalia.com>
  * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  *
@@ -53,6 +54,9 @@ struct _CogPlatformClass {
 
     GType (*get_view_type)(void);
     GType (*get_viewport_type)(void);
+
+    void (*viewport_created)(CogPlatform *self, CogViewport *viewport);
+    void (*viewport_disposed)(CogPlatform *self, CogViewport *viewport);
 };
 
 COG_API void         cog_init(const char *platform_name, const char *module_path);

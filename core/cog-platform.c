@@ -1,13 +1,15 @@
 /*
  * cog-platform.c
+ * Copyright (C) 2019-2023 Igalia S.L.
  * Copyright (C) 2018 Adrian Perez <aperez@igalia.com>
  * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  *
  * SPDX-License-Identifier: MIT
  */
 
-#include "cog-platform.h"
 #include "cog-modules.h"
+#include "cog-platform-private.h"
+#include "cog-viewport.h"
 
 G_DEFINE_QUARK(COG_PLATFORM_ERROR, cog_platform_error)
 G_DEFINE_QUARK(COG_PLATFORM_EGL_ERROR, cog_platform_egl_error)
@@ -17,6 +19,16 @@ G_DEFINE_ABSTRACT_TYPE(CogPlatform, cog_platform, G_TYPE_OBJECT)
 
 static CogPlatform *platform_singleton = NULL; // (owned) (atomic)
 
+enum {
+    VIEWPORT_CREATED,
+    VIEWPORT_DISPOSED,
+    N_SIGNALS,
+};
+
+static unsigned s_signals[N_SIGNALS] = {
+    0,
+};
+
 static gboolean
 cog_platform_is_supported(void)
 {
@@ -24,9 +36,54 @@ cog_platform_is_supported(void)
 }
 
 static void
+cog_platform_viewport_noop(CogPlatform *self, CogViewport *viewport)
+{
+}
+
+static void
 cog_platform_class_init(CogPlatformClass *klass)
 {
+    klass->viewport_created = cog_platform_viewport_noop;
+    klass->viewport_disposed = cog_platform_viewport_noop;
     klass->is_supported = cog_platform_is_supported;
+
+    /**
+     * CogPlatform::viewport-created:
+     * @self: the platform
+     * @viewport: viewport just created
+     *
+     * Signal emitted for each created viewport.
+     *
+     * This signal is mainly intended to be used from platform plug-in
+     * implementations that need to track instantiated [class@Viewport]
+     * instances.
+     *
+     * Since: 0.20
+     */
+    s_signals[VIEWPORT_CREATED] = g_signal_new("viewport-created", COG_TYPE_PLATFORM, G_SIGNAL_RUN_LAST,
+                                               G_STRUCT_OFFSET(CogPlatformClass, viewport_created), NULL, NULL, NULL,
+                                               G_TYPE_NONE, 1, COG_TYPE_VIEWPORT);
+
+    /**
+     * CogPlatform::viewport-disposed:
+     * @self: the platform
+     * @viewport: viewport being disposed
+     *
+     * Signal emitted for each disposed viewport.
+     *
+     * Note that the @viewport at this point has already been disposed,
+     * so the usual restrictions for diposed but not yet finalized GObject
+     * instances apply.
+     *
+     * This signal is mainly intended to be used from platform plug-in
+     * implementations that need to track instantiated [class@Viewport]
+     * instances.
+     *
+     * Since: 0.20
+     */
+    s_signals[VIEWPORT_DISPOSED] = g_signal_new("viewport-disposed", COG_TYPE_PLATFORM, G_SIGNAL_RUN_LAST,
+                                                G_STRUCT_OFFSET(CogPlatformClass, viewport_disposed), NULL, NULL, NULL,
+                                                G_TYPE_NONE, 1, COG_TYPE_VIEWPORT);
 }
 
 static void
@@ -203,4 +260,18 @@ cog_platform_create_im_context(CogViewport *viewport)
         return klass->create_im_context(viewport);
 
     return NULL;
+}
+
+void
+cog_platform_notify_viewport_created(CogViewport *viewport)
+{
+    g_assert(platform_singleton != NULL);
+    g_signal_emit(platform_singleton, s_signals[VIEWPORT_CREATED], 0, viewport);
+}
+
+void
+cog_platform_notify_viewport_disposed(CogViewport *viewport)
+{
+    g_assert(platform_singleton != NULL);
+    g_signal_emit(platform_singleton, s_signals[VIEWPORT_DISPOSED], 0, viewport);
 }

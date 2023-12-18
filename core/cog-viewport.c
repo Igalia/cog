@@ -6,9 +6,8 @@
 
 #include "cog-viewport.h"
 
-#include "cog-platform.h"
+#include "cog-platform-private.h"
 #include "cog-view-private.h"
-#include "cog-view.h"
 
 /**
  * CogViewport:
@@ -161,6 +160,8 @@ cog_viewport_dispose(GObject *object)
     g_ptr_array_set_size(PRIV(object)->views, 0);
 
     G_OBJECT_CLASS(cog_viewport_parent_class)->dispose(object);
+
+    cog_platform_notify_viewport_disposed((CogViewport *) object);
 }
 
 static void
@@ -172,6 +173,14 @@ cog_viewport_finalize(GObject *object)
 }
 
 static void
+cog_viewport_constructed(GObject *object)
+{
+    G_OBJECT_CLASS(cog_viewport_parent_class)->constructed(object);
+
+    cog_platform_notify_viewport_created((CogViewport *) object);
+}
+
+static void
 cog_viewport_class_init(CogViewportClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS(klass);
@@ -179,6 +188,7 @@ cog_viewport_class_init(CogViewportClass *klass)
     object_class->get_property = cog_viewport_get_property;
     object_class->dispose = cog_viewport_dispose;
     object_class->finalize = cog_viewport_finalize;
+    object_class->constructed = cog_viewport_constructed;
 
     /**
      * CogViewport::visible-view: (attributes org.gtk.Property.get=cog_viewport_get_visible_view org.gtk.Property.set=cog_viewport_set_visible_view) (setter set_visible_view) (getter get_visible_view):
