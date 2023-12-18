@@ -1,5 +1,6 @@
 /*
  * cog-wl-platform.c
+ * Copyright (C) 2019-2023 Igalia S.L.
  * Copyright (C) 2018 Eduardo Lima <elima@igalia.com>
  * Copyright (C) 2018 Adrian Perez de Castro <aperez@igalia.com>
  *
@@ -1321,18 +1322,8 @@ cog_wl_platform_on_notify_visible_view(CogWlPlatform *self, GParamSpec *pspec G_
     cog_wl_view_update_surface_contents(view);
 }
 
-static void
-cog_wl_platform_on_create_viewport(CogWlPlatform *platform, CogViewport *viewport, CogShell *shell)
-{
-    g_assert(COG_IS_VIEWPORT(viewport));
-    cog_wl_viewport_create_window(COG_WL_VIEWPORT(viewport), NULL);
-
-    g_signal_connect_object(viewport, "notify::visible-view", G_CALLBACK(cog_wl_platform_on_notify_visible_view),
-                            platform, G_CONNECT_AFTER | G_CONNECT_SWAPPED);
-}
-
 static gboolean
-cog_wl_platform_setup(CogPlatform *platform, CogShell *shell, const char *params, GError **error)
+cog_wl_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, const char *params, GError **error)
 {
     g_return_val_if_fail(COG_IS_SHELL(shell), FALSE);
 
@@ -1356,12 +1347,7 @@ cog_wl_platform_setup(CogPlatform *platform, CogShell *shell, const char *params
     }
 
     /* init WPE host data */
-    wpe_fdo_initialize_for_egl_display(display->egl_display);
-
-    /* get a reference to the hashmap with viewports added to the shell */
-    self->viewports = cog_shell_get_viewports(shell);
-
-    g_signal_connect_swapped(shell, "create-viewport", G_CALLBACK(cog_wl_platform_on_create_viewport), self);
+    wpe_fdo_initialize_for_egl_display(self->display->egl_display);
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
     wpe_video_plane_display_dmabuf_register_receiver(&video_plane_display_dmabuf_receiver, platform);
@@ -1381,6 +1367,8 @@ cog_wl_platform_finalize(GObject *object)
         cog_wl_platform_popup_destroy();
     clear_egl(platform->display);
     clear_wayland(platform);
+
+    g_clear_pointer(&platform->viewports, g_ptr_array_unref);
 
     G_OBJECT_CLASS(cog_wl_platform_parent_class)->finalize(object);
 }
@@ -1433,6 +1421,30 @@ cog_wl_platform_popup_update(void)
 }
 
 static void
+cog_wl_platform_viewport_created(CogPlatform *platform, CogViewport *viewport)
+{
+    CogWlPlatform *self = COG_WL_PLATFORM(platform);
+
+    g_assert(!g_ptr_array_find(self->viewports, viewport, NULL));
+    g_ptr_array_add(self->viewports, viewport);
+
+    // TODO: Move into CogWlViewport.constructed or somewhere more suitable.
+    cog_wl_viewport_create_window(COG_WL_VIEWPORT(viewport), NULL);
+
+    g_signal_connect_object(viewport, "notify::visible-view", G_CALLBACK(cog_wl_platform_on_notify_visible_view),
+                            platform, G_CONNECT_AFTER | G_CONNECT_SWAPPED);
+}
+
+static void
+cog_wl_platform_viewport_disposed(CogPlatform *platform, CogViewport *viewport)
+{
+    CogWlPlatform *self = COG_WL_PLATFORM(platform);
+
+    gboolean removed G_GNUC_UNUSED = g_ptr_array_remove_fast(self->viewports, viewport);
+    g_assert(removed);
+}
+
+static void
 cog_wl_platform_class_init(CogWlPlatformClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS(klass);
@@ -1444,6 +1456,8 @@ cog_wl_platform_class_init(CogWlPlatformClass *klass)
     platform_class->get_viewport_type = cog_wl_viewport_get_type;
     platform_class->setup = cog_wl_platform_setup;
     platform_class->create_im_context = cog_wl_platform_create_im_context;
+    platform_class->viewport_created = cog_wl_platform_viewport_created;
+    platform_class->viewport_disposed = cog_wl_platform_viewport_disposed;
 }
 
 static void
@@ -1452,8 +1466,9 @@ cog_wl_platform_class_finalize(CogWlPlatformClass *klass)
 }
 
 static void
-cog_wl_platform_init(CogWlPlatform *platform)
+cog_wl_platform_init(CogWlPlatform *self)
 {
+    self->viewports = g_ptr_array_sized_new(3);
 }
 
 G_MODULE_EXPORT void
