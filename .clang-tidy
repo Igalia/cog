@@ -1,0 +1,3 @@
+---
+CheckOptions:
+    bugprone-sizeof-expression.WarnOnSizeOfPointerToAggregate: false
