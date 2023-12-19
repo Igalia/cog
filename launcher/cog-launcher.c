@@ -131,9 +131,18 @@ struct _CogLauncher {
 
     guint sigint_source;
     guint sigterm_source;
+
+    CogViewport *viewport;
 };
 
 G_DEFINE_TYPE(CogLauncher, cog_launcher, G_TYPE_APPLICATION)
+
+static WebKitWebView *
+cog_launcher_get_visible_view(CogLauncher *self)
+{
+    g_return_val_if_fail(COG_IS_LAUNCHER(self), NULL);
+    return (WebKitWebView *) cog_viewport_get_visible_view(self->viewport);
+}
 
 static void
 on_action_quit(G_GNUC_UNUSED GAction *action, G_GNUC_UNUSED GVariant *param, CogLauncher *launcher)
@@ -144,26 +153,26 @@ on_action_quit(G_GNUC_UNUSED GAction *action, G_GNUC_UNUSED GVariant *param, Cog
 static void
 on_action_prev(G_GNUC_UNUSED GAction *action, G_GNUC_UNUSED GVariant *param, CogLauncher *launcher)
 {
-    webkit_web_view_go_back(cog_shell_get_web_view(launcher->shell));
+    webkit_web_view_go_back(cog_launcher_get_visible_view(launcher));
 }
 
 static void
 on_action_next(G_GNUC_UNUSED GAction *action, G_GNUC_UNUSED GVariant *param, CogLauncher *launcher)
 {
-    webkit_web_view_go_forward(cog_shell_get_web_view(launcher->shell));
+    webkit_web_view_go_forward(cog_launcher_get_visible_view(launcher));
 }
 
 static void
 on_action_reload(G_GNUC_UNUSED GAction *action, G_GNUC_UNUSED GVariant *param, CogLauncher *launcher)
 {
-    webkit_web_view_reload(cog_shell_get_web_view(launcher->shell));
+    webkit_web_view_reload(cog_launcher_get_visible_view(launcher));
 }
 
 static void
 on_action_open(G_GNUC_UNUSED GAction *action, GVariant *param, CogLauncher *launcher)
 {
     g_return_if_fail(g_variant_is_of_type(param, G_VARIANT_TYPE_STRING));
-    webkit_web_view_load_uri(cog_shell_get_web_view(launcher->shell), g_variant_get_string(param, NULL));
+    webkit_web_view_load_uri(cog_launcher_get_visible_view(launcher), g_variant_get_string(param, NULL));
 }
 
 static gboolean
@@ -182,14 +191,6 @@ on_permission_request(G_GNUC_UNUSED WebKitWebView *web_view, WebKitPermissionReq
         webkit_permission_request_deny(request);
 
     return TRUE;
-}
-
-static void
-on_notify_web_view(CogShell *shell, GParamSpec *arg G_GNUC_UNUSED, CogLauncher *launcher)
-{
-    WebKitWebView *web_view = cog_shell_get_web_view(shell);
-
-    g_signal_connect(web_view, "permission-request", G_CALLBACK(on_permission_request), launcher);
 }
 
 static void
@@ -216,7 +217,7 @@ cog_launcher_open(GApplication *application, GFile **files, int n_files, const c
         g_warning("Requested opening %i files, opening only the first one", n_files);
 
     g_autofree char *uri = g_file_get_uri(files[0]);
-    webkit_web_view_load_uri(cog_shell_get_web_view(COG_LAUNCHER(application)->shell), uri);
+    webkit_web_view_load_uri(cog_launcher_get_visible_view(COG_LAUNCHER(application)), uri);
 }
 
 static void *
@@ -227,94 +228,33 @@ on_web_view_create(WebKitWebView *web_view, WebKitNavigationAction *action)
 }
 
 static WebKitWebView *
-cog_launcher_create_view(CogLauncher *self, CogShell *shell)
+on_automation_session_create_web_view(WebKitAutomationSession *session, CogLauncher *launcher)
 {
-    g_assert(shell == self->shell);
-
-    WebKitWebContext *web_context = cog_shell_get_web_context(shell);
-
-    if (s_options.doc_viewer) {
-        webkit_web_context_set_cache_model(web_context, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
-    }
-
-    CogPlatform *platform = cog_platform_get();
-
-    g_autoptr(GError) error = NULL;
-    if (!cog_platform_setup(platform, shell, s_options.platform_params, &error))
-        g_error("Cannot configure platform: %s", error->message);
-
 #if HAVE_WEBKIT_AUTOPLAY
-    WebKitWebsitePolicies *website_policies =
+    g_autoptr(WebKitWebsitePolicies) website_policies =
         webkit_website_policies_new_with_policies("autoplay", s_options.autoplay_policy, NULL);
-#endif
+#endif /* HAVE_WEBKIT_AUTOPLAY */
 
-    g_autoptr(WebKitWebView) web_view =
-        WEBKIT_WEB_VIEW(cog_view_new("settings", cog_shell_get_web_settings(shell), "web-context", web_context,
-                                     "zoom-level", s_options.scale_factor, "is-controlled-by-automation",
-                                     cog_shell_is_automated(shell), "use-key-bindings", !s_options.disable_key_bindings,
+    return (WebKitWebView *) cog_view_new("settings", cog_shell_get_web_settings(launcher->shell), "web-context",
+                                          cog_shell_get_web_context(launcher->shell), "is-controlled-by-automation",
+                                          TRUE, "zoom-level", s_options.scale_factor, "use-key-bindings", FALSE,
 #if COG_USE_WPE2
-                                     "network-session", self->network_session,
-#endif
+                                          "network-session", launcher->network_session,
+#endif /* COG_USE_WPE2 */
 #if HAVE_WEBKIT_AUTOPLAY
-                                     "website-policies", website_policies,
-#endif
-                                     NULL));
+                                          "website-policies", website_policies,
+#endif /* HAVE_WEBKIT_AUTOPLAY */
+                                          NULL);
+}
 
-#if HAVE_WEBKIT_AUTOPLAY
-    g_clear_object(&website_policies);
-#endif
+static void
+on_automation_started(WebKitWebContext *context, WebKitAutomationSession *session, CogLauncher *launcher)
+{
+    g_autoptr(WebKitApplicationInfo) info = webkit_application_info_new();
+    webkit_application_info_set_version(info, WEBKIT_MAJOR_VERSION, WEBKIT_MINOR_VERSION, WEBKIT_MICRO_VERSION);
+    webkit_automation_session_set_application_info(session, info);
 
-    if (s_options.filter) {
-        WebKitUserContentManager *manager = webkit_web_view_get_user_content_manager(web_view);
-        webkit_user_content_manager_add_filter(manager, s_options.filter);
-        g_clear_pointer(&s_options.filter, webkit_user_content_filter_unref);
-    }
-
-    g_signal_connect(web_view, "create", G_CALLBACK(on_web_view_create), NULL);
-
-    cog_platform_init_web_view(platform, web_view);
-
-    if (s_options.background_color != NULL) {
-        WebKitColor color;
-        gboolean    has_valid_color = webkit_color_parse(&color, s_options.background_color);
-
-        if (has_valid_color)
-            webkit_web_view_set_background_color(web_view, &color);
-        else
-            g_error("'%s' doesn't represent a valid #RRGGBBAA or CSS color format.", s_options.background_color);
-    }
-    g_clear_pointer(&s_options.background_color, g_free);
-
-    switch (s_options.on_failure.action_id) {
-    case WEBPROCESS_FAIL_ERROR_PAGE:
-        // Nothing else needed, the default error handler (connected
-        // below) already implements displaying an error page.
-        break;
-
-    case WEBPROCESS_FAIL_EXIT:
-        cog_web_view_connect_web_process_terminated_exit_handler(web_view, EXIT_FAILURE);
-        break;
-
-    case WEBPROCESS_FAIL_EXIT_OK:
-        cog_web_view_connect_web_process_terminated_exit_handler(web_view, EXIT_SUCCESS);
-        break;
-
-    case WEBPROCESS_FAIL_RESTART:
-        // TODO: Un-hardcode the 5 retries per second.
-        cog_web_view_connect_web_process_terminated_restart_handler(web_view, 5, 1000);
-        break;
-
-    default:
-        g_assert_not_reached();
-    }
-
-    cog_web_view_connect_default_progress_handlers(web_view);
-    cog_web_view_connect_default_error_handlers(web_view);
-
-    webkit_web_view_load_uri(web_view, s_options.home_uri);
-    g_clear_pointer(&s_options.home_uri, g_free);
-
-    return g_steal_pointer(&web_view);
+    g_signal_connect(session, "create-web-view", G_CALLBACK(on_automation_session_create_web_view), launcher);
 }
 
 static void
@@ -340,18 +280,24 @@ cog_launcher_startup(GApplication *application)
         "web-memory-settings", self->web_mem_settings, "network-memory-settings", self->net_mem_settings,
 #endif /* COG_HAVE_MEM_PRESSURE */
         NULL);
-    g_signal_connect_swapped(self->shell, "create-view", G_CALLBACK(cog_launcher_create_view), self);
-    g_signal_connect(self->shell, "notify::web-view", G_CALLBACK(on_notify_web_view), self);
+
+    g_autoptr(GError) error = NULL;
+    if (!cog_platform_setup(cog_platform_get(), self->shell, s_options.platform_params, &error))
+        g_error("Cannot configure platform: %s", error->message);
+
+    WebKitWebContext *web_context = cog_shell_get_web_context(self->shell);
+    g_signal_connect(web_context, "automation-started", G_CALLBACK(on_automation_started), self);
+
+    if (s_options.doc_viewer)
+        webkit_web_context_set_cache_model(web_context, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
 
 #if COG_USE_WPE2
     if (s_options.web_extensions_dir)
-        webkit_web_context_set_web_process_extensions_directory(cog_shell_get_web_context(self->shell),
-                                                                s_options.web_extensions_dir);
+        webkit_web_context_set_web_process_extensions_directory(web_context, s_options.web_extensions_dir);
 #else
     if (s_options.web_extensions_dir)
-        webkit_web_context_set_web_extensions_directory(cog_shell_get_web_context(self->shell),
-                                                        s_options.web_extensions_dir);
-    webkit_web_context_set_sandbox_enabled(cog_shell_get_web_context(self->shell), s_options.enable_sandbox);
+        webkit_web_context_set_web_extensions_directory(web_context, s_options.web_extensions_dir);
+    webkit_web_context_set_sandbox_enabled(web_context, s_options.enable_sandbox);
 #endif
     g_clear_pointer(&s_options.web_extensions_dir, g_free);
 
@@ -390,6 +336,76 @@ cog_launcher_startup(GApplication *application)
                                              s_options.ignore_tls_errors ? WEBKIT_TLS_ERRORS_POLICY_IGNORE
                                                                          : WEBKIT_TLS_ERRORS_POLICY_FAIL);
 #endif
+
+#if HAVE_WEBKIT_AUTOPLAY
+    g_autoptr(WebKitWebsitePolicies) website_policies =
+        webkit_website_policies_new_with_policies("autoplay", s_options.autoplay_policy, NULL);
+#endif
+
+    g_autoptr(CogView) view = cog_view_new("settings", cog_shell_get_web_settings(self->shell), "web-context",
+                                           cog_shell_get_web_context(self->shell), "zoom-level", s_options.scale_factor,
+                                           "use-key-bindings", !s_options.disable_key_bindings,
+#if COG_USE_WPE2
+                                           "network-session", self->network_session,
+#endif
+#if HAVE_WEBKIT_AUTOPLAY
+                                           "website-policies", website_policies,
+#endif
+                                           NULL);
+
+    cog_platform_init_web_view(cog_platform_get(), WEBKIT_WEB_VIEW(view));
+
+    g_signal_connect(view, "permission-request", G_CALLBACK(on_permission_request), self);
+    g_signal_connect(view, "create", G_CALLBACK(on_web_view_create), NULL);
+
+    if (s_options.filter) {
+        WebKitUserContentManager *manager = webkit_web_view_get_user_content_manager(WEBKIT_WEB_VIEW(view));
+        webkit_user_content_manager_add_filter(manager, s_options.filter);
+        g_clear_pointer(&s_options.filter, webkit_user_content_filter_unref);
+    }
+
+    if (s_options.background_color != NULL) {
+        WebKitColor color;
+        gboolean    has_valid_color = webkit_color_parse(&color, s_options.background_color);
+
+        if (has_valid_color)
+            webkit_web_view_set_background_color(WEBKIT_WEB_VIEW(view), &color);
+        else
+            g_error("'%s' doesn't represent a valid #RRGGBBAA or CSS color format.", s_options.background_color);
+    }
+    g_clear_pointer(&s_options.background_color, g_free);
+
+    switch (s_options.on_failure.action_id) {
+    case WEBPROCESS_FAIL_ERROR_PAGE:
+        // Nothing else needed, the default error handler (connected
+        // below) already implements displaying an error page.
+        break;
+
+    case WEBPROCESS_FAIL_EXIT:
+        cog_web_view_connect_web_process_terminated_exit_handler(WEBKIT_WEB_VIEW(view), EXIT_FAILURE);
+        break;
+
+    case WEBPROCESS_FAIL_EXIT_OK:
+        cog_web_view_connect_web_process_terminated_exit_handler(WEBKIT_WEB_VIEW(view), EXIT_SUCCESS);
+        break;
+
+    case WEBPROCESS_FAIL_RESTART:
+        // TODO: Un-hardcode the 5 retries per second.
+        cog_web_view_connect_web_process_terminated_restart_handler(WEBKIT_WEB_VIEW(view), 5, 1000);
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+    cog_web_view_connect_default_progress_handlers(WEBKIT_WEB_VIEW(view));
+    cog_web_view_connect_default_error_handlers(WEBKIT_WEB_VIEW(view));
+
+    webkit_web_view_load_uri(WEBKIT_WEB_VIEW(view), s_options.home_uri);
+    g_clear_pointer(&s_options.home_uri, g_free);
+
+    self->viewport = cog_viewport_new();
+    cog_viewport_add(self->viewport, view);
 }
 
 static void
@@ -413,11 +429,8 @@ cog_launcher_dispose(GObject *object)
 {
     CogLauncher *launcher = COG_LAUNCHER(object);
 
-    if (launcher->shell) {
-        g_signal_handlers_disconnect_by_func(launcher->shell, G_CALLBACK(on_notify_web_view), NULL);
-        g_signal_handlers_disconnect_by_func(launcher->shell, G_CALLBACK(cog_launcher_create_view), NULL);
-        g_clear_object(&launcher->shell);
-    }
+    g_clear_object(&launcher->shell);
+    g_clear_object(&launcher->viewport);
 
     g_clear_handle_id(&launcher->sigint_source, g_source_remove);
     g_clear_handle_id(&launcher->sigterm_source, g_source_remove);

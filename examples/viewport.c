@@ -43,9 +43,8 @@ main(int argc, char *argv[])
     if (!cog_platform_setup(platform, shell, NULL, &error))
         g_error("Cannot configure platform: %s", error->message);
 
+    g_autoptr(CogViewport) viewport = cog_viewport_new();
     g_autoptr(GMainLoop) loop = g_main_loop_new(NULL, FALSE);
-
-    CogViewport *viewport = cog_shell_get_viewport(shell);
 
     for (int i = 1; i < argc; i++) {
         g_autoptr(CogView) view = cog_view_new(NULL);
