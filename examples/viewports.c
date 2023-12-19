@@ -46,7 +46,6 @@ main(int argc, char *argv[])
     g_autoptr(GMainLoop) loop = g_main_loop_new(NULL, FALSE);
 
     CogViewport *viewport0 = cog_viewport_new();
-    cog_shell_add_viewport(shell, viewport0);
 
     for (int i = 1; i < argc; i++) {
         g_autoptr(CogView) view = cog_view_new(NULL);
@@ -64,7 +63,6 @@ main(int argc, char *argv[])
     on_timeout_tick(&data0);
 
     CogViewport *viewport1 = cog_viewport_new();
-    cog_shell_add_viewport(shell, viewport1);
 
     for (int i = 1; i < argc; i++) {
         g_autoptr(CogView) view = cog_view_new(NULL);

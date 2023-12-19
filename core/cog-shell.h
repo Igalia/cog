@@ -18,8 +18,7 @@ G_BEGIN_DECLS
 
 #define COG_SHELL_DEFAULT_VIEWPORT_INDEX 0
 
-typedef struct _CogViewport   CogViewport;
-typedef struct _WebKitWebView WebKitWebView;
+typedef struct _CogView CogView;
 
 #define COG_TYPE_SHELL (cog_shell_get_type())
 
@@ -30,16 +29,14 @@ struct _CogShellClass {
     GObjectClass parent_class;
 
     /*< public >*/
-    WebKitWebView* (*create_view) (CogShell*);
-    void           (*startup)     (CogShell*);
-    void           (*shutdown)    (CogShell*);
+    void (*startup)(CogShell *self);
+    void (*shutdown)(CogShell *self);
 };
 
 COG_API CogShell         *cog_shell_new(const char *name, gboolean automated);
 COG_API const char       *cog_shell_get_name(CogShell *shell);
 COG_API WebKitWebContext *cog_shell_get_web_context(CogShell *shell);
 COG_API WebKitSettings   *cog_shell_get_web_settings(CogShell *shell);
-COG_API WebKitWebView    *cog_shell_get_web_view(CogShell *shell);
 COG_API GKeyFile         *cog_shell_get_config_file(CogShell *shell);
 COG_API gdouble           cog_shell_get_device_scale_factor(CogShell *shell);
 COG_API gboolean          cog_shell_is_automated(CogShell *shell);
@@ -47,13 +44,5 @@ COG_API void cog_shell_set_request_handler(CogShell *shell, const char *scheme, 
 
 COG_API void cog_shell_startup(CogShell *shell);
 COG_API void cog_shell_shutdown(CogShell *shell);
-
-COG_API CogViewport *cog_shell_get_viewport(CogShell *shell);
-COG_API GPtrArray   *cog_shell_get_viewports(CogShell *shell);
-
-COG_API void         cog_shell_add_viewport(CogShell *shell, CogViewport *viewport);
-COG_API void         cog_shell_remove_viewport(CogShell *shell, CogViewport *viewport);
-COG_API gsize        cog_shell_get_n_viewports(CogShell *shell);
-COG_API CogViewport *cog_shell_get_nth_viewport(CogShell *shell, gsize index);
 
 G_END_DECLS
