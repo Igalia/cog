@@ -1,5 +1,6 @@
 /*
  * cog-shell.h
+ * Copyright (C) 2019-2023 Igalia S.L.
  * Copyright (C) 2018 Adrian Perez <aperez@igalia.com>
  *
  * SPDX-License-Identifier: MIT
@@ -27,10 +28,6 @@ G_DECLARE_DERIVABLE_TYPE(CogShell, cog_shell, COG, SHELL, GObject)
 
 struct _CogShellClass {
     GObjectClass parent_class;
-
-    /*< public >*/
-    void (*startup)(CogShell *self);
-    void (*shutdown)(CogShell *self);
 };
 
 COG_API CogShell         *cog_shell_new(const char *name, gboolean automated);
@@ -41,8 +38,5 @@ COG_API GKeyFile         *cog_shell_get_config_file(CogShell *shell);
 COG_API gdouble           cog_shell_get_device_scale_factor(CogShell *shell);
 COG_API gboolean          cog_shell_is_automated(CogShell *shell);
 COG_API void cog_shell_set_request_handler(CogShell *shell, const char *scheme, CogRequestHandler *handler);
-
-COG_API void cog_shell_startup(CogShell *shell);
-COG_API void cog_shell_shutdown(CogShell *shell);
 
 G_END_DECLS
