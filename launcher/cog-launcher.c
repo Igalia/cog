@@ -303,8 +303,6 @@ cog_launcher_startup(GApplication *application)
 
     g_object_set(self->shell, "device-scale-factor", s_options.device_scale_factor, NULL);
 
-    cog_shell_startup(self->shell);
-
     if (s_options.handler_map) {
         GHashTableIter i;
         void          *key, *value;
@@ -414,14 +412,6 @@ cog_launcher_activate(GApplication *application)
     /* GApplication warns if activate is not handled. Usually this signal will focus a
        window but this doesn't apply to many of our platforms so this is a noop. */
     G_APPLICATION_CLASS(cog_launcher_parent_class)->activate(application);
-}
-
-static void
-cog_launcher_shutdown(GApplication *application)
-{
-    cog_shell_shutdown(cog_launcher_get_shell(COG_LAUNCHER(application)));
-
-    G_APPLICATION_CLASS(cog_launcher_parent_class)->shutdown(application);
 }
 
 static void
@@ -1498,7 +1488,6 @@ cog_launcher_class_init(CogLauncherClass *klass)
     GApplicationClass *application_class = G_APPLICATION_CLASS(klass);
     application_class->open = cog_launcher_open;
     application_class->startup = cog_launcher_startup;
-    application_class->shutdown = cog_launcher_shutdown;
     application_class->handle_local_options = cog_launcher_handle_local_options;
     application_class->activate = cog_launcher_activate;
 

@@ -121,25 +121,6 @@ request_handler_map_entry_register (const char             *scheme,
 }
 
 static void
-cog_shell_startup_base(CogShell *shell)
-{
-    CogShellPrivate *priv = PRIV(shell);
-
-    if (priv->request_handlers) {
-        g_hash_table_foreach (priv->request_handlers,
-                              (GHFunc) request_handler_map_entry_register,
-                              priv->web_context);
-    }
-
-    webkit_web_context_set_automation_allowed(priv->web_context, priv->automated);
-}
-
-static void
-cog_shell_shutdown_base(CogShell *shell G_GNUC_UNUSED)
-{
-}
-
-static void
 cog_shell_get_property (GObject    *object,
                         unsigned    prop_id,
                         GValue     *value,
@@ -255,6 +236,8 @@ cog_shell_constructed(GObject *object)
                                      "memory-pressure-settings", priv->web_mem_settings,
 #endif
                                      NULL);
+
+    webkit_web_context_set_automation_allowed(priv->web_context, priv->automated);
 }
 
 static void
@@ -283,9 +266,6 @@ cog_shell_class_init(CogShellClass *klass)
     object_class->constructed = cog_shell_constructed;
     object_class->get_property = cog_shell_get_property;
     object_class->set_property = cog_shell_set_property;
-
-    klass->startup = cog_shell_startup_base;
-    klass->shutdown = cog_shell_shutdown_base;
 
     /**
      * CogShell:name: (attributes org.gtk.Property.get=cog_shell_get_name):
@@ -537,35 +517,4 @@ cog_shell_set_request_handler(CogShell *shell, const char *scheme, CogRequestHan
     }
 
     request_handler_map_entry_register (scheme, entry, priv->web_context);
-}
-
-/**
- * cog_shell_startup: (virtual startup)
- *
- * Finish initializing the shell.
- *
- * This takes care of registering custom URI scheme handlers.
- *
- * Subclasses which override this method **must** invoke the base
- * implementation.
- */
-void
-cog_shell_startup  (CogShell *shell)
-{
-    g_return_if_fail (COG_IS_SHELL (shell));
-    CogShellClass *klass = COG_SHELL_GET_CLASS (shell);
-    (*klass->startup) (shell);
-}
-
-/**
- * cog_shell_shutdown: (virtual shutdown)
- *
- * Deinitialize the shell.
- */
-void
-cog_shell_shutdown (CogShell *shell)
-{
-    g_return_if_fail (COG_IS_SHELL (shell));
-    CogShellClass *klass = COG_SHELL_GET_CLASS (shell);
-    (*klass->shutdown) (shell);
 }
