@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Platform.create_im_context</title>
+  <title>Cog.Platform::viewport-disposed</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta property="og:title" content="Cog.Platform.create_im_context"/>
-  <meta property="og:description" content="Reference for Cog.Platform.create_im_context"/>
-  <meta name="twitter:title" content="Cog.Platform.create_im_context"/>
-  <meta name="twitter:description" content="Reference for Cog.Platform.create_im_context"/>
+  <meta property="og:title" content="Cog.Platform::viewport-disposed"/>
+  <meta property="og:description" content="Reference for signal Cog.Platform::viewport-disposed"/>
+  <meta name="twitter:title" content="Cog.Platform::viewport-disposed"/>
+  <meta name="twitter:description" content="Reference for signal Cog.Platform::viewport-disposed"/>
 
 
   
@@ -86,16 +86,12 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   </div>
 </div>
 <div class="section">
-  <h5>Functions</h5>
+  <h5>Signals</h5>
   <div class="links">
   
-    <a class="method current" href="type_func.Platform.create_im_context.html">create_im_context</a>
+    <a class="signal" href="signal.Platform.viewport-created.html">viewport-created</a>
   
-    <a class="method" href="type_func.Platform.egl_error_quark.html">egl_error_quark</a>
-  
-    <a class="method" href="type_func.Platform.get.html">get</a>
-  
-    <a class="method" href="type_func.Platform.wpe_error_quark.html">wpe_error_quark</a>
+    <a class="signal current" href="signal.Platform.viewport-disposed.html">viewport-disposed</a>
   
   </div>
 </div>
@@ -107,24 +103,23 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Function</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a><span class="sep"></span>create_im_context</h1>
+    <h3>Signal</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a>::viewport-disposed</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 id="declaration" style="display:flex;">
+      <h4 id="declaration">
         Declaration
         <a href="#declaration" class="anchor"></a>
-        
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-platform.h#L76">[src]</a>
-        
       </h4>
 
       <div class="docblock">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">WebKitInputMethodContext</span><span class="o">*</span><span class="w"></span>
-<span class="n">cog_platform_create_im_context</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="n">CogViewport</span><span class="o">*</span><span class="w"> </span><span class="n">viewport</span><span class="w"></span>
+        <pre><code><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"></span>
+<span class="n">viewport_disposed</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogPlatform</span><span class="o">*</span><span class="w"> </span><span class="n">self</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogViewport</span><span class="o">*</span><span class="w"> </span><span class="n">viewport</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">gpointer</span><span class="w"> </span><span class="n">user_data</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
 </code></pre>
@@ -136,15 +131,29 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         Description
         <a href="#description" class="anchor"></a>
         
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-platform.c#L67">[src]</a>
+        
       </h4>
 
       <div class="docblock">
-        No description available.
+        <p>Signal emitted for each disposed&nbsp;viewport.</p>
+<p>Note that the <code>viewport</code> at this point has already been disposed,
+so the usual restrictions for diposed but not yet finalized GObject
+instances&nbsp;apply.</p>
+<p>This signal is mainly intended to be used from platform plug-in
+implementations that need to track instantiated <a href="class.Viewport.html"><code>CogViewport</code></a>&nbsp;instances.</p>
       </div>
 
       <div class="docblock">
         <table>
+          <tr><td>Default handler:</td><td> <p>The default handler is called after the handlers added via <code>g_signal_connect()</code>.</p></td></tr>
           
+          
+          
+          
+          
+          
+          <tr><td>Available since:</td><td>0.20</td></tr>
           
           
         </table>
@@ -169,7 +178,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td>No description available.</td>
+            <td><p>Viewport being&nbsp;disposed.</p></td>
           </tr>
           
           
@@ -188,32 +197,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 
     
-    <div class="return-value toggle-wrapper">
-      <h4 id="return-value">
-        Return value
-        <a href="#return-value" class="anchor"></a>
-      </h4>
 
-      <div class="docblock">
-        <table class="returns">
-          <tr class="arg-name">
-            <td>Returns:</td>
-            <td><code>WebKitInputMethodContext*</code></td>
-          </tr>
-          <tr class="arg-description">
-            <td>&nbsp;</td>
-            <td>No description available.</td>
-          </tr>
-          
-          
-          
-          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the called function.</td></tr>
-          
-          
-        </table>
-      </div>
-    </div>
-    
   </section>
 </section>
 

@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.Viewport.contains</title>
+  <title>Cog.Platform.viewport_disposed</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta priority="og:title" content="Cog.Viewport.contains"/>
-  <meta priority="og:description" content="Reference for Cog.Viewport.contains"/>
-  <meta name="twitter:title" content="Cog.Viewport.contains"/>
-  <meta name="twitter:description" content="Reference for Cog.Viewport.contains"/>
+  <meta property="og:title" content="Cog.Platform.viewport_disposed"/>
+  <meta property="og:description" content="Reference for Cog.Platform.viewport_disposed"/>
+  <meta name="twitter:title" content="Cog.Platform.viewport_disposed"/>
+  <meta name="twitter:description" content="Reference for Cog.Platform.viewport_disposed"/>
 
 
   
@@ -82,28 +82,22 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <div class="section">
   <h5>Type</h5>
   <div class="links">
-    <a href="class.Viewport.html">Viewport</a>
+    <a href="class.Platform.html">Platform</a>
   </div>
 </div>
 <div class="section">
-  <h5>Methods</h5>
+  <h5>Virtual methods</h5>
   <div class="links">
   
-    <a class="method" href="method.Viewport.add.html">add</a>
+    <a class="method" href="vfunc.Platform.get_view_backend.html">get_view_backend</a>
   
-    <a class="method current" href="method.Viewport.contains.html">contains</a>
+    <a class="method" href="vfunc.Platform.init_web_view.html">init_web_view</a>
   
-    <a class="method" href="method.Viewport.foreach.html">foreach</a>
+    <a class="method" href="vfunc.Platform.setup.html">setup</a>
   
-    <a class="method" href="method.Viewport.get_n_views.html">get_n_views</a>
+    <a class="method" href="vfunc.Platform.viewport_created.html">viewport_created</a>
   
-    <a class="method" href="method.Viewport.get_nth_view.html">get_nth_view</a>
-  
-    <a class="method" href="method.Viewport.get_visible_view.html">get_visible_view</a>
-  
-    <a class="method" href="method.Viewport.remove.html">remove</a>
-  
-    <a class="method" href="method.Viewport.set_visible_view.html">set_visible_view</a>
+    <a class="method current" href="vfunc.Platform.viewport_disposed.html">viewport_disposed</a>
   
   </div>
 </div>
@@ -115,25 +109,25 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Method</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Viewport.html">Viewport</a><span class="sep"></span>contains</h1>
+    <h3>Virtual Method</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.Platform.html">Platform</a><span class="sep"></span>viewport_disposed</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 style="display:flex;" id="declaration">
+      <h4 id="declaration">
         Declaration
-        <a class="anchor" href="#declaration"></a>
+        <a href="#declaration" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-viewport.h#L42">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-platform.h#L59">[src]</a>
         
       </h4>
 
       <div class="docblock c-decl">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">gboolean</span><span class="w"></span>
-<span class="n">cog_viewport_contains</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="n">CogViewport</span><span class="o">*</span><span class="w"> </span><span class="n">self</span><span class="p">,</span><span class="w"></span>
-<span class="w">  </span><span class="n">CogView</span><span class="o">*</span><span class="w"> </span><span class="n">view</span><span class="w"></span>
+        <pre><code><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"></span>
+<span class="n">viewport_disposed</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogPlatform</span><span class="o">*</span><span class="w"> </span><span class="n">self</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogViewport</span><span class="o">*</span><span class="w"> </span><span class="n">viewport</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
 </code></pre>
@@ -141,23 +135,18 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     <div class="description toggle-wrapper">
-      <h4 style="display:flex;" id="description">
+      <h4 id="description">
         Description
-        <a class="anchor" href="#description"></a>
-        
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-viewport.c#L348">[src]</a>
+        <a href="#description" class="anchor"></a>
         
       </h4>
 
       <div class="docblock">
-        <p>Checks whether a viewport contains a given&nbsp;view.</p>
+        No description available.
       </div>
 
       <div class="docblock">
         <table>
-          
-          
-          
           
           
           
@@ -178,12 +167,12 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="arguments">
           
           <tr class="arg-name">
-            <td><code>view</code></td>
-            <td><a href="class.View.html"><code>CogView</code></a></td>
+            <td><code>viewport</code></td>
+            <td><a href="class.Viewport.html"><code>CogViewport</code></a></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td><p>The view to&nbsp;check.</p></td>
+            <td>No description available.</td>
           </tr>
           
           
@@ -201,32 +190,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
     
 
-    
-    <div class="return-value toggle-wrapper">
-      <h4 id="return-value">
-        Return value
-        <a href="#return-value" class="anchor"></a>
-      </h4>
-
-      <div class="docblock">
-        <table class="returns">
-          <tr class="arg-name">
-            <td>Returns:</td>
-            <td><code>gboolean</code></td>
-          </tr>
-          <tr class="arg-description">
-            <td>&nbsp;</td>
-            <td><p>Whether the <code>view</code> is contained in the&nbsp;viewport.</p></td>
-          </tr>
-          
-          
-          
-          
-          
-          
-        </table>
-      </div>
-    </div>
     
 
   </section>
