@@ -26,12 +26,6 @@ G_BEGIN_DECLS
 #define DEFAULT_HEIGHT 768
 #define DEFAULT_WIDTH  1024
 
-#if defined(WPE_CHECK_VERSION)
-#    define HAVE_REFRESH_RATE_HANDLING WPE_CHECK_VERSION(1, 13, 2)
-#else
-#    define HAVE_REFRESH_RATE_HANDLING 0
-#endif
-
 typedef struct _CogWlAxis     CogWlAxis;
 typedef struct _CogWlDisplay  CogWlDisplay;
 typedef struct _CogWlKeyboard CogWlKeyboard;

@@ -127,9 +127,7 @@ surface_on_enter(void *data, struct wl_surface *surface, struct wl_output *outpu
     for (unsigned i = 0; i < cog_viewport_get_n_views(COG_VIEWPORT(viewport)); i++) {
         struct wpe_view_backend *backend = cog_view_get_backend(cog_viewport_get_nth_view(COG_VIEWPORT(viewport), i));
 
-#if HAVE_REFRESH_RATE_HANDLING
         wpe_view_backend_set_target_refresh_rate(backend, display->current_output->refresh);
-#endif /* HAVE_REFRESH_RATE_HANDLING */
 
 #ifdef WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION
         if (can_set_surface_scale)
