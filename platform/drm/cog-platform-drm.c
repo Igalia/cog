@@ -36,12 +36,6 @@
          (LIBINPUT_VER_MAJOR == (a) && (LIBINPUT_VER_MINOR == (b)) && (LIBINPUT_VER_MICRO >= (c))))
 #endif /* !LIBINPUT_CHECK_VERSION */
 
-#if defined(WPE_CHECK_VERSION)
-#    define HAVE_REFRESH_RATE_HANDLING WPE_CHECK_VERSION(1, 13, 2)
-#else
-#    define HAVE_REFRESH_RATE_HANDLING 0
-#endif
-
 #if !defined(EGL_EXT_platform_base)
 typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platform, void *native_display, const EGLint *attrib_list);
 #endif
@@ -1533,14 +1527,12 @@ cog_drm_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_
     return wk_view_backend;
 }
 
-#if HAVE_REFRESH_RATE_HANDLING
 static gboolean
 set_target_refresh_rate(gpointer user_data)
 {
     wpe_view_backend_set_target_refresh_rate(wpe_view_data.backend, drm_data.refresh * 1000);
     return G_SOURCE_REMOVE;
 }
-#endif /* HAVE_REFRESH_RATE_HANDLING */
 
 static void
 cog_drm_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
@@ -1549,9 +1541,7 @@ cog_drm_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
 
     wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_data.backend, drm_data.device_scale);
 
-#if HAVE_REFRESH_RATE_HANDLING
     g_idle_add(G_SOURCE_FUNC(set_target_refresh_rate), &wpe_view_data);
-#endif /* HAVE_REFRESH_RATE_HANDLING */
 }
 
 static void
