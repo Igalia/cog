@@ -22,7 +22,7 @@ foreach platform_plugin_name : platform_plugins
 endforeach
 
 # All platform plug-ins currently use the FDO backend as a dependency.
-wpebackend_fdo_dep = dependency('wpebackend-fdo-1.0', version: '>=1.8.0')
+wpebackend_fdo_dep = dependency('wpebackend-fdo-1.0', version: '>=1.12.0')
 
 if libportal_usable and not get_option('libportal').disabled()
     libportal_dep = dependency('libportal', required: get_option('libportal'))

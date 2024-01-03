@@ -47,9 +47,7 @@ G_DEFINE_DYNAMIC_TYPE(CogWlView, cog_wl_view, COG_TYPE_VIEW)
 static void                  cog_wl_view_clear_buffers(CogWlView *);
 static WebKitWebViewBackend *cog_wl_view_create_backend(CogView *);
 static void                  cog_wl_view_dispose(GObject *);
-#if HAVE_FULLSCREEN_HANDLING
-static bool cog_wl_view_handle_dom_fullscreen_request(void *, bool);
-#endif
+static bool                  cog_wl_view_handle_dom_fullscreen_request(void *, bool);
 static void cog_wl_view_shm_buffer_destroy(CogWlView *, struct shm_buffer *);
 
 static void presentation_feedback_on_discarded(void *, struct wp_presentation_feedback *);
@@ -64,9 +62,7 @@ static void presentation_feedback_on_presented(void *,
                                                uint32_t);
 static void presentation_feedback_on_sync_output(void *, struct wp_presentation_feedback *, struct wl_output *);
 
-#if HAVE_SHM_EXPORTED_BUFFER
 static void on_export_shm_buffer(void *, struct wpe_fdo_shm_exported_buffer *);
-#endif
 static void on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image);
 static void on_mouse_target_changed(WebKitWebView *, WebKitHitTestResult *hitTestResult, guint mouseModifiers);
 #if COG_HAVE_LIBPORTAL
@@ -75,13 +71,11 @@ static void on_run_file_chooser(WebKitWebView *, WebKitFileChooserRequest *);
 static void on_show_option_menu(WebKitWebView *, WebKitOptionMenu *, WebKitRectangle *, gpointer *);
 static void on_wl_surface_frame(void *, struct wl_callback *, uint32_t);
 
-#if HAVE_SHM_EXPORTED_BUFFER
 static void               shm_buffer_copy_contents(struct shm_buffer *, struct wl_shm_buffer *);
 static struct shm_buffer *shm_buffer_create(CogWlView *, struct wl_resource *, size_t);
 static void               shm_buffer_destroy_notify(struct wl_listener *, void *);
 static struct shm_buffer *shm_buffer_for_resource(CogWlView *, struct wl_resource *);
 static void               shm_buffer_on_release(void *, struct wl_buffer *);
-#endif
 
 /*
  * CogWlView instantiation.
@@ -159,7 +153,6 @@ cog_wl_view_background_has_alpha(CogWlView *view)
 static void
 cog_wl_view_clear_buffers(CogWlView *view)
 {
-#if HAVE_SHM_EXPORTED_BUFFER
     struct shm_buffer *buffer, *tmp;
     wl_list_for_each_safe(buffer, tmp, &view->shm_buffer_list, link) {
 
@@ -169,7 +162,6 @@ cog_wl_view_clear_buffers(CogWlView *view)
         cog_wl_view_shm_buffer_destroy(view, buffer);
     }
     wl_list_init(&view->shm_buffer_list);
-#endif
 }
 
 static WebKitWebViewBackend *
@@ -180,9 +172,7 @@ cog_wl_view_create_backend(CogView *view)
 
     static const struct wpe_view_backend_exportable_fdo_egl_client client = {
         .export_fdo_egl_image = on_export_wl_egl_image,
-#if HAVE_SHM_EXPORTED_BUFFER
         .export_shm_buffer = on_export_shm_buffer,
-#endif
     };
 
     self->exportable = wpe_view_backend_exportable_fdo_egl_create(&client, self, DEFAULT_WIDTH, DEFAULT_HEIGHT);
@@ -200,9 +190,7 @@ cog_wl_view_create_backend(CogView *view)
                                     self->exportable);
     g_assert(wk_view_backend);
 
-#if HAVE_FULLSCREEN_HANDLING
     wpe_view_backend_set_fullscreen_handler(view_backend, cog_wl_view_handle_dom_fullscreen_request, self);
-#endif
 
     return wk_view_backend;
 }
@@ -225,12 +213,10 @@ cog_wl_view_enter_fullscreen(CogWlView *view)
     if (!cog_wl_view_does_image_match_win_size(view))
         return;
 
-#if HAVE_FULLSCREEN_HANDLING
     g_autoptr(CogWlViewport) viewport = COG_WL_VIEWPORT(cog_view_get_viewport((CogView *) view));
     g_assert(viewport != NULL);
     if (viewport->window.was_fullscreen_requested_from_dom)
         wpe_view_backend_dispatch_did_enter_fullscreen(cog_view_get_backend(COG_VIEW(view)));
-#endif
 
     view->is_resizing_fullscreen = false;
 }
@@ -238,13 +224,10 @@ cog_wl_view_enter_fullscreen(CogWlView *view)
 void
 cog_wl_view_exit_fullscreen(CogWlView *view)
 {
-#if HAVE_FULLSCREEN_HANDLING
     struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(view));
     wpe_view_backend_dispatch_did_exit_fullscreen(backend);
-#endif
 }
 
-#if HAVE_FULLSCREEN_HANDLING
 static bool
 cog_wl_view_handle_dom_fullscreen_request(void *data, bool fullscreen)
 {
@@ -266,7 +249,6 @@ cog_wl_view_handle_dom_fullscreen_request(void *data, bool fullscreen)
 
     return true;
 }
-#endif
 
 static void
 cog_wl_view_on_buffer_release(void *data G_GNUC_UNUSED, struct wl_buffer *buffer)
@@ -400,7 +382,6 @@ validate_exported_geometry(CogWlViewport *viewport, uint32_t width, uint32_t hei
     return true;
 }
 
-#if HAVE_SHM_EXPORTED_BUFFER
 static void
 on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_buffer)
 {
@@ -457,7 +438,6 @@ on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_bu
         wl_surface_commit(viewport->window.wl_surface);
     }
 }
-#endif
 
 static void
 on_export_wl_egl_image(void *data, struct wpe_fdo_egl_exported_image *image)
@@ -559,7 +539,6 @@ presentation_feedback_on_sync_output(void                            *data,
 {
 }
 
-#if HAVE_SHM_EXPORTED_BUFFER
 static void
 shm_buffer_copy_contents(struct shm_buffer *buffer, struct wl_shm_buffer *exported_shm_buffer)
 {
@@ -651,7 +630,6 @@ shm_buffer_on_release(void *data, struct wl_buffer *wl_buffer)
         buffer->exported_buffer = NULL;
     }
 }
-#endif
 
 /*
  * CogWlView register type method.
