@@ -32,14 +32,6 @@ G_BEGIN_DECLS
 #    define HAVE_REFRESH_RATE_HANDLING 0
 #endif
 
-#if defined(WPE_FDO_CHECK_VERSION)
-#    define HAVE_SHM_EXPORTED_BUFFER WPE_FDO_CHECK_VERSION(1, 9, 0)
-#    define HAVE_FULLSCREEN_HANDLING WPE_FDO_CHECK_VERSION(1, 11, 1)
-#else
-#    define HAVE_SHM_EXPORTED_BUFFER 0
-#    define HAVE_FULLSCREEN_HANDLING 0
-#endif
-
 typedef struct _CogWlAxis     CogWlAxis;
 typedef struct _CogWlDisplay  CogWlDisplay;
 typedef struct _CogWlKeyboard CogWlKeyboard;
@@ -140,9 +132,7 @@ struct _CogWlWindow {
     uint32_t height_before_fullscreen;
 
     bool is_fullscreen;
-#if HAVE_FULLSCREEN_HANDLING
     bool was_fullscreen_requested_from_dom;
-#endif
     bool is_maximized;
     bool should_resize_to_largest_output;
 };
@@ -189,7 +179,6 @@ struct _CogWlSeat {
     struct wl_list link;
 };
 
-#if HAVE_SHM_EXPORTED_BUFFER
 struct shm_buffer {
     struct wl_list     link;
     struct wl_listener destroy_listener;
@@ -204,7 +193,6 @@ struct shm_buffer {
 
     void *user_data;
 };
-#endif
 
 #if COG_ENABLE_WESTON_DIRECT_DISPLAY
 #    define VIDEO_BUFFER_FORMAT DRM_FORMAT_YUYV

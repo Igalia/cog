@@ -567,13 +567,11 @@ handle_key_event(CogWlSeat *seat, uint32_t key, uint32_t state, uint32_t time)
     /* TODO: Move as much as possible from fullscreen handling to common code. */
     if (cog_view_get_use_key_bindings(view) && state == WL_KEYBOARD_KEY_STATE_PRESSED && seat->xkb.modifiers == 0 &&
         unicode == 0 && keysym == XKB_KEY_F11) {
-#if HAVE_FULLSCREEN_HANDLING
         if (viewport->window.is_fullscreen && viewport->window.was_fullscreen_requested_from_dom) {
             struct wpe_view_backend *backend = cog_view_get_backend(view);
             wpe_view_backend_dispatch_request_exit_fullscreen(backend);
             return;
         }
-#endif
         cog_wl_viewport_set_fullscreen(viewport, !viewport->window.is_fullscreen);
         return;
     }

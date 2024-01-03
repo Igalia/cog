@@ -31,12 +31,6 @@
 #    define HAVE_REFRESH_RATE_HANDLING 0
 #endif
 
-#if defined(WPE_FDO_CHECK_VERSION)
-#    define HAVE_FULLSCREEN_HANDLING WPE_FDO_CHECK_VERSION(1, 11, 1)
-#else
-#    define HAVE_FULLSCREEN_HANDLING 0
-#endif
-
 struct _CogGtk4PlatformClass {
     CogPlatformClass parent_class;
 };
@@ -78,10 +72,8 @@ struct platform_window {
 
     int width;
     int height;
-#if HAVE_FULLSCREEN_HANDLING
     bool is_fullscreen;
     bool waiting_fullscreen_notify;
-#endif
     double device_scale_factor;
 
     GdkModifierType key_modifiers;
@@ -241,7 +233,6 @@ scale_factor_change(GtkWidget *area, GParamSpec *pspec, gpointer user_data)
                                                       win->device_scale_factor);
 }
 
-#if HAVE_FULLSCREEN_HANDLING
 static void
 dispatch_wpe_fullscreen_event(struct platform_window* win)
 {
@@ -265,7 +256,6 @@ on_fullscreen_change(GtkWidget* window, GParamSpec* pspec, gpointer user_data)
     else if (was_fullscreen_requested_from_dom)
         dispatch_wpe_fullscreen_event(win);
 }
-#endif
 
 static void
 on_quit(GtkWidget* widget, gpointer data)
@@ -466,7 +456,6 @@ action_activate_entry(GtkWidget* widget, GVariant* args,
     return TRUE;
 }
 
-#if HAVE_FULLSCREEN_HANDLING
 static bool
 on_dom_fullscreen_request(void* unused, bool fullscreen)
 {
@@ -487,7 +476,6 @@ on_dom_fullscreen_request(void* unused, bool fullscreen)
 
     return true;
 }
-#endif
 
 static gboolean
 action_open_settings(GtkWidget* widget, GVariant* args,
@@ -583,9 +571,7 @@ setup_window(struct platform_window* window)
     g_signal_connect(window->gl_drawing_area, "resize", G_CALLBACK(resize), window);
     g_signal_connect(window->gl_drawing_area, "notify::scale-factor", G_CALLBACK(scale_factor_change), window);
 
-#if HAVE_FULLSCREEN_HANDLING
     g_signal_connect(window->gtk_window, "notify::fullscreened", G_CALLBACK(on_fullscreen_change), window);
-#endif
 
     GtkGesture* press = gtk_gesture_click_new();
     gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(press), GDK_BUTTON_PRIMARY);
@@ -699,10 +685,8 @@ cog_gtk4_platform_setup(CogPlatform *platform, CogShell *shell, const char *para
     setup_fdo_exportable(&win);
     cog_gamepad_setup(gamepad_provider_get_view_backend_for_gamepad);
 
-#if HAVE_FULLSCREEN_HANDLING
     wpe_view_backend_set_fullscreen_handler(webkit_web_view_backend_get_wpe_backend(win.view_backend),
                                             on_dom_fullscreen_request, NULL);
-#endif
 
     return TRUE;
 }
