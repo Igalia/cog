@@ -104,37 +104,19 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <h5>Instance methods</h5>
   <div class="links">
   
-    <a class="method" href="method.Shell.add_viewport.html">add_viewport</a>
-  
     <a class="method" href="method.Shell.get_config_file.html">get_config_file</a>
   
     <a class="method" href="method.Shell.get_device_scale_factor.html">get_device_scale_factor</a>
   
-    <a class="method" href="method.Shell.get_n_viewports.html">get_n_viewports</a>
-  
     <a class="method" href="method.Shell.get_name.html">get_name</a>
-  
-    <a class="method" href="method.Shell.get_nth_viewport.html">get_nth_viewport</a>
-  
-    <a class="method" href="method.Shell.get_viewport.html">get_viewport</a>
-  
-    <a class="method" href="method.Shell.get_viewports.html">get_viewports</a>
   
     <a class="method" href="method.Shell.get_web_context.html">get_web_context</a>
   
     <a class="method" href="method.Shell.get_web_settings.html">get_web_settings</a>
   
-    <a class="method" href="method.Shell.get_web_view.html">get_web_view</a>
-  
     <a class="method" href="method.Shell.is_automated.html">is_automated</a>
   
-    <a class="method" href="method.Shell.remove_viewport.html">remove_viewport</a>
-  
     <a class="method" href="method.Shell.set_request_handler.html">set_request_handler</a>
-  
-    <a class="method" href="method.Shell.shutdown.html">shutdown</a>
-  
-    <a class="method" href="method.Shell.startup.html">startup</a>
   
   </div>
 </div>
@@ -155,8 +137,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
     <a class="property" href="property.Shell.network-memory-settings.html">network-memory-settings</a>
   
-    <a class="property" href="property.Shell.viewport.html">viewport</a>
-  
     <a class="property" href="property.Shell.web-context.html">web-context</a>
   
     <a class="property" href="property.Shell.web-data-manager.html">web-data-manager</a>
@@ -165,21 +145,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
     <a class="property" href="property.Shell.web-settings.html">web-settings</a>
   
-    <a class="property" href="property.Shell.web-view.html">web-view</a>
-  
-  </div>
-</div>
-
-
-
-<div class="section">
-  <h5>Signals</h5>
-  <div class="links">
-  
-    <a class="signal" href="signal.Shell.create-view.html">create-view</a>
-  
-    <a class="signal" href="signal.Shell.create-viewport.html">create-viewport</a>
-  
   </div>
 </div>
 
@@ -187,18 +152,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 
 
 
-<div class="section">
-  <h5>Virtual methods</h5>
-  <div class="links">
-  
-    <a class="method" href="vfunc.Shell.create_view.html">create_view</a>
-  
-    <a class="method" href="vfunc.Shell.shutdown.html">shutdown</a>
-  
-    <a class="method" href="vfunc.Shell.startup.html">startup</a>
-  
-  </div>
-</div>
+
 
 
 
@@ -220,7 +174,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           Description
           <a href="#description" class="anchor"></a>
           
-          <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.c#L13">[src]</a>
+          <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-shell.c#L14">[src]</a>
           
         </h4>
 
@@ -232,8 +186,6 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
           <p>A shell managed a WebKit.WebView, the default <span class="caps">URI</span> that it will
 load, the view configuration, and keeps track of a number of registered
 <a href="iface.RequestHandler.html"><code>CogRequestHandler</code></a>&nbsp;instances.</p>
-<p>Applications using a shell can handle the <a href="signal.Shell.create-view.html"><code>CogShell::create-view</code></a>
-signal to customize the web&nbsp;view.</p>
         </div>
 
         <div class="docblock">
@@ -308,14 +260,6 @@ signal to customize the web&nbsp;view.</p>
       <div class="docblock">
       
         <div class="">
-          <h6><a href="method.Shell.add_viewport.html">cog_shell_add_viewport</a></h6>
-          <div class="docblock">
-            <p>Adds a viewport to a&nbsp;shell.</p>
-          </div>
-          
-        </div>
-      
-        <div class="">
           <h6><a href="method.Shell.get_config_file.html">cog_shell_get_config_file</a></h6>
           <div class="docblock">
             <p>Obtains the additional configuration for this&nbsp;shell.</p>
@@ -332,41 +276,9 @@ signal to customize the web&nbsp;view.</p>
         </div>
       
         <div class="">
-          <h6><a href="method.Shell.get_n_viewports.html">cog_shell_get_n_viewports</a></h6>
-          <div class="docblock">
-            <p>Gets the number of viewports in a&nbsp;shell.</p>
-          </div>
-          
-        </div>
-      
-        <div class="">
           <h6><a href="method.Shell.get_name.html">cog_shell_get_name</a></h6>
           <div class="docblock">
             <p>Obtains the name of this&nbsp;shell.</p>
-          </div>
-          
-        </div>
-      
-        <div class="">
-          <h6><a href="method.Shell.get_nth_viewport.html">cog_shell_get_nth_viewport</a></h6>
-          <div class="docblock">
-            <p>Gets a viewport from the shell given its&nbsp;index.</p>
-          </div>
-          
-        </div>
-      
-        <div class="">
-          <h6><a href="method.Shell.get_viewport.html">cog_shell_get_viewport</a></h6>
-          <div class="docblock">
-            <p>Gets the default viewport managed by the&nbsp;shell.</p>
-          </div>
-          <div class="docblock"><p>Available since: 0.20</p></div>
-        </div>
-      
-        <div class="">
-          <h6><a href="method.Shell.get_viewports.html">cog_shell_get_viewports</a></h6>
-          <div class="docblock">
-            No description available.
           </div>
           
         </div>
@@ -388,14 +300,6 @@ signal to customize the web&nbsp;view.</p>
         </div>
       
         <div class="">
-          <h6><a href="method.Shell.get_web_view.html">cog_shell_get_web_view</a></h6>
-          <div class="docblock">
-            <p>Obtains the visible WebKit.WebView for this&nbsp;shell.</p>
-          </div>
-          
-        </div>
-      
-        <div class="">
           <h6><a href="method.Shell.is_automated.html">cog_shell_is_automated</a></h6>
           <div class="docblock">
             No description available.
@@ -404,33 +308,9 @@ signal to customize the web&nbsp;view.</p>
         </div>
       
         <div class="">
-          <h6><a href="method.Shell.remove_viewport.html">cog_shell_remove_viewport</a></h6>
-          <div class="docblock">
-            <p>Removes a viewport from the&nbsp;shell.</p>
-          </div>
-          
-        </div>
-      
-        <div class="">
           <h6><a href="method.Shell.set_request_handler.html">cog_shell_set_request_handler</a></h6>
           <div class="docblock">
             <p>Installs a handler for a custom <span class="caps">URI</span>&nbsp;scheme.</p>
-          </div>
-          
-        </div>
-      
-        <div class="">
-          <h6><a href="method.Shell.shutdown.html">cog_shell_shutdown</a></h6>
-          <div class="docblock">
-            <p>Deinitialize the&nbsp;shell.</p>
-          </div>
-          
-        </div>
-      
-        <div class="">
-          <h6><a href="method.Shell.startup.html">cog_shell_startup</a></h6>
-          <div class="docblock">
-            <p>Finish initializing the&nbsp;shell.</p>
           </div>
           
         </div>
@@ -519,16 +399,6 @@ additional options to <a href="overview.html">platform modules</a>.</p>
         </div>
       
         <div class="">
-          <h6><a href="property.Shell.viewport.html">Cog.Shell:viewport</a></h6>
-
-          <div class="docblock">
-            <p>The <code>CogViewport</code> managed by this&nbsp;shell.</p>
-          </div>
-
-          <div class="docblock"><p>Available since: 0.20</p></div>
-        </div>
-      
-        <div class="">
           <h6><a href="property.Shell.web-context.html">Cog.Shell:web-context</a></h6>
 
           <div class="docblock">
@@ -573,16 +443,6 @@ in automation&nbsp;mode.</p>
           
         </div>
       
-        <div class="">
-          <h6><a href="property.Shell.web-view.html">Cog.Shell:web-view</a></h6>
-
-          <div class="docblock">
-            <p>The WebKit.WebView managed by this&nbsp;shell.</p>
-          </div>
-
-          
-        </div>
-      
       </div>
       
 
@@ -602,28 +462,6 @@ in automation&nbsp;mode.</p>
         <a href="#signals" class="anchor"></a>
       </h4>
 
-      
-      <div class="docblock">
-      
-        <div class="">
-          <h6><a href="signal.Shell.create-view.html">Cog.Shell::create-view</a></h6>
-          <div class="docblock">
-            <p>The <code>create-view</code> signal is emitted when the shell needs to create
-a&nbsp;WebKit.WebView.</p>
-          </div>
-          
-        </div>
-      
-        <div class="">
-          <h6><a href="signal.Shell.create-viewport.html">Cog.Shell::create-viewport</a></h6>
-          <div class="docblock">
-            <p>The <code>create-viewport</code> signal is emitted when the shell creates a new a
-new&nbsp;CogViewport.</p>
-          </div>
-          
-        </div>
-      
-      </div>
       
 
       
@@ -657,15 +495,6 @@ its value set through g_object_set_property(), g_object_set(), et&nbsp;al.</p>
       <div class="docblock">
         <pre><code>struct CogShellClass {
   GObjectClass parent_class;
-  WebKitWebView* (* create_view) (
-    CogShell* arg0
-  );
-  void (* startup) (
-    CogShell* arg0
-  );
-  void (* shutdown) (
-    CogShell* arg0
-  );
   
 }</code></pre>
       </div>
@@ -685,86 +514,12 @@ its value set through g_object_set_property(), g_object_set(), et&nbsp;al.</p>
           <td style="vertical-align:top">No description available.</td>
         </td>
         
-        <tr>
-          <td style="vertical-align:top"><code>create_view</code></td>
-          <td style="vertical-align:top"><pre><code>WebKitWebView* (* create_view) (
-    CogShell* arg0
-  )</code></pre></td>
-        </tr>
-        <tr>
-          <td>&nbsp;</td>
-          <td style="vertical-align:top">No description available.</td>
-        </td>
-        
-        <tr>
-          <td style="vertical-align:top"><code>startup</code></td>
-          <td style="vertical-align:top"><pre><code>void (* startup) (
-    CogShell* arg0
-  )</code></pre></td>
-        </tr>
-        <tr>
-          <td>&nbsp;</td>
-          <td style="vertical-align:top">No description available.</td>
-        </td>
-        
-        <tr>
-          <td style="vertical-align:top"><code>shutdown</code></td>
-          <td style="vertical-align:top"><pre><code>void (* shutdown) (
-    CogShell* arg0
-  )</code></pre></td>
-        </tr>
-        <tr>
-          <td>&nbsp;</td>
-          <td style="vertical-align:top">No description available.</td>
-        </td>
-        
         </table>
       </div>
       
     </div>
     
 
-    
-    <div class="toggle-wrapper methods">
-      <h4 id="virtual-methods">
-        Virtual methods
-        <a href="#virtual-methods" class="anchor"></a>
-      </h4>
-
-      <div class="docblock">
-      
-      <div class="">
-        <h6 id="vfunc-create_view"><a href="vfunc.Shell.create_view.html">Cog.ShellClass.create_view</a></h6>
-
-        <div class="docblock">
-          No description available.
-        </div>
-
-          
-      </div>
-      
-      <div class="">
-        <h6 id="vfunc-shutdown"><a href="vfunc.Shell.shutdown.html">Cog.ShellClass.shutdown</a></h6>
-
-        <div class="docblock">
-          <p>Deinitialize the&nbsp;shell.</p>
-        </div>
-
-          
-      </div>
-      
-      <div class="">
-        <h6 id="vfunc-startup"><a href="vfunc.Shell.startup.html">Cog.ShellClass.startup</a></h6>
-
-        <div class="docblock">
-          <p>Finish initializing the&nbsp;shell.</p>
-        </div>
-
-          
-      </div>
-      
-      </div>
-    </div>
     
 
     
@@ -800,14 +555,10 @@ its value set through g_object_set_property(), g_object_set(), et&nbsp;al.</p>
 
 
       
-<li class="toc-list-item"><a href="#signals"><span class="link-text">Signals</span></a></li>
-
 
       
 
       
-<li class="toc-list-item"><a href="#virtual-methods"><span class="link-text">Virtual methods</span></a></li>
-
 
     </ul>
   </nav>
