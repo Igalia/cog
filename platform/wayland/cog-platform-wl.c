@@ -11,6 +11,7 @@
 
 #include <glib-object.h>
 #include <glib.h>
+#include <linux/input-event-codes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -293,6 +294,27 @@ pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct
     seat->pointer.surface = NULL;
 }
 
+static uint32_t
+button_modifier(CogWlSeat *seat)
+{
+    if (!seat->pointer.state) {
+        return 0;
+    }
+
+    switch (seat->pointer.button) {
+    case BTN_LEFT:
+        return wpe_input_pointer_modifier_button1;
+
+    case BTN_RIGHT:
+        return wpe_input_pointer_modifier_button2;
+
+    case BTN_MIDDLE:
+        return wpe_input_pointer_modifier_button3;
+    }
+
+    return 0;
+}
+
 static void
 pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t fixed_x, wl_fixed_t fixed_y)
 {
@@ -319,7 +341,8 @@ pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixe
                                             seat->pointer.x * display->current_output->scale,
                                             seat->pointer.y * display->current_output->scale,
                                             seat->pointer.button,
-                                            seat->pointer.state};
+                                            seat->pointer.state,
+                                            button_modifier(seat)};
 
     g_assert(seat->pointer_target);
     CogWlViewport *viewport = COG_WL_VIEWPORT(seat->pointer_target);
@@ -359,14 +382,13 @@ pointer_on_button(void              *data,
     seat->pointer.button = !!state ? button : 0;
     seat->pointer.state = state;
 
-    struct wpe_input_pointer_event event = {
-        wpe_input_pointer_event_type_button,
-        time,
-        seat->pointer.x * display->current_output->scale,
-        seat->pointer.y * display->current_output->scale,
-        seat->pointer.button,
-        seat->pointer.state,
-    };
+    struct wpe_input_pointer_event event = {wpe_input_pointer_event_type_button,
+                                            time,
+                                            seat->pointer.x * display->current_output->scale,
+                                            seat->pointer.y * display->current_output->scale,
+                                            seat->pointer.button,
+                                            seat->pointer.state,
+                                            button_modifier(seat)};
 
     CogWlPopup *popup = platform->popup;
     if (popup && popup->wl_surface) {
