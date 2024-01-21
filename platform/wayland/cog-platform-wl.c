@@ -9,16 +9,17 @@
 #include "../../core/cog.h"
 
 #include <errno.h>
+#include <glib-object.h>
+#include <glib.h>
+#include <linux/input-event-codes.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <wpe/webkit.h>
-#include <wpe/fdo.h>
-#include <wpe/fdo-egl.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <glib.h>
-#include <glib-object.h>
+#include <stdlib.h>
 #include <string.h>
+#include <wpe/fdo-egl.h>
+#include <wpe/fdo.h>
+#include <wpe/webkit.h>
 
 #include <wayland-client.h>
 #include <wayland-server.h>
@@ -885,6 +886,27 @@ pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct
     wl_data.pointer.surface = NULL;
 }
 
+static uint32_t
+button_modifier(void)
+{
+    if (!wl_data.pointer.state) {
+        return 0;
+    }
+
+    switch (wl_data.pointer.button) {
+    case BTN_LEFT:
+        return wpe_input_pointer_modifier_button1;
+
+    case BTN_RIGHT:
+        return wpe_input_pointer_modifier_button2;
+
+    case BTN_MIDDLE:
+        return wpe_input_pointer_modifier_button3;
+    }
+
+    return 0;
+}
+
 static void
 pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t fixed_x, wl_fixed_t fixed_y)
 {
@@ -896,7 +918,8 @@ pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixe
                                             wl_data.pointer.x * wl_data.current_output->scale,
                                             wl_data.pointer.y * wl_data.current_output->scale,
                                             wl_data.pointer.button,
-                                            wl_data.pointer.state};
+                                            wl_data.pointer.state,
+                                            button_modifier()};
 
     wpe_view_backend_dispatch_pointer_event(wpe_view_data.backend, &event);
 }
@@ -928,6 +951,7 @@ pointer_on_button(void *data,
         wl_data.pointer.y * wl_data.current_output->scale,
         wl_data.pointer.button,
         wl_data.pointer.state,
+        button_modifier(),
     };
 
     if (popup_data.wl_surface) {
