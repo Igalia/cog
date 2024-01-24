@@ -476,14 +476,18 @@ cog_wl_seat_set_cursor(CogWlSeat *seat, WebKitHitTestResult *hit_test)
      */
     struct wl_cursor_image *image = cursor->images[0];
     struct wl_buffer       *buffer = wl_cursor_image_get_buffer(image);
-    wl_pointer_set_cursor(seat->pointer_obj,
-                          seat->pointer.serial,
-                          display->cursor_surface,
-                          image->hotspot_x,
-                          image->hotspot_y);
-    wl_surface_attach(display->cursor_surface, buffer, 0, 0);
-    wl_surface_damage(display->cursor_surface, 0, 0, image->width, image->height);
-    wl_surface_commit(display->cursor_surface);
+    if (seat->pointer_obj != NULL) {
+        wl_pointer_set_cursor(seat->pointer_obj,
+                              seat->pointer.serial,
+                              display->cursor_surface,
+                              image->hotspot_x,
+                              image->hotspot_y);
+        wl_surface_attach(display->cursor_surface, buffer, 0, 0);
+        wl_surface_damage(display->cursor_surface, 0, 0, image->width, image->height);
+        wl_surface_commit(display->cursor_surface);
+    } else {
+        g_warning("Set %s cursor skipped. There is not pointer capabalility in the Wayland seat", cursor_names[0]);
+    }
 }
 #endif /* COG_USE_WAYLAND_CURSOR */
 
