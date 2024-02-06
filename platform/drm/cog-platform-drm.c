@@ -131,6 +131,7 @@ static struct {
     double   device_scale;
 
     bool atomic_modesetting;
+    bool addfb2_modifiers;
     bool mode_set;
 } drm_data = {
     .fd = -1,

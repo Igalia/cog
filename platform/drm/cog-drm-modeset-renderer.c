@@ -99,6 +99,7 @@ typedef struct {
     drmModeModeInfo mode;
     bool            mode_set;
     bool            atomic_modesetting;
+    bool            addfb2_modifiers;
 
     struct {
         drmModeObjectProperties *props;
@@ -190,14 +191,13 @@ drm_create_buffer_for_bo(CogDrmModesetRenderer *self,
         in_modifiers[i] = in_modifiers[0];
     }
 
-    int flags = 0;
-    if (in_modifiers[0])
-        flags = DRM_MODE_FB_MODIFIERS;
-
+    int      ret;
     uint32_t fb_id = 0;
-    int ret = drmModeAddFB2WithModifiers(get_drm_fd(self), width, height, format, in_handles, in_strides, in_offsets,
-                                         in_modifiers, &fb_id, flags);
-    if (ret) {
+
+    if (G_LIKELY(self->addfb2_modifiers)) {
+        ret = drmModeAddFB2WithModifiers(get_drm_fd(self), width, height, format, in_handles, in_strides, in_offsets,
+                                         in_modifiers, &fb_id, DRM_MODE_FB_MODIFIERS);
+    } else {
         in_handles[0] = gbm_bo_get_handle(bo).u32;
         in_handles[1] = in_handles[2] = in_handles[3] = 0;
         in_strides[0] = gbm_bo_get_stride(bo);
@@ -661,6 +661,15 @@ cog_drm_modeset_renderer_new(struct gbm_device     *gbm_dev,
         .plane_id = plane_id,
         .atomic_modesetting = atomic_modesetting,
     };
+
+    uint64_t value = 0;
+    if (drmGetCap(gbm_device_get_fd(self->gbm_dev), DRM_CAP_ADDFB2_MODIFIERS, &value)) {
+        g_debug("%s: Cannot get addfb2_modifiers capability: %s", G_STRFUNC, g_strerror(errno));
+    } else {
+        g_debug("%s: Capability addfb2_modifiers = %#" PRIx64, G_STRFUNC, value);
+        self->addfb2_modifiers = !!value;
+    }
+
     wl_list_init(&self->buffer_list);
     memcpy(&self->mode, mode, sizeof(drmModeModeInfo));
 
