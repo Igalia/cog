@@ -230,6 +230,11 @@ on_web_view_create(WebKitWebView *web_view, WebKitNavigationAction *action)
 static WebKitWebView *
 on_automation_session_create_web_view(WebKitAutomationSession *session, CogLauncher *launcher)
 {
+    static bool first_time = true;
+    if (first_time) {
+        first_time = false;
+        return (WebKitWebView *) cog_viewport_get_visible_view(launcher->viewport);
+    }
 #if HAVE_WEBKIT_AUTOPLAY
     g_autoptr(WebKitWebsitePolicies) website_policies =
         webkit_website_policies_new_with_policies("autoplay", s_options.autoplay_policy, NULL);
@@ -346,8 +351,10 @@ cog_launcher_startup(GApplication *application)
         webkit_website_policies_new_with_policies("autoplay", s_options.autoplay_policy, NULL);
 #endif
 
-    g_autoptr(CogView) view = cog_view_new("settings", cog_shell_get_web_settings(self->shell), "web-context",
-                                           cog_shell_get_web_context(self->shell), "zoom-level", s_options.scale_factor,
+    g_autoptr(CogView) view = cog_view_new("settings", cog_shell_get_web_settings(self->shell),
+                                           "web-context", cog_shell_get_web_context(self->shell),
+                                           "is-controlled-by-automation", self->automated,
+                                           "zoom-level", s_options.scale_factor,
                                            "use-key-bindings", !s_options.disable_key_bindings,
 #if COG_USE_WPE2
                                            "network-session", self->network_session,
