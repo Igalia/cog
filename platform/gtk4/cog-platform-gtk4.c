@@ -503,7 +503,7 @@ action_open_settings(GtkWidget* widget, GVariant* args,
     win->settings_dialog = browser_settings_dialog_new(webkit_web_view_get_settings(win->web_view));
     gtk_window_set_transient_for(GTK_WINDOW(win->settings_dialog), GTK_WINDOW(win->gtk_window));
     g_object_add_weak_pointer(G_OBJECT(win->settings_dialog), (gpointer*)&win->settings_dialog);
-    gtk_widget_show(win->settings_dialog);
+    gtk_window_present(GTK_WINDOW(win->settings_dialog));
     return TRUE;
 }
 
@@ -634,7 +634,7 @@ setup_window(struct platform_window* window)
     gtk_window_set_child(GTK_WINDOW(window->gtk_window), box);
     gtk_box_append(GTK_BOX(box), window->gl_drawing_area);
 
-    gtk_widget_show(window->gtk_window);
+    gtk_window_present(GTK_WINDOW(window->gtk_window));
 }
 
 static void
