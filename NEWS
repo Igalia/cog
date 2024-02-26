@@ -1,4 +1,13 @@
 ==========================
+0.18.3 - February 26, 2024
+==========================
+
+- drm: Fix handling of the scaling factor setting.
+- gtk4: Take scaling factor into account for pointer events.
+- launcher: Support toggling WebKit features with a new --features/-F command
+  line option, when built against WebKit 2.42.0 or newer.
+
+==========================
 0.18.2 - December 13, 2023
 ==========================
 
