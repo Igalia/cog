@@ -279,12 +279,14 @@ on_click_pressed(GtkGestureClick* gesture, int n_press, double x,
     double y, gpointer user_data)
 {
     struct platform_window* win = user_data;
+    int                     scale_factor = gtk_widget_get_scale_factor(GTK_WIDGET(win->gl_drawing_area));
+
     gtk_widget_grab_focus(win->gl_drawing_area);
 
     struct wpe_input_pointer_event wpe_event = {
         .type = wpe_input_pointer_event_type_button,
-        .x = (int)x,
-        .y = (int)y,
+        .x = (int) (x * scale_factor),
+        .y = (int) (y * scale_factor),
         .modifiers = wpe_input_pointer_modifier_button1,
         .button = 1,
         .state = 1,
@@ -299,10 +301,12 @@ on_click_released(GtkGestureClick* gesture, int n_press, double x,
     double y, gpointer user_data)
 {
     struct platform_window* win = user_data;
+    int                     scale_factor = gtk_widget_get_scale_factor(GTK_WIDGET(win->gl_drawing_area));
+
     struct wpe_input_pointer_event wpe_event = {
         .type = wpe_input_pointer_event_type_button,
-        .x = (int)x,
-        .y = (int)y,
+        .x = (int) (x * scale_factor),
+        .y = (int) (y * scale_factor),
         .modifiers = wpe_input_pointer_modifier_button1,
         .button = 1,
         .state = 0,
@@ -317,10 +321,12 @@ on_motion(GtkEventControllerMotion* controller, double x, double y,
     gpointer user_data)
 {
     struct platform_window* win = user_data;
+    int                     scale_factor = gtk_widget_get_scale_factor(GTK_WIDGET(win->gl_drawing_area));
+
     struct wpe_input_pointer_event wpe_event = {
         .type = wpe_input_pointer_event_type_motion,
-        .x = (int)x,
-        .y = (int)y,
+        .x = (int) (x * scale_factor),
+        .y = (int) (y * scale_factor),
     };
     wpe_view_backend_dispatch_pointer_event(
         wpe_view_backend_exportable_fdo_get_view_backend(win->exportable),
