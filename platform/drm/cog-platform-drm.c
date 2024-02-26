@@ -1318,6 +1318,12 @@ key_repeat_source_dispatch (GSource *base, GSourceFunc callback, gpointer user_d
 
 
 static void
+cog_drm_platform_shell_device_factor_changed(CogShell *shell, GParamSpec *param_spec, gpointer data)
+{
+    drm_data.device_scale = cog_shell_get_device_scale_factor(shell);
+}
+
+static void
 clear_glib (void)
 {
     if (glib_data.drm_source)
@@ -1401,6 +1407,7 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
     CogDrmPlatform *self = COG_DRM_PLATFORM(platform);
 
     init_config(COG_DRM_PLATFORM(platform), shell, params);
+    g_signal_connect(shell, "notify::device-scale-factor", G_CALLBACK(cog_drm_platform_shell_device_factor_changed), NULL);
 
     if (!wpe_loader_init ("libWPEBackend-fdo-1.0.so")) {
         g_set_error_literal (error,
