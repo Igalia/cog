@@ -16,6 +16,10 @@
 #include "fullscreen-shell-unstable-v1-client.h"
 #include "xdg-shell-client.h"
 
+#if COG_HAVE_XDG_DECORATION_UNSTABLE_V1
+#    include "xdg-decoration-unstable-v1-client.h"
+#endif
+
 G_DEFINE_DYNAMIC_TYPE(CogWlViewport, cog_wl_viewport, COG_TYPE_VIEWPORT)
 
 static void cog_wl_viewport_dispose(GObject *);
@@ -41,6 +45,10 @@ destroy_video_surface(gpointer data)
 static void
 destroy_window(CogWlViewport *viewport)
 {
+#if COG_HAVE_XDG_DECORATION_UNSTABLE_V1
+    g_clear_pointer(&viewport->window.xdg_decoration, zxdg_toplevel_decoration_v1_destroy);
+#endif
+
     g_clear_pointer(&viewport->window.xdg_toplevel, xdg_toplevel_destroy);
     g_clear_pointer(&viewport->window.xdg_surface, xdg_surface_destroy);
     g_clear_pointer(&viewport->window.shell_surface, wl_shell_surface_destroy);
@@ -264,6 +272,19 @@ cog_wl_viewport_create_window(CogWlViewport *viewport, GError **error)
         xdg_surface_add_listener(viewport->window.xdg_surface, &xdg_surface_listener, NULL);
         viewport->window.xdg_toplevel = xdg_surface_get_toplevel(viewport->window.xdg_surface);
         g_assert(viewport->window.xdg_toplevel);
+
+#if COG_HAVE_XDG_DECORATION_UNSTABLE_V1
+        /*
+         * Ask the compositor for server-side decorations. The compositor may
+         * still prefer client-side decorations, but do not attach a listener
+         * because knowing the compositor's preference is pointless because
+         * there is no support for painting client-side decorations.
+         */
+        viewport->window.xdg_decoration =
+            zxdg_decoration_manager_v1_get_toplevel_decoration(display->xdg_decoration, viewport->window.xdg_toplevel);
+        zxdg_toplevel_decoration_v1_set_mode(viewport->window.xdg_decoration,
+                                             ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+#endif /* COG_HAVE_XDG_DECORATION_UNSTABLE_V1 */
 
         xdg_toplevel_add_listener(viewport->window.xdg_toplevel, &xdg_toplevel_listener, viewport);
         xdg_toplevel_set_title(viewport->window.xdg_toplevel, COG_DEFAULT_APPNAME);

@@ -38,6 +38,7 @@ wayland_platform_protocols = {
         ['text-input', 1],
         ['text-input', 3],
         ['xdg-foreign', 2],
+        ['xdg-decoration', 1, 'optional'],
     ],
     'weston': wayland_platform_weston_protocols,
 }
@@ -78,22 +79,34 @@ fs = import('fs')
 wayland_platform_sources = []
 foreach kind, proto_list : wayland_platform_protocols
     foreach item : proto_list
+        proto_optional = false
         if kind == 'stable'
             proto_name = item
             proto_dir = join_paths(wayland_protocols_path, 'stable', item)
         elif kind == 'unstable' or kind == 'staging'
             proto_name = '@0@-@1@-v@2@'.format(item[0], kind, item[1])
             proto_dir = join_paths(wayland_protocols_path, 'unstable', item[0])
+            proto_optional = item.length() == 3 and item[2] == 'optional'
         elif kind == 'weston'
             proto_name = item
             proto_dir = weston_protocols_path
         else
             error('Unknown Wayland protocol type: @0@'.format(kind))
         endif
+        proto_macro = proto_name.underscorify().to_upper()
 
         xml_path = join_paths(proto_dir, '@0@.xml'.format(proto_name))
         if not fs.is_file(xml_path)
-            error('Cannot find protocol @0@, file does not exist: @1@'.format(proto_name, xml_path))
+            if proto_optional
+                wayland_platform_c_args += ['-DHAVE_@0@=0'.format(proto_macro)]
+                continue
+            else
+                error('Cannot find protocol @0@, file does not exist: @1@'.format(proto_name, xml_path))
+            endif
+        endif
+
+        if proto_optional
+            wayland_platform_c_args += ['-DCOG_HAVE_@0@=1'.format(proto_macro)]
         endif
 
         wayland_platform_sources += [custom_target(
