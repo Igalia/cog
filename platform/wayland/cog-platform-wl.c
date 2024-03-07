@@ -212,6 +212,10 @@ registry_on_global(void *data, struct wl_registry *registry, uint32_t name, cons
     } else if (strcmp(interface, weston_content_protection_interface.name) == 0) {
         display->protection = wl_registry_bind(registry, name, &weston_content_protection_interface, 1);
 #endif /* COG_ENABLE_WESTON_CONTENT_PROTECTION */
+#if COG_HAVE_XDG_DECORATION_UNSTABLE_V1
+    } else if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) == 0) {
+        display->xdg_decoration = wl_registry_bind(registry, name, &zxdg_decoration_manager_v1_interface, 1);
+#endif /* COG_HAVE_XDG_DECORATION_UNSTABLE_V1 */
     } else if (strcmp(interface, wl_output_interface.name) == 0) {
         /* Version 2 introduced the wl_output_listener::scale. */
         CogWlOutput *item = g_new0(CogWlOutput, 1);
@@ -1181,6 +1185,10 @@ init_wayland(CogWlPlatform *platform, GError **error)
 static void
 clear_wayland(CogWlPlatform *platform)
 {
+#if COG_HAVE_XDG_DECORATION_UNSTABLE_V1
+    g_clear_pointer(&platform->display->xdg_decoration, zxdg_decoration_manager_v1_destroy);
+#endif /* COG_HAVE_XDG_DECORATION_UNSTABLE_V1 */
+
     cog_wl_display_destroy(platform->display);
 }
 

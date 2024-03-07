@@ -15,6 +15,10 @@
 #    include "cog-xdp-parent-wl.h"
 #endif
 
+#if COG_HAVE_XDG_DECORATION_UNSTABLE_V1
+#    include "xdg-decoration-unstable-v1-client.h"
+#endif
+
 #include <wayland-server.h>
 #include <wayland-util.h>
 #include <xkbcommon/xkbcommon.h>
@@ -115,6 +119,10 @@ struct _CogWlWindow {
     struct xdg_surface      *xdg_surface;
     struct xdg_toplevel     *xdg_toplevel;
     struct wl_shell_surface *shell_surface;
+
+#if COG_HAVE_XDG_DECORATION_UNSTABLE_V1
+    struct zxdg_toplevel_decoration_v1 *xdg_decoration;
+#endif /* COG_HAVE_XDG_DECORATION_UNSTABLE_V1 */
 
 #if COG_HAVE_LIBPORTAL
     struct xdp_parent_wl_data xdp_parent_wl_data;
@@ -230,6 +238,10 @@ struct _CogWlDisplay {
     struct xdg_wm_base             *xdg_shell;
     struct zwp_fullscreen_shell_v1 *fshell;
     struct wl_shell                *shell;
+
+#if COG_HAVE_XDG_DECORATION_UNSTABLE_V1
+    struct zxdg_decoration_manager_v1 *xdg_decoration;
+#endif
 
     CogWlSeat     *seat_default;
     struct wl_list seats; /* wl_list<CogWlSeat> */
