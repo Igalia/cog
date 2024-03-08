@@ -240,18 +240,19 @@ on_automation_session_create_web_view(WebKitAutomationSession *session, CogLaunc
         webkit_website_policies_new_with_policies("autoplay", s_options.autoplay_policy, NULL);
 #endif /* HAVE_WEBKIT_AUTOPLAY */
 
-    WebKitWebView *new_view = (WebKitWebView *) cog_view_new("settings", cog_shell_get_web_settings(launcher->shell), "web-context",
-                                          cog_shell_get_web_context(launcher->shell), "is-controlled-by-automation",
-                                          TRUE, "zoom-level", s_options.scale_factor, "use-key-bindings", FALSE,
+    WebKitWebView *new_view =
+        (WebKitWebView *) cog_view_new("settings", cog_shell_get_web_settings(launcher->shell), "web-context",
+                                       cog_shell_get_web_context(launcher->shell), "is-controlled-by-automation", TRUE,
+                                       "zoom-level", s_options.scale_factor, "use-key-bindings", FALSE,
 #if COG_USE_WPE2
-                                          "network-session", launcher->network_session,
+                                       "network-session", launcher->network_session,
 #endif /* COG_USE_WPE2 */
 #if HAVE_WEBKIT_AUTOPLAY
-                                          "website-policies", website_policies,
+                                       "website-policies", website_policies,
 #endif /* HAVE_WEBKIT_AUTOPLAY */
-                                          NULL);
+                                       NULL);
     // FIXME New window should be new viewport
-    cog_viewport_add(launcher->viewport, (CogView*)new_view);
+    cog_viewport_add(launcher->viewport, (CogView *) new_view);
     // Let viewport own the view
     g_object_unref(new_view);
 
@@ -351,18 +352,17 @@ cog_launcher_startup(GApplication *application)
         webkit_website_policies_new_with_policies("autoplay", s_options.autoplay_policy, NULL);
 #endif
 
-    g_autoptr(CogView) view = cog_view_new("settings", cog_shell_get_web_settings(self->shell),
-                                           "web-context", cog_shell_get_web_context(self->shell),
-                                           "is-controlled-by-automation", self->automated,
-                                           "zoom-level", s_options.scale_factor,
-                                           "use-key-bindings", !s_options.disable_key_bindings,
+    g_autoptr(CogView) view =
+        cog_view_new("settings", cog_shell_get_web_settings(self->shell), "web-context",
+                     cog_shell_get_web_context(self->shell), "is-controlled-by-automation", self->automated,
+                     "zoom-level", s_options.scale_factor, "use-key-bindings", !s_options.disable_key_bindings,
 #if COG_USE_WPE2
-                                           "network-session", self->network_session,
+                     "network-session", self->network_session,
 #endif
 #if HAVE_WEBKIT_AUTOPLAY
-                                           "website-policies", website_policies,
+                     "website-policies", website_policies,
 #endif
-                                           NULL);
+                     NULL);
 
     cog_platform_init_web_view(cog_platform_get(), WEBKIT_WEB_VIEW(view));
 
