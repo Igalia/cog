@@ -240,7 +240,7 @@ on_automation_session_create_web_view(WebKitAutomationSession *session, CogLaunc
         webkit_website_policies_new_with_policies("autoplay", s_options.autoplay_policy, NULL);
 #endif /* HAVE_WEBKIT_AUTOPLAY */
 
-    WebKitWebView *new_view =
+    g_autoptr(WebKitWebView) new_view =
         (WebKitWebView *) cog_view_new("settings", cog_shell_get_web_settings(launcher->shell), "web-context",
                                        cog_shell_get_web_context(launcher->shell), "is-controlled-by-automation", TRUE,
                                        "zoom-level", s_options.scale_factor, "use-key-bindings", FALSE,
@@ -253,8 +253,6 @@ on_automation_session_create_web_view(WebKitAutomationSession *session, CogLaunc
                                        NULL);
     // FIXME New window should be new viewport
     cog_viewport_add(launcher->viewport, (CogView *) new_view);
-    // Let viewport own the view
-    g_object_unref(new_view);
 
     return new_view;
 }
