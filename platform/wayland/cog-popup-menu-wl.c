@@ -91,7 +91,7 @@ cog_popup_menu_paint(CogPopupMenu *popup_menu)
         }
 
         guint i = popup_menu->menu_current_page * 5;
-        guint i_max = i + 5;
+        guint i_max = i + (popup_menu->menu_has_paging ? 5 : 7);
         guint i_end = MIN(i_max, webkit_option_menu_get_n_items(popup_menu->option_menu));
         for (; i < i_end; ++i) {
             WebKitOptionMenuItem *item = webkit_option_menu_get_item(popup_menu->option_menu, i);
