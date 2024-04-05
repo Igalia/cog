@@ -622,7 +622,7 @@ repeat_delay_timeout(CogWlSeat *seat)
                      seat->keyboard.repeat_data.time);
 
     seat->keyboard.repeat_data.event_source =
-        g_timeout_add(seat->keyboard.repeat_info.rate, (GSourceFunc) repeat_delay_timeout, seat);
+        g_timeout_add(1000 / seat->keyboard.repeat_info.rate, (GSourceFunc) repeat_delay_timeout, seat);
 
     return G_SOURCE_REMOVE;
 }
