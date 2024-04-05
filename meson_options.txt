@@ -38,6 +38,13 @@ option(
     description: 'Use libportal to provide file picker dialogs'
 )
 
+option(
+    'libmanette',
+    type: 'feature',
+    value: 'auto',
+    description: 'Use libmanette to support gamepads'
+)
+
 # Wayland platform-specific features
 option(
     'wayland_weston_direct_display',
