@@ -1225,7 +1225,7 @@ repeat_delay_timeout(CogWlPlatform *self)
                      wl_data.keyboard.repeat_data.time);
 
     wl_data.keyboard.repeat_data.event_source =
-        g_timeout_add(wl_data.keyboard.repeat_info.rate, (GSourceFunc) repeat_delay_timeout, self);
+        g_timeout_add(1000 / wl_data.keyboard.repeat_info.rate, (GSourceFunc) repeat_delay_timeout, self);
 
     return G_SOURCE_REMOVE;
 }
