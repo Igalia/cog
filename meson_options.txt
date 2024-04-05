@@ -24,6 +24,14 @@ option(
     description: 'WPE WebKit API to target (1.0 = soup2, 1.1/2.0 = soup3)'
 )
 
+# Features supported in more than one platform
+option(
+    'libmanette',
+    type: 'feature',
+    value: 'auto',
+    description: 'Use libmanette to support gamepads'
+)
+
 # Wayland platform-specific features
 option(
     'wayland_weston_direct_display',
