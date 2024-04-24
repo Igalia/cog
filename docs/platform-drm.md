@@ -74,13 +74,14 @@ DRM plug-in operates:
 | `COG_PLATFORM_DRM_CURSOR` | string | *(unset)* |
 
 By default the preferred mode for the first found connected output is used
-(if available), otherwise the mode with most resolution.
+(if available), otherwise the mode with highest resolution.
 Setting `COG_PLATFORM_DRM_VIDEO_MODE` instructs the plug-in to pick a
 particular video mode, while `COG_PLATFORM_DRM_MODE_MAX` can be used to
-limit which modes are considered. Mode strings are formatted as `WxH@R`
-(`W`idth and `H`eight in pixels, `R`efresh rate in Hertz), for example
-`1920x1080@60` for a typical Full-HD mode. The `@R` part can be omitted
-in `COG_PLATFORM_DRM_MODE_MAX`.
+limit which modes are considered. `COG_PLATFORM_DRM_VIDEO_MODE` accepts
+mode strings in the format `WxR` (`W`idth and `H`eight in pixels).
+`COG_PLATFORM_DRM_MODE_MAX` additionally accepts mode strings with
+a refresh rate in the format `WxH@R`.
+for example `1920x1080@60` for a typical Full-HD mode.
 
 Setting `COG_PLATFORM_DRM_CURSOR` to a non-empty string enables showing
 the mouse cursor pointer.
