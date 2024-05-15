@@ -1,3 +1,12 @@
+=====================
+0.18.4 - May 15, 2024
+=====================
+
+- meson: Fix the build in systems where the "ln" command cannot calculate
+  relative symlink target paths.
+- wl: Fix some items in popup menus not being rendered.
+- wl: Add support for weston-protocols version 14.
+
 ==========================
 0.18.3 - February 26, 2024
 ==========================
