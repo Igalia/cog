@@ -398,7 +398,7 @@ cog_wl_viewport_exit_fullscreen(CogWlViewport *viewport)
     cog_wl_viewport_configure_geometry(viewport, window->width_before_fullscreen, window->height_before_fullscreen);
 
     if (window->was_fullscreen_requested_from_dom) {
-        cog_wl_view_exit_fullscreen(COG_WL_VIEW(cog_viewport_get_visible_view(viewport)));
+        cog_wl_view_exit_fullscreen(COG_WL_VIEW(cog_viewport_get_visible_view(COG_VIEWPORT(viewport))));
     }
     window->was_fullscreen_requested_from_dom = false;
 }
