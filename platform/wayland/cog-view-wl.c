@@ -46,6 +46,8 @@ G_DEFINE_DYNAMIC_TYPE(CogWlView, cog_wl_view, COG_TYPE_VIEW)
 
 static void                  cog_wl_view_clear_buffers(CogWlView *);
 static WebKitWebViewBackend *cog_wl_view_create_backend(CogView *);
+static gboolean              cog_wl_view_set_fullscreen(CogView *, gboolean);
+static gboolean              cog_wl_view_is_fullscreen(CogView *);
 static void                  cog_wl_view_dispose(GObject *);
 static bool                  cog_wl_view_handle_dom_fullscreen_request(void *, bool);
 static void cog_wl_view_shm_buffer_destroy(CogWlView *, struct shm_buffer *);
@@ -89,6 +91,8 @@ cog_wl_view_class_init(CogWlViewClass *klass)
 
     CogViewClass *view_class = COG_VIEW_CLASS(klass);
     view_class->create_backend = cog_wl_view_create_backend;
+    view_class->set_fullscreen = cog_wl_view_set_fullscreen;
+    view_class->is_fullscreen = cog_wl_view_is_fullscreen;
 }
 
 static void
@@ -193,6 +197,29 @@ cog_wl_view_create_backend(CogView *view)
     wpe_view_backend_set_fullscreen_handler(view_backend, cog_wl_view_handle_dom_fullscreen_request, self);
 
     return wk_view_backend;
+}
+
+gboolean
+cog_wl_view_is_fullscreen(CogView *self)
+{
+    CogWlViewport *viewport = COG_WL_VIEWPORT(cog_view_get_viewport(self));
+    return viewport->window.is_fullscreen ? TRUE : FALSE;
+}
+
+gboolean
+cog_wl_view_set_fullscreen(CogView *self, gboolean enable)
+{
+    if (cog_wl_view_is_fullscreen(self) == enable)
+        return TRUE;
+
+    CogWlViewport *viewport = COG_WL_VIEWPORT(cog_view_get_viewport(self));
+    if (viewport->window.is_fullscreen && viewport->window.was_fullscreen_requested_from_dom) {
+        struct wpe_view_backend *backend = cog_view_get_backend(COG_VIEW(self));
+        wpe_view_backend_dispatch_request_exit_fullscreen(backend);
+    } else {
+        cog_wl_viewport_set_fullscreen(viewport, enable ? true : false);
+    }
+    return TRUE;
 }
 
 bool
