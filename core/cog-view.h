@@ -29,7 +29,10 @@ struct _CogViewClass {
     /*< private >*/
     WebKitWebViewClass parent_class;
 
-    WebKitWebViewBackend *(*create_backend)(CogView *);
+    /*< public >*/
+    WebKitWebViewBackend *(*create_backend)(CogView *self);
+    gboolean (*set_fullscreen)(CogView *self, gboolean enable);
+    gboolean (*is_fullscreen)(CogView *self);
 };
 
 #define COG_TYPE_VIEW_IMPL (cog_view_get_impl_type())
@@ -60,5 +63,8 @@ gboolean cog_view_is_visible(CogView *self);
 
 COG_API
 gboolean cog_view_set_visible(CogView *self);
+
+COG_API gboolean cog_view_set_fullscreen(CogView *self, gboolean enable);
+COG_API gboolean cog_view_is_fullscreen(CogView *self);
 
 G_END_DECLS
