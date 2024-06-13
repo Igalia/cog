@@ -327,6 +327,10 @@ cog_view_try_handle_key_binding(CogView *self, const struct wpe_input_keyboard_e
         return TRUE;
     }
 
+    /* F11, toggle fullscreen */
+    if (!event->modifiers && event->key_code == WPE_KEY_F11)
+        return cog_view_set_fullscreen(self, !cog_view_is_fullscreen(self));
+
     return FALSE;
 }
 
@@ -498,4 +502,52 @@ cog_view_set_visible(CogView *self)
     cog_viewport_set_visible_view(viewport, self);
 
     return TRUE;
+}
+
+/**
+ * cog_view_set_fullscreen:
+ * @self: A view.
+ * @enable: Whether to enable fullscreening.
+ *
+ * Change the fullscreening status of the view.
+ *
+ * Note that not all platform plug-ins may implement view fullscreening,
+ * and in that case %FALSE is always returned.
+ *
+ * Returns: Whether the view fullscreening state was set to the requested one.
+ *
+ * Since: 0.20
+ */
+gboolean
+cog_view_set_fullscreen(CogView *self, gboolean enable)
+{
+    g_return_val_if_fail(COG_IS_VIEW(self), FALSE);
+
+    CogViewClass *klass = COG_VIEW_GET_CLASS(self);
+    if (klass->set_fullscreen)
+        return (*klass->set_fullscreen)(self, enable);
+
+    return FALSE;
+}
+
+/**
+ * cog_view_is_fullscreen:
+ * @self: A view.
+ *
+ * Gets whether the view is fullscreened.
+ *
+ * Returns: Whether the view is fullscreened.
+ *
+ * Since: 0.20
+ */
+gboolean
+cog_view_is_fullscreen(CogView *self)
+{
+    g_return_val_if_fail(COG_IS_VIEW(self), FALSE);
+
+    CogViewClass *klass = COG_VIEW_GET_CLASS(self);
+    if (klass->is_fullscreen)
+        return (*klass->is_fullscreen)(self);
+
+    return FALSE;
 }
