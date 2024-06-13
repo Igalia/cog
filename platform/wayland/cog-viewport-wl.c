@@ -280,10 +280,13 @@ cog_wl_viewport_create_window(CogWlViewport *viewport, GError **error)
          * because knowing the compositor's preference is pointless because
          * there is no support for painting client-side decorations.
          */
-        viewport->window.xdg_decoration =
-            zxdg_decoration_manager_v1_get_toplevel_decoration(display->xdg_decoration, viewport->window.xdg_toplevel);
-        zxdg_toplevel_decoration_v1_set_mode(viewport->window.xdg_decoration,
-                                             ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+        if (display->xdg_decoration != NULL) {
+            viewport->window.xdg_decoration =
+                zxdg_decoration_manager_v1_get_toplevel_decoration(display->xdg_decoration,
+                                                                   viewport->window.xdg_toplevel);
+            zxdg_toplevel_decoration_v1_set_mode(viewport->window.xdg_decoration,
+                                                 ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+        }
 #endif /* COG_HAVE_XDG_DECORATION_UNSTABLE_V1 */
 
         xdg_toplevel_add_listener(viewport->window.xdg_toplevel, &xdg_toplevel_listener, viewport);
