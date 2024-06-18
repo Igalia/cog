@@ -345,18 +345,33 @@ pointer_on_button(void              *data,
         return;
     }
 
-    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
+    /*
+     * Button codes taken from <linux/input-event-codes.h>.
+     */
+    switch (button) {
+    case /* BTN_LEFT */ 0x110:
+        seat->pointer.button = 0;
+        break;
+    case /* BTN_MIDDLE */ 0x112:
+        seat->pointer.button = 1;
+        break;
+    case /* BTN_RIGHT */ 0x111:
+        seat->pointer.button = 2;
+        break;
+    case /* BTN_BACK */ 0x116:
+    case /* BTN_EXTRA */ 0x113:
+        seat->pointer.button = 3;
+        break;
+    case /* BTN_FORWARD */ 0x115:
+    case /* BTN_SIDE */ 0x114:
+        seat->pointer.button = 4;
+        break;
+    default:
+        g_debug("%s: Unhandled button %#" PRIx32 " in pointer %p, ignored.", G_STRFUNC, button, pointer);
+        return;
+    }
 
     seat->pointer.serial = serial;
-
-    /* @FIXME: what is this for?
-    if (button >= BTN_MOUSE)
-        button = button - BTN_MOUSE + 1;
-    else
-        button = 0;
-    */
-
-    seat->pointer.button = !!state ? button : 0;
     seat->pointer.state = state;
 
     struct wpe_input_pointer_event event = {
@@ -368,6 +383,7 @@ pointer_on_button(void              *data,
         seat->pointer.state,
     };
 
+    CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     CogWlPopup *popup = platform->popup;
     if (popup && popup->wl_surface) {
         if (seat->pointer.surface == popup->wl_surface) {
