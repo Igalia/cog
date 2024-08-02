@@ -248,6 +248,17 @@ on_fullscreen_change(GtkWidget* window, GParamSpec* pspec, gpointer user_data)
 }
 
 static void
+on_is_active_change(GtkWidget *window, GParamSpec *pspec, gpointer user_data)
+{
+    struct platform_window  *win = user_data;
+    struct wpe_view_backend *backend = webkit_web_view_backend_get_wpe_backend(win->view_backend);
+    if (gtk_window_is_active(GTK_WINDOW(window)))
+        wpe_view_backend_add_activity_state(backend, wpe_view_activity_state_focused);
+    else
+        wpe_view_backend_remove_activity_state(backend, wpe_view_activity_state_focused);
+}
+
+static void
 on_quit(GtkWidget* widget, gpointer data)
 {
     if (g_application_get_default())
@@ -562,6 +573,7 @@ setup_window(struct platform_window* window)
     g_signal_connect(window->gl_drawing_area, "notify::scale-factor", G_CALLBACK(scale_factor_change), window);
 
     g_signal_connect(window->gtk_window, "notify::fullscreened", G_CALLBACK(on_fullscreen_change), window);
+    g_signal_connect(window->gtk_window, "notify::is-active", G_CALLBACK(on_is_active_change), window);
 
     GtkGesture* press = gtk_gesture_click_new();
     gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(press), GDK_BUTTON_PRIMARY);
