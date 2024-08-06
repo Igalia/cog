@@ -291,6 +291,11 @@ cog_launcher_startup(GApplication *application)
 #endif /* COG_HAVE_MEM_PRESSURE */
         NULL);
 
+    if (s_options.key_file) {
+        g_autoptr(GKeyFile) key_file = g_steal_pointer(&s_options.key_file);
+        g_object_set(self->shell, "config-file", key_file, NULL);
+    }
+
     g_autoptr(GError) error = NULL;
     if (!cog_platform_setup(cog_platform_get(), self->shell, s_options.platform_params, &error))
         g_error("Cannot configure platform: %s", error->message);
@@ -322,11 +327,6 @@ cog_launcher_startup(GApplication *application)
             g_hash_table_iter_remove(&i);
         }
         g_clear_pointer(&s_options.handler_map, g_hash_table_destroy);
-    }
-
-    if (s_options.key_file) {
-        g_autoptr(GKeyFile) key_file = g_steal_pointer(&s_options.key_file);
-        g_object_set(self->shell, "config-file", key_file, NULL);
     }
 
 #if COG_USE_WPE2
