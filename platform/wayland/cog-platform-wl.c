@@ -811,13 +811,7 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
         return;
     }
 
-    g_assert(seat->touch_target);
-    CogWlViewport *viewport = COG_WL_VIEWPORT(seat->touch_target);
-
-    struct wl_surface *target_surface = seat->touch.surface;
-    seat->touch_target = NULL;
     seat->touch.serial = serial;
-    seat->touch.surface = NULL;
 
     if (id < 0 || id >= 10)
         return;
@@ -829,6 +823,7 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
     CogWlPopup    *popup = platform->popup;
 
+    struct wl_surface *target_surface = seat->touch.surface;
     if (popup && popup->wl_surface) {
         if (target_surface == popup->wl_surface) {
             cog_popup_menu_handle_event(popup->popup_menu, COG_POPUP_MENU_EVENT_STATE_RELEASED, raw_event.x,
@@ -844,7 +839,8 @@ touch_on_up(void *data, struct wl_touch *touch, uint32_t serial, uint32_t time, 
 
     struct wpe_input_touch_event event = {seat->touch.points, 10, raw_event.type, raw_event.id, raw_event.time};
 
-    CogView *view = cog_viewport_get_visible_view((CogViewport *) viewport);
+    CogWlViewport *viewport = COG_WL_VIEWPORT(seat->touch_target);
+    CogView       *view = cog_viewport_get_visible_view((CogViewport *) viewport);
     if (view)
         wpe_view_backend_dispatch_touch_event(cog_view_get_backend(view), &event);
 
