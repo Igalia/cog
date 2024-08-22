@@ -117,6 +117,7 @@ request_handler_map_entry_register (const char             *scheme,
                                                 handle_uri_scheme_request,
                                                 entry,
                                                 NULL);
+        entry->registered = TRUE;
     }
 }
 
