@@ -203,13 +203,14 @@ rotation</a>&nbsp;applied.</p>
 </tbody>
 </table>
 <p>By default the preferred mode for the first found connected output is used
-(if available), otherwise the mode with most resolution.
+(if available), otherwise the mode with highest resolution.
 Setting <code>COG_PLATFORM_DRM_VIDEO_MODE</code> instructs the plug-in to pick a
 particular video mode, while <code>COG_PLATFORM_DRM_MODE_MAX</code> can be used to
-limit which modes are considered. Mode strings are formatted as <code>WxH@R</code>
-(<code>W</code>idth and <code>H</code>eight in pixels, <code>R</code>efresh rate in Hertz), for example
-<code>1920x1080@60</code> for a typical Full-<span class="caps">HD</span> mode. The <code>R</code> part can be omitted
-in <code>COG_PLATFORM_DRM_MODE_MAX</code>.</p>
+limit which modes are considered. <code>COG_PLATFORM_DRM_VIDEO_MODE</code> accepts
+mode strings in the format <code>WxR</code> (<code>W</code>idth and <code>H</code>eight in pixels).
+<code>COG_PLATFORM_DRM_MODE_MAX</code> additionally accepts mode strings with
+a refresh rate in the format <code>WxH@R</code>.
+for example <code>1920x1080@60</code> for a typical Full-<span class="caps">HD</span>&nbsp;mode.</p>
 <p>Setting <code>COG_PLATFORM_DRM_CURSOR</code> to a non-empty string enables showing
 the mouse cursor&nbsp;pointer.</p>
 <h2 id="output-rotation">Output Rotation<a class="md-anchor" href="#output-rotation" title="Permanent link"></a></h2>
