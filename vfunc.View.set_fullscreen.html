@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Cog.View.get_backend</title>
+  <title>Cog.View.set_fullscreen</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta charset="utf-8" />
@@ -29,10 +29,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
 
   
-  <meta priority="og:title" content="Cog.View.get_backend"/>
-  <meta priority="og:description" content="Reference for Cog.View.get_backend"/>
-  <meta name="twitter:title" content="Cog.View.get_backend"/>
-  <meta name="twitter:description" content="Reference for Cog.View.get_backend"/>
+  <meta property="og:title" content="Cog.View.set_fullscreen"/>
+  <meta property="og:description" content="Reference for Cog.View.set_fullscreen"/>
+  <meta name="twitter:title" content="Cog.View.set_fullscreen"/>
+  <meta name="twitter:description" content="Reference for Cog.View.set_fullscreen"/>
 
 
   
@@ -86,26 +86,14 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   </div>
 </div>
 <div class="section">
-  <h5>Methods</h5>
+  <h5>Virtual methods</h5>
   <div class="links">
   
-    <a class="method current" href="method.View.get_backend.html">get_backend</a>
+    <a class="method" href="vfunc.View.create_backend.html">create_backend</a>
   
-    <a class="method" href="method.View.get_use_key_bindings.html">get_use_key_bindings</a>
+    <a class="method" href="vfunc.View.is_fullscreen.html">is_fullscreen</a>
   
-    <a class="method" href="method.View.get_viewport.html">get_viewport</a>
-  
-    <a class="method" href="method.View.handle_key_event.html">handle_key_event</a>
-  
-    <a class="method" href="method.View.is_fullscreen.html">is_fullscreen</a>
-  
-    <a class="method" href="method.View.is_visible.html">is_visible</a>
-  
-    <a class="method" href="method.View.set_fullscreen.html">set_fullscreen</a>
-  
-    <a class="method" href="method.View.set_use_key_bindings.html">set_use_key_bindings</a>
-  
-    <a class="method" href="method.View.set_visible.html">set_visible</a>
+    <a class="method current" href="vfunc.View.set_fullscreen.html">set_fullscreen</a>
   
   </div>
 </div>
@@ -117,24 +105,25 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     
 <section id="main" class="content">
   <header>
-    <h3>Method</h3>
-    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.View.html">View</a><span class="sep"></span>get_backend</h1>
+    <h3>Virtual Method</h3>
+    <h1><a href="index.html">Cog</a><span class="sep"></span><a href="class.View.html">View</a><span class="sep"></span>set_fullscreen</h1>
   </header>
 
   <section>
     <div class="declaration toggle-wrapper">
-      <h4 style="display:flex;" id="declaration">
+      <h4 id="declaration">
         Declaration
-        <a class="anchor" href="#declaration"></a>
+        <a href="#declaration" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.h#L47">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.h#L34">[src]</a>
         
       </h4>
 
       <div class="docblock c-decl">
-        <pre><code><div class="highlight"><pre><span></span><span class="n">wpe_view_backend</span><span class="o">*</span><span class="w"></span>
-<span class="n">cog_view_get_backend</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
-<span class="w">  </span><span class="n">CogView</span><span class="o">*</span><span class="w"> </span><span class="n">view</span><span class="w"></span>
+        <pre><code><div class="highlight"><pre><span></span><span class="n">gboolean</span><span class="w"></span>
+<span class="n">set_fullscreen</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">  </span><span class="n">CogView</span><span class="o">*</span><span class="w"> </span><span class="n">self</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">gboolean</span><span class="w"> </span><span class="n">enable</span><span class="w"></span>
 <span class="p">)</span><span class="w"></span>
 </pre></div>
 </code></pre>
@@ -142,24 +131,25 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
     </div>
 
     <div class="description toggle-wrapper">
-      <h4 style="display:flex;" id="description">
+      <h4 id="description">
         Description
-        <a class="anchor" href="#description"></a>
+        <a href="#description" class="anchor"></a>
         
-        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.c#L150">[src]</a>
+        <a class="srclink" title="go to source location" href="https://github.com/Igalia/cog/blob/master/core/cog-view.c#L507">[src]</a>
         
       </h4>
 
       <div class="docblock">
-        <p>Get the backend for the&nbsp;view.</p>
+        <p>Change the fullscreening status of the&nbsp;view.</p>
+<p>Note that not all platform plug-ins may implement view fullscreening,
+and in that case <code>FALSE</code> is always&nbsp;returned.</p>
       </div>
 
       <div class="docblock">
         <table>
           
           
-          
-          
+          <tr><td>Available since:</td><td>0.20</td></tr>
           
           
         </table>
@@ -168,6 +158,38 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
       
     </div>
 
+    
+    <div class="parameters toggle-wrapper">
+      <h4 id="parameters">
+        Parameters
+        <a href="#parameters" class="anchor"></a>
+      </h4>
+
+      <div class="docblock">
+        <table class="arguments">
+          
+          <tr class="arg-name">
+            <td><code>enable</code></td>
+            <td><code>gboolean</code></td>
+          </tr>
+          <tr class="arg-description">
+            <td>&nbsp;</td>
+            <td><p>Whether to enable&nbsp;fullscreening.</p></td>
+          </tr>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </table>
+      </div>
+    </div>
     
 
     
@@ -181,16 +203,16 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
         <table class="returns">
           <tr class="arg-name">
             <td>Returns:</td>
-            <td><code>wpe_view_backend*</code></td>
+            <td><code>gboolean</code></td>
           </tr>
           <tr class="arg-description">
             <td>&nbsp;</td>
-            <td><p>The <span class="caps">WPE</span> view backend for the&nbsp;view.</p></td>
+            <td><p>Whether the view fullscreening state was set to the requested&nbsp;one.</p></td>
           </tr>
           
           
           
-          <tr><td>&nbsp;</td><td title="transfer: none">The data is owned by the instance.</td></tr>
+          
           
           
         </table>

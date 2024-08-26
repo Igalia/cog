@@ -121,7 +121,11 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   
     <a class="method" href="method.View.handle_key_event.html">handle_key_event</a>
   
+    <a class="method" href="method.View.is_fullscreen.html">is_fullscreen</a>
+  
     <a class="method" href="method.View.is_visible.html">is_visible</a>
+  
+    <a class="method" href="method.View.set_fullscreen.html">set_fullscreen</a>
   
     <a class="method" href="method.View.set_use_key_bindings.html">set_use_key_bindings</a>
   
@@ -154,6 +158,10 @@ SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
   <div class="links">
   
     <a class="method" href="vfunc.View.create_backend.html">create_backend</a>
+  
+    <a class="method" href="vfunc.View.is_fullscreen.html">is_fullscreen</a>
+  
+    <a class="method" href="vfunc.View.set_fullscreen.html">set_fullscreen</a>
   
   </div>
 </div>
@@ -323,9 +331,25 @@ the CogPlatform.get_view_type&nbsp;method.</p>
         </div>
       
         <div class="">
+          <h6><a href="method.View.is_fullscreen.html">cog_view_is_fullscreen</a></h6>
+          <div class="docblock">
+            <p>Gets whether the view is&nbsp;fullscreened.</p>
+          </div>
+          <div class="docblock"><p>Available since: 0.20</p></div>
+        </div>
+      
+        <div class="">
           <h6><a href="method.View.is_visible.html">cog_view_is_visible</a></h6>
           <div class="docblock">
             <p>Gets whether the view is visible in a&nbsp;viewport.</p>
+          </div>
+          <div class="docblock"><p>Available since: 0.20</p></div>
+        </div>
+      
+        <div class="">
+          <h6><a href="method.View.set_fullscreen.html">cog_view_set_fullscreen</a></h6>
+          <div class="docblock">
+            <p>Change the fullscreening status of the&nbsp;view.</p>
           </div>
           <div class="docblock"><p>Available since: 0.20</p></div>
         </div>
@@ -448,7 +472,14 @@ its value set through g_object_set_property(), g_object_set(), et&nbsp;al.</p>
       <div class="docblock">
         <pre><code>struct CogViewClass {
   WebKitWebViewBackend* (* create_backend) (
-    CogView* arg0
+    CogView* self
+  );
+  gboolean (* set_fullscreen) (
+    CogView* self,
+    gboolean enable
+  );
+  gboolean (* is_fullscreen) (
+    CogView* self
   );
   
 }</code></pre>
@@ -463,7 +494,30 @@ its value set through g_object_set_property(), g_object_set(), et&nbsp;al.</p>
         <tr>
           <td style="vertical-align:top"><code>create_backend</code></td>
           <td style="vertical-align:top"><pre><code>WebKitWebViewBackend* (* create_backend) (
-    CogView* arg0
+    CogView* self
+  )</code></pre></td>
+        </tr>
+        <tr>
+          <td>&nbsp;</td>
+          <td style="vertical-align:top">No description available.</td>
+        </td>
+        
+        <tr>
+          <td style="vertical-align:top"><code>set_fullscreen</code></td>
+          <td style="vertical-align:top"><pre><code>gboolean (* set_fullscreen) (
+    CogView* self,
+    gboolean enable
+  )</code></pre></td>
+        </tr>
+        <tr>
+          <td>&nbsp;</td>
+          <td style="vertical-align:top">No description available.</td>
+        </td>
+        
+        <tr>
+          <td style="vertical-align:top"><code>is_fullscreen</code></td>
+          <td style="vertical-align:top"><pre><code>gboolean (* is_fullscreen) (
+    CogView* self
   )</code></pre></td>
         </tr>
         <tr>
@@ -494,6 +548,26 @@ its value set through g_object_set_property(), g_object_set(), et&nbsp;al.</p>
         </div>
 
           
+      </div>
+      
+      <div class="">
+        <h6 id="vfunc-is_fullscreen"><a href="vfunc.View.is_fullscreen.html">Cog.ViewClass.is_fullscreen</a></h6>
+
+        <div class="docblock">
+          <p>Gets whether the view is&nbsp;fullscreened.</p>
+        </div>
+
+          <div class="docblock"><p>Available since: 0.20</p></div>
+      </div>
+      
+      <div class="">
+        <h6 id="vfunc-set_fullscreen"><a href="vfunc.View.set_fullscreen.html">Cog.ViewClass.set_fullscreen</a></h6>
+
+        <div class="docblock">
+          <p>Change the fullscreening status of the&nbsp;view.</p>
+        </div>
+
+          <div class="docblock"><p>Available since: 0.20</p></div>
       </div>
       
       </div>
