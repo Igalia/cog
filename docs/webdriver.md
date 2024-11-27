@@ -29,17 +29,15 @@ In the python script:
 ```python
 from selenium import webdriver
 
-def capabilities():
-    return {
-        "wpe:browserOptions": {
-            "binary": "/usr/bin/cog",
-            "args": ["--automation", "--platform=wl"],
-        }
-    }
+options = webdriver.WPEWebKitOptions()
+options.capabilities.clear()
+options.binary_location = "/usr/bin/cog"
+options.add_argument("--automation")
+options.add_argument("--platform=wl")
 
 driver = webdriver.Remote(
     command_executor="http://YOUR_DEVICE_IP:8088",
-    desired_capabilities=capabilities(),
+    options=options,
 )
 ```
 
