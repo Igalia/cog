@@ -1254,6 +1254,8 @@ cog_launcher_constructed(GObject *object)
     cog_launcher_add_mem_pressure_option_entries(launcher);
 #endif /* COG_HAVE_MEM_PRESSURE */
 
+    g_application_add_option_group(G_APPLICATION(launcher), jsc_options_get_option_group());
+
     launcher->sigint_source = g_unix_signal_add(SIGINT, G_SOURCE_FUNC(on_signal_quit), launcher);
     launcher->sigterm_source = g_unix_signal_add(SIGTERM, G_SOURCE_FUNC(on_signal_quit), launcher);
 
