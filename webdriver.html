@@ -109,17 +109,15 @@ $ WPEWebDriver --port<span class="o">=</span><span class="m">8088</span> --host<
 <p>In the python&nbsp;script:</p>
 <div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">selenium</span> <span class="kn">import</span> <span class="n">webdriver</span>
 
-<span class="k">def</span> <span class="nf">capabilities</span><span class="p">():</span>
-    <span class="k">return</span> <span class="p">{</span>
-        <span class="s2">&quot;wpe:browserOptions&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;binary&quot;</span><span class="p">:</span> <span class="s2">&quot;/usr/bin/cog&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;args&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;--automation&quot;</span><span class="p">,</span> <span class="s2">&quot;--platform=wl&quot;</span><span class="p">],</span>
-        <span class="p">}</span>
-    <span class="p">}</span>
+<span class="n">options</span> <span class="o">=</span> <span class="n">webdriver</span><span class="o">.</span><span class="n">WPEWebKitOptions</span><span class="p">()</span>
+<span class="n">options</span><span class="o">.</span><span class="n">capabilities</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+<span class="n">options</span><span class="o">.</span><span class="n">binary_location</span> <span class="o">=</span> <span class="s2">&quot;/usr/bin/cog&quot;</span>
+<span class="n">options</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--automation&quot;</span><span class="p">)</span>
+<span class="n">options</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--platform=wl&quot;</span><span class="p">)</span>
 
 <span class="n">driver</span> <span class="o">=</span> <span class="n">webdriver</span><span class="o">.</span><span class="n">Remote</span><span class="p">(</span>
     <span class="n">command_executor</span><span class="o">=</span><span class="s2">&quot;http://YOUR_DEVICE_IP:8088&quot;</span><span class="p">,</span>
-    <span class="n">desired_capabilities</span><span class="o">=</span><span class="n">capabilities</span><span class="p">(),</span>
+    <span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 
