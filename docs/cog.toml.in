@@ -7,7 +7,7 @@ logo_url = "cog.png"
 browse_url = "https://github.com/Igalia/cog"
 repository_url = "https://github.com/Igalia/cog"
 website_url = "https://wpewebkit.org"
-dependencies = ["GLib-2.0", "GObject-2.0", "Gio-2.0", "Soup-2.4"]
+dependencies = ["GLib-2.0", "GObject-2.0", "Gio-2.0", "Soup-@LIBSOUP_API@"]
 devhelp = true
 search_index = true
 
@@ -26,10 +26,10 @@ name = "Gio"
 description = "The GLib input/output library"
 docs_url = "https://developer.gnome.org/gio/stable"
 
-[dependencies."Soup-2.4"]
+[dependencies."Soup-@LIBSOUP_API@"]
 name = "Soup"
 description = "The Soup networking library"
-docs_url = "https://developer.gnome.org/libsoup/stable"
+docs_url = "https://libsoup.gnome.org/libsoup-@LIBSOUP_API@"
 
 [theme]
 name = "basic"
