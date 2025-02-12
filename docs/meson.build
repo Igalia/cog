@@ -1,15 +1,6 @@
 gi_docgen_exe = find_program('gi-docgen', 'gi-docgen.py', native: true)
 
-# XXX: gi-docgen needs to be able to spit out a depfile.
-docs_md = [
-    'contributing.md',
-    'overview.md',
-    'platform-drm.md',
-    'platform-headless.md',
-    'platform-wl.md',
-    'platform-x11.md',
-    'webdriver.md',
-]
+python3_exe = import('python').find_installation('python3')
 
 docs_toml = configure_file(
     configuration: {
@@ -38,11 +29,33 @@ gi_outputs = import('gnome').generate_gir(
 )
 gi_cogcore_gir = gi_outputs[0]
 
+docs_dependencies_list = custom_target('docs-deps',
+    input: [docs_toml, gi_cogcore_gir],
+    output: ['cog-docs.deps'],
+    command: [gi_docgen_exe, 'gen-deps',
+        '--quiet',
+        '--content-dir', '@CURRENT_SOURCE_DIR@',
+        '--config', '@INPUT0@',
+        '@INPUT1@',
+        '@OUTPUT@',
+    ],
+)
+
+docs_depfile = custom_target('docs-depfile',
+    input: [docs_dependencies_list],
+    output: ['cog-docs.d'],
+    command: [python3_exe, join_paths(meson.source_root(), 'data', 'depfile.py'),
+        '@INPUT@',
+        '@OUTPUT@',
+        'cog-docs.d', 'html'
+    ],
+)
+
 custom_target('docs',
     build_by_default: true,
-    input: [docs_toml, gi_cogcore_gir],
+    input: [docs_toml, gi_cogcore_gir, docs_depfile],
     output: 'html',
-    depend_files: docs_md,
+    depfile: 'cog-docs.d',
     command: [gi_docgen_exe, 'generate',
         '--quiet',
         '--no-namespace-dir',
