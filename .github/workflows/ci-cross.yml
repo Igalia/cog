@@ -16,12 +16,12 @@ jobs:
     strategy:
       matrix:
         buildtype: [release, debug]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: cache
         with:
           path: ~/toolchain

@@ -13,12 +13,16 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    # TODO: It would be nice to move away from Ubuntu 22.04, but that would
+    #       need either building WPE WebKit, finding a PPA for it, or using
+    #       a self-hosted runner with preconfigured base system including
+    #       the needed dependencies.
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/pip
@@ -101,7 +105,7 @@ jobs:
         run:
           ninja -C ~/build/
       - name: Archive Documentation
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: docs
           path: ~/build/docs/html
@@ -109,15 +113,15 @@ jobs:
   publish:
     if: ${{ github.ref == 'refs/heads/master' }}
     needs: build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Fetch Documentation
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: docs
           path: html
       - name: Deploy Documentation
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: html
