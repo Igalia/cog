@@ -52,6 +52,18 @@ declare -r BASE HEAD
 
 declare -ra clang_format_diff_candidates=(
     # Search in $PATH (Ubuntu, Debian, maybe others)
+    clang-format-diff-19
+    clang-format-diff-19.py
+    clang-format-diff-18
+    clang-format-diff-18.py
+    clang-format-diff-17
+    clang-format-diff-17.py
+    clang-format-diff-16
+    clang-format-diff-16.py
+    clang-format-diff-15
+    clang-format-diff-15.py
+    clang-format-diff-14
+    clang-format-diff-14.py
     clang-format-diff-13
     clang-format-diff-13.py
     clang-format-diff
