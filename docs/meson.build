@@ -12,9 +12,12 @@ docs_md = [
 ]
 
 docs_toml = configure_file(
+    configuration: {
+        'PROJECT_VERSION': meson.project_version(),
+        'LIBSOUP_API': soup_target_api,
+    },
     input: 'cog.toml.in',
     output: 'cog.toml',
-    configuration: cog_config,
 )
 
 gi_outputs = import('gnome').generate_gir(
