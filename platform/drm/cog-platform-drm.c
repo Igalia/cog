@@ -69,12 +69,16 @@ struct _CogDrmPlatform {
     CogGLRendererRotation  rotation;
     GList                 *rotatable_input_devices;
     bool                   use_gles;
+    gboolean               atomic_mode_setting;
+    float                  device_scale_factor;
 };
 
 enum {
     PROP_0,
     PROP_ROTATION,
     PROP_RENDERER,
+    PROP_ATOMIC_MODE_SETTING,
+    PROP_DEVICE_SCALE_FACTOR,
     N_PROPERTIES,
 };
 
@@ -116,10 +120,7 @@ static struct {
     uint32_t width;
     uint32_t height;
     uint32_t refresh;
-    double   device_scale;
 
-    bool atomic_modesetting;
-    bool addfb2_modifiers;
     bool mode_set;
 } drm_data = {
     .fd = -1,
@@ -146,8 +147,6 @@ static struct {
     .width = 0,
     .height = 0,
     .refresh = 0,
-    .device_scale = 1.0,
-    .atomic_modesetting = true,
     .mode_set = false,
 };
 
@@ -227,76 +226,22 @@ static struct {
 static void
 init_config(CogDrmPlatform *self, CogShell *shell, const char *params_string)
 {
-    drm_data.device_scale = cog_shell_get_device_scale_factor (shell);
-    g_debug ("init_config: overriding device_scale value, using %.2f from shell",
-             drm_data.device_scale);
+    GKeyFile *key_file = cog_shell_get_config_file(shell);
 
-    GKeyFile *key_file = cog_shell_get_config_file (shell);
+    if (params_string)
+        cog_key_file_parse_params_string(key_file, "drm", params_string);
 
     if (key_file) {
-        {
-            g_autoptr(GError) lookup_error = NULL;
-
-            gboolean value = g_key_file_get_boolean(key_file, "drm", "disable-atomic-modesetting", &lookup_error);
-            if (!lookup_error) {
-                drm_data.atomic_modesetting = !value;
-                g_debug("init_config: atomic modesetting reconfigured to value '%s'",
-                        drm_data.atomic_modesetting ? "true" : "false");
-            }
-        }
-
-        {
-            g_autoptr(GError) lookup_error = NULL;
-
-            gdouble value = g_key_file_get_double(key_file, "drm", "device-scale-factor", &lookup_error);
-            if (!lookup_error) {
-                drm_data.device_scale = value;
-                g_debug("init_config: overriding device_scale value, using %.2f from config", drm_data.device_scale);
-            }
-        }
-
-        {
-            g_autofree char *value = g_key_file_get_string(key_file, "drm", "renderer", NULL);
-            if (g_strcmp0(value, "gles") == 0)
-                self->use_gles = true;
-            else if (g_strcmp0(value, "modeset") != 0)
-                self->use_gles = false;
-            else if (value)
-                g_warning("Invalid renderer '%s', using default.", value);
-        }
+        g_autoptr(GError) error = NULL;
+        if (!cog_apply_properties_from_key_file(G_OBJECT(self), key_file, "drm", &error))
+            g_warning("Reading config file: %s", error->message);
     }
 
-    if (params_string) {
-        g_auto(GStrv) params = g_strsplit(params_string, ",", 0);
-        for (unsigned i = 0; params[i]; i++) {
-            g_auto(GStrv) kv = g_strsplit(params[i], "=", 2);
-            if (g_strv_length(kv) != 2) {
-                g_warning("Invalid parameter syntax '%s'.", params[i]);
-                continue;
-            }
-
-            const char *k = g_strstrip(kv[0]);
-            const char *v = g_strstrip(kv[1]);
-
-            if (g_strcmp0(k, "renderer") == 0) {
-                if (g_strcmp0(v, "modeset") == 0)
-                    self->use_gles = false;
-                else if (g_strcmp0(v, "gles") == 0)
-                    self->use_gles = true;
-                else
-                    g_warning("Invalid value '%s' for parameter '%s'.", v, k);
-            } else if (g_strcmp0(k, "rotation") == 0) {
-                char       *endp = NULL;
-                const char *str = v ? v : "";
-                uint64_t    val = g_ascii_strtoull(str, &endp, 10);
-                if (val > 3 || *endp != '\0')
-                    g_warning("Invalid value '%s' for parameter '%s'.", v, k);
-                else
-                    self->rotation = val;
-            } else {
-                g_warning("Invalid parameter '%s'.", k);
-            }
-        }
+    float device_scale_factor = cog_shell_get_device_scale_factor(shell);
+    if (device_scale_factor >= 0.2f) {
+        g_debug("%s: Overriding CogDrmPlatform<%p>.device-scale-factor = <%.2f> from shell", __func__, self,
+                device_scale_factor);
+        self->device_scale_factor = device_scale_factor;
     }
 }
 
@@ -357,7 +302,7 @@ find_crtc_for_encoder(const drmModeRes *resources, const drmModeEncoder *encoder
 }
 
 static gboolean
-init_drm(void)
+init_drm(CogDrmPlatform *self)
 {
     drmDevice *devices[64];
     memset(devices, 0, sizeof(*devices) * 64);
@@ -404,10 +349,10 @@ init_drm(void)
     if (!drm_data.base_resources)
         return FALSE;
 
-    if (drm_data.atomic_modesetting) {
+    if (self->atomic_mode_setting) {
         int ret = drmSetClientCap (drm_data.fd, DRM_CLIENT_CAP_ATOMIC, 1);
         if (ret) {
-            drm_data.atomic_modesetting = false;
+            self->atomic_mode_setting = false;
             g_debug ("init_drm: atomic mode not usable, falling back to non-atomic mode");
         }
     }
@@ -952,7 +897,7 @@ input_handle_pointer_smooth_scroll_event(struct libinput_event_pointer *pointer_
 }
 #else
 static void
-input_handle_pointer_axis_event(struct libinput_event_pointer *pointer_event)
+input_handle_pointer_axis_event(CogDrmPlatform *self, struct libinput_event_pointer *pointer_event)
 {
     struct wpe_input_axis_2d_event event = {
         .base.type = wpe_input_axis_event_type_mask_2d,
@@ -980,8 +925,8 @@ input_handle_pointer_axis_event(struct libinput_event_pointer *pointer_event)
                 libinput_event_pointer_get_axis_value(pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
     }
 
-    event.x_axis *= drm_data.device_scale;
-    event.y_axis *= drm_data.device_scale;
+    event.x_axis *= self->device_scale_factor;
+    event.y_axis *= self->device_scale_factor;
 
     wpe_view_backend_dispatch_axis_event(wpe_view_data.backend, &event.base);
 }
@@ -1061,7 +1006,7 @@ input_handle_device_removed(struct libinput_device *device)
 }
 
 static void
-input_process_events (void)
+input_process_events(CogDrmPlatform *self)
 {
     g_assert(input_data.libinput);
 
@@ -1178,7 +1123,7 @@ input_process_events (void)
             break;
 #else
         case LIBINPUT_EVENT_POINTER_AXIS:
-            input_handle_pointer_axis_event(libinput_event_get_pointer_event(event));
+            input_handle_pointer_axis_event(self, libinput_event_get_pointer_event(event));
             break;
 #endif /* LIBINPUT_CHECK_VERSION(1, 19, 0) */
         default:
@@ -1271,6 +1216,7 @@ struct drm_source {
 struct input_source {
     GSource source;
     GPollFD pfd;
+    CogDrmPlatform *platform;
 };
 
 static gboolean
@@ -1287,7 +1233,7 @@ input_source_dispatch (GSource *base, GSourceFunc callback, gpointer user_data)
     if (source->pfd.revents & (G_IO_ERR | G_IO_HUP))
         return FALSE;
 
-    input_process_events ();
+    input_process_events(source->platform);
     source->pfd.revents = 0;
     return TRUE;
 }
@@ -1305,12 +1251,6 @@ key_repeat_source_dispatch(CogDrmPlatform *platform)
                              input_data.repeating_key.key,
                              LIBINPUT_KEY_STATE_PRESSED);
     return G_SOURCE_CONTINUE;
-}
-
-static void
-cog_drm_platform_shell_device_factor_changed(CogShell *shell, GParamSpec *param_spec, gpointer data)
-{
-    drm_data.device_scale = cog_shell_get_device_scale_factor(shell);
 }
 
 static void
@@ -1344,6 +1284,7 @@ init_glib(CogDrmPlatform *self)
         source->pfd.fd = libinput_get_fd (input_data.libinput);
         source->pfd.events = G_IO_IN | G_IO_ERR | G_IO_HUP;
         source->pfd.revents = 0;
+        source->platform = self;
         g_source_add_poll (glib_data.input_source, &source->pfd);
 
         g_source_set_name (glib_data.input_source, "cog: input");
@@ -1394,7 +1335,8 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
     CogDrmPlatform *self = COG_DRM_PLATFORM(platform);
 
     init_config(COG_DRM_PLATFORM(platform), shell, params);
-    g_signal_connect(shell, "notify::device-scale-factor", G_CALLBACK(cog_drm_platform_shell_device_factor_changed), NULL);
+    g_object_bind_property(shell, "device-scale-factor", platform, "device-scale-factor",
+                           G_BINDING_DEFAULT | G_BINDING_SYNC_CREATE);
 
     if (!wpe_loader_init ("libWPEBackend-fdo-1.0.so")) {
         g_set_error_literal (error,
@@ -1404,7 +1346,7 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
         return FALSE;
     }
 
-    if (!init_drm ()) {
+    if (!init_drm(self)) {
         g_set_error_literal (error,
                              COG_PLATFORM_WPE_ERROR,
                              COG_PLATFORM_WPE_ERROR_INIT,
@@ -1441,14 +1383,14 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
                                                    drm_data.crtc.obj_id,
                                                    drm_data.connector.obj_id,
                                                    drm_data.mode,
-                                                   drm_data.atomic_modesetting);
+                                                   self->atomic_mode_setting);
     } else {
         self->renderer = cog_drm_modeset_renderer_new(gbm_data.device,
                                                       drm_data.plane.obj_id,
                                                       drm_data.crtc.obj_id,
                                                       drm_data.connector.obj_id,
                                                       drm_data.mode,
-                                                      drm_data.atomic_modesetting);
+                                                      self->atomic_mode_setting);
     }
     if (cog_drm_renderer_supports_rotation(self->renderer, self->rotation)) {
         cog_drm_renderer_set_rotation(self->renderer, self->rotation);
@@ -1511,8 +1453,8 @@ cog_drm_platform_get_view_backend(CogPlatform *platform, WebKitWebView *related_
 {
     CogDrmPlatform *self = COG_DRM_PLATFORM(platform);
     wpe_host_data.exportable = self->renderer->create_exportable(self->renderer,
-                                                                 drm_data.width / drm_data.device_scale,
-                                                                 drm_data.height / drm_data.device_scale);
+                                                                 drm_data.width / self->device_scale_factor,
+                                                                 drm_data.height / self->device_scale_factor);
     g_assert (wpe_host_data.exportable);
 
     wpe_view_data.backend = wpe_view_backend_exportable_fdo_get_view_backend (wpe_host_data.exportable);
@@ -1537,9 +1479,11 @@ set_target_refresh_rate(gpointer user_data)
 static void
 cog_drm_platform_init_web_view(CogPlatform *platform, WebKitWebView *view)
 {
-    COG_DRM_PLATFORM(platform)->web_view = COG_VIEW(view);
+    CogDrmPlatform *self = COG_DRM_PLATFORM(platform);
 
-    wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_data.backend, drm_data.device_scale);
+    self->web_view = COG_VIEW(view);
+
+    wpe_view_backend_dispatch_set_device_scale_factor(wpe_view_data.backend, self->device_scale_factor);
 
     g_idle_add(G_SOURCE_FUNC(set_target_refresh_rate), &wpe_view_data);
 }
@@ -1576,6 +1520,12 @@ cog_drm_platform_set_property(GObject *object, unsigned prop_id, const GValue *v
         }
         break;
     }
+    case PROP_ATOMIC_MODE_SETTING:
+        self->atomic_mode_setting = g_value_get_boolean(value);
+        break;
+    case PROP_DEVICE_SCALE_FACTOR:
+        self->device_scale_factor = g_value_get_float(value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
     }
@@ -1591,6 +1541,12 @@ cog_drm_platform_get_property(GObject *object, unsigned prop_id, GValue *value, 
         break;
     case PROP_RENDERER:
         g_value_set_string(value, self->use_gles ? "gles" : "modeset");
+        break;
+    case PROP_ATOMIC_MODE_SETTING:
+        g_value_set_boolean(value, self->atomic_mode_setting);
+        break;
+    case PROP_DEVICE_SCALE_FACTOR:
+        g_value_set_float(value, self->device_scale_factor);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -1643,6 +1599,35 @@ cog_drm_platform_class_init(CogDrmPlatformClass *klass)
                             "Mechanism used to produce output on the screen",
                             "modeset",
                             G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
+
+    /**
+     * CogDrmPlatform:atomic-mode-setting:
+     *
+     * Whether to use DRM/KMS atomic mode setting.
+     *
+     * Even if initially enabled, if the driver reports the feature as not
+     * supported the setting will be disabled automatically. Explicitly
+     * disabling atomic mode setting is rarely needed, but might fix issues
+     * with certain drivers.
+     *
+     * Since: 0.18
+     */
+    s_properties[PROP_ATOMIC_MODE_SETTING] = g_param_spec_boolean("atomic-mode-setting",
+                                                                  "Atomic mode setting",
+                                                                  "Use DRM/KMS atomic mode setting",
+                                                                  TRUE,
+                                                                  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+    /**
+     * CogDrmPlatform:device-scale-factor:
+     *
+     * Scaling factor applied to the output device.
+     *
+     * Since: 0.18
+     */
+    s_properties[PROP_DEVICE_SCALE_FACTOR] =
+        g_param_spec_float("device-scale-factor", "Device scale factor", "Output device scaling factor", 0.25f, 5.0f,
+                           1.0f, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
     g_object_class_install_properties(object_class, N_PROPERTIES, s_properties);
 }
