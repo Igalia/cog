@@ -358,7 +358,7 @@ xcb_handle_button_press(xcb_button_press_event_t *event)
     case 1:
     case 2:
     case 3:
-        s_display->xcb.pointer.button = event->detail;
+        s_display->xcb.pointer.button = event->detail - 1;
         s_display->xcb.pointer.state = 1;
         break;
     case 4:
@@ -390,7 +390,7 @@ xcb_handle_button_release (xcb_button_release_event_t *event)
     case 1:
     case 2:
     case 3:
-        s_display->xcb.pointer.button = event->detail;
+        s_display->xcb.pointer.button = event->detail - 1;
         s_display->xcb.pointer.state = 0;
         break;
     default:
