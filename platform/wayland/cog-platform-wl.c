@@ -934,14 +934,12 @@ pointer_on_button(void *data,
 {
     wl_data.event_serial = serial;
 
-    /* @FIXME: what is this for?
     if (button >= BTN_MOUSE)
         button = button - BTN_MOUSE + 1;
     else
         button = 0;
-    */
 
-    wl_data.pointer.button = !!state ? button : 0;
+    wl_data.pointer.button = button;
     wl_data.pointer.state = state;
 
     struct wpe_input_pointer_event event = {
