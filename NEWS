@@ -1,4 +1,14 @@
 =====================
+0.18.5 - May 29, 2025
+=====================
+
+- meson: Make the libmanette support explicitly configurable.
+- core: Avoid re-registration of URI scheme handlers.
+- wl: Fix mouse button release events, always passing the button number.
+- wl: Fix the key repeat timeout.
+- wl: Handle mouse button modifiers.
+
+=====================
 0.18.4 - May 15, 2024
 =====================
 
