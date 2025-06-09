@@ -82,6 +82,7 @@ struct _CogWlPointer {
     int32_t            y;
     uint32_t           button;
     uint32_t           state;
+    uint32_t           modifiers;
     uint32_t           serial;
 };
 
