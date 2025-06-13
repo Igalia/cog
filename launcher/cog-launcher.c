@@ -263,6 +263,34 @@ on_web_view_create(WebKitWebView *web_view, WebKitNavigationAction *action)
     return NULL;
 }
 
+#if COG_DBUS_SYSTEM_BUS
+static void
+on_system_bus_acquired(GDBusConnection *connection, const char *name, void *userdata)
+{
+    g_autofree char *object_path =
+        cog_appid_to_dbus_object_path(g_application_get_application_id(G_APPLICATION(userdata)));
+    g_autoptr(GError) error = NULL;
+    if (!g_dbus_connection_export_action_group(connection, object_path, G_ACTION_GROUP(userdata), &error))
+        g_warning("Cannot expose remote control interface to system bus: %s", error->message);
+}
+
+static void
+on_system_bus_name_acquired(G_GNUC_UNUSED GDBusConnection *connection, const char *name, G_GNUC_UNUSED void *userdata)
+{
+    g_message("Acquired D-Bus well-known name %s", name);
+}
+
+static void
+on_system_bus_name_lost(GDBusConnection *connection, const char *name, G_GNUC_UNUSED void *userdata)
+{
+    if (connection) {
+        g_message("Lost D-Bus well-known name %s", name);
+    } else {
+        g_message("Lost D-Bus connection to system bus");
+    }
+}
+#endif // COG_DBUS_SYSTEM_BUS
+
 static WebKitWebView *
 cog_launcher_create_view(CogLauncher *self, CogShell *shell)
 {
@@ -434,6 +462,18 @@ cog_launcher_startup(GApplication *application)
                                              s_options.ignore_tls_errors ? WEBKIT_TLS_ERRORS_POLICY_IGNORE
                                                                          : WEBKIT_TLS_ERRORS_POLICY_FAIL);
 #endif
+
+#if COG_DBUS_SYSTEM_BUS
+    const gchar *appid = g_application_get_application_id(G_APPLICATION(self));
+    g_bus_own_name(G_BUS_TYPE_SYSTEM,
+                   appid,
+                   G_BUS_NAME_OWNER_FLAGS_NONE,
+                   on_system_bus_acquired,
+                   on_system_bus_name_acquired,
+                   on_system_bus_name_lost,
+                   self,
+                   NULL);
+#endif
 }
 
 static void
@@ -483,34 +523,6 @@ cog_launcher_dispose(GObject *object)
 
     G_OBJECT_CLASS(cog_launcher_parent_class)->dispose(object);
 }
-
-#if COG_DBUS_SYSTEM_BUS
-static void
-on_system_bus_acquired(GDBusConnection *connection, const char *name, void *userdata)
-{
-    g_autofree char *object_path =
-        cog_appid_to_dbus_object_path(g_application_get_application_id(G_APPLICATION(userdata)));
-    g_autoptr(GError) error = NULL;
-    if (!g_dbus_connection_export_action_group(connection, object_path, G_ACTION_GROUP(userdata), &error))
-        g_warning("Cannot expose remote control interface to system bus: %s", error->message);
-}
-
-static void
-on_system_bus_name_acquired(G_GNUC_UNUSED GDBusConnection *connection, const char *name, G_GNUC_UNUSED void *userdata)
-{
-    g_message("Acquired D-Bus well-known name %s", name);
-}
-
-static void
-on_system_bus_name_lost(GDBusConnection *connection, const char *name, G_GNUC_UNUSED void *userdata)
-{
-    if (connection) {
-        g_message("Lost D-Bus well-known name %s", name);
-    } else {
-        g_message("Lost D-Bus connection to system bus");
-    }
-}
-#endif // COG_DBUS_SYSTEM_BUS
 
 #ifndef COG_DEFAULT_APPID
 #    define COG_DEFAULT_APPID "com.igalia." COG_DEFAULT_APPNAME
@@ -1256,17 +1268,6 @@ cog_launcher_constructed(GObject *object)
 
     launcher->sigint_source = g_unix_signal_add(SIGINT, G_SOURCE_FUNC(on_signal_quit), launcher);
     launcher->sigterm_source = g_unix_signal_add(SIGTERM, G_SOURCE_FUNC(on_signal_quit), launcher);
-
-#if COG_DBUS_SYSTEM_BUS
-    g_bus_own_name(G_BUS_TYPE_SYSTEM,
-                   COG_DEFAULT_APPID,
-                   G_BUS_NAME_OWNER_FLAGS_NONE,
-                   on_system_bus_acquired,
-                   on_system_bus_name_acquired,
-                   on_system_bus_name_lost,
-                   launcher,
-                   NULL);
-#endif
 }
 
 static int
