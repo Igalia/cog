@@ -24,7 +24,7 @@ jobs:
         run: |
           data/check-style -ocode-style.diff origin/master
       - name: Archive Diff
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: diff
