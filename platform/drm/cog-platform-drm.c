@@ -188,6 +188,7 @@ static struct {
     struct udev *udev;
     struct libinput *libinput;
 
+    CogGLRendererRotation rotation; // 0, 90, 180, 270
     uint32_t input_width;
     uint32_t input_height;
 
@@ -199,6 +200,7 @@ static struct {
 } input_data = {
     .udev = NULL,
     .libinput = NULL,
+    .rotation = COG_GL_RENDERER_ROTATION_0,
     .input_width = 0,
     .input_height = 0,
     .repeating_key = {0, 0},
@@ -840,10 +842,51 @@ input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_e
 
     if (touch_type == LIBINPUT_EVENT_TOUCH_DOWN
         || touch_type == LIBINPUT_EVENT_TOUCH_MOTION) {
-        touch_point->x = libinput_event_touch_get_x_transformed (touch_event,
-                                                                 input_data.input_width);
-        touch_point->y = libinput_event_touch_get_y_transformed (touch_event,
-                                                                 input_data.input_height);
+        // Determine transformation parameters based on rotation state
+        // For 90° and 270° rotations, we need to swap width and height
+        const int transform_width = (input_data.rotation == COG_GL_RENDERER_ROTATION_90 || 
+                                    input_data.rotation == COG_GL_RENDERER_ROTATION_270) 
+                                ? input_data.input_height : input_data.input_width;
+        
+        const int transform_height = (input_data.rotation == COG_GL_RENDERER_ROTATION_90 || 
+                                    input_data.rotation == COG_GL_RENDERER_ROTATION_270) 
+                                    ? input_data.input_width : input_data.input_height;
+
+        // Get raw touch coordinates from libinput event
+        // These are already normalized to [0, transform_width/height] range
+        double raw_x = libinput_event_touch_get_x_transformed(touch_event, transform_width);
+        double raw_y = libinput_event_touch_get_y_transformed(touch_event, transform_height);
+
+        // Apply rotation transformation to convert raw coordinates to display coordinates
+        switch (input_data.rotation) {
+            case COG_GL_RENDERER_ROTATION_90:  // 90° clockwise rotation
+                // x' = height - y
+                // y' = x
+                touch_point->x = transform_height - raw_y;
+                touch_point->y = raw_x;
+                break;
+                
+            case COG_GL_RENDERER_ROTATION_180:  // 180° rotation
+                // x' = width - x
+                // y' = height - y
+                touch_point->x = transform_width - raw_x;
+                touch_point->y = transform_height - raw_y;
+                break;
+                
+            case COG_GL_RENDERER_ROTATION_270:  // 270° clockwise rotation (90° counter-clockwise)
+                // x' = y
+                // y' = width - x
+                touch_point->x = raw_y;
+                touch_point->y = transform_width - raw_x;
+                break;
+                
+            case COG_GL_RENDERER_ROTATION_0:  // No rotation
+            default:
+                // Pass through coordinates unchanged
+                touch_point->x = raw_x;
+                touch_point->y = raw_y;
+                break;
+        }
     }
 }
 
@@ -1246,6 +1289,8 @@ init_input(CogDrmPlatform *platform)
     input_data.libinput = libinput_udev_create_context(&interface, platform, input_data.udev);
     if (!input_data.libinput)
         return FALSE;
+
+    input_data.rotation = platform->rotation;
 
     int ret = libinput_udev_assign_seat (input_data.libinput, "seat0");
     if (ret)
