@@ -295,13 +295,9 @@ pointer_on_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct
 }
 
 static uint32_t
-button_modifier(CogWlSeat *seat)
+button_modifier(uint32_t button)
 {
-    if (!seat->pointer.state) {
-        return 0;
-    }
-
-    switch (seat->pointer.button) {
+    switch (button) {
     case BTN_LEFT:
         return wpe_input_pointer_modifier_button1;
 
@@ -342,7 +338,7 @@ pointer_on_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixe
                                             seat->pointer.y * display->current_output->scale,
                                             seat->pointer.button,
                                             seat->pointer.state,
-                                            button_modifier(seat)};
+                                            seat->pointer.modifiers};
 
     g_assert(seat->pointer_target);
     CogWlViewport *viewport = COG_WL_VIEWPORT(seat->pointer_target);
@@ -370,6 +366,15 @@ pointer_on_button(void              *data,
 
     CogWlPlatform *platform = (CogWlPlatform *) cog_platform_get();
 
+    uint32_t modifier = button_modifier(button);
+
+    if (modifier) {
+        if (state == WL_POINTER_BUTTON_STATE_PRESSED)
+            seat->pointer.modifiers |= modifier;
+        else
+            seat->pointer.modifiers &= ~modifier;
+    }
+
     seat->pointer.serial = serial;
 
     if (button >= BTN_MOUSE)
@@ -386,7 +391,7 @@ pointer_on_button(void              *data,
                                             seat->pointer.y * display->current_output->scale,
                                             seat->pointer.button,
                                             seat->pointer.state,
-                                            button_modifier(seat)};
+                                            seat->pointer.modifiers};
 
     CogWlPopup *popup = platform->popup;
     if (popup && popup->wl_surface) {
