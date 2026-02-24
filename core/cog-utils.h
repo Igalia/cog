@@ -32,6 +32,12 @@ char* cog_uri_guess_from_user_input (const char *uri_like,
 COG_API
 GOptionEntry* cog_option_entries_from_class (GObjectClass *klass);
 
+COG_API void cog_key_file_parse_params_string(GKeyFile *key_file, const char *group_name, const char *params_string);
+
+COG_API gboolean cog_apply_properties_from_key_file(GObject    *object,
+                                                    GKeyFile   *key_file,
+                                                    const char *group_name,
+                                                    GError    **error);
 
 static inline const char*
 cog_g_enum_get_nick (GType enum_type, int value)
