@@ -1155,12 +1155,15 @@ static const struct wpe_video_plane_display_dmabuf_receiver video_plane_display_
 };
 #endif
 
+/* Saved by check_supported(), consumed once by init_wayland(). */
+static struct wl_display *checked_wl_display = NULL;
+
 static gboolean
 init_wayland(CogWlPlatform *platform, GError **error)
 {
     g_debug("Initializing Wayland...");
 
-    CogWlDisplay *display = cog_wl_display_create(NULL, error);
+    CogWlDisplay *display = cog_wl_display_create(g_steal_pointer(&checked_wl_display), error);
     platform->display = display;
     display->registry = wl_display_get_registry(display->display);
     g_assert(display->registry);
@@ -1258,7 +1261,13 @@ check_supported(void *data G_GNUC_UNUSED)
 #undef CHECK_SHELL_PROTOCOL
 
         wl_registry_destroy(registry);
-        wl_display_disconnect(display);
+
+        /* Keep the connection open for init_wayland() to reuse, required when WAYLAND_SOCKET is set. */
+        if (ok)
+            checked_wl_display = display;
+        else
+            wl_display_disconnect(display);
+
         return GINT_TO_POINTER(ok);
     } else {
         return GINT_TO_POINTER(FALSE);

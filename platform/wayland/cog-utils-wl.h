@@ -290,7 +290,7 @@ struct _CogWlDisplay {
 struct wl_surface *cog_wl_compositor_create_surface(struct wl_compositor *compositor, void *container);
 
 void          cog_wl_display_add_seat(CogWlDisplay *, CogWlSeat *);
-CogWlDisplay *cog_wl_display_create(const char *name, GError **error);
+CogWlDisplay *cog_wl_display_create(struct wl_display *wl_display, GError **error);
 void          cog_wl_display_destroy(CogWlDisplay *self);
 CogWlOutput  *cog_wl_display_find_output(CogWlDisplay *, struct wl_output *);
 

@@ -131,12 +131,14 @@ cog_wl_display_add_seat(CogWlDisplay *display, CogWlSeat *seat)
 }
 
 CogWlDisplay *
-cog_wl_display_create(const char *name, GError **error)
+cog_wl_display_create(struct wl_display *wl_display, GError **error)
 {
-    struct wl_display *wl_display = wl_display_connect(name);
     if (!wl_display) {
-        g_set_error(error, G_FILE_ERROR, g_file_error_from_errno(errno), "Could not open Wayland display");
-        return FALSE;
+        wl_display = wl_display_connect(NULL);
+        if (!wl_display) {
+            g_set_error(error, G_FILE_ERROR, g_file_error_from_errno(errno), "Could not open Wayland display");
+            return FALSE;
+        }
     }
 
     CogWlDisplay *display = g_slice_new0(CogWlDisplay);
