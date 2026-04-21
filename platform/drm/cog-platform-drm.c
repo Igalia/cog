@@ -391,7 +391,7 @@ init_drm(void)
             continue;
 
         drm_data.base_resources = drmModeGetResources (drm_data.fd);
-        if (drm_data.base_resources) {
+        if (drm_data.base_resources && drm_data.base_resources->count_connectors != 0) {
             g_debug ("init_drm: using device %p, DRM_NODE_PRIMARY %s",
                      device, device->nodes[DRM_NODE_PRIMARY]);
             break;
