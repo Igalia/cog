@@ -68,6 +68,8 @@ struct _CogDrmPlatform {
     CogDrmRenderer        *renderer;
     CogGLRendererRotation  rotation;
     GList                 *rotatable_input_devices;
+    bool                   draw_cursor;
+    bool                   dispatch_pointer;
     bool                   use_gles;
 };
 
@@ -192,6 +194,8 @@ static struct {
     uint32_t input_width;
     uint32_t input_height;
 
+    bool dispatch_pointer;
+
     struct keyboard_event repeating_key;
 
     struct wpe_input_touch_event_raw touch_points[10];
@@ -203,6 +207,7 @@ static struct {
     .rotation = COG_GL_RENDERER_ROTATION_0,
     .input_width = 0,
     .input_height = 0,
+    .dispatch_pointer = false,
     .repeating_key = {0, 0},
     .last_touch_type = wpe_input_touch_event_type_null,
     .last_touch_id = 0,
@@ -226,12 +231,29 @@ static struct {
     struct wpe_view_backend *backend;
 } wpe_view_data;
 
+static bool
+parse_bool(const char *value, bool *out)
+{
+    if (g_strcmp0(value, "true") == 0 || g_strcmp0(value, "on") == 0 || g_strcmp0(value, "1") == 0) {
+        *out = true;
+        return true;
+    }
+    if (g_strcmp0(value, "false") == 0 || g_strcmp0(value, "off") == 0 || g_strcmp0(value, "0") == 0) {
+        *out = false;
+        return true;
+    }
+    return false;
+}
+
 static void
 init_config(CogDrmPlatform *self, CogShell *shell, const char *params_string)
 {
     drm_data.device_scale = cog_shell_get_device_scale_factor (shell);
     g_debug ("init_config: overriding device_scale value, using %.2f from shell",
              drm_data.device_scale);
+
+    self->draw_cursor = g_getenv("COG_PLATFORM_DRM_CURSOR") != NULL;
+    self->dispatch_pointer = g_getenv("COG_PLATFORM_DRM_POINTER") != NULL;
 
     GKeyFile *key_file = cog_shell_get_config_file (shell);
 
@@ -266,6 +288,20 @@ init_config(CogDrmPlatform *self, CogShell *shell, const char *params_string)
             else if (value)
                 g_warning("Invalid renderer '%s', using default.", value);
         }
+
+        {
+            g_autoptr(GError) lookup_error = NULL;
+            gboolean value = g_key_file_get_boolean(key_file, "drm", "cursor", &lookup_error);
+            if (!lookup_error)
+                self->draw_cursor = value;
+        }
+
+        {
+            g_autoptr(GError) lookup_error = NULL;
+            gboolean value = g_key_file_get_boolean(key_file, "drm", "pointer", &lookup_error);
+            if (!lookup_error)
+                self->dispatch_pointer = value;
+        }
     }
 
     if (params_string) {
@@ -295,11 +331,20 @@ init_config(CogDrmPlatform *self, CogShell *shell, const char *params_string)
                     g_warning("Invalid value '%s' for parameter '%s'.", v, k);
                 else
                     self->rotation = val;
+            } else if (g_strcmp0(k, "cursor") == 0) {
+                if (!parse_bool(v, &self->draw_cursor))
+                    g_warning("Invalid value '%s' for parameter '%s'.", v, k);
+            } else if (g_strcmp0(k, "pointer") == 0) {
+                if (!parse_bool(v, &self->dispatch_pointer))
+                    g_warning("Invalid value '%s' for parameter '%s'.", v, k);
             } else {
                 g_warning("Invalid parameter '%s'.", k);
             }
         }
     }
+
+    if (self->draw_cursor)
+        self->dispatch_pointer = true;
 }
 
 static void
@@ -636,11 +681,6 @@ init_cursor (void)
         return FALSE;
     }
 
-    cursor.x = (cursor.device->screens[0]->width - cursor.cursor->width) / 2;
-    cursor.y = (cursor.device->screens[0]->height - cursor.cursor->height) / 2;
-    cursor.screen_width = cursor.device->screens[0]->width;
-    cursor.screen_height = cursor.device->screens[0]->height;
-
     if (kms_plane_set(cursor.plane, cursor.cursor, cursor.x, cursor.y)) {
         g_clear_pointer(&cursor.device, kms_device_free);
         g_clear_pointer(&cursor.cursor, kms_framebuffer_free);
@@ -893,7 +933,7 @@ input_handle_touch_event (enum libinput_event_type touch_type, struct libinput_e
 static void
 input_handle_pointer_motion_event(struct libinput_event_pointer *pointer_event, bool absolute)
 {
-    if (!cursor.enabled)
+    if (!input_data.dispatch_pointer)
         return;
 
     if (absolute) {
@@ -927,13 +967,14 @@ input_handle_pointer_motion_event(struct libinput_event_pointer *pointer_event, 
     };
 
     wpe_view_backend_dispatch_pointer_event(wpe_view_data.backend, &event);
-    kms_plane_set(cursor.plane, cursor.cursor, cursor.x, cursor.y);
+    if (cursor.enabled)
+        kms_plane_set(cursor.plane, cursor.cursor, cursor.x, cursor.y);
 }
 
 static void
 input_handle_pointer_button_event (struct libinput_event_pointer *pointer_event)
 {
-    if (!cursor.enabled)
+    if (!input_data.dispatch_pointer)
         return;
 
     struct wpe_input_pointer_event event = {
@@ -953,6 +994,9 @@ input_handle_pointer_button_event (struct libinput_event_pointer *pointer_event)
 static void
 input_handle_pointer_discrete_scroll_event(struct libinput_event_pointer *pointer_event)
 {
+    if (!input_data.dispatch_pointer)
+        return;
+
     struct wpe_input_axis_2d_event event = {
         .base.type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion,
         .base.time = libinput_event_pointer_get_time(pointer_event),
@@ -975,6 +1019,9 @@ input_handle_pointer_discrete_scroll_event(struct libinput_event_pointer *pointe
 static void
 input_handle_pointer_smooth_scroll_event(struct libinput_event_pointer *pointer_event)
 {
+    if (!input_data.dispatch_pointer)
+        return;
+
     struct wpe_input_axis_2d_event event = {
         .base.type = wpe_input_axis_event_type_mask_2d | wpe_input_axis_event_type_motion_smooth,
         .base.time = libinput_event_pointer_get_time(pointer_event),
@@ -997,6 +1044,9 @@ input_handle_pointer_smooth_scroll_event(struct libinput_event_pointer *pointer_
 static void
 input_handle_pointer_axis_event(struct libinput_event_pointer *pointer_event)
 {
+    if (!input_data.dispatch_pointer)
+        return;
+
     struct wpe_input_axis_2d_event event = {
         .base.type = wpe_input_axis_event_type_mask_2d,
         .base.time = libinput_event_pointer_get_time(pointer_event),
@@ -1291,6 +1341,7 @@ init_input(CogDrmPlatform *platform)
         return FALSE;
 
     input_data.rotation = platform->rotation;
+    input_data.dispatch_pointer = platform->dispatch_pointer;
 
     int ret = libinput_udev_assign_seat (input_data.libinput, "seat0");
     if (ret)
@@ -1302,6 +1353,11 @@ init_input(CogDrmPlatform *platform)
         memset (touch_point, 0, sizeof (struct wpe_input_touch_event_raw));
         touch_point->type = wpe_input_touch_event_type_null;
     }
+
+    cursor.screen_width = input_data.input_width;
+    cursor.screen_height = input_data.input_height;
+    cursor.x = cursor.screen_width / 2;
+    cursor.y = cursor.screen_height / 2;
 
     return TRUE;
 }
@@ -1457,7 +1513,7 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
         return FALSE;
     }
 
-    if (g_getenv ("COG_PLATFORM_DRM_CURSOR")) {
+    if (self->draw_cursor) {
         if (!init_cursor ()) {
             g_warning ("Failed to initialize cursor");
         }
