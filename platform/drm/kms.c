@@ -361,9 +361,11 @@ static void kms_screen_probe(struct kms_screen *screen)
     else
         screen->connected = false;
 
-    memcpy(&screen->mode, &con->modes[0], sizeof(drmModeModeInfo));
-    screen->width = screen->mode.hdisplay;
-    screen->height = screen->mode.vdisplay;
+    if (con->count_modes > 0) {
+        memcpy(&screen->mode, &con->modes[0], sizeof(drmModeModeInfo));
+        screen->width = screen->mode.hdisplay;
+        screen->height = screen->mode.vdisplay;
+    }
 
     drmModeFreeConnector(con);
 }
