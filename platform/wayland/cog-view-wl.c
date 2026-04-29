@@ -70,8 +70,8 @@ static void on_mouse_target_changed(WebKitWebView *, WebKitHitTestResult *hitTes
 #if COG_HAVE_LIBPORTAL
 static void on_run_file_chooser(WebKitWebView *, WebKitFileChooserRequest *);
 #endif
-static void on_show_option_menu(WebKitWebView *, WebKitOptionMenu *, WebKitRectangle *, gpointer *);
-static void on_wl_surface_frame(void *, struct wl_callback *, uint32_t);
+static gboolean on_show_option_menu(WebKitWebView *, WebKitOptionMenu *, WebKitRectangle *, gpointer *);
+static void     on_wl_surface_frame(void *, struct wl_callback *, uint32_t);
 
 static void               shm_buffer_copy_contents(struct shm_buffer *, struct wl_shm_buffer *);
 static struct shm_buffer *shm_buffer_create(CogWlView *, struct wl_resource *, size_t);
@@ -516,14 +516,15 @@ on_run_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request)
 }
 #endif /* COG_HAVE_LIBPORTAL */
 
-static void
+static gboolean
 on_show_option_menu(WebKitWebView *view, WebKitOptionMenu *menu, WebKitRectangle *rectangle, gpointer *data)
 {
     g_autoptr(CogWlViewport) viewport = COG_WL_VIEWPORT(cog_view_get_viewport((CogView *) view));
     if (!viewport)
-        return;
+        return FALSE;
 
     cog_wl_platform_popup_create(viewport, g_object_ref(menu));
+    return TRUE;
 }
 
 static void
