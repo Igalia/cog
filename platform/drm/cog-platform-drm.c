@@ -68,6 +68,7 @@ struct _CogDrmPlatform {
     CogDrmRenderer        *renderer;
     CogGLRendererRotation  rotation;
     GList                 *rotatable_input_devices;
+    char                  *seat_name;
     bool                   draw_cursor;
     bool                   dispatch_pointer;
     bool                   use_gles;
@@ -246,11 +247,24 @@ parse_bool(const char *value, bool *out)
 }
 
 static void
+set_seat_name(CogDrmPlatform *self, const char *seat_name)
+{
+    g_free(self->seat_name);
+    self->seat_name = g_strdup(seat_name);
+}
+
+static void
 init_config(CogDrmPlatform *self, CogShell *shell, const char *params_string)
 {
     drm_data.device_scale = cog_shell_get_device_scale_factor (shell);
     g_debug ("init_config: overriding device_scale value, using %.2f from shell",
              drm_data.device_scale);
+
+    {
+        const char *env_seat_name = g_getenv("XDG_SEAT");
+        if (env_seat_name && *env_seat_name)
+            set_seat_name(self, env_seat_name);
+    }
 
     self->draw_cursor = g_getenv("COG_PLATFORM_DRM_CURSOR") != NULL;
     self->dispatch_pointer = g_getenv("COG_PLATFORM_DRM_POINTER") != NULL;
@@ -287,6 +301,12 @@ init_config(CogDrmPlatform *self, CogShell *shell, const char *params_string)
                 self->use_gles = false;
             else if (value)
                 g_warning("Invalid renderer '%s', using default.", value);
+        }
+
+        {
+            g_autofree char *value = g_key_file_get_string(key_file, "drm", "seat", NULL);
+            if (value && *value)
+                set_seat_name(self, value);
         }
 
         {
@@ -331,6 +351,11 @@ init_config(CogDrmPlatform *self, CogShell *shell, const char *params_string)
                     g_warning("Invalid value '%s' for parameter '%s'.", v, k);
                 else
                     self->rotation = val;
+            } else if (g_strcmp0(k, "seat") == 0) {
+                if (*v)
+                    set_seat_name(self, v);
+                else
+                    g_warning("Invalid value '%s' for parameter '%s'.", v, k);
             } else if (g_strcmp0(k, "cursor") == 0) {
                 if (!parse_bool(v, &self->draw_cursor))
                     g_warning("Invalid value '%s' for parameter '%s'.", v, k);
@@ -1343,7 +1368,9 @@ init_input(CogDrmPlatform *platform)
     input_data.rotation = platform->rotation;
     input_data.dispatch_pointer = platform->dispatch_pointer;
 
-    int ret = libinput_udev_assign_seat (input_data.libinput, "seat0");
+    g_debug("init_input: assigning libinput to seat '%s'", platform->seat_name);
+
+    int ret = libinput_udev_assign_seat(input_data.libinput, platform->seat_name);
     if (ret)
         return FALSE;
 
@@ -1604,6 +1631,8 @@ cog_drm_platform_finalize(GObject *object)
     clear_cursor();
     clear_drm();
 
+    g_clear_pointer(&self->seat_name, g_free);
+
     G_OBJECT_CLASS(cog_drm_platform_parent_class)->finalize(object);
 }
 
@@ -1756,6 +1785,7 @@ cog_drm_platform_class_finalize(CogDrmPlatformClass *klass)
 static void
 cog_drm_platform_init(CogDrmPlatform *self)
 {
+    set_seat_name(self, "seat0");
 }
 
 G_MODULE_EXPORT void
