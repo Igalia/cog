@@ -419,12 +419,40 @@ find_crtc_for_encoder(const drmModeRes *resources, const drmModeEncoder *encoder
     for (int i = 0; i < resources->count_crtcs; i++) {
         const uint32_t crtc_mask = 1 << i;
         const uint32_t crtc_id = resources->crtcs[i];
-        if (encoder->possible_crtcs & crtc_mask && encoder->crtc_id == crtc_id) {
+        /*
+         * Match on the static possible_crtcs capability only. Do NOT also
+         * require encoder->crtc_id == crtc_id: that is the *currently bound*
+         * CRTC, which is 0 until some client performs the first modeset, and
+         * gating on it would make startup depend on another DRM client having
+         * run first. find_crtc_for_connector() handles preferring an active
+         * CRTC when one exists.
+         */
+        if (encoder->possible_crtcs & crtc_mask) {
             return crtc_id;
         }
     }
 
     /* no match found */
+    return -1;
+}
+
+/*
+ * Pick a CRTC able to drive @connector. Iterates the connector's own encoders
+ * and returns the first CRTC permitted by their possible_crtcs bitmask. This
+ * works even before any modeset has been performed on the device.
+ */
+static int32_t
+find_crtc_for_connector(int fd, const drmModeRes *resources, const drmModeConnector *connector)
+{
+    for (int i = 0; i < connector->count_encoders; i++) {
+        drmModeEncoder *encoder = drmModeGetEncoder(fd, connector->encoders[i]);
+        if (!encoder)
+            continue;
+        const int32_t crtc_id = find_crtc_for_encoder(resources, encoder);
+        drmModeFreeEncoder(encoder);
+        if (crtc_id != -1)
+            return crtc_id;
+    }
     return -1;
 }
 
@@ -570,27 +598,34 @@ init_drm(void)
             (long)((drm_data.mode - drm_data.connector.obj->modes) / sizeof(drmModeModeInfo *)), drm_data.mode->name,
             drm_data.mode->vrefresh);
 
-    /* Try the currently connected encoder+crtc */
-    for (int i = 0; i < drm_data.base_resources->count_encoders; ++i) {
-        drm_data.encoder = drmModeGetEncoder(drm_data.fd, drm_data.base_resources->encoders[i]);
-        if (!drm_data.encoder) {
-            /* cannot retrieve encoder, ignoring... */
-            continue;
-        }
+    /*
+     * Choose a CRTC for the connector. Prefer the CRTC bound to its currently
+     * active encoder (if a modeset already happened), otherwise fall back to
+     * any CRTC allowed by the connector's encoders' possible_crtcs. The latter
+     * is what lets cog start on a freshly booted device, before any other DRM
+     * client has driven the pipeline.
+     */
+    int32_t crtc_id = -1;
 
-        const int32_t crtc_id = find_crtc_for_encoder(drm_data.base_resources, drm_data.encoder);
-        if (crtc_id != -1) {
-            drm_data.crtc.obj_id = crtc_id;
-            break;
+    /* 1. Currently active encoder + CRTC, if present. */
+    if (drm_data.connector.obj->encoder_id) {
+        drmModeEncoder *enc = drmModeGetEncoder(drm_data.fd, drm_data.connector.obj->encoder_id);
+        if (enc) {
+            if (enc->crtc_id)
+                crtc_id = enc->crtc_id;
+            drmModeFreeEncoder(enc);
         }
-
-        g_clear_pointer (&drm_data.encoder, drmModeFreeEncoder);
     }
 
-    if (!drm_data.encoder) {
+    /* 2. Fall back to possible_crtcs of the connector's encoders. */
+    if (crtc_id == -1)
+        crtc_id = find_crtc_for_connector(drm_data.fd, drm_data.base_resources, drm_data.connector.obj);
+
+    if (crtc_id == -1) {
         fprintf(stderr, "no crtc for encoder found!\n");
         return FALSE;
     }
+    drm_data.crtc.obj_id = crtc_id;
 
     drm_data.connector.obj_id = drm_data.connector.obj->connector_id;
 
