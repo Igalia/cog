@@ -156,6 +156,8 @@ static struct {
 
 static struct {
     gboolean enabled;
+    gboolean legacy; /* no universal cursor plane: drmModeSetCursor path */
+    gboolean armed;  /* legacy cursor uploaded to the CRTC */
     struct kms_device *device;
     struct kms_plane *plane;
     struct kms_framebuffer *cursor;
@@ -693,6 +695,8 @@ choose_format (struct kms_plane *plane)
 
 static void
 clear_cursor (void) {
+    if (cursor.legacy && cursor.armed)
+        drmModeSetCursor(drm_data.fd, drm_data.crtc.obj_id, 0, 0, 0);
     g_clear_pointer(&cursor.cursor, kms_framebuffer_free);
     g_clear_pointer(&cursor.device, kms_device_free);
     cursor.plane = NULL;
@@ -715,12 +719,15 @@ init_cursor (void)
 
     cursor.plane = kms_device_find_plane_by_type(cursor.device, DRM_PLANE_TYPE_CURSOR, 0);
     if (!cursor.plane) {
-        g_clear_pointer(&cursor.device, kms_device_free);
-        return FALSE;
+        /* Legacy (non-atomic) drivers - radeon, older nouveau - expose no
+         * universal cursor plane; their hardware cursor is driven with
+         * drmModeSetCursor()/drmModeMoveCursor() on the CRTC instead. */
+        cursor.legacy = TRUE;
     }
 
-    uint32_t format = choose_format(cursor.plane);
+    uint32_t format = cursor.legacy ? DRM_FORMAT_ARGB8888 : choose_format(cursor.plane);
     if (!format) {
+        g_warning("cursor: no supported plane format");
         g_clear_pointer(&cursor.device, kms_device_free);
         return FALSE;
     }
@@ -737,7 +744,14 @@ init_cursor (void)
      * so this initial cursor upload may fail (display still off). Not
      * fatal: the pointer-motion handler retries on every move and
      * succeeds once a mode is active. */
-    if (kms_plane_set(cursor.plane, cursor.cursor, cursor.x, cursor.y))
+    if (cursor.legacy) {
+        if (drmModeSetCursor(drm_data.fd, drm_data.crtc.obj_id, cursor.cursor->handle,
+                             cursor.cursor->width, cursor.cursor->height) == 0) {
+            cursor.armed = TRUE;
+            drmModeMoveCursor(drm_data.fd, drm_data.crtc.obj_id, cursor.x, cursor.y);
+        } else
+            g_message("legacy cursor not set yet (display off?) - will appear on first pointer motion");
+    } else if (kms_plane_set(cursor.plane, cursor.cursor, cursor.x, cursor.y))
         g_message("cursor plane not set yet (display off?) - will appear on first pointer motion");
 
     cursor.enabled = TRUE;
@@ -1020,8 +1034,26 @@ input_handle_pointer_motion_event(struct libinput_event_pointer *pointer_event, 
     };
 
     wpe_view_backend_dispatch_pointer_event(wpe_view_data.backend, &event);
-    if (cursor.enabled)
-        kms_plane_set(cursor.plane, cursor.cursor, cursor.x, cursor.y);
+    if (cursor.enabled) {
+        if (cursor.legacy) {
+            /* Re-upload on every motion: a modeset (the renderer's first
+             * frame commit, a mode change) silently disables the legacy
+             * hardware cursor, and there is no notification - MoveCursor
+             * alone would move an invisible cursor forever. */
+            static gboolean logged = FALSE;
+            int sret = drmModeSetCursor(drm_data.fd, drm_data.crtc.obj_id, cursor.cursor->handle,
+                                        cursor.cursor->width, cursor.cursor->height);
+            int mret = drmModeMoveCursor(drm_data.fd, drm_data.crtc.obj_id, cursor.x, cursor.y);
+            if (!logged) {
+                g_message("legacy cursor: SetCursor=%d MoveCursor=%d (crtc %u, handle %u, %ux%u, pos %u,%u)",
+                          sret, mret, drm_data.crtc.obj_id, cursor.cursor->handle,
+                          cursor.cursor->width, cursor.cursor->height, cursor.x, cursor.y);
+                logged = TRUE;
+            }
+            cursor.armed = (sret == 0);
+        } else
+            kms_plane_set(cursor.plane, cursor.cursor, cursor.x, cursor.y);
+    }
 }
 
 static void

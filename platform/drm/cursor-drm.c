@@ -58,8 +58,17 @@ static uint32_t convert_rgba_to_pixel_format(uint32_t rgba_pixel, uint32_t forma
             return rgba_pixel;
 
         case DRM_FORMAT_ARGB8888: {
+            /* KMS blending (hardware cursors included) expects
+             * PREMULTIPLIED alpha; the cursor image data is straight
+             * alpha. Without premultiplication every pixel whose color
+             * exceeds its alpha blends additively and washes out - on a
+             * light page only the black outline stays visible, reducing
+             * the arrow to a thin dotted line. */
             uint8_t alpha = rgba_pixel & 0xff;
-            return (alpha << 24) + (rgba_pixel >> 8);
+            uint8_t r = ((rgba_pixel >> 24) & 0xff) * alpha / 255;
+            uint8_t g = ((rgba_pixel >> 16) & 0xff) * alpha / 255;
+            uint8_t b = ((rgba_pixel >> 8) & 0xff) * alpha / 255;
+            return ((uint32_t) alpha << 24) | ((uint32_t) r << 16) | ((uint32_t) g << 8) | b;
         }
 
         default:
@@ -72,7 +81,12 @@ struct kms_framebuffer *create_cursor_framebuffer(struct kms_device *device, uin
     struct kms_framebuffer *fb;
     uint32_t *buf;
 
-    fb = kms_framebuffer_create(device, CURSOR_WIDTH, CURSOR_HEIGHT, format);
+    /* Hardware cursors on several drivers (radeon in particular) only
+     * display buffers of exactly the size advertised by
+     * DRM_CAP_CURSOR_WIDTH/HEIGHT - typically 64x64. Smaller uploads are
+     * accepted by the ioctl but shown as nothing. Allocate 64x64 and
+     * blit the cursor image into the top-left corner, rest transparent. */
+    fb = kms_framebuffer_create(device, 64, 64, format);
     if (!fb)
         return NULL;
 
@@ -81,16 +95,24 @@ struct kms_framebuffer *create_cursor_framebuffer(struct kms_device *device, uin
 
     int index;
     uint32_t pixel;
+    /* The legacy cursor engine ignores the BO's pitch and always reads
+     * tightly packed WIDTHx4-byte rows (radeon aligns dumb-buffer
+     * pitches far wider, e.g. 256 pixels - writing with that pitch
+     * smears the image into a dotted vertical line). Lay the pixels
+     * out with the hardware's fixed 64-pixel stride. */
+    unsigned int stride_px = 64;
 
-    for (int row = 0; row < fb->height; row++) {
-        for (int column = 0; column < fb->width; column++) {
-            index = (row * fb->width * 4) + (column * 4);
-            pixel = (cursorData[index] << 24) +
-                    (cursorData[index + 1] << 16) +
-                    (cursorData[index + 2] << 8) +
-                    cursorData[index + 3];
-
-            *buf++ = convert_rgba_to_pixel_format(pixel, format);
+    for (unsigned int row = 0; row < fb->height; row++) {
+        for (unsigned int column = 0; column < stride_px; column++) {
+            if (row < CURSOR_HEIGHT && column < CURSOR_WIDTH) {
+                index = (row * CURSOR_WIDTH * 4) + (column * 4);
+                pixel = (cursorData[index] << 24) +
+                        (cursorData[index + 1] << 16) +
+                        (cursorData[index + 2] << 8) +
+                        cursorData[index + 3];
+                buf[row * stride_px + column] = convert_rgba_to_pixel_format(pixel, format);
+            } else
+                buf[row * stride_px + column] = 0;
         }
     }
 
