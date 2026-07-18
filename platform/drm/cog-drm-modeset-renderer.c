@@ -74,6 +74,7 @@ struct buffer_object {
     uint32_t            fb_id;
     struct gbm_bo      *bo;
     struct wl_resource *buffer_resource;
+    void               *renderer; /* owning CogDrmModesetRenderer */
 
     struct {
         struct wl_resource                 *resource;
@@ -138,14 +139,13 @@ static void
 destroy_buffer_notify(struct wl_listener *listener, void *data)
 {
     struct buffer_object  *buffer = wl_container_of(listener, buffer, destroy_listener);
-    CogDrmModesetRenderer *renderer = wl_resource_get_user_data(buffer->buffer_resource);
+    CogDrmModesetRenderer *renderer = buffer->renderer;
 
     if (renderer->committed_buffer == buffer)
         renderer->committed_buffer = NULL;
 
     wl_list_remove(&buffer->link);
 
-    wl_resource_set_user_data(buffer->buffer_resource, NULL);
     destroy_buffer(renderer, buffer);
 }
 
@@ -216,7 +216,7 @@ drm_create_buffer_for_bo(CogDrmModesetRenderer *self,
     wl_list_insert(&self->buffer_list, &buffer->link);
     buffer->destroy_listener.notify = destroy_buffer_notify;
     wl_resource_add_destroy_listener(buffer_resource, &buffer->destroy_listener);
-    wl_resource_set_user_data(buffer_resource, self);
+    buffer->renderer = self;
 
     buffer->fb_id = fb_id;
     buffer->bo = bo;
@@ -271,7 +271,7 @@ drm_create_buffer_for_shm_buffer(CogDrmModesetRenderer *self,
     wl_list_insert(&self->buffer_list, &buffer->link);
     buffer->destroy_listener.notify = destroy_buffer_notify;
     wl_resource_add_destroy_listener(buffer_resource, &buffer->destroy_listener);
-    wl_resource_set_user_data(buffer_resource, self);
+    buffer->renderer = self;
 
     buffer->fb_id = fb_id;
     buffer->bo = bo;
@@ -287,6 +287,19 @@ drm_copy_shm_buffer_into_bo(struct wl_shm_buffer *shm_buffer, struct gbm_bo *bo)
     int32_t height = wl_shm_buffer_get_height(shm_buffer);
     int32_t stride = wl_shm_buffer_get_stride(shm_buffer);
 
+    /* Never write past the bo - clamp and report a size mismatch
+     * (stale buffer_object?) instead of crashing. */
+    uint32_t pre_bo_width = gbm_bo_get_width(bo);
+    uint32_t pre_bo_height = gbm_bo_get_height(bo);
+    if ((uint32_t) width > pre_bo_width || (uint32_t) height > pre_bo_height) {
+        g_warning("SHM->bo size mismatch: shm %dx%d (stride %d) vs bo %ux%u - clamping",
+                  width, height, stride, pre_bo_width, pre_bo_height);
+        if ((uint32_t) width > pre_bo_width)
+            width = pre_bo_width;
+        if ((uint32_t) height > pre_bo_height)
+            height = pre_bo_height;
+    }
+
     uint32_t bo_stride = 0;
     void    *map_data = NULL;
     gbm_bo_map(bo, 0, 0, width, height, GBM_BO_TRANSFER_WRITE, &bo_stride, &map_data);
@@ -296,6 +309,11 @@ drm_copy_shm_buffer_into_bo(struct wl_shm_buffer *shm_buffer, struct gbm_bo *bo)
     wl_shm_buffer_begin_access(shm_buffer);
 
     uint8_t *src = wl_shm_buffer_get_data(shm_buffer);
+    if (!src) {
+        wl_shm_buffer_end_access(shm_buffer);
+        gbm_bo_unmap(bo, map_data);
+        return;
+    }
     uint8_t *dst = map_data;
 
     uint32_t bo_width = gbm_bo_get_width(bo);
@@ -522,6 +540,8 @@ on_export_dmabuf_resource(void *data, struct wpe_view_backend_exportable_fdo_dma
     }
 }
 
+static unsigned bogus_streak = 0;
+
 static void
 on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_buffer)
 {
@@ -530,20 +550,46 @@ on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_bu
     struct wl_resource   *exported_resource = wpe_fdo_shm_exported_buffer_get_resource(exported_buffer);
     struct wl_shm_buffer *exported_shm_buffer = wpe_fdo_shm_exported_buffer_get_shm_buffer(exported_buffer);
 
-    struct buffer_object *buffer = drm_buffer_for_resource(self, exported_resource);
-    if (buffer) {
-        drm_copy_shm_buffer_into_bo(exported_shm_buffer, buffer->bo);
-
-        buffer->export.shm_buffer = exported_buffer;
-        drm_commit_buffer(self, buffer);
-        return;
+    /* Never touch buffers with impossible geometry (a stale or dangling
+     * wl_shm_buffer, e.g. exported by a buggy backend): skip the frame
+     * instead of copying from/into wild memory. Do NOT release the
+     * wrapper - that would poke the possibly-dangling resource; leaking
+     * it is the lesser evil in an already-broken session. */
+    {
+        int32_t w = exported_shm_buffer ? wl_shm_buffer_get_width(exported_shm_buffer) : -1;
+        int32_t h = exported_shm_buffer ? wl_shm_buffer_get_height(exported_shm_buffer) : -1;
+        int32_t st = exported_shm_buffer ? wl_shm_buffer_get_stride(exported_shm_buffer) : -1;
+        g_debug("shm export: resource %p shm %p %dx%d stride %d",
+                (void *) exported_resource, (void *) exported_shm_buffer, w, h, st);
+        if (!exported_resource || w <= 0 || h <= 0 || w > 16384 || h > 16384 || st < w * 4) {
+            g_warning("shm export with bogus geometry (resource %p, shm %p, %dx%d stride %d) - frame skipped (streak %u)",
+                      (void *) exported_resource, (void *) exported_shm_buffer, w, h, st, ++bogus_streak);
+            if (bogus_streak >= 4) {
+                g_critical("persistent bogus SHM exports - exiting for a clean respawn");
+                exit(70);
+            }
+            /* keep the frame pacing alive - without this WebKit waits
+             * for the frame callback of the skipped frame forever */
+            wpe_view_backend_exportable_fdo_dispatch_frame_complete(self->exportable);
+            return;
+        }
+        bogus_streak = 0;
     }
 
-    buffer = drm_create_buffer_for_shm_buffer(self, exported_resource, exported_shm_buffer);
+    struct buffer_object *buffer = drm_buffer_for_resource(self, exported_resource);
+    if (!buffer)
+        buffer = drm_create_buffer_for_shm_buffer(self, exported_resource, exported_shm_buffer);
     if (buffer) {
         drm_copy_shm_buffer_into_bo(exported_shm_buffer, buffer->bo);
 
-        buffer->export.shm_buffer = exported_buffer;
+        /* The dumb buffer owns the pixels now: release the client's SHM
+         * buffer right away instead of parking it until the frame retires.
+         * Holding it keeps an external reference on the wl_shm pool, which
+         * turns client-side pool resizes into deferred remaps - the next
+         * copy would then use a stale mapping (libwayland warns "Buffer
+         * address requested when its parent pool has an external reference
+         * and a deferred resize pending.") and walk off its end. */
+        wpe_view_backend_exportable_fdo_dispatch_release_shm_exported_buffer(self->exportable, exported_buffer);
         drm_commit_buffer(self, buffer);
     }
 }
