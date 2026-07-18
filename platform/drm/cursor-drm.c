@@ -5,6 +5,7 @@
  */
 
 #include <drm_fourcc.h>
+#include <stdio.h>
 #include "cursor-drm.h"
 
 #define CURSOR_WIDTH 16
@@ -58,8 +59,17 @@ static uint32_t convert_rgba_to_pixel_format(uint32_t rgba_pixel, uint32_t forma
             return rgba_pixel;
 
         case DRM_FORMAT_ARGB8888: {
+            /* KMS blending (hardware cursors included) expects
+             * PREMULTIPLIED alpha; the cursor image data is straight
+             * alpha. Without premultiplication every pixel whose color
+             * exceeds its alpha blends additively and washes out - on a
+             * light page only the black outline stays visible, reducing
+             * the arrow to a thin dotted line. */
             uint8_t alpha = rgba_pixel & 0xff;
-            return (alpha << 24) + (rgba_pixel >> 8);
+            uint8_t r = ((rgba_pixel >> 24) & 0xff) * alpha / 255;
+            uint8_t g = ((rgba_pixel >> 16) & 0xff) * alpha / 255;
+            uint8_t b = ((rgba_pixel >> 8) & 0xff) * alpha / 255;
+            return ((uint32_t) alpha << 24) | ((uint32_t) r << 16) | ((uint32_t) g << 8) | b;
         }
 
         default:
@@ -67,12 +77,48 @@ static uint32_t convert_rgba_to_pixel_format(uint32_t rgba_pixel, uint32_t forma
     }
 }
 
-struct kms_framebuffer *create_cursor_framebuffer(struct kms_device *device, uint32_t format)
+static unsigned clamp_cursor_scale(unsigned scale)
+{
+    if (scale < 1)
+        return 1;
+    if (scale > COG_DRM_CURSOR_IMAGE_MAX_SCALE)
+        return COG_DRM_CURSOR_IMAGE_MAX_SCALE;
+    return scale;
+}
+
+void cog_drm_cursor_image_argb_premult(uint32_t *dst, unsigned scale)
+{
+    scale = clamp_cursor_scale(scale);
+    const unsigned size = CURSOR_WIDTH * scale;
+
+    for (unsigned y = 0; y < size; y++) {
+        for (unsigned x = 0; x < size; x++) {
+            unsigned i = (y / scale) * CURSOR_WIDTH + (x / scale);
+            uint8_t r = cursorData[i * 4 + 0];
+            uint8_t g = cursorData[i * 4 + 1];
+            uint8_t b = cursorData[i * 4 + 2];
+            uint8_t a = cursorData[i * 4 + 3];
+            r = (uint16_t) r * a / 255;
+            g = (uint16_t) g * a / 255;
+            b = (uint16_t) b * a / 255;
+            dst[y * size + x] = ((uint32_t) a << 24) | ((uint32_t) r << 16) | ((uint32_t) g << 8) | b;
+        }
+    }
+}
+
+struct kms_framebuffer *create_cursor_framebuffer(struct kms_device *device, uint32_t format, unsigned scale)
 {
     struct kms_framebuffer *fb;
     uint32_t *buf;
 
-    fb = kms_framebuffer_create(device, CURSOR_WIDTH, CURSOR_HEIGHT, format);
+    scale = clamp_cursor_scale(scale);
+
+    /* Hardware cursors on several drivers (radeon in particular) only
+     * display buffers of exactly the size advertised by
+     * DRM_CAP_CURSOR_WIDTH/HEIGHT - typically 64x64. Smaller uploads are
+     * accepted by the ioctl but shown as nothing. Allocate 64x64 and
+     * blit the cursor image into the top-left corner, rest transparent. */
+    fb = kms_framebuffer_create(device, 64, 64, format);
     if (!fb)
         return NULL;
 
@@ -82,15 +128,27 @@ struct kms_framebuffer *create_cursor_framebuffer(struct kms_device *device, uin
     int index;
     uint32_t pixel;
 
-    for (int row = 0; row < fb->height; row++) {
-        for (int column = 0; column < fb->width; column++) {
-            index = (row * fb->width * 4) + (column * 4);
-            pixel = (cursorData[index] << 24) +
-                    (cursorData[index + 1] << 16) +
-                    (cursorData[index + 2] << 8) +
-                    cursorData[index + 3];
+    /* The legacy cursor engine ignores the BO's pitch and always reads
+     * tightly packed WIDTHx4-byte rows (radeon aligns dumb-buffer
+     * pitches far wider, e.g. 256 pixels - writing with that pitch
+     * smears the image into a dotted vertical line). Lay the pixels
+     * out with the hardware's fixed 64-pixel stride. */
+    unsigned int stride_px = 64;
 
-            *buf++ = convert_rgba_to_pixel_format(pixel, format);
+    /* Nearest-neighbour upscale of the 16x16 artwork: a hardware cursor
+     * has a fixed physical size, so it must grow with the view's device
+     * scale factor or it dwarfs next to the scaled UI. */
+    for (unsigned int row = 0; row < fb->height; row++) {
+        for (unsigned int column = 0; column < stride_px; column++) {
+            if (row < CURSOR_HEIGHT * scale && column < CURSOR_WIDTH * scale) {
+                index = ((row / scale) * CURSOR_WIDTH * 4) + ((column / scale) * 4);
+                pixel = (cursorData[index] << 24) +
+                        (cursorData[index + 1] << 16) +
+                        (cursorData[index + 2] << 8) +
+                        cursorData[index + 3];
+                buf[row * stride_px + column] = convert_rgba_to_pixel_format(pixel, format);
+            } else
+                buf[row * stride_px + column] = 0;
         }
     }
 
