@@ -424,6 +424,15 @@ find_crtc_for_encoder(const drmModeRes *resources, const drmModeEncoder *encoder
         }
     }
 
+    /* Cold start: with no prior modeset (no fbcon/firmware POST) the
+     * encoder is bound to no CRTC yet (crtc_id == 0), so the match on
+     * the CURRENT binding above finds nothing. Fall back to the first
+     * CRTC this encoder can physically drive. */
+    for (int i = 0; i < resources->count_crtcs; i++) {
+        if (encoder->possible_crtcs & (1 << i))
+            return resources->crtcs[i];
+    }
+
     /* no match found */
     return -1;
 }
@@ -570,21 +579,35 @@ init_drm(void)
             (long)((drm_data.mode - drm_data.connector.obj->modes) / sizeof(drmModeModeInfo *)), drm_data.mode->name,
             drm_data.mode->vrefresh);
 
-    /* Try the currently connected encoder+crtc */
-    for (int i = 0; i < drm_data.base_resources->count_encoders; ++i) {
-        drm_data.encoder = drmModeGetEncoder(drm_data.fd, drm_data.base_resources->encoders[i]);
-        if (!drm_data.encoder) {
-            /* cannot retrieve encoder, ignoring... */
+    /* Prefer THIS connector's own encoders: scanning all encoders can
+     * pick another output's encoder whose CRTC does not drive our
+     * connector. find_crtc_for_encoder() handles the cold-start case
+     * (no active CRTC binding yet) via its possible_crtcs fallback. */
+    for (int i = 0; i < drm_data.connector.obj->count_encoders && !drm_data.encoder; ++i) {
+        drmModeEncoder *enc = drmModeGetEncoder(drm_data.fd, drm_data.connector.obj->encoders[i]);
+        if (!enc)
             continue;
-        }
-
-        const int32_t crtc_id = find_crtc_for_encoder(drm_data.base_resources, drm_data.encoder);
+        const int32_t crtc_id = find_crtc_for_encoder(drm_data.base_resources, enc);
         if (crtc_id != -1) {
+            drm_data.encoder = enc;
             drm_data.crtc.obj_id = crtc_id;
             break;
         }
+        drmModeFreeEncoder(enc);
+    }
 
-        g_clear_pointer (&drm_data.encoder, drmModeFreeEncoder);
+    /* Last resort: any encoder that yields a CRTC. */
+    for (int i = 0; i < drm_data.base_resources->count_encoders && !drm_data.encoder; ++i) {
+        drmModeEncoder *enc = drmModeGetEncoder(drm_data.fd, drm_data.base_resources->encoders[i]);
+        if (!enc)
+            continue;
+        const int32_t crtc_id = find_crtc_for_encoder(drm_data.base_resources, enc);
+        if (crtc_id != -1) {
+            drm_data.encoder = enc;
+            drm_data.crtc.obj_id = crtc_id;
+            break;
+        }
+        drmModeFreeEncoder(enc);
     }
 
     if (!drm_data.encoder) {
@@ -685,8 +708,10 @@ init_cursor (void)
     }
 
     cursor.device = kms_device_open(drm_data.fd);
-    if (!cursor.device)
+    if (!cursor.device) {
+        g_warning("cursor: kms_device_open failed");
         return FALSE;
+    }
 
     cursor.plane = kms_device_find_plane_by_type(cursor.device, DRM_PLANE_TYPE_CURSOR, 0);
     if (!cursor.plane) {
@@ -702,15 +727,18 @@ init_cursor (void)
 
     cursor.cursor = create_cursor_framebuffer(cursor.device, format);
     if (!cursor.cursor) {
+        g_warning("cursor: framebuffer creation failed");
         g_clear_pointer(&cursor.device, kms_device_free);
         return FALSE;
     }
 
-    if (kms_plane_set(cursor.plane, cursor.cursor, cursor.x, cursor.y)) {
-        g_clear_pointer(&cursor.device, kms_device_free);
-        g_clear_pointer(&cursor.cursor, kms_framebuffer_free);
-        return FALSE;
-    }
+    /* The CRTC is usually not lit yet at platform setup time - the
+     * renderer performs the first modeset on the first frame commit -
+     * so this initial cursor upload may fail (display still off). Not
+     * fatal: the pointer-motion handler retries on every move and
+     * succeeds once a mode is active. */
+    if (kms_plane_set(cursor.plane, cursor.cursor, cursor.x, cursor.y))
+        g_message("cursor plane not set yet (display off?) - will appear on first pointer motion");
 
     cursor.enabled = TRUE;
 
