@@ -5,6 +5,7 @@
  */
 
 #include <drm_fourcc.h>
+#include <stdio.h>
 #include "cursor-drm.h"
 
 #define CURSOR_WIDTH 16
@@ -76,6 +77,20 @@ static uint32_t convert_rgba_to_pixel_format(uint32_t rgba_pixel, uint32_t forma
     }
 }
 
+void cog_drm_cursor_image_argb_premult(uint32_t *dst)
+{
+    for (int i = 0; i < CURSOR_WIDTH * CURSOR_HEIGHT; i++) {
+        uint8_t r = cursorData[i * 4 + 0];
+        uint8_t g = cursorData[i * 4 + 1];
+        uint8_t b = cursorData[i * 4 + 2];
+        uint8_t a = cursorData[i * 4 + 3];
+        r = (uint16_t) r * a / 255;
+        g = (uint16_t) g * a / 255;
+        b = (uint16_t) b * a / 255;
+        dst[i] = ((uint32_t) a << 24) | ((uint32_t) r << 16) | ((uint32_t) g << 8) | b;
+    }
+}
+
 struct kms_framebuffer *create_cursor_framebuffer(struct kms_device *device, uint32_t format)
 {
     struct kms_framebuffer *fb;
@@ -95,6 +110,7 @@ struct kms_framebuffer *create_cursor_framebuffer(struct kms_device *device, uin
 
     int index;
     uint32_t pixel;
+
     /* The legacy cursor engine ignores the BO's pitch and always reads
      * tightly packed WIDTHx4-byte rows (radeon aligns dumb-buffer
      * pitches far wider, e.g. 256 pixels - writing with that pitch

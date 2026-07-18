@@ -7,6 +7,7 @@
 
 #include "../../core/cog.h"
 #include "cog-drm-renderer.h"
+#include "cursor-drm.h"
 #include <errno.h>
 #include <gbm.h>
 #include <wayland-server.h>
@@ -106,6 +107,17 @@ typedef struct {
         drmModeObjectProperties *props;
         drmModePropertyRes     **props_info;
     } connector_props, crtc_props, plane_props;
+
+    /* Software cursor: composited into the scanout dumb buffer. */
+    struct {
+        bool           enabled;
+        int            x, y;
+        uint32_t       image[COG_DRM_CURSOR_IMAGE_SIZE * COG_DRM_CURSOR_IMAGE_SIZE];
+        uint32_t       saved[COG_DRM_CURSOR_IMAGE_SIZE * COG_DRM_CURSOR_IMAGE_SIZE];
+        struct gbm_bo *drawn_bo; /* cursor currently painted on this bo */
+        int            drawn_x, drawn_y, drawn_w, drawn_h;
+        gint64         last_move_us;
+    } sw_cursor;
 } CogDrmModesetRenderer;
 
 static inline int
@@ -116,8 +128,173 @@ get_drm_fd(CogDrmModesetRenderer *self)
 }
 
 static void
+sw_cursor_restore(CogDrmModesetRenderer *self)
+{
+    struct gbm_bo *bo = self->sw_cursor.drawn_bo;
+    if (!bo)
+        return;
+    self->sw_cursor.drawn_bo = NULL;
+
+    uint32_t stride = 0;
+    void    *map = NULL;
+    gbm_bo_map(bo, 0, 0, gbm_bo_get_width(bo), gbm_bo_get_height(bo), GBM_BO_TRANSFER_WRITE, &stride, &map);
+    if (!map)
+        return;
+    for (int r = 0; r < self->sw_cursor.drawn_h; r++)
+        memcpy((uint8_t *) map + (self->sw_cursor.drawn_y + r) * stride + self->sw_cursor.drawn_x * 4,
+               self->sw_cursor.saved + r * COG_DRM_CURSOR_IMAGE_SIZE,
+               self->sw_cursor.drawn_w * 4);
+    gbm_bo_unmap(bo, map);
+}
+
+static void
+sw_cursor_paint(CogDrmModesetRenderer *self, struct gbm_bo *bo)
+{
+    if (!self->sw_cursor.enabled || !bo)
+        return;
+
+    const int S = COG_DRM_CURSOR_IMAGE_SIZE;
+    int bw = gbm_bo_get_width(bo), bh = gbm_bo_get_height(bo);
+    int x = self->sw_cursor.x, y = self->sw_cursor.y;
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if (x >= bw) x = bw - 1;
+    if (y >= bh) y = bh - 1;
+    int w = MIN(S, bw - x), h = MIN(S, bh - y);
+    if (w <= 0 || h <= 0)
+        return;
+
+    uint32_t stride = 0;
+    void    *map = NULL;
+    gbm_bo_map(bo, 0, 0, bw, bh, GBM_BO_TRANSFER_READ_WRITE, &stride, &map);
+    if (!map)
+        return;
+    for (int r = 0; r < h; r++) {
+        uint32_t       *dst = (uint32_t *) ((uint8_t *) map + (y + r) * stride) + x;
+        uint32_t       *sav = self->sw_cursor.saved + r * S;
+        const uint32_t *img = self->sw_cursor.image + r * S;
+        for (int c = 0; c < w; c++) {
+            sav[c] = dst[c];
+            uint32_t px = img[c], a = px >> 24;
+            if (a == 0xff)
+                dst[c] = px;
+            else if (a) {
+                uint32_t d = dst[c];
+                uint32_t rr = ((px >> 16) & 0xff) + (((d >> 16) & 0xff) * (255 - a)) / 255;
+                uint32_t gg = ((px >> 8) & 0xff) + (((d >> 8) & 0xff) * (255 - a)) / 255;
+                uint32_t bb = (px & 0xff) + ((d & 0xff) * (255 - a)) / 255;
+                dst[c] = 0xff000000 | (rr << 16) | (gg << 8) | bb;
+            }
+        }
+    }
+    gbm_bo_unmap(bo, map);
+
+    self->sw_cursor.drawn_bo = bo;
+    self->sw_cursor.drawn_x = x;
+    self->sw_cursor.drawn_y = y;
+    self->sw_cursor.drawn_w = w;
+    self->sw_cursor.drawn_h = h;
+}
+
+bool
+cog_drm_modeset_renderer_sw_cursor_enable(CogDrmRenderer *renderer, unsigned *screen_w, unsigned *screen_h)
+{
+    CogDrmModesetRenderer *self = (CogDrmModesetRenderer *) renderer;
+
+    cog_drm_cursor_image_argb_premult(self->sw_cursor.image);
+    self->sw_cursor.enabled = true;
+    self->sw_cursor.x = self->mode.hdisplay / 2;
+    self->sw_cursor.y = self->mode.vdisplay / 2;
+    if (screen_w)
+        *screen_w = self->mode.hdisplay;
+    if (screen_h)
+        *screen_h = self->mode.vdisplay;
+    return true;
+}
+
+void
+cog_drm_modeset_renderer_sw_cursor_move(CogDrmRenderer *renderer, int x, int y)
+{
+    CogDrmModesetRenderer *self = (CogDrmModesetRenderer *) renderer;
+
+    if (!self->sw_cursor.enabled)
+        return;
+    self->sw_cursor.x = x;
+    self->sw_cursor.y = y;
+
+    /* Throttle to display rate: input events arrive much faster than
+     * frames; repainting on every event multiplies the raster's chance
+     * to catch a half-updated cursor (flicker). The final position is
+     * never lost - each event updates x/y and the next repaint uses it. */
+    gint64 now = g_get_monotonic_time();
+    if (now - self->sw_cursor.last_move_us < 16000)
+        return;
+    self->sw_cursor.last_move_us = now;
+
+    /* Repaint in place ONLY on a bo the cursor was already baked into
+     * via the SHM frame path - those are CPU-writable dumb buffers.
+     * The committed buffer may be an IMPORTED DMABUF (hardware-rendered
+     * frames); mapping and scribbling on those crashes or corrupts -
+     * with no SHM frames the software cursor simply stays hidden. Use a
+     * single map session for restore + paint so the raster cannot catch
+     * the cursor-less gap between two separate map cycles. */
+    struct gbm_bo *bo = self->sw_cursor.drawn_bo;
+    if (!bo)
+        return;
+
+    const int S = COG_DRM_CURSOR_IMAGE_SIZE;
+    int bw = gbm_bo_get_width(bo), bh = gbm_bo_get_height(bo);
+    uint32_t stride = 0;
+    void    *map = NULL;
+    gbm_bo_map(bo, 0, 0, bw, bh, GBM_BO_TRANSFER_READ_WRITE, &stride, &map);
+    if (!map)
+        return;
+
+    if (self->sw_cursor.drawn_bo == bo) {
+        for (int r = 0; r < self->sw_cursor.drawn_h; r++)
+            memcpy((uint8_t *) map + (self->sw_cursor.drawn_y + r) * stride + self->sw_cursor.drawn_x * 4,
+                   self->sw_cursor.saved + r * S, self->sw_cursor.drawn_w * 4);
+        self->sw_cursor.drawn_bo = NULL;
+    }
+
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if (x >= bw) x = bw - 1;
+    if (y >= bh) y = bh - 1;
+    int w = MIN(S, bw - x), h = MIN(S, bh - y);
+    if (w > 0 && h > 0) {
+        for (int r = 0; r < h; r++) {
+            uint32_t       *dst = (uint32_t *) ((uint8_t *) map + (y + r) * stride) + x;
+            uint32_t       *sav = self->sw_cursor.saved + r * S;
+            const uint32_t *img = self->sw_cursor.image + r * S;
+            for (int c = 0; c < w; c++) {
+                sav[c] = dst[c];
+                uint32_t px = img[c], a = px >> 24;
+                if (a == 0xff)
+                    dst[c] = px;
+                else if (a) {
+                    uint32_t d = dst[c];
+                    uint32_t rr = ((px >> 16) & 0xff) + (((d >> 16) & 0xff) * (255 - a)) / 255;
+                    uint32_t gg = ((px >> 8) & 0xff) + (((d >> 8) & 0xff) * (255 - a)) / 255;
+                    uint32_t bb = (px & 0xff) + ((d & 0xff) * (255 - a)) / 255;
+                    dst[c] = 0xff000000 | (rr << 16) | (gg << 8) | bb;
+                }
+            }
+        }
+        self->sw_cursor.drawn_bo = bo;
+        self->sw_cursor.drawn_x = x;
+        self->sw_cursor.drawn_y = y;
+        self->sw_cursor.drawn_w = w;
+        self->sw_cursor.drawn_h = h;
+    }
+    gbm_bo_unmap(bo, map);
+}
+
+static void
 destroy_buffer(CogDrmModesetRenderer *renderer, struct buffer_object *buffer)
 {
+    if (renderer->sw_cursor.drawn_bo == buffer->bo)
+        renderer->sw_cursor.drawn_bo = NULL;
     drmModeRmFB(get_drm_fd(renderer), buffer->fb_id);
     gbm_bo_destroy(buffer->bo);
 
@@ -277,6 +454,8 @@ drm_create_buffer_for_shm_buffer(CogDrmModesetRenderer *self,
     buffer->bo = bo;
     buffer->buffer_resource = buffer_resource;
 
+    g_message("created shm bo %dx%d for resource %p", width, height, (void *) buffer_resource);
+
     return buffer;
 }
 
@@ -287,8 +466,8 @@ drm_copy_shm_buffer_into_bo(struct wl_shm_buffer *shm_buffer, struct gbm_bo *bo)
     int32_t height = wl_shm_buffer_get_height(shm_buffer);
     int32_t stride = wl_shm_buffer_get_stride(shm_buffer);
 
-    /* Never write past the bo - clamp and report a size mismatch
-     * (stale buffer_object?) instead of crashing. */
+    /* DEBUG/hardening: never write past the bo - clamp and report any
+     * size mismatch (stale buffer_object?) instead of crashing. */
     uint32_t pre_bo_width = gbm_bo_get_width(bo);
     uint32_t pre_bo_height = gbm_bo_get_height(bo);
     if ((uint32_t) width > pre_bo_width || (uint32_t) height > pre_bo_height) {
@@ -550,11 +729,11 @@ on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_bu
     struct wl_resource   *exported_resource = wpe_fdo_shm_exported_buffer_get_resource(exported_buffer);
     struct wl_shm_buffer *exported_shm_buffer = wpe_fdo_shm_exported_buffer_get_shm_buffer(exported_buffer);
 
-    /* Never touch buffers with impossible geometry (a stale or dangling
-     * wl_shm_buffer, e.g. exported by a buggy backend): skip the frame
-     * instead of copying from/into wild memory. Do NOT release the
-     * wrapper - that would poke the possibly-dangling resource; leaking
-     * it is the lesser evil in an already-broken session. */
+    /* Trace + guard: wpebackend-fdo (<= 1.16.1) never clears
+     * Surface::shmBuffer, so a commit without a fresh attach exports a
+     * stale - potentially dangling - wl_shm_buffer whose metadata reads
+     * as garbage (negative width/stride). Never touch buffers with
+     * impossible geometry; skip the frame instead of crashing. */
     {
         int32_t w = exported_shm_buffer ? wl_shm_buffer_get_width(exported_shm_buffer) : -1;
         int32_t h = exported_shm_buffer ? wl_shm_buffer_get_height(exported_shm_buffer) : -1;
@@ -564,12 +743,17 @@ on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_bu
         if (!exported_resource || w <= 0 || h <= 0 || w > 16384 || h > 16384 || st < w * 4) {
             g_warning("shm export with bogus geometry (resource %p, shm %p, %dx%d stride %d) - frame skipped (streak %u)",
                       (void *) exported_resource, (void *) exported_shm_buffer, w, h, st, ++bogus_streak);
+            /* Do NOT release the wrapper: dispatch_release would send a
+             * wl_buffer.release through the (dangling) resource, poking
+             * freed protocol state on every skipped frame. Leaking the
+             * small wrapper is the lesser evil in an already-broken
+             * session. Keep pacing alive for a few frames in case the
+             * client recovers; after that, exit and let procd respawn a
+             * clean process (bounded by the respawn limit). */
             if (bogus_streak >= 4) {
                 g_critical("persistent bogus SHM exports - exiting for a clean respawn");
                 exit(70);
             }
-            /* keep the frame pacing alive - without this WebKit waits
-             * for the frame callback of the skipped frame forever */
             wpe_view_backend_exportable_fdo_dispatch_frame_complete(self->exportable);
             return;
         }
@@ -581,6 +765,12 @@ on_export_shm_buffer(void *data, struct wpe_fdo_shm_exported_buffer *exported_bu
         buffer = drm_create_buffer_for_shm_buffer(self, exported_resource, exported_shm_buffer);
     if (buffer) {
         drm_copy_shm_buffer_into_bo(exported_shm_buffer, buffer->bo);
+
+        /* the copy replaced the whole bo content - the previously saved
+         * background patch is void; bake the cursor into the new frame */
+        if (self->sw_cursor.drawn_bo == buffer->bo)
+            self->sw_cursor.drawn_bo = NULL;
+        sw_cursor_paint(self, buffer->bo);
 
         /* The dumb buffer owns the pixels now: release the client's SHM
          * buffer right away instead of parking it until the frame retires.

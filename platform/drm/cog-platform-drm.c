@@ -154,8 +154,11 @@ static struct {
     .mode_set = false,
 };
 
+static CogDrmRenderer *sw_cursor_renderer = NULL;
+
 static struct {
     gboolean enabled;
+    gboolean software; /* composited by the modeset renderer */
     gboolean legacy; /* no universal cursor plane: drmModeSetCursor path */
     gboolean armed;  /* legacy cursor uploaded to the CRTC */
     struct kms_device *device;
@@ -1035,7 +1038,10 @@ input_handle_pointer_motion_event(struct libinput_event_pointer *pointer_event, 
 
     wpe_view_backend_dispatch_pointer_event(wpe_view_data.backend, &event);
     if (cursor.enabled) {
-        if (cursor.legacy) {
+        if (cursor.software) {
+            if (sw_cursor_renderer)
+                cog_drm_modeset_renderer_sw_cursor_move(sw_cursor_renderer, (int) cursor.x, (int) cursor.y);
+        } else if (cursor.legacy) {
             /* Re-upload on every motion: a modeset (the renderer's first
              * frame commit, a mode change) silently disables the legacy
              * hardware cursor, and there is no notification - MoveCursor
@@ -1600,7 +1606,8 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
         return FALSE;
     }
 
-    if (self->draw_cursor) {
+    const char *cursor_env = g_getenv ("COG_PLATFORM_DRM_CURSOR");
+    if (self->draw_cursor && !(cursor_env && strcmp (cursor_env, "sw") == 0)) {
         if (!init_cursor ()) {
             g_warning ("Failed to initialize cursor");
         }
@@ -1638,6 +1645,21 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
                                                       drm_data.mode,
                                                       drm_data.atomic_modesetting);
     }
+    if (cursor_env && strcmp (cursor_env, "sw") == 0) {
+        if (g_strcmp0 (self->renderer->name, "modeset") == 0) {
+            unsigned scr_w = 0, scr_h = 0;
+            if (cog_drm_modeset_renderer_sw_cursor_enable (self->renderer, &scr_w, &scr_h)) {
+                cursor.software = TRUE;
+                cursor.enabled = TRUE;
+                /* cursor position and screen bounds are established
+                 * centrally by init_input() from the selected mode */
+                sw_cursor_renderer = self->renderer;
+                g_message ("software cursor enabled (%ux%u)", scr_w, scr_h);
+            }
+        } else
+            g_warning ("software cursor requires the modeset renderer");
+    }
+
     if (cog_drm_renderer_supports_rotation(self->renderer, self->rotation)) {
         cog_drm_renderer_set_rotation(self->renderer, self->rotation);
     } else {
