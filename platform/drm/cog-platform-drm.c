@@ -1010,21 +1010,20 @@ input_handle_pointer_motion_event(struct libinput_event_pointer *pointer_event, 
         cursor.x = libinput_event_pointer_get_absolute_x_transformed(pointer_event, cursor.screen_width);
         cursor.y = libinput_event_pointer_get_absolute_y_transformed(pointer_event, cursor.screen_height);
     } else {
-        cursor.x += libinput_event_pointer_get_dx(pointer_event);
-        cursor.y += libinput_event_pointer_get_dy(pointer_event);
+        /* cursor.{x,y} are unsigned: going past zero must be caught in
+         * floating point BEFORE the store, or the value wraps around and
+         * the upper clamp below pins the cursor to the opposite edge. */
+        double x = cursor.x + libinput_event_pointer_get_dx(pointer_event);
+        double y = cursor.y + libinput_event_pointer_get_dy(pointer_event);
+        cursor.x = x < 0 ? 0 : (unsigned int) x;
+        cursor.y = y < 0 ? 0 : (unsigned int) y;
     }
 
-    if (cursor.x < 0) {
-        cursor.x = 0;
-    } else if (cursor.x > cursor.screen_width - 1) {
+    if (cursor.x > cursor.screen_width - 1)
         cursor.x = cursor.screen_width - 1;
-    }
 
-    if (cursor.y < 0) {
-        cursor.y = 0;
-    } else if (cursor.y > cursor.screen_height - 1) {
+    if (cursor.y > cursor.screen_height - 1)
         cursor.y = cursor.screen_height - 1;
-    }
 
     struct wpe_input_pointer_event event = {
         .type = wpe_input_pointer_event_type_motion,
