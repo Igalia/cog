@@ -77,24 +77,41 @@ static uint32_t convert_rgba_to_pixel_format(uint32_t rgba_pixel, uint32_t forma
     }
 }
 
-void cog_drm_cursor_image_argb_premult(uint32_t *dst)
+static unsigned clamp_cursor_scale(unsigned scale)
 {
-    for (int i = 0; i < CURSOR_WIDTH * CURSOR_HEIGHT; i++) {
-        uint8_t r = cursorData[i * 4 + 0];
-        uint8_t g = cursorData[i * 4 + 1];
-        uint8_t b = cursorData[i * 4 + 2];
-        uint8_t a = cursorData[i * 4 + 3];
-        r = (uint16_t) r * a / 255;
-        g = (uint16_t) g * a / 255;
-        b = (uint16_t) b * a / 255;
-        dst[i] = ((uint32_t) a << 24) | ((uint32_t) r << 16) | ((uint32_t) g << 8) | b;
+    if (scale < 1)
+        return 1;
+    if (scale > COG_DRM_CURSOR_IMAGE_MAX_SCALE)
+        return COG_DRM_CURSOR_IMAGE_MAX_SCALE;
+    return scale;
+}
+
+void cog_drm_cursor_image_argb_premult(uint32_t *dst, unsigned scale)
+{
+    scale = clamp_cursor_scale(scale);
+    const unsigned size = CURSOR_WIDTH * scale;
+
+    for (unsigned y = 0; y < size; y++) {
+        for (unsigned x = 0; x < size; x++) {
+            unsigned i = (y / scale) * CURSOR_WIDTH + (x / scale);
+            uint8_t r = cursorData[i * 4 + 0];
+            uint8_t g = cursorData[i * 4 + 1];
+            uint8_t b = cursorData[i * 4 + 2];
+            uint8_t a = cursorData[i * 4 + 3];
+            r = (uint16_t) r * a / 255;
+            g = (uint16_t) g * a / 255;
+            b = (uint16_t) b * a / 255;
+            dst[y * size + x] = ((uint32_t) a << 24) | ((uint32_t) r << 16) | ((uint32_t) g << 8) | b;
+        }
     }
 }
 
-struct kms_framebuffer *create_cursor_framebuffer(struct kms_device *device, uint32_t format)
+struct kms_framebuffer *create_cursor_framebuffer(struct kms_device *device, uint32_t format, unsigned scale)
 {
     struct kms_framebuffer *fb;
     uint32_t *buf;
+
+    scale = clamp_cursor_scale(scale);
 
     /* Hardware cursors on several drivers (radeon in particular) only
      * display buffers of exactly the size advertised by
@@ -118,10 +135,13 @@ struct kms_framebuffer *create_cursor_framebuffer(struct kms_device *device, uin
      * out with the hardware's fixed 64-pixel stride. */
     unsigned int stride_px = 64;
 
+    /* Nearest-neighbour upscale of the 16x16 artwork: a hardware cursor
+     * has a fixed physical size, so it must grow with the view's device
+     * scale factor or it dwarfs next to the scaled UI. */
     for (unsigned int row = 0; row < fb->height; row++) {
         for (unsigned int column = 0; column < stride_px; column++) {
-            if (row < CURSOR_HEIGHT && column < CURSOR_WIDTH) {
-                index = (row * CURSOR_WIDTH * 4) + (column * 4);
+            if (row < CURSOR_HEIGHT * scale && column < CURSOR_WIDTH * scale) {
+                index = ((row / scale) * CURSOR_WIDTH * 4) + ((column / scale) * 4);
                 pixel = (cursorData[index] << 24) +
                         (cursorData[index + 1] << 16) +
                         (cursorData[index + 2] << 8) +

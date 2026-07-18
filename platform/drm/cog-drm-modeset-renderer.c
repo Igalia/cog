@@ -108,12 +108,17 @@ typedef struct {
         drmModePropertyRes     **props_info;
     } connector_props, crtc_props, plane_props;
 
-    /* Software cursor: composited into the scanout dumb buffer. */
+    /* Software cursor: composited into the scanout dumb buffer.
+     * size is the (square) cursor edge in pixels - the 16x16 artwork
+     * times the device scale factor; buffers hold the maximum. */
     struct {
         bool           enabled;
         int            x, y;
-        uint32_t       image[COG_DRM_CURSOR_IMAGE_SIZE * COG_DRM_CURSOR_IMAGE_SIZE];
-        uint32_t       saved[COG_DRM_CURSOR_IMAGE_SIZE * COG_DRM_CURSOR_IMAGE_SIZE];
+        int            size;
+        uint32_t       image[COG_DRM_CURSOR_IMAGE_SIZE * COG_DRM_CURSOR_IMAGE_MAX_SCALE *
+                             COG_DRM_CURSOR_IMAGE_SIZE * COG_DRM_CURSOR_IMAGE_MAX_SCALE];
+        uint32_t       saved[COG_DRM_CURSOR_IMAGE_SIZE * COG_DRM_CURSOR_IMAGE_MAX_SCALE *
+                             COG_DRM_CURSOR_IMAGE_SIZE * COG_DRM_CURSOR_IMAGE_MAX_SCALE];
         struct gbm_bo *drawn_bo; /* cursor currently painted on this bo */
         int            drawn_x, drawn_y, drawn_w, drawn_h;
         gint64         last_move_us;
@@ -142,7 +147,7 @@ sw_cursor_restore(CogDrmModesetRenderer *self)
         return;
     for (int r = 0; r < self->sw_cursor.drawn_h; r++)
         memcpy((uint8_t *) map + (self->sw_cursor.drawn_y + r) * stride + self->sw_cursor.drawn_x * 4,
-               self->sw_cursor.saved + r * COG_DRM_CURSOR_IMAGE_SIZE,
+               self->sw_cursor.saved + r * self->sw_cursor.size,
                self->sw_cursor.drawn_w * 4);
     gbm_bo_unmap(bo, map);
 }
@@ -153,7 +158,7 @@ sw_cursor_paint(CogDrmModesetRenderer *self, struct gbm_bo *bo)
     if (!self->sw_cursor.enabled || !bo)
         return;
 
-    const int S = COG_DRM_CURSOR_IMAGE_SIZE;
+    const int S = self->sw_cursor.size;
     int bw = gbm_bo_get_width(bo), bh = gbm_bo_get_height(bo);
     int x = self->sw_cursor.x, y = self->sw_cursor.y;
     if (x < 0) x = 0;
@@ -197,11 +202,14 @@ sw_cursor_paint(CogDrmModesetRenderer *self, struct gbm_bo *bo)
 }
 
 bool
-cog_drm_modeset_renderer_sw_cursor_enable(CogDrmRenderer *renderer, unsigned *screen_w, unsigned *screen_h)
+cog_drm_modeset_renderer_sw_cursor_enable(CogDrmRenderer *renderer, unsigned scale, unsigned *screen_w,
+                                          unsigned *screen_h)
 {
     CogDrmModesetRenderer *self = (CogDrmModesetRenderer *) renderer;
 
-    cog_drm_cursor_image_argb_premult(self->sw_cursor.image);
+    scale = CLAMP(scale, 1, COG_DRM_CURSOR_IMAGE_MAX_SCALE);
+    self->sw_cursor.size = COG_DRM_CURSOR_IMAGE_SIZE * scale;
+    cog_drm_cursor_image_argb_premult(self->sw_cursor.image, scale);
     self->sw_cursor.enabled = true;
     self->sw_cursor.x = self->mode.hdisplay / 2;
     self->sw_cursor.y = self->mode.vdisplay / 2;
@@ -242,7 +250,7 @@ cog_drm_modeset_renderer_sw_cursor_move(CogDrmRenderer *renderer, int x, int y)
     if (!bo)
         return;
 
-    const int S = COG_DRM_CURSOR_IMAGE_SIZE;
+    const int S = self->sw_cursor.size;
     int bw = gbm_bo_get_width(bo), bh = gbm_bo_get_height(bo);
     uint32_t stride = 0;
     void    *map = NULL;

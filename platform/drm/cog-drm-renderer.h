@@ -68,7 +68,8 @@ CogDrmRenderer *cog_drm_modeset_renderer_new(struct gbm_device     *dev,
 /* Software cursor, modeset renderer only: composited into the scanout
  * buffer (hardware cursors are broken on some display blocks, e.g.
  * radeon DCE4.1 - see RADEON_DCE41_CURSOR_NOTES). */
-bool cog_drm_modeset_renderer_sw_cursor_enable(CogDrmRenderer *, unsigned *screen_w, unsigned *screen_h);
+bool cog_drm_modeset_renderer_sw_cursor_enable(CogDrmRenderer *, unsigned scale, unsigned *screen_w,
+                                               unsigned *screen_h);
 void cog_drm_modeset_renderer_sw_cursor_move(CogDrmRenderer *, int x, int y);
 
 CogDrmRenderer *cog_drm_gles_renderer_new(struct gbm_device     *dev,

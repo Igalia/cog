@@ -705,6 +705,16 @@ clear_cursor (void) {
     cursor.plane = NULL;
 }
 
+static unsigned
+cursor_scale (void)
+{
+    /* Track the view's device scale factor (init_config ran before any
+     * cursor setup) so the pointer keeps its apparent size next to the
+     * scaled UI; nearest integer, bounded by the 64x64 cursor buffer. */
+    unsigned scale = (unsigned) (drm_data.device_scale + 0.5);
+    return CLAMP(scale, 1, COG_DRM_CURSOR_IMAGE_MAX_SCALE);
+}
+
 static gboolean
 init_cursor (void)
 {
@@ -735,7 +745,7 @@ init_cursor (void)
         return FALSE;
     }
 
-    cursor.cursor = create_cursor_framebuffer(cursor.device, format);
+    cursor.cursor = create_cursor_framebuffer(cursor.device, format, cursor_scale());
     if (!cursor.cursor) {
         g_warning("cursor: framebuffer creation failed");
         g_clear_pointer(&cursor.device, kms_device_free);
@@ -1647,7 +1657,7 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
     if (cursor_env && strcmp (cursor_env, "sw") == 0) {
         if (g_strcmp0 (self->renderer->name, "modeset") == 0) {
             unsigned scr_w = 0, scr_h = 0;
-            if (cog_drm_modeset_renderer_sw_cursor_enable (self->renderer, &scr_w, &scr_h)) {
+            if (cog_drm_modeset_renderer_sw_cursor_enable (self->renderer, cursor_scale(), &scr_w, &scr_h)) {
                 cursor.software = TRUE;
                 cursor.enabled = TRUE;
                 /* cursor position and screen bounds are established
