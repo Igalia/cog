@@ -974,7 +974,15 @@ registry_on_global_remove(void *data, struct wl_registry *registry, uint32_t nam
     wl_list_for_each_safe(output, tmp_output, &platform->display->outputs, link) {
         if (output->name == name) {
             g_debug("%s: output #%" PRIi32 " @ %p removed.", G_STRFUNC, output->name, output->output);
-            g_clear_pointer(&output->output, wl_output_release);
+            if (output->output) {
+                if (wl_proxy_get_version((struct wl_proxy *) output->output) >= WL_OUTPUT_RELEASE_SINCE_VERSION) {
+                    wl_output_release(output->output);
+                } else {
+                    wl_proxy_destroy((struct wl_proxy *) output->output);
+                }
+                output->output = NULL;
+            }
+
             wl_list_remove(&output->link);
             if (platform->display->current_output == output) {
                 platform->display->current_output =
