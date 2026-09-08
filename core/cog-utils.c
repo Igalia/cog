@@ -319,6 +319,70 @@ option_entry_parse_to_property (const char *option,
     return TRUE;
 }
 
+/*
+ * Formats "<blurb> (default: <value>)" for an option's help text.
+ *
+ * GOptionEntry.description is a borrowed const char*, and the entry array is
+ * freed right after being handed to the option group, so the string has to
+ * outlive it. Interning avoids having to track the allocation: the set of
+ * options is fixed and built once at startup.
+ *
+ * Properties whose default carries no information (an unset or empty string)
+ * are left with their plain blurb.
+ */
+static const char *
+option_description_with_default(GParamSpec *prop, GType prop_type)
+{
+    const char   *blurb = g_param_spec_get_blurb(prop);
+    const GValue *def = g_param_spec_get_default_value(prop);
+    if (!def)
+        return blurb;
+
+    g_autofree char *value = NULL;
+    switch (prop_type) {
+    case G_TYPE_BOOLEAN:
+        value = g_strdup(g_value_get_boolean(def) ? "true" : "false");
+        break;
+    case G_TYPE_STRING: {
+        const char *s = g_value_get_string(def);
+        if (!s || !*s)
+            return blurb;
+        value = g_strdup(s);
+        break;
+    }
+    case G_TYPE_DOUBLE:
+        value = g_strdup_printf("%g", g_value_get_double(def));
+        break;
+    case G_TYPE_FLOAT:
+        value = g_strdup_printf("%g", (double) g_value_get_float(def));
+        break;
+    case G_TYPE_INT:
+        value = g_strdup_printf("%d", g_value_get_int(def));
+        break;
+    case G_TYPE_INT64:
+        value = g_strdup_printf("%" G_GINT64_FORMAT, g_value_get_int64(def));
+        break;
+    case G_TYPE_LONG:
+        value = g_strdup_printf("%ld", g_value_get_long(def));
+        break;
+    case G_TYPE_UINT:
+        value = g_strdup_printf("%u", g_value_get_uint(def));
+        break;
+    case G_TYPE_UINT64:
+        value = g_strdup_printf("%" G_GUINT64_FORMAT, g_value_get_uint64(def));
+        break;
+    case G_TYPE_ULONG:
+        value = g_strdup_printf("%lu", g_value_get_ulong(def));
+        break;
+    default:
+        return blurb;
+    }
+
+    g_autofree char *text =
+        blurb ? g_strdup_printf("%s (default: %s)", blurb, value) : g_strdup_printf("(default: %s)", value);
+    return g_intern_string(text);
+}
+
 int
 entry_comparator (const void *p1, const void *p2)
 {
@@ -372,7 +436,7 @@ cog_option_entries_from_class (GObjectClass *klass)
         entry->long_name = g_param_spec_get_name (prop);
         entry->arg = G_OPTION_ARG_CALLBACK;
         entry->arg_data = option_entry_parse_to_property;
-        entry->description = g_param_spec_get_blurb (prop);
+        entry->description = option_description_with_default(prop, prop_type);
         entry->arg_description = type_name;
         if (prop_type == G_TYPE_BOOLEAN && g_str_has_prefix (entry->long_name, "enable-"))
             entry->flags |= G_OPTION_FLAG_OPTIONAL_ARG;
