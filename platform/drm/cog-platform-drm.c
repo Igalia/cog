@@ -154,8 +154,13 @@ static struct {
     .mode_set = false,
 };
 
+static CogDrmRenderer *sw_cursor_renderer = NULL;
+
 static struct {
     gboolean enabled;
+    gboolean software; /* composited by the modeset renderer */
+    gboolean legacy; /* no universal cursor plane: drmModeSetCursor path */
+    gboolean armed;  /* legacy cursor uploaded to the CRTC */
     struct kms_device *device;
     struct kms_plane *plane;
     struct kms_framebuffer *cursor;
@@ -424,6 +429,15 @@ find_crtc_for_encoder(const drmModeRes *resources, const drmModeEncoder *encoder
         }
     }
 
+    /* Cold start: with no prior modeset (no fbcon/firmware POST) the
+     * encoder is bound to no CRTC yet (crtc_id == 0), so the match on
+     * the CURRENT binding above finds nothing. Fall back to the first
+     * CRTC this encoder can physically drive. */
+    for (int i = 0; i < resources->count_crtcs; i++) {
+        if (encoder->possible_crtcs & (1 << i))
+            return resources->crtcs[i];
+    }
+
     /* no match found */
     return -1;
 }
@@ -570,21 +584,35 @@ init_drm(void)
             (long)((drm_data.mode - drm_data.connector.obj->modes) / sizeof(drmModeModeInfo *)), drm_data.mode->name,
             drm_data.mode->vrefresh);
 
-    /* Try the currently connected encoder+crtc */
-    for (int i = 0; i < drm_data.base_resources->count_encoders; ++i) {
-        drm_data.encoder = drmModeGetEncoder(drm_data.fd, drm_data.base_resources->encoders[i]);
-        if (!drm_data.encoder) {
-            /* cannot retrieve encoder, ignoring... */
+    /* Prefer THIS connector's own encoders: scanning all encoders can
+     * pick another output's encoder whose CRTC does not drive our
+     * connector. find_crtc_for_encoder() handles the cold-start case
+     * (no active CRTC binding yet) via its possible_crtcs fallback. */
+    for (int i = 0; i < drm_data.connector.obj->count_encoders && !drm_data.encoder; ++i) {
+        drmModeEncoder *enc = drmModeGetEncoder(drm_data.fd, drm_data.connector.obj->encoders[i]);
+        if (!enc)
             continue;
-        }
-
-        const int32_t crtc_id = find_crtc_for_encoder(drm_data.base_resources, drm_data.encoder);
+        const int32_t crtc_id = find_crtc_for_encoder(drm_data.base_resources, enc);
         if (crtc_id != -1) {
+            drm_data.encoder = enc;
             drm_data.crtc.obj_id = crtc_id;
             break;
         }
+        drmModeFreeEncoder(enc);
+    }
 
-        g_clear_pointer (&drm_data.encoder, drmModeFreeEncoder);
+    /* Last resort: any encoder that yields a CRTC. */
+    for (int i = 0; i < drm_data.base_resources->count_encoders && !drm_data.encoder; ++i) {
+        drmModeEncoder *enc = drmModeGetEncoder(drm_data.fd, drm_data.base_resources->encoders[i]);
+        if (!enc)
+            continue;
+        const int32_t crtc_id = find_crtc_for_encoder(drm_data.base_resources, enc);
+        if (crtc_id != -1) {
+            drm_data.encoder = enc;
+            drm_data.crtc.obj_id = crtc_id;
+            break;
+        }
+        drmModeFreeEncoder(enc);
     }
 
     if (!drm_data.encoder) {
@@ -670,9 +698,21 @@ choose_format (struct kms_plane *plane)
 
 static void
 clear_cursor (void) {
+    if (cursor.legacy && cursor.armed)
+        drmModeSetCursor(drm_data.fd, drm_data.crtc.obj_id, 0, 0, 0);
     g_clear_pointer(&cursor.cursor, kms_framebuffer_free);
     g_clear_pointer(&cursor.device, kms_device_free);
     cursor.plane = NULL;
+}
+
+static unsigned
+cursor_scale (void)
+{
+    /* Track the view's device scale factor (init_config ran before any
+     * cursor setup) so the pointer keeps its apparent size next to the
+     * scaled UI; nearest integer, bounded by the 64x64 cursor buffer. */
+    unsigned scale = (unsigned) (drm_data.device_scale + 0.5);
+    return CLAMP(scale, 1, COG_DRM_CURSOR_IMAGE_MAX_SCALE);
 }
 
 static gboolean
@@ -685,32 +725,47 @@ init_cursor (void)
     }
 
     cursor.device = kms_device_open(drm_data.fd);
-    if (!cursor.device)
+    if (!cursor.device) {
+        g_warning("cursor: kms_device_open failed");
         return FALSE;
+    }
 
     cursor.plane = kms_device_find_plane_by_type(cursor.device, DRM_PLANE_TYPE_CURSOR, 0);
     if (!cursor.plane) {
-        g_clear_pointer(&cursor.device, kms_device_free);
-        return FALSE;
+        /* Legacy (non-atomic) drivers - radeon, older nouveau - expose no
+         * universal cursor plane; their hardware cursor is driven with
+         * drmModeSetCursor()/drmModeMoveCursor() on the CRTC instead. */
+        cursor.legacy = TRUE;
     }
 
-    uint32_t format = choose_format(cursor.plane);
+    uint32_t format = cursor.legacy ? DRM_FORMAT_ARGB8888 : choose_format(cursor.plane);
     if (!format) {
+        g_warning("cursor: no supported plane format");
         g_clear_pointer(&cursor.device, kms_device_free);
         return FALSE;
     }
 
-    cursor.cursor = create_cursor_framebuffer(cursor.device, format);
+    cursor.cursor = create_cursor_framebuffer(cursor.device, format, cursor_scale());
     if (!cursor.cursor) {
+        g_warning("cursor: framebuffer creation failed");
         g_clear_pointer(&cursor.device, kms_device_free);
         return FALSE;
     }
 
-    if (kms_plane_set(cursor.plane, cursor.cursor, cursor.x, cursor.y)) {
-        g_clear_pointer(&cursor.device, kms_device_free);
-        g_clear_pointer(&cursor.cursor, kms_framebuffer_free);
-        return FALSE;
-    }
+    /* The CRTC is usually not lit yet at platform setup time - the
+     * renderer performs the first modeset on the first frame commit -
+     * so this initial cursor upload may fail (display still off). Not
+     * fatal: the pointer-motion handler retries on every move and
+     * succeeds once a mode is active. */
+    if (cursor.legacy) {
+        if (drmModeSetCursor(drm_data.fd, drm_data.crtc.obj_id, cursor.cursor->handle,
+                             cursor.cursor->width, cursor.cursor->height) == 0) {
+            cursor.armed = TRUE;
+            drmModeMoveCursor(drm_data.fd, drm_data.crtc.obj_id, cursor.x, cursor.y);
+        } else
+            g_message("legacy cursor not set yet (display off?) - will appear on first pointer motion");
+    } else if (kms_plane_set(cursor.plane, cursor.cursor, cursor.x, cursor.y))
+        g_message("cursor plane not set yet (display off?) - will appear on first pointer motion");
 
     cursor.enabled = TRUE;
 
@@ -965,21 +1020,20 @@ input_handle_pointer_motion_event(struct libinput_event_pointer *pointer_event, 
         cursor.x = libinput_event_pointer_get_absolute_x_transformed(pointer_event, cursor.screen_width);
         cursor.y = libinput_event_pointer_get_absolute_y_transformed(pointer_event, cursor.screen_height);
     } else {
-        cursor.x += libinput_event_pointer_get_dx(pointer_event);
-        cursor.y += libinput_event_pointer_get_dy(pointer_event);
+        /* cursor.{x,y} are unsigned: going past zero must be caught in
+         * floating point BEFORE the store, or the value wraps around and
+         * the upper clamp below pins the cursor to the opposite edge. */
+        double x = cursor.x + libinput_event_pointer_get_dx(pointer_event);
+        double y = cursor.y + libinput_event_pointer_get_dy(pointer_event);
+        cursor.x = x < 0 ? 0 : (unsigned int) x;
+        cursor.y = y < 0 ? 0 : (unsigned int) y;
     }
 
-    if (cursor.x < 0) {
-        cursor.x = 0;
-    } else if (cursor.x > cursor.screen_width - 1) {
+    if (cursor.x > cursor.screen_width - 1)
         cursor.x = cursor.screen_width - 1;
-    }
 
-    if (cursor.y < 0) {
-        cursor.y = 0;
-    } else if (cursor.y > cursor.screen_height - 1) {
+    if (cursor.y > cursor.screen_height - 1)
         cursor.y = cursor.screen_height - 1;
-    }
 
     struct wpe_input_pointer_event event = {
         .type = wpe_input_pointer_event_type_motion,
@@ -992,8 +1046,29 @@ input_handle_pointer_motion_event(struct libinput_event_pointer *pointer_event, 
     };
 
     wpe_view_backend_dispatch_pointer_event(wpe_view_data.backend, &event);
-    if (cursor.enabled)
-        kms_plane_set(cursor.plane, cursor.cursor, cursor.x, cursor.y);
+    if (cursor.enabled) {
+        if (cursor.software) {
+            if (sw_cursor_renderer)
+                cog_drm_modeset_renderer_sw_cursor_move(sw_cursor_renderer, (int) cursor.x, (int) cursor.y);
+        } else if (cursor.legacy) {
+            /* Re-upload on every motion: a modeset (the renderer's first
+             * frame commit, a mode change) silently disables the legacy
+             * hardware cursor, and there is no notification - MoveCursor
+             * alone would move an invisible cursor forever. */
+            static gboolean logged = FALSE;
+            int sret = drmModeSetCursor(drm_data.fd, drm_data.crtc.obj_id, cursor.cursor->handle,
+                                        cursor.cursor->width, cursor.cursor->height);
+            int mret = drmModeMoveCursor(drm_data.fd, drm_data.crtc.obj_id, cursor.x, cursor.y);
+            if (!logged) {
+                g_message("legacy cursor: SetCursor=%d MoveCursor=%d (crtc %u, handle %u, %ux%u, pos %u,%u)",
+                          sret, mret, drm_data.crtc.obj_id, cursor.cursor->handle,
+                          cursor.cursor->width, cursor.cursor->height, cursor.x, cursor.y);
+                logged = TRUE;
+            }
+            cursor.armed = (sret == 0);
+        } else
+            kms_plane_set(cursor.plane, cursor.cursor, cursor.x, cursor.y);
+    }
 }
 
 static void
@@ -1540,7 +1615,8 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
         return FALSE;
     }
 
-    if (self->draw_cursor) {
+    const char *cursor_env = g_getenv ("COG_PLATFORM_DRM_CURSOR");
+    if (self->draw_cursor && !(cursor_env && strcmp (cursor_env, "sw") == 0)) {
         if (!init_cursor ()) {
             g_warning ("Failed to initialize cursor");
         }
@@ -1578,6 +1654,21 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
                                                       drm_data.mode,
                                                       drm_data.atomic_modesetting);
     }
+    if (cursor_env && strcmp (cursor_env, "sw") == 0) {
+        if (g_strcmp0 (self->renderer->name, "modeset") == 0) {
+            unsigned scr_w = 0, scr_h = 0;
+            if (cog_drm_modeset_renderer_sw_cursor_enable (self->renderer, cursor_scale(), &scr_w, &scr_h)) {
+                cursor.software = TRUE;
+                cursor.enabled = TRUE;
+                /* cursor position and screen bounds are established
+                 * centrally by init_input() from the selected mode */
+                sw_cursor_renderer = self->renderer;
+                g_message ("software cursor enabled (%ux%u)", scr_w, scr_h);
+            }
+        } else
+            g_warning ("software cursor requires the modeset renderer");
+    }
+
     if (cog_drm_renderer_supports_rotation(self->renderer, self->rotation)) {
         cog_drm_renderer_set_rotation(self->renderer, self->rotation);
     } else {
