@@ -5,7 +5,7 @@ drm_platform_plugin = shared_module('cogplatform-drm',
     'cog-drm-modeset-renderer.c',
     'kms.c',
     'cursor-drm.c',
-    c_args: ['-DG_LOG_DOMAIN="Cog-DRM"'],
+    c_args: platform_c_args + ['-DG_LOG_DOMAIN="Cog-DRM"'],
     dependencies: [
         cogplatformcommon_dep,
         wpebackend_fdo_dep,

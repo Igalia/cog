@@ -887,7 +887,7 @@ cog_x11_platform_setup(CogPlatform *platform, CogShell *shell G_GNUC_UNUSED, con
     s_display = calloc (sizeof (struct CogX11Display), 1);
     s_window = calloc (sizeof (struct CogX11Window), 1);
 
-    if (!wpe_loader_init ("libWPEBackend-fdo-1.0.so")) {
+    if (!wpe_loader_init (COG_WPEBACKEND_FDO_LIBRARY)) {
         g_set_error_literal (error,
                              COG_PLATFORM_WPE_ERROR,
                              COG_PLATFORM_WPE_ERROR_INIT,

@@ -1524,7 +1524,7 @@ cog_drm_platform_setup(CogPlatform *platform, CogShell *shell, const char *param
     init_config(COG_DRM_PLATFORM(platform), shell, params);
     g_signal_connect(shell, "notify::device-scale-factor", G_CALLBACK(cog_drm_platform_shell_device_factor_changed), NULL);
 
-    if (!wpe_loader_init ("libWPEBackend-fdo-1.0.so")) {
+    if (!wpe_loader_init (COG_WPEBACKEND_FDO_LIBRARY)) {
         g_set_error_literal (error,
                              COG_PLATFORM_WPE_ERROR,
                              COG_PLATFORM_WPE_ERROR_INIT,

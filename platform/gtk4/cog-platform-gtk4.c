@@ -674,7 +674,7 @@ cog_gtk4_platform_setup(CogPlatform *platform, CogShell *shell, const char *para
 {
     g_assert_nonnull(platform);
 
-    wpe_loader_init("libWPEBackend-fdo-1.0.so");
+    wpe_loader_init(COG_WPEBACKEND_FDO_LIBRARY);
     if (!gtk_init_check()) {
         g_set_error_literal(error, COG_PLATFORM_EGL_ERROR, 0,
             "GTK initialization failed");
