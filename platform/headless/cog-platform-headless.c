@@ -117,7 +117,7 @@ cog_headless_platform_setup(CogPlatform* platform, CogShell* shell G_GNUC_UNUSED
 {
     CogHeadlessPlatform *self = COG_HEADLESS_PLATFORM(platform);
 
-    wpe_loader_init("libWPEBackend-fdo-1.0.so");
+    wpe_loader_init(COG_WPEBACKEND_FDO_LIBRARY);
     wpe_fdo_initialize_shm();
 
     if (params && params[0] != '\0') {

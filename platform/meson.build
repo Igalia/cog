@@ -29,7 +29,12 @@ if libportal_usable and not get_option('libportal').disabled()
 else
     libportal_dep = disabler()
 endif
-platform_c_args = ['-DCOG_HAVE_LIBPORTAL=@0@'.format(libportal_dep.found().to_int())]
+platform_c_args = [
+    '-DCOG_HAVE_LIBPORTAL=@0@'.format(libportal_dep.found().to_int()),
+    # Use the runtime SONAME: the unversioned .so symlink is usually only
+    # shipped in development packages.
+    '-DCOG_WPEBACKEND_FDO_LIBRARY="libWPEBackend-fdo-1.0.so.1"',
+]
 
 if libcommon_needed
     subdir('common')
